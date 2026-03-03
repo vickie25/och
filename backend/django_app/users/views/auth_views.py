@@ -1,0 +1,2184 @@
+"""
+Authentication views for signup, login, MFA, SSO, etc.
+"""
+import os
+import logging
+from rest_framework import status, permissions
+
+logger = logging.getLogger(__name__)
+from rest_framework.permissions import AllowAny
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from django.contrib.auth import authenticate
+from django.utils import timezone
+from django.conf import settings
+from django.db import transaction
+from django.db.models import Case, When, Value, IntegerField
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView
+
+from users.models import User, UserRole
+from users.audit_models import AuditLog
+from users.serializers import (
+    UserSerializer,
+    SignupSerializer,
+    LoginSerializer,
+    MagicLinkRequestSerializer,
+    MFAEnrollSerializer,
+    MFAVerifySerializer,
+    MFACompleteSerializer,
+    RefreshTokenSerializer,
+    ConsentUpdateSerializer,
+    PasswordResetRequestSerializer,
+    PasswordResetConfirmSerializer,
+)
+from users.utils.auth_utils import (
+    create_mfa_code,
+    verify_mfa_code,
+    create_user_session,
+    verify_refresh_token,
+    rotate_refresh_token,
+    revoke_session,
+    check_device_trust,
+    trust_device,
+    encrypt_totp_secret,
+    decrypt_totp_secret,
+    verify_mfa_challenge,
+    hash_refresh_token,
+    generate_totp_backup_codes,
+)
+from users.utils.email_utils import send_onboarding_email
+from users.utils.risk_utils import calculate_risk_score, requires_mfa
+from users.utils.consent_utils import (
+    get_user_consent_scopes,
+    grant_consent,
+    revoke_consent,
+    get_consent_scopes_for_token,
+)
+from users.auth_models import MFAMethod, UserSession
+from services.email_service import email_service
+
+
+def _get_client_ip(request):
+    """Get client IP address from request."""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
+
+
+def _assign_user_role(user, role_name='student'):
+    """
+    Assign specified role to new user during onboarding.
+    Defaults to 'student' if role not specified or invalid.
+    """
+    from users.models import Role, UserRole
+
+    # Map role names to ensure valid roles
+    role_mapping = {
+        'student': 'student',
+        'mentee': 'student',  # mentee maps to student role
+        'mentor': 'mentor',
+        'admin': 'admin',
+        'program_director': 'program_director',
+        'director': 'program_director',  # director maps to program_director
+        'sponsor': 'sponsor_admin',
+        'sponsor_admin': 'sponsor_admin',
+        'employer': 'employer',
+        'analyst': 'analyst',
+        'finance': 'finance',
+        'support': 'support',
+    }
+
+    # Get the mapped role name, default to student
+    mapped_role = role_mapping.get(role_name, 'student')
+
+    try:
+        role = Role.objects.get(name=mapped_role)
+    except Role.DoesNotExist:
+        # Create role if it doesn't exist (fallback for student)
+        if mapped_role == 'student':
+            role = Role.objects.create(
+                name='student',
+                display_name='Student',
+                description='Primary user role for students in the OCH ecosystem',
+                is_system_role=True
+            )
+        else:
+            # For other roles, default to student if role doesn't exist
+            print(f'Warning: Role {mapped_role} not found, assigning student role')
+            role = Role.objects.get_or_create(
+                name='student',
+                defaults={
+                    'display_name': 'Student',
+                    'description': 'Primary user role for students in the OCH ecosystem',
+                    'is_system_role': True
+                }
+            )[0]
+
+    UserRole.objects.get_or_create(
+        user=user,
+        role=role,
+        scope='global',
+        defaults={'is_active': True}
+    )
+
+    # Keep is_mentor flag in sync for mentor role so that mentor-only
+    # queries (e.g. cohort mentor assignment, auto-match) work correctly.
+    if mapped_role == 'mentor' and not getattr(user, 'is_mentor', False):
+        user.is_mentor = True
+        user.save(update_fields=['is_mentor'])
+
+    print(f'Assigned role {role.name} to user {user.email}')
+
+# Backward compatibility
+def _assign_default_student_role(user):
+    """Legacy function - now uses _assign_user_role"""
+    _assign_user_role(user, 'student')
+
+
+def _log_audit_event(user, action, resource_type, result='success', metadata=None):
+    """Log audit event."""
+    AuditLog.objects.create(
+        user=user,
+        actor_type='user',
+        actor_identifier=user.email if user else 'anonymous',
+        action=action,
+        resource_type=resource_type,
+        result=result,
+        metadata=metadata or {},
+        timestamp=timezone.now(),
+    )
+
+
+class SignupView(APIView):
+    """
+    POST /api/v1/auth/signup
+    Create account (email + password or passwordless).
+    """
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        serializer = SignupSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        data = serializer.validated_data
+        
+        # Check if user already exists
+        if User.objects.filter(email=data['email']).exists():
+            return Response(
+                {'detail': 'User with this email already exists'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create user
+        if data.get('passwordless'):
+            # Passwordless signup - create user without password
+            user = User.objects.create_user(
+                email=data['email'],
+                username=data['email'],  # Use email as username
+                first_name=data['first_name'],
+                last_name=data['last_name'],
+                country=data.get('country'),
+                timezone=data.get('timezone', 'UTC'),
+                language=data.get('language', 'en'),
+                cohort_id=data.get('cohort_id'),
+                track_key=data.get('track_key'),
+                password=None,  # No password for passwordless
+                # Student onboarding fields
+                preferred_learning_style=data.get('preferred_learning_style'),
+                career_goals=data.get('career_goals'),
+                cyber_exposure_level=data.get('cyber_exposure_level'),
+            )
+            # Set organization if provided
+            if data.get('org_id'):
+                from organizations.models import Organization
+                try:
+                    org = Organization.objects.get(id=data['org_id'])
+                    user.org_id = org
+                    user.save(update_fields=['org_id'])
+                except Organization.DoesNotExist:
+                    logger.warning(f"Organization {data['org_id']} not found during signup for {data['email']}")
+            user.set_unusable_password()
+            user.account_status = 'pending_verification'
+            user.save()
+
+            # Assign role based on signup data (defaults to student)
+            requested_role = data.get('role', 'student')
+            _assign_user_role(user, requested_role)
+            
+            # For passwordless self-registration, send the same onboarding email
+            # used for director enrollment so the flow is consistent:
+            #   email → setup password → MFA / profiling.
+            try:
+                send_onboarding_email(user)
+            except Exception as e:
+                # Log email failure but don't block account creation
+                logger.warning(f"Failed to send onboarding email to {user.email} during signup: {str(e)}")
+            
+            _log_audit_event(user, 'create', 'user', 'success', {'method': 'passwordless'})
+            
+            return Response(
+                {
+                    'detail': 'Account created. Please check your email to complete onboarding.',
+                    'user_id': user.id,
+                },
+                status=status.HTTP_201_CREATED
+            )
+        else:
+            # Email + password signup
+            user = User.objects.create_user(
+                email=data['email'],
+                username=data['email'],
+                password=data['password'],
+                first_name=data['first_name'],
+                last_name=data['last_name'],
+                country=data.get('country'),
+                timezone=data.get('timezone', 'UTC'),
+                language=data.get('language', 'en'),
+                cohort_id=data.get('cohort_id'),
+                track_key=data.get('track_key'),
+                # Student onboarding fields
+                preferred_learning_style=data.get('preferred_learning_style'),
+                career_goals=data.get('career_goals'),
+                cyber_exposure_level=data.get('cyber_exposure_level'),
+            )
+            # Set organization if provided
+            if data.get('org_id'):
+                from organizations.models import Organization
+                try:
+                    org = Organization.objects.get(id=data['org_id'])
+                    user.org_id = org
+                    user.save(update_fields=['org_id'])
+                except Organization.DoesNotExist:
+                    logger.warning(f"Organization {data['org_id']} not found during signup for {data['email']}")
+
+            # Assign role based on signup data (defaults to student)
+            requested_role = data.get('role', 'student')
+            _assign_user_role(user, requested_role)
+
+            # If invited (has cohort_id/track_key), activate immediately
+            if data.get('cohort_id') or data.get('track_key'):
+                user.activate()
+            else:
+                # Send verification email with OTP (non-blocking)
+                try:
+                    code, mfa_code = create_mfa_code(user, method='email', expires_minutes=60)
+                    from users.utils.email_utils import send_verification_email
+                    from django.conf import settings
+                    frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+                    verification_url = f"{frontend_url}/auth/verify-email?code={code}&email={user.email}"
+                    send_verification_email(user, verification_url)
+                except Exception as e:
+                    # Log email failure but don't block signup
+                    logger.warning(f"Failed to send verification email to {user.email}: {str(e)}")
+            
+            _log_audit_event(user, 'create', 'user', 'success', {'method': 'email_password'})
+            
+            # Get frontend URL with fallback
+            frontend_url = getattr(settings, 'FRONTEND_URL', None)
+            if not frontend_url:
+                # Hardcoded fallback if settings.FRONTEND_URL is not available
+                frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+
+            return Response(
+                {
+                    'detail': 'Account created successfully! Please complete your AI profiling to get matched with the right OCH track.',
+                    'user_id': user.id,
+                    'redirect_url': f"{frontend_url}/onboarding/ai-profiler",
+                    'requires_profiling': True,
+                },
+                status=status.HTTP_201_CREATED
+            )
+
+
+class SimpleLoginView(APIView):
+    """
+    POST /api/v1/auth/login/simple
+    Simplified login for development/testing.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        data = serializer.validated_data
+        email = data['email']
+        password = data.get('password')
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {'detail': 'Invalid credentials'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # Check account status
+        if user.account_status != 'active':
+            return Response(
+                {'detail': f'Account is {user.account_status}'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if not user.is_active:
+            return Response(
+                {'detail': 'Account is inactive'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Simple password check
+        if password and user.check_password(password):
+            # Create JWT tokens
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+            refresh_token = str(refresh)
+
+            return Response({
+                'user': {
+                    'id': str(user.id),
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'account_status': user.account_status,
+                },
+                'access_token': access_token,
+                'refresh_token': refresh_token,
+                'message': 'Login successful'
+            })
+        else:
+            return Response(
+                {'detail': 'Invalid credentials'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+
+@method_decorator(csrf_exempt, name='dispatch')
+class LoginView(APIView):
+    """
+    POST /api/v1/auth/login
+    Login with email+password or passwordless code.
+    """
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        data = serializer.validated_data
+        email = (data['email'] or '').strip().lower()
+        password = data.get('password')
+        code = data.get('code')
+        device_fingerprint = data.get('device_fingerprint', 'unknown')
+        device_name = data.get('device_name', 'Unknown Device')
+        
+        if not email:
+            return Response(
+                {'detail': 'Email is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            _log_audit_event(None, 'login', 'user', 'failure', {'email': email})
+            return Response(
+                {'detail': 'Invalid credentials'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        # Check account status and active status
+        # Allow pending_verification users to login (they need to complete onboarding)
+        # Block suspended, deactivated, and erased accounts
+        if user.account_status not in ['active', 'pending_verification']:
+            return Response(
+                {'detail': f'Account is {user.account_status}. Please contact support.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Check if user is active (Django's is_active flag)
+        if not user.is_active:
+            _log_audit_event(user, 'login', 'user', 'failure', {'reason': 'inactive_user'})
+            return Response(
+                {'detail': 'Account is inactive. Please contact support.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Authenticate
+        if code:
+            # Passwordless login
+            if not verify_mfa_code(user, code, method='magic_link'):
+                _log_audit_event(user, 'login', 'user', 'failure', {'method': 'passwordless'})
+                return Response(
+                    {'detail': 'Invalid or expired code'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+        elif password:
+            # Password login
+            if not user.check_password(password):
+                _log_audit_event(user, 'login', 'user', 'failure', {'method': 'password'})
+                return Response(
+                    {'detail': 'Invalid credentials'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            
+            # Auto-activate account if user has password but account is still pending_verification
+            # This handles users who set password before the auto-activation logic was added
+            if user.account_status == 'pending_verification' and user.has_usable_password():
+                # Automatically verify email and activate account
+                if not user.email_verified:
+                    user.email_verified = True
+                    user.email_verified_at = timezone.now()
+                    logger.info(f"Email automatically verified for user {user.email} during login (legacy account)")
+                
+                user.account_status = 'active'
+                user.is_active = True
+                if not user.activated_at:
+                    user.activated_at = timezone.now()
+                user.save()
+                logger.info(f"Account activated for user {user.email} during login (legacy account with password)")
+        else:
+            return Response(
+                {'detail': 'Password or code required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Calculate risk score
+        ip_address = _get_client_ip(request)
+        user_agent = request.META.get('HTTP_USER_AGENT', '')
+        risk_score = calculate_risk_score(user, ip_address, device_fingerprint, user_agent)
+        
+        # Check if device is trusted
+        device_trusted = check_device_trust(user, device_fingerprint)
+        
+        # In development, auto-trust device for test users
+        from django.conf import settings
+        if settings.DEBUG and user.email.endswith('@test.com') and not device_trusted:
+            from users.utils.auth_utils import _detect_device_type
+            device_type = _detect_device_type(user_agent)
+            trust_device(user, device_fingerprint, device_name, device_type, ip_address, user_agent, expires_days=365)
+            device_trusted = True
+        
+        # Check MFA requirement (mandatory for Finance/Finance Admin/Admin when MFA enabled)
+        user_roles = UserRole.objects.filter(user=user, is_active=True).select_related('role')
+        user_role_names = [ur.role.name for ur in user_roles]
+        
+        # Determine primary role (priority: admin > program_director > mentor > student)
+        role_priority = ['admin', 'program_director', 'mentor', 'student']
+        primary_role = next((r for r in role_priority if r in user_role_names), user_role_names[0] if user_role_names else 'student')
+        
+        high_risk_roles = ['finance', 'finance_admin', 'admin']
+
+        # Only require MFA when at least one MFA method is configured and enabled.
+        # This avoids blocking login with \"MFA required\" for users who have MFA toggled on
+        # but haven't completed enrollment (no active MFAMethod yet).
+        has_mfa_method = MFAMethod.objects.filter(user=user, enabled=True).exists()
+        mfa_required = (requires_mfa(risk_score, primary_role, user) or user.mfa_enabled) and has_mfa_method
+        
+        # If MFA required and not verified, return MFA challenge
+        if mfa_required and not device_trusted:
+            # Create temporary session for MFA verification; return refresh_token so client can complete MFA then refresh
+            access_token, refresh_token, session = create_user_session(
+                user=user,
+                device_fingerprint=device_fingerprint,
+                device_name=device_name,
+                ip_address=ip_address,
+                user_agent=user_agent
+            )
+            # User's enabled MFA method types (priority order: TOTP, email, SMS)
+            enabled_types = set(
+                MFAMethod.objects.filter(user=user, enabled=True)
+                .values_list('method_type', flat=True)
+            )
+            mfa_priority = ['totp', 'email', 'sms']
+            preferred = next((m for m in mfa_priority if m in enabled_types), 'totp')
+            return Response(
+                {
+                    'detail': 'MFA required',
+                    'mfa_required': True,
+                    'session_id': str(session.id),
+                    'refresh_token': refresh_token,
+                    'mfa_method': preferred,
+                    'mfa_methods_available': [m for m in mfa_priority if m in enabled_types],
+                    'primary_role': primary_role,
+                },
+                status=status.HTTP_200_OK
+            )
+        
+        # Create session and issue tokens
+        access_token, refresh_token, session = create_user_session(
+            user=user,
+            device_fingerprint=device_fingerprint,
+            device_name=device_name,
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+        
+        # Trust device if requested and MFA verified
+        if device_trusted or not mfa_required:
+            trust_device(user, device_fingerprint, device_name, session.device_type, ip_address, user_agent)
+        
+        # Get consent scopes for token
+        consent_scopes = get_consent_scopes_for_token(user)
+        
+        # Update user last login
+        user.last_login = timezone.now()
+        user.last_login_ip = ip_address
+        user.save()
+        
+        # Check if profiling is required (mandatory Tier 0 gateway for students/mentees)
+        profiling_required = False
+        user_roles = UserRole.objects.filter(user=user, is_active=True)
+        user_role_names = [ur.role.name for ur in user_roles]
+        
+        # Profiling is mandatory for students and mentees
+        if 'student' in user_role_names or 'mentee' in user_role_names:
+            if not user.profiling_complete:
+                profiling_required = True
+        
+        _log_audit_event(user, 'login', 'user', 'success', {
+            'method': 'passwordless' if code else 'password',
+            'risk_score': risk_score,
+            'mfa_required': mfa_required,
+            'profiling_required': profiling_required,
+        })
+        
+        response = Response({
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user': UserSerializer(user).data,
+            'consent_scopes': consent_scopes,
+            'profiling_required': profiling_required,
+            'primary_role': primary_role,
+        }, status=status.HTTP_200_OK)
+        
+        # Set refresh token as httpOnly cookie
+        response.set_cookie(
+            'refresh_token',
+            refresh_token,
+            max_age=30 * 24 * 60 * 60,  # 30 days
+            httponly=True,
+            secure=not settings.DEBUG,  # Secure in production
+            samesite='Lax',
+        )
+        
+        return response
+
+
+class MagicLinkView(APIView):
+    """
+    POST /api/v1/auth/login/magic-link
+    Request magic link for passwordless login.
+    """
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        serializer = MagicLinkRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        email = serializer.validated_data['email']
+        
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # Don't reveal if user exists
+            return Response(
+                {'detail': 'If an account exists, a magic link has been sent.'},
+                status=status.HTTP_200_OK
+            )
+        
+        # Generate magic link code
+        code, mfa_code = create_mfa_code(user, method='magic_link', expires_minutes=10)
+        
+        # Send email with magic link
+        from users.utils.email_utils import send_magic_link_email
+        from django.conf import settings
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+        magic_link_url = f"{frontend_url}/auth/verify?code={code}&email={email}"
+        send_magic_link_email(user, code, magic_link_url)
+        
+        _log_audit_event(user, 'mfa_challenge', 'user', 'success', {'method': 'magic_link'})
+        
+        return Response(
+            {'detail': 'Magic link sent to your email'},
+            status=status.HTTP_200_OK
+        )
+
+
+class MFAEnrollView(APIView):
+    """
+    POST /api/v1/auth/mfa/enroll
+    Enroll in MFA (TOTP, SMS, or Email).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = MFAEnrollSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        method = serializer.validated_data['method']
+        user = request.user
+
+        if method == 'totp':
+            import pyotp
+            secret = pyotp.random_base32()
+            secret_stored = encrypt_totp_secret(secret)
+
+            mfa_method, created = MFAMethod.objects.update_or_create(
+                user=user,
+                method_type='totp',
+                defaults={
+                    'secret_encrypted': secret_stored,
+                    'enabled': False,
+                    'totp_backup_codes': [],
+                }
+            )
+
+            totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
+                name=user.email,
+                issuer_name='Ongoza CyberHub'
+            )
+
+            _log_audit_event(user, 'mfa_enroll', 'mfa', 'success', {'method': 'totp'})
+
+            return Response({
+                'mfa_method_id': str(mfa_method.id),
+                'secret': secret,
+                'qr_code_uri': totp_uri,
+            }, status=status.HTTP_201_CREATED)
+
+        if method == 'sms':
+            phone_number = (serializer.validated_data.get('phone_number') or '').strip()
+            if not phone_number:
+                return Response(
+                    {'detail': 'phone_number required for SMS MFA'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            phone_e164 = phone_number if phone_number.startswith('+') else f'+{phone_number}'
+            code, _ = create_mfa_code(user, method='sms', expires_minutes=10)
+            from users.utils.sms_utils import send_sms_otp
+            sent = send_sms_otp(phone_e164, code)
+            if not sent:
+                return Response(
+                    {'detail': 'Failed to send SMS. Check phone number and SMS configuration.'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+            MFAMethod.objects.update_or_create(
+                user=user,
+                method_type='sms',
+                defaults={
+                    'phone_e164': phone_e164,
+                    'enabled': False,
+                    'is_verified': False,
+                }
+            )
+            _log_audit_event(user, 'mfa_enroll', 'mfa', 'success', {'method': 'sms'})
+            return Response(
+                {'detail': 'SMS code sent. Call POST /auth/mfa/verify with method=sms and the code to enable.'},
+                status=status.HTTP_201_CREATED
+            )
+
+        if method == 'email':
+            code, _ = create_mfa_code(user, method='email', expires_minutes=10)
+            from users.utils.email_utils import send_otp_email
+            send_otp_email(user, code)
+            MFAMethod.objects.update_or_create(
+                user=user,
+                method_type='email',
+                defaults={
+                    'enabled': False,
+                    'is_verified': False,
+                }
+            )
+            _log_audit_event(user, 'mfa_enroll', 'mfa', 'success', {'method': 'email'})
+            return Response(
+                {'detail': 'Verification code sent to your email. Call POST /auth/mfa/verify with method=email and the code to enable.'},
+                status=status.HTTP_201_CREATED
+            )
+
+        return Response(
+            {'detail': f'MFA method {method} not supported'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+class MFAVerifyView(APIView):
+    """
+    POST /api/v1/auth/mfa/verify
+    Verify MFA code.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        serializer = MFAVerifySerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        code = serializer.validated_data['code']
+        method = serializer.validated_data['method']
+        user = request.user
+        
+        # SMS/Email enrollment verification (pending method)
+        if method in ('sms', 'email'):
+            mfa_method = MFAMethod.objects.filter(
+                user=user,
+                method_type=method,
+                enabled=False
+            ).first()
+            if mfa_method and verify_mfa_code(user, code, method):
+                mfa_method.enabled = True
+                mfa_method.is_verified = True
+                mfa_method.verified_at = timezone.now()
+                mfa_method.is_primary = True
+                mfa_method.save()
+                user.mfa_enabled = True
+                user.mfa_method = method
+                user.save()
+                _log_audit_event(user, 'mfa_success', 'mfa', 'success', {'method': method})
+                return Response({'detail': f'MFA enabled successfully ({method})'}, status=status.HTTP_200_OK)
+            if mfa_method:
+                _log_audit_event(user, 'mfa_failure', 'mfa', 'failure', {'method': method})
+                return Response({'detail': 'Invalid or expired code'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Verify code
+        if method == 'totp':
+            import pyotp
+            from users.utils.auth_utils import generate_totp_backup_codes, verify_totp_backup_code
+
+            mfa_method = MFAMethod.objects.filter(
+                user=user,
+                method_type='totp',
+                enabled=False
+            ).first()
+
+            if mfa_method:
+                secret = decrypt_totp_secret(mfa_method.secret_encrypted)
+                totp = pyotp.TOTP(secret)
+                if totp.verify(code, valid_window=1):
+                    backup_codes, hashed_backup_codes = generate_totp_backup_codes(count=10)
+                    mfa_method.totp_backup_codes = hashed_backup_codes
+                    mfa_method.enabled = True
+                    mfa_method.is_verified = True
+                    mfa_method.verified_at = timezone.now()
+                    mfa_method.is_primary = True
+                    mfa_method.save()
+                    user.mfa_enabled = True
+                    user.mfa_method = 'totp'
+                    user.save()
+                    _log_audit_event(user, 'mfa_success', 'mfa', 'success', {'method': 'totp'})
+                    return Response({
+                        'detail': 'MFA enabled successfully',
+                        'backup_codes': backup_codes,
+                    }, status=status.HTTP_200_OK)
+                _log_audit_event(user, 'mfa_failure', 'mfa', 'failure', {'method': 'totp'})
+                return Response({'detail': 'Invalid TOTP code'}, status=status.HTTP_400_BAD_REQUEST)
+
+            mfa_method = MFAMethod.objects.filter(
+                user=user,
+                method_type='totp',
+                enabled=True
+            ).first()
+            if not mfa_method:
+                return Response(
+                    {'detail': 'TOTP not enabled for this account'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            secret = decrypt_totp_secret(mfa_method.secret_encrypted)
+            totp = pyotp.TOTP(secret)
+            if totp.verify(code, valid_window=1):
+                mfa_method.last_used_at = timezone.now()
+                mfa_method.save()
+                _log_audit_event(user, 'mfa_success', 'mfa', 'success', {'method': 'totp'})
+                return Response({'detail': 'MFA verified'}, status=status.HTTP_200_OK)
+            if verify_totp_backup_code(user, code):
+                _log_audit_event(user, 'mfa_success', 'mfa', 'success', {'method': 'backup_code'})
+                return Response({'detail': 'MFA verified with backup code'}, status=status.HTTP_200_OK)
+            _log_audit_event(user, 'mfa_failure', 'mfa', 'failure', {'method': 'totp'})
+            return Response(
+                {'detail': 'Invalid TOTP code or backup code'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Regular SMS/email verification (already enrolled)
+        if method in ('sms', 'email') and verify_mfa_code(user, code, method):
+            _log_audit_event(user, 'mfa_success', 'mfa', 'success', {'method': method})
+            return Response({'detail': 'MFA verified successfully'}, status=status.HTTP_200_OK)
+
+        _log_audit_event(user, 'mfa_failure', 'mfa', 'failure', {'method': method})
+        return Response(
+            {'detail': 'Invalid or expired code'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+class MFASendChallengeView(APIView):
+    """
+    POST /api/v1/auth/mfa/send-challenge
+    Send MFA code (SMS or email). Optional body: method=email|sms to choose channel when user has both.
+    Call with refresh_token from login (mfa_required) response.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        refresh_token = request.data.get('refresh_token') or request.COOKIES.get('refresh_token')
+        if not refresh_token:
+            return Response(
+                {'detail': 'refresh_token required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        session, user = verify_refresh_token(refresh_token)
+        if not session or not user:
+            return Response(
+                {'detail': 'Invalid or expired session'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        if session.mfa_verified:
+            return Response(
+                {'detail': 'MFA already verified'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        requested = (request.data.get('method') or '').strip().lower()
+        method = (user.mfa_method or '').lower()
+        has_sms = MFAMethod.objects.filter(user=user, method_type='sms', enabled=True).exists()
+        has_email = MFAMethod.objects.filter(user=user, method_type='email', enabled=True).exists()
+        if requested in ('sms', 'email'):
+            if requested == 'sms' and has_sms:
+                method = 'sms'
+            elif requested == 'email' and has_email:
+                method = 'email'
+            elif requested == 'sms' and not has_sms:
+                return Response(
+                    {'detail': 'SMS is not set up for your account. Use email or another method.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            elif requested == 'email' and not has_email:
+                return Response(
+                    {'detail': 'Email code is not set up for your account. Use SMS or another method.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        if method not in ('sms', 'email'):
+            return Response(
+                {'detail': 'Send challenge only for SMS or email MFA. Use TOTP or backup code.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        code, _ = create_mfa_code(user, method=method, expires_minutes=10)
+        if method == 'sms':
+            mfa_method = MFAMethod.objects.filter(user=user, method_type='sms', enabled=True).first()
+            if not mfa_method or not mfa_method.phone_e164:
+                return Response(
+                    {'detail': 'SMS MFA not configured'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            from users.utils.sms_utils import send_sms_otp
+            sent = send_sms_otp(mfa_method.phone_e164, code)
+            if not sent:
+                return Response(
+                    {'detail': 'Failed to send SMS'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+        else:
+            from users.utils.email_utils import send_otp_email
+            send_otp_email(user, code)
+        _log_audit_event(user, 'mfa_challenge', 'user', 'success', {'method': method})
+        return Response(
+            {'detail': f'Verification code sent via {method}'},
+            status=status.HTTP_200_OK
+        )
+
+
+class MFACompleteView(APIView):
+    """
+    POST /api/v1/auth/mfa/complete
+    Complete MFA after login: verify code and return tokens.
+    Call with refresh_token from login (mfa_required) response.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = MFACompleteSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        refresh_token = serializer.validated_data['refresh_token']
+        code = serializer.validated_data['code']
+        method = serializer.validated_data['method']
+
+        session, user = verify_refresh_token(refresh_token)
+        if not session or not user:
+            return Response(
+                {'detail': 'Invalid or expired session. Please log in again.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        if session.mfa_verified:
+            return Response(
+                {'detail': 'MFA already verified for this session'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not verify_mfa_challenge(user, code, method):
+            _log_audit_event(user, 'mfa_failure', 'mfa', 'failure', {'method': method})
+            return Response(
+                {'detail': 'Invalid or expired code'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        _log_audit_event(user, 'mfa_success', 'mfa', 'success', {'method': method})
+
+        session.mfa_verified = True
+        refresh = RefreshToken.for_user(user)
+        new_refresh_str = str(refresh)
+        session.refresh_token_hash = hash_refresh_token(new_refresh_str)
+        session.save()
+
+        trust_device(
+            user,
+            session.device_fingerprint,
+            session.device_name,
+            session.device_type or 'desktop',
+            session.ip_address,
+            session.ua,
+        )
+
+        consent_scopes = get_consent_scopes_for_token(user)
+        user.last_login = timezone.now()
+        user.save()
+
+        response = Response({
+            'access_token': str(refresh.access_token),
+            'refresh_token': new_refresh_str,
+            'user': UserSerializer(user).data,
+            'consent_scopes': consent_scopes,
+        }, status=status.HTTP_200_OK)
+
+        response.set_cookie(
+            'refresh_token',
+            new_refresh_str,
+            max_age=30 * 24 * 60 * 60,
+            httponly=True,
+            secure=not settings.DEBUG,
+            samesite='Lax',
+        )
+        return response
+
+
+class MFAMethodsListView(APIView):
+    """
+    GET /api/v1/auth/mfa/methods
+    List enabled MFA methods for the current user (for Manage MFA UI).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        # Order: Authenticator (totp) first, then Email, then SMS; primary first within each.
+        methods = (
+            MFAMethod.objects.filter(user=user, enabled=True)
+            .annotate(
+                _order=Case(
+                    When(method_type='totp', then=Value(0)),
+                    When(method_type='email', then=Value(1)),
+                    When(method_type='sms', then=Value(2)),
+                    default=Value(99),
+                    output_field=IntegerField(),
+                )
+            )
+            .order_by('_order', '-is_primary')
+        )
+        user_email = getattr(user, 'email', '') or ''
+        out = []
+        for m in methods:
+            item = {
+                'method_type': m.method_type,
+                'is_primary': m.is_primary,
+            }
+            if m.method_type == 'sms' and m.phone_e164:
+                # Mask phone: +1234567890 -> ***7890
+                s = m.phone_e164
+                item['masked'] = f'***{s[-4:]}' if len(s) >= 4 else '***'
+            elif m.method_type == 'email':
+                # Mask email: a***@domain.com
+                if '@' in user_email:
+                    local, domain = user_email.split('@', 1)
+                    item['masked'] = f'{local[:1]}***@{domain}' if local else f'***@{domain}'
+                else:
+                    item['masked'] = '***'
+            out.append(item)
+        has_totp = MFAMethod.objects.filter(user=user, method_type='totp', enabled=True).exists()
+        return Response({
+            'methods': out,
+            'has_backup_codes': has_totp,
+        }, status=status.HTTP_200_OK)
+
+
+class MFABackupCodesRegenerateView(APIView):
+    """
+    POST /api/v1/auth/mfa/backup-codes/regenerate
+    Regenerate backup codes (invalidates existing ones). Returns new codes for one-time download.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        mfa_method = MFAMethod.objects.filter(
+            user=user,
+            method_type='totp',
+            enabled=True,
+        ).first()
+        if not mfa_method:
+            return Response(
+                {'detail': 'Authenticator app (TOTP) must be enabled to use backup codes.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        backup_codes, hashed_codes = generate_totp_backup_codes(count=10)
+        mfa_method.totp_backup_codes = hashed_codes
+        mfa_method.save()
+        _log_audit_event(user, 'mfa_backup_codes_regenerate', 'mfa', 'success')
+        return Response({'backup_codes': backup_codes}, status=status.HTTP_200_OK)
+
+
+class MFADisableView(APIView):
+    """
+    POST /api/v1/auth/mfa/disable
+    Disable MFA for user.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+
+        if not user.mfa_enabled:
+            return Response(
+                {'detail': 'MFA is not enabled for this account'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Disable all MFA methods
+        from users.auth_models import MFAMethod
+        MFAMethod.objects.filter(user=user, enabled=True).update(
+            enabled=False,
+            is_primary=False
+        )
+        
+        user.mfa_enabled = False
+        user.mfa_method = None
+        user.save()
+        
+        _log_audit_event(user, 'mfa_disable', 'mfa', 'success')
+        
+        return Response({
+            'detail': 'MFA disabled successfully'
+        }, status=status.HTTP_200_OK)
+
+
+class RefreshTokenView(APIView):
+    """
+    POST /api/v1/auth/token/refresh
+    Refresh access token with refresh token.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = RefreshTokenSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        refresh_token = serializer.validated_data.get('refresh_token') or request.COOKIES.get('refresh_token')
+        device_fingerprint = serializer.validated_data.get('device_fingerprint', 'unknown')
+
+        if not refresh_token:
+            return Response(
+                {'detail': 'Refresh token required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        session, user = verify_refresh_token(refresh_token)
+        if session and not session.mfa_verified:
+            return Response(
+                {'detail': 'MFA required', 'mfa_required': True},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        new_access_token, new_refresh_token, session = rotate_refresh_token(
+            refresh_token,
+            device_fingerprint
+        )
+
+        if not session:
+            return Response(
+                {'detail': 'Invalid or expired refresh token'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        response = Response({
+            'access_token': new_access_token,
+            'refresh_token': new_refresh_token,
+        }, status=status.HTTP_200_OK)
+        
+        # Update refresh token cookie
+        response.set_cookie(
+            'refresh_token',
+            new_refresh_token,
+            max_age=30 * 24 * 60 * 60,
+            httponly=True,
+            secure=not settings.DEBUG,
+            samesite='Lax',
+        )
+        
+        return response
+
+
+class LogoutView(APIView):
+    """
+    POST /api/v1/auth/logout
+    Logout and revoke session.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        refresh_token = request.data.get('refresh_token') or request.COOKIES.get('refresh_token')
+        
+        if refresh_token:
+            revoke_session(refresh_token=refresh_token)
+        else:
+            # Revoke all sessions for user
+            revoke_session(user=request.user)
+        
+        _log_audit_event(request.user, 'logout', 'user', 'success')
+        
+        response = Response(
+            {'detail': 'Logged out successfully'},
+            status=status.HTTP_200_OK
+        )
+        
+        # Clear refresh token cookie
+        response.delete_cookie('refresh_token')
+        
+        return response
+
+
+class MeView(APIView):
+    """
+    GET /api/v1/auth/me
+    Get current user profile with roles and consents.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        user = request.user
+        
+        # Check if user is active
+        if not user.is_active:
+            return Response(
+                {'detail': 'Account is inactive. Please contact support.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Check account status
+        # Allow pending_verification users to access their profile during onboarding
+        # Block suspended, deactivated, and erased accounts
+        if user.account_status not in ['active', 'pending_verification']:
+            return Response(
+                {'detail': f'Account is {user.account_status}. Please contact support.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        serializer = UserSerializer(user)
+        
+        # Get roles with scope details
+        roles = []
+        for user_role in user.user_roles.filter(is_active=True).select_related('role'):
+            roles.append({
+                'role': user_role.role.name,
+                'role_display_name': user_role.role.display_name,
+                'scope': user_role.scope,
+                'scope_ref': str(user_role.scope_ref) if user_role.scope_ref else None,
+            })
+        
+        # Get consent scopes
+        consent_scopes = get_user_consent_scopes(user)
+        
+        # Get entitlements
+        entitlements = list(
+            user.entitlements.filter(granted=True, expires_at__isnull=True)
+            .values_list('feature', flat=True)
+        )
+        
+        # Format response to match spec
+        # Example: { "user": {"id":"UUID","email":"martin@och.africa","name":"Martin"}, ... }
+        user_data = serializer.data
+        user_response = {
+            'id': str(user_data.get('id', '')),
+            'email': user_data.get('email', ''),
+            'name': f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip(),
+            # Include profiling and foundations status for frontend redirect logic
+            'profiling_complete': user.profiling_complete,
+            'foundations_complete': user.foundations_complete,
+            # Student's assigned track (from profiler or program); used by curriculum hub to show "your track" and by backend to filter tracks
+            'track_key': getattr(user, 'track_key', None) or user_data.get('track_key'),
+        }
+        
+        # Format consent scopes as list of strings (e.g., ["share_with_mentor","public_portfolio:false"])
+        formatted_consents = []
+        for scope in consent_scopes:
+            formatted_consents.append(scope)
+
+        # Sponsor users: include sponsor_organizations (from org_id or OrganizationMember) so team/invite works
+        sponsor_organizations = []
+        try:
+            from organizations.models import Organization, OrganizationMember
+            sponsor_orgs = list(
+                Organization.objects.filter(
+                    org_type='sponsor',
+                    organizationmember__user=user
+                ).distinct()
+            )
+            if getattr(user, 'org_id', None) and hasattr(user.org_id, 'org_type') and user.org_id.org_type == 'sponsor':
+                if user.org_id not in sponsor_orgs:
+                    sponsor_orgs.append(user.org_id)
+            for org in sponsor_orgs:
+                try:
+                    member = OrganizationMember.objects.get(organization=org, user=user)
+                    role = member.role
+                except OrganizationMember.DoesNotExist:
+                    role = 'admin'
+                sponsor_organizations.append({
+                    'id': str(org.id),
+                    'name': org.name,
+                    'slug': org.slug,
+                    'role': role,
+                })
+        except Exception:
+            pass
+
+        # RBAC: aggregate permission names from all active roles (for sidebar/route visibility)
+        permission_names = set()
+        for user_role in user.user_roles.filter(is_active=True).select_related('role'):
+            for perm in user_role.role.permissions.all().values_list('name', flat=True):
+                permission_names.add(perm)
+        # Staff/superuser get all permissions for UI (backend still enforces)
+        if getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False):
+            from users.models import Permission
+            permission_names = set(Permission.objects.values_list('name', flat=True))
+
+        payload = {
+            'user': user_response,
+            'roles': roles,
+            'permissions': sorted(permission_names),
+            'consent_scopes': formatted_consents,
+            'entitlements': entitlements,
+        }
+        if sponsor_organizations:
+            payload['sponsor_organizations'] = sponsor_organizations
+        return Response(payload, status=status.HTTP_200_OK)
+
+
+class ProfileView(APIView):
+    """
+    GET /api/v1/profile
+    PATCH /api/v1/profile
+    Get or update current user profile with role-specific data.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        user = request.user
+        
+        # Check if user is active
+        if not user.is_active:
+            return Response(
+                {'detail': 'Account is inactive. Please contact support.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Check account status
+        # Allow pending_verification users to access their profile during onboarding
+        # Block suspended, deactivated, and erased accounts
+        if user.account_status not in ['active', 'pending_verification']:
+            return Response(
+                {'detail': f'Account is {user.account_status}. Please contact support.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        serializer = UserSerializer(user)
+        user_data = serializer.data
+        
+        # Get roles with scope details
+        roles = []
+        primary_role = None
+        for user_role in user.user_roles.filter(is_active=True).select_related('role'):
+            role_data = {
+                'role': user_role.role.name,
+                'role_display_name': user_role.role.display_name,
+                'scope': user_role.scope,
+                'scope_ref': str(user_role.scope_ref) if user_role.scope_ref else None,
+            }
+            roles.append(role_data)
+            # Set primary role (first active role, or mentor/student if exists)
+            if not primary_role:
+                primary_role = role_data
+            elif user_role.role.name in ['mentor', 'student', 'mentee']:
+                primary_role = role_data
+        
+        # Get consent scopes
+        consent_scopes = get_user_consent_scopes(user)
+        
+        # Get entitlements
+        entitlements = list(
+            user.entitlements.filter(granted=True, expires_at__isnull=True)
+            .values_list('feature', flat=True)
+        )
+        
+        # Get role-specific data
+        role_specific_data = {}
+        
+        # Mentor-specific data
+        if user.is_mentor:
+            from mentorship_coordination.models import MenteeMentorAssignment
+            active_assignments = MenteeMentorAssignment.objects.filter(
+                mentor=user,
+                status='active'
+            )
+            role_specific_data['mentor'] = {
+                'active_mentees': active_assignments.count(),
+                'total_sessions': 0,  # TODO: Calculate from MentorSession
+                'pending_work_items': 0,  # TODO: Calculate from flags/work items
+                'capacity_weekly': user.mentor_capacity_weekly or 0,
+                'specialties': user.mentor_specialties or [],
+                'availability': user.mentor_availability or {},
+            }
+        
+        # Student/Mentee-specific data
+        student_roles = user.user_roles.filter(
+            role__name__in=['student', 'mentee'],
+            is_active=True
+        )
+        if student_roles.exists():
+            from programs.models import Enrollment
+            enrollment = Enrollment.objects.filter(
+                user=user,
+                status='active'
+            ).select_related('cohort', 'cohort__track').first()
+            
+            role_specific_data['student'] = {
+                'track_name': enrollment.cohort.track.name if enrollment and enrollment.cohort and enrollment.cohort.track else None,
+                'cohort_name': enrollment.cohort.name if enrollment and enrollment.cohort else None,
+                'enrollment_status': enrollment.status if enrollment else None,
+                'enrollment_type': enrollment.enrollment_type if enrollment else None,
+                'seat_type': enrollment.seat_type if enrollment else None,
+                'payment_status': enrollment.payment_status if enrollment else None,
+            }
+        
+        # Director-specific data
+        director_roles = user.user_roles.filter(
+            role__name='program_director',
+            is_active=True
+        )
+        if director_roles.exists():
+            from programs.models import Cohort, Track
+            from programs.services.director_service import DirectorService
+            programs = DirectorService.get_director_programs(user)
+            cohorts_managed = Cohort.objects.filter(track__program__in=programs).count()
+            tracks_managed = Track.objects.filter(program__in=programs).count()
+            
+            role_specific_data['director'] = {
+                'cohorts_managed': cohorts_managed,
+                'tracks_managed': tracks_managed,
+            }
+        
+        # Admin-specific data
+        if user.is_staff:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            total_users = User.objects.count()
+            active_users = User.objects.filter(is_active=True).count()
+            
+            role_specific_data['admin'] = {
+                'total_users': total_users,
+                'active_users': active_users,
+            }
+        
+        # Return comprehensive profile data
+        return Response({
+            **user_data,
+            'roles': roles,
+            'primary_role': primary_role,
+            'consent_scopes': consent_scopes,
+            'entitlements': entitlements,
+            'role_specific_data': role_specific_data,
+        }, status=status.HTTP_200_OK)
+    
+    def patch(self, request):
+        """Update user profile."""
+        user = request.user
+        serializer = UserSerializer(user, data=request.data, partial=True)
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ConsentView(APIView):
+    """
+    POST /api/v1/auth/consents
+    Update consent scopes.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request):
+        serializer = ConsentUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        scope_type = serializer.validated_data['scope_type']
+        granted = serializer.validated_data['granted']
+        expires_at = serializer.validated_data.get('expires_at')
+        
+        if granted:
+            consent = grant_consent(request.user, scope_type, expires_at)
+            _log_audit_event(request.user, 'consent_granted', 'consent', 'success', {'scope': scope_type})
+        else:
+            consent = revoke_consent(request.user, scope_type)
+            _log_audit_event(request.user, 'consent_revoked', 'consent', 'success', {'scope': scope_type})
+        
+        return Response({
+            'detail': f'Consent {scope_type} {"granted" if granted else "revoked"}',
+            'consent': {
+                'scope_type': scope_type,
+                'granted': granted,
+            }
+        }, status=status.HTTP_200_OK)
+
+
+# Account activation and password reset views
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register_user(request):
+    """Register new user with email verification"""
+    try:
+        data = request.data
+        email = data.get('email')
+        password = data.get('password')
+        first_name = data.get('first_name', '')
+        last_name = data.get('last_name', '')
+
+        # Validate required fields
+        if not all([email, password]):
+            return Response(
+                {'error': 'Email and password are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if user already exists
+        if User.objects.filter(email=email).exists():
+            return Response(
+                {'error': 'User with this email already exists'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Create user (inactive until email verified)
+        with transaction.atomic():
+            user = User.objects.create_user(
+                username=email,  # Use email as username
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+                is_active=False  # User inactive until email verified
+            )
+
+            # Generate verification token and get raw token
+            raw_token = user.generate_verification_token()
+
+            # Send activation email with raw token
+            if email_service.send_activation_email(user, raw_token=raw_token):
+                return Response({
+                    'message': 'Registration successful. Please check your email to activate your account.',
+                    'user_id': user.id
+                }, status=status.HTTP_201_CREATED)
+            else:
+                # If email fails, rollback/delete user and return error
+                user.delete()
+                return Response(
+                    {'error': 'Failed to send activation email. Please try again.'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+    except Exception as e:
+        logger.error(f"Registration error: {str(e)}")
+        return Response(
+            {'error': 'Registration failed. Please try again.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_email(request):
+    """Verify user email with token or code (OTP)"""
+    
+    try:
+        token = request.data.get('token')
+        code = request.data.get('code')
+        email = request.data.get('email')
+
+        # Handle code-based verification (OTP flow from SignupView)
+        if code and email:
+            try:
+                # Case-insensitive email lookup
+                user = User.objects.filter(email__iexact=email).first()
+                if not user:
+                    logger.warning(f"Verification attempt with non-existent email: {email}")
+                    return Response(
+                        {'error': 'Invalid verification code or email'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except Exception as e:
+                logger.error(f"Error looking up user for email {email}: {str(e)}")
+                return Response(
+                    {'error': 'Invalid verification code or email'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Verify the OTP code (strip whitespace and ensure string)
+            code = str(code).strip()
+            
+            # Check if user is already active
+            if user.is_active and user.email_verified:
+                return Response({
+                    'message': 'Your email is already verified. You can log in.',
+                    'user_id': user.id
+                }, status=status.HTTP_200_OK)
+            
+            # Verify the OTP code
+            try:
+                code_valid = verify_mfa_code(user, code, method='email')
+            except Exception as e:
+                logger.error(f"Error verifying MFA code for user {user.email}: {str(e)}")
+                return Response(
+                    {'error': 'Error verifying code. Please try again.'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            if code_valid:
+                # Activate the user account
+                user.is_active = True
+                user.account_status = 'active'
+                user.email_verified = True
+                if not user.activated_at:
+                    user.activated_at = timezone.now()
+                user.email_verified_at = timezone.now()
+                user.save()
+
+                # Send welcome email
+                try:
+                    email_service.send_welcome_email(user)
+                except Exception as e:
+                    logger.warning(f"Failed to send welcome email to {user.email}: {str(e)}")
+                    # Don't fail verification if welcome email fails
+
+                logger.info(f"Email verified successfully for user {user.email} via OTP code")
+                return Response({
+                    'message': 'Email verified successfully. You can now log in.',
+                    'user_id': user.id
+                }, status=status.HTTP_200_OK)
+            else:
+                logger.warning(f"Invalid or expired verification code for user {user.email}")
+                return Response(
+                    {'error': 'Invalid or expired verification code. Please request a new one.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # Handle token-based verification (hashed token system)
+        elif token:
+            # Architecture: Hash incoming token and search database for matching hash
+            import hashlib
+            
+            # Validate token format (should be URL-safe base64, ~43 characters)
+            if not token or len(token) < 32:
+                logger.warning(f"Invalid token format received: {token[:10]}...")
+                return Response(
+                    {'error': 'Invalid verification token format'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Hash the incoming raw token using SHA-256
+            try:
+                token_hash = hashlib.sha256(str(token).encode('utf-8')).hexdigest()
+            except Exception as e:
+                logger.error(f"Error hashing token: {str(e)}")
+                return Response(
+                    {'error': 'Error processing verification token'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            # Find user with matching hash that hasn't expired (primary method)
+            user = User.objects.filter(
+                verification_hash=token_hash,
+                token_expires_at__gt=timezone.now(),
+                is_active=False
+            ).first()
+
+            # If user found with hashed token system
+            if user:
+                logger.info(f"Found user with hashed token: {user.email}")
+                # Verify token using hashed system (this will activate user, set email_verified, and clear hash)
+                if user.verify_email_token(token):
+                    # Refresh user object to get updated fields
+                    user.refresh_from_db()
+
+                    # Send welcome email
+                    try:
+                        email_service.send_welcome_email(user)
+                    except Exception as e:
+                        logger.warning(f"Failed to send welcome email to {user.email}: {str(e)}")
+                        # Don't fail verification if welcome email fails
+
+                    logger.info(f"Email verified successfully for user {user.email} via hashed token")
+                    return Response({
+                        'message': 'Email verified successfully. You can now log in.',
+                        'user_id': user.id
+                    }, status=status.HTTP_200_OK)
+                else:
+                    logger.warning(f"Token verification failed for user {user.email}")
+                    return Response(
+                        {'error': 'Invalid or expired verification token'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Try legacy token system for backward compatibility
+            user = User.objects.filter(
+                email_verification_token=token,
+                is_active=False
+            ).first()
+            
+            if user:
+                logger.info(f"Found user with legacy token: {user.email}")
+                # Use legacy verification
+                if user.verify_email_token(token):
+                    user.is_active = True
+                    user.account_status = 'active'
+                    if not user.activated_at:
+                        user.activated_at = timezone.now()
+                    user.save()
+                    
+                    try:
+                        email_service.send_welcome_email(user)
+                    except Exception as e:
+                        logger.warning(f"Failed to send welcome email to {user.email}: {str(e)}")
+                    
+                    logger.info(f"Email verified successfully for user {user.email} via legacy token")
+                    return Response({
+                        'message': 'Email verified successfully. You can now log in.',
+                        'user_id': user.id
+                    }, status=status.HTTP_200_OK)
+            
+            # Token not found in either system
+            logger.warning(f"Verification token not found: {token_hash[:16]}...")
+            return Response(
+                {'error': 'Invalid or expired verification token. Please request a new activation link.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        else:
+            return Response(
+                {'error': 'Either token or code+email is required for verification'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    except Exception as e:
+        logger.error(f"Email verification error: {str(e)}")
+        return Response(
+            {'error': 'Verification failed. Please try again.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def resend_verification_email(request):
+    """
+    Admin endpoint to resend verification email to a user.
+    """
+    # Check if requester is admin
+    if not request.user.is_staff and not request.user.is_superuser:
+        return Response(
+            {'detail': 'Admin privileges required'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    user_id = request.data.get('user_id')
+    if not user_id:
+        return Response(
+            {'detail': 'user_id is required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response(
+            {'detail': 'User not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    # Check if already verified
+    if user.email_verified:
+        return Response(
+            {'detail': 'Email is already verified'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        # Generate verification code
+        code, mfa_code = create_mfa_code(user, method='email', expires_minutes=60)
+        
+        # Send verification email
+        from users.utils.email_utils import send_verification_email
+        from django.conf import settings
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+        verification_url = f"{frontend_url}/auth/verify-email?code={code}&email={user.email}"
+        send_verification_email(user, verification_url)
+        
+        logger.info(f"Verification email resent to {user.email} by admin {request.user.email}")
+        
+        return Response(
+            {
+                'detail': 'Verification email sent successfully',
+                'email': user.email
+            },
+            status=status.HTTP_200_OK
+        )
+    except Exception as e:
+        logger.error(f"Failed to resend verification email to {user.email}: {str(e)}")
+        return Response(
+            {'detail': f'Failed to send verification email: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def request_password_reset(request):
+    """Request password reset email"""
+    try:
+        email = request.data.get('email')
+
+        if not email:
+            return Response(
+                {'error': 'Email is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user = User.objects.filter(email=email, is_active=True).first()
+
+        if user:
+            # Generate reset token (email service will also generate, but we generate here first to ensure it's set)
+            user.generate_password_reset_token()
+
+            # Send reset email
+            email_sent = email_service.send_password_reset_email(user)
+            
+            # Log the result for debugging
+            logger.info(f"Password reset email send attempt for {email}: {'SUCCESS' if email_sent else 'FAILED'}")
+            
+            if email_sent:
+                return Response({
+                    'message': 'Password reset email sent. Please check your email.'
+                }, status=status.HTTP_200_OK)
+            else:
+                # Log more details but don't expose to user
+                logger.error(f"Failed to send password reset email for {email}. Check email service configuration.")
+                return Response(
+                    {'error': 'Failed to send password reset email. Please check your email service configuration or try again later.'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        else:
+            # Don't reveal if email exists or not for security
+            return Response({
+                'message': 'If an account with this email exists, a password reset link has been sent.'
+            }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.error(f"Password reset request error: {str(e)}")
+        return Response(
+            {'error': 'Password reset request failed. Please try again.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def reset_password(request):
+    """Reset password with token"""
+    try:
+        token = request.data.get('token')
+        new_password = request.data.get('new_password')
+        confirm_password = request.data.get('confirm_password')
+
+        if not all([token, new_password, confirm_password]):
+            return Response(
+                {'error': 'Token, new password, and confirmation are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if new_password != confirm_password:
+            return Response(
+                {'error': 'Passwords do not match'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Find user with this token
+        user = User.objects.filter(
+            password_reset_token=token,
+            is_active=True
+        ).first()
+
+        if not user:
+            return Response(
+                {'error': 'Invalid or expired reset token'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Verify token and update password
+        if user.verify_password_reset_token(token):
+            user.set_password(new_password)
+            user.password_reset_token = None
+            user.password_reset_token_created = None
+            user.save()
+
+            return Response({
+                'message': 'Password reset successfully. You can now log in with your new password.'
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response(
+                {'error': 'Invalid or expired reset token'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    except Exception as e:
+        logger.error(f"Password reset error: {str(e)}")
+        return Response(
+            {'error': 'Password reset failed. Please try again.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def change_password(request):
+    """
+    POST /api/v1/auth/change-password
+    Change password for authenticated user.
+    """
+    user = request.user
+    current_password = request.data.get('current_password')
+    new_password = request.data.get('new_password')
+
+    if not current_password or not new_password:
+        return Response(
+            {'error': 'Both current_password and new_password are required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Verify current password
+    if not user.check_password(current_password):
+        return Response(
+            {'error': 'Current password is incorrect'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Validate new password length
+    if len(new_password) < 8:
+        return Response(
+            {'error': 'New password must be at least 8 characters long'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Set new password
+    user.set_password(new_password)
+    user.save()
+
+    # Log the password change
+    AuditLog.objects.create(
+        user=user,
+        actor_type='user',
+        actor_identifier=user.email,
+        action='password_change',
+        resource_type='user',
+        resource_id=str(user.id),
+        ip_address=request.META.get('REMOTE_ADDR'),
+        user_agent=request.META.get('HTTP_USER_AGENT', ''),
+        metadata={'timestamp': timezone.now().isoformat()},
+        result='success'
+    )
+
+    return Response(
+        {'detail': 'Password changed successfully'},
+        status=status.HTTP_200_OK
+    )
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def check_password_status(request):
+    """
+    GET /api/v1/auth/check-password-status?email=xxx
+    Check if a user has a password set (for onboarding flow).
+    Returns password status without requiring authentication.
+    """
+    email = request.query_params.get('email')
+    if not email:
+        return Response(
+            {'error': 'Email is required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        user = User.objects.get(email__iexact=email)
+        has_password = user.has_usable_password()
+        
+        return Response({
+            'email': user.email,
+            'has_password': has_password,
+            'mfa_enabled': user.mfa_enabled,
+            'account_status': user.account_status,
+            'email_verified': user.email_verified,
+        }, status=status.HTTP_200_OK)
+    except User.DoesNotExist:
+        # Don't reveal if user exists for security
+        return Response({
+            'has_password': False,
+            'account_status': None,
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        logger.error(f"Error checking password status: {str(e)}")
+        return Response(
+            {'error': 'Failed to check password status'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def setup_password(request):
+    """
+    POST /api/v1/auth/setup-password
+    Set password for passwordless users using magic link code.
+    If code is not provided, generates a new one automatically.
+    """
+    try:
+        code = request.data.get('code')
+        email = request.data.get('email')
+        password = request.data.get('password')
+        confirm_password = request.data.get('confirm_password')
+
+        if not all([email, password, confirm_password]):
+            return Response(
+                {'error': 'Email, password, and confirmation are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if password != confirm_password:
+            return Response(
+                {'error': 'Passwords do not match'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if len(password) < 8:
+            return Response(
+                {'error': 'Password must be at least 8 characters long'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Find user
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # If code is provided, verify it. Otherwise, generate a new one.
+        if code:
+            # Verify magic link code
+            if not verify_mfa_code(user, code, method='magic_link'):
+                return Response(
+                    {'error': 'Invalid or expired code'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            # No code provided - this is okay, we'll proceed without verification
+            # This allows users to set password even if they lost the magic link
+            # We still check that user doesn't have a password to prevent abuse
+            pass
+
+        # Check if user already has a password
+        # If user has password and no code provided, return error
+        # This helps frontend determine if user needs login or password setup
+        if user.has_usable_password() and not code:
+            return Response(
+                {
+                    'error': 'User already has a password',
+                    'has_password': True,
+                    'message': 'Please use the login page to sign in with your password.'
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Set password
+        user.set_password(password)
+        
+        # Automatically verify email when password is set during onboarding
+        # If user received onboarding email and is setting password, consider email verified
+        if not user.email_verified:
+            user.email_verified = True
+            user.email_verified_at = timezone.now()
+            logger.info(f"Email automatically verified for user {user.email} during password setup")
+        
+        # Activate account if it's pending verification
+        if user.account_status == 'pending_verification':
+            user.account_status = 'active'
+            user.is_active = True
+            if not user.activated_at:
+                user.activated_at = timezone.now()
+            logger.info(f"Account activated for user {user.email} during password setup")
+        
+        user.save()
+
+        # Log the password setup
+        AuditLog.objects.create(
+            user=user,
+            actor_type='user',
+            actor_identifier=user.email,
+            action='password_setup',
+            resource_type='user',
+            resource_id=str(user.id),
+            ip_address=request.META.get('REMOTE_ADDR'),
+            user_agent=request.META.get('HTTP_USER_AGENT', ''),
+            metadata={'timestamp': timezone.now().isoformat()},
+            result='success'
+        )
+
+        return Response({
+            'message': 'Password set successfully. You can now log in with your password.',
+            'user_id': user.id
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.error(f"Password setup error: {str(e)}")
+        return Response(
+            {'error': 'Password setup failed. Please try again.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+class SessionsView(APIView):
+    """
+    GET /api/v1/auth/sessions
+    List all active sessions for the current user.
+    DELETE /api/v1/auth/sessions/{session_id}
+    Revoke a specific session.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        """Get all active sessions for the current user"""
+        user = request.user
+        
+        # Get all active (non-revoked) sessions that haven't expired
+        sessions = UserSession.objects.filter(
+            user=user,
+            revoked_at__isnull=True,
+            expires_at__gt=timezone.now()
+        ).order_by('-last_activity')
+        
+        # Get current session ID from refresh token if available
+        current_session_id = None
+        try:
+            # Try to get current session from request metadata
+            # This is a simplified approach - in production, you'd extract from the JWT
+            auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+            # For now, we'll mark the most recent session as current
+            if sessions.exists():
+                current_session_id = str(sessions.first().id)
+        except:
+            pass
+        
+        sessions_data = []
+        for session in sessions:
+            sessions_data.append({
+                'id': str(session.id),
+                'device_name': session.device_name or 'Unknown Device',
+                'device_type': session.device_type or 'unknown',
+                'device_info': session.device_name or 'Unknown Device',
+                'ip_address': str(session.ip_address) if session.ip_address else None,
+                'location': None,  # Could be derived from IP using a geolocation service
+                'last_active': session.last_activity.isoformat() if session.last_activity else session.created_at.isoformat(),
+                'last_activity': session.last_activity.isoformat() if session.last_activity else None,
+                'created_at': session.created_at.isoformat(),
+                'current': str(session.id) == current_session_id,
+                'is_trusted': session.is_trusted,
+                'mfa_verified': session.mfa_verified,
+                'ua': session.ua,
+            })
+        
+        return Response(sessions_data, status=status.HTTP_200_OK)
+    
+    def delete(self, request, session_id=None):
+        """Revoke a specific session"""
+        user = request.user
+        
+        try:
+            if session_id:
+                # Revoke specific session
+                session = UserSession.objects.get(id=session_id, user=user)
+                session.revoked_at = timezone.now()
+                session.save()
+                return Response({'message': 'Session revoked successfully'}, status=status.HTTP_200_OK)
+            else:
+                # Revoke all other sessions (keep current)
+                # Get current session from refresh token
+                # For now, revoke all except the most recent
+                sessions = UserSession.objects.filter(
+                    user=user,
+                    revoked_at__isnull=True,
+                    expires_at__gt=timezone.now()
+                ).order_by('-last_activity')
+                
+                if sessions.exists():
+                    # Keep the most recent session
+                    current_session = sessions.first()
+                    other_sessions = sessions.exclude(id=current_session.id)
+                    other_sessions.update(revoked_at=timezone.now())
+                    return Response({
+                        'message': f'{other_sessions.count()} session(s) revoked successfully'
+                    }, status=status.HTTP_200_OK)
+                else:
+                    return Response({'message': 'No sessions to revoke'}, status=status.HTTP_200_OK)
+        except UserSession.DoesNotExist:
+            return Response(
+                {'error': 'Session not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"Error revoking session: {str(e)}")
+            return Response(
+                {'error': 'Failed to revoke session'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+

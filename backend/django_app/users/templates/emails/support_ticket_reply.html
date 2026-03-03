@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support replied – Ticket #{{ ticket_id }}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #A8B0B8;
+            background-color: #0A0A0C;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background-color: #0A0A0C;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .logo {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        .brand {
+            color: #FFFFFF;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .content {
+            background-color: #1A1A1C;
+            border: 1px solid #0648A8;
+            border-radius: 8px;
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+        .title {
+            color: #FFFFFF;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+        }
+        .subtitle {
+            color: #33FFC1;
+            font-size: 14px;
+            margin: 0 0 24px 0;
+        }
+        .reply-box {
+            background-color: #0A0A0C;
+            border-left: 4px solid #0648A8;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            color: #E2E8F0;
+            font-size: 15px;
+        }
+        .ticket-meta {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid #2D3748;
+            font-size: 13px;
+            color: #A8B0B8;
+        }
+        .ticket-meta strong {
+            color: #FFFFFF;
+        }
+        .footer {
+            text-align: center;
+            color: #64748B;
+            font-size: 12px;
+            margin-top: 32px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🛡️</div>
+            <div class="brand">Ongoza CyberHub Support</div>
+        </div>
+
+        <div class="content">
+            <h1 class="title">Support replied to your ticket</h1>
+            <p class="subtitle">Ticket #{{ ticket_id }}: {{ ticket_subject }}</p>
+
+            <p style="color: #A8B0B8; margin: 0 0 12px 0;">{{ created_by_name }} wrote:</p>
+            <div class="reply-box">{{ reply_message|linebreaksbr }}</div>
+
+            <div class="ticket-meta">
+                <strong>Ticket #{{ ticket_id }}</strong>: {{ ticket_subject }}
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>You received this email because a copy was requested for this support reply.</p>
+            <p>© {% now "Y" %} Ongoza CyberHub. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

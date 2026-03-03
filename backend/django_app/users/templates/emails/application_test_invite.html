@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Congratulations – Your next step with {{ cohort_name }}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; padding: 40px 24px; background-color: #ffffff; }
+        .header { text-align: center; margin-bottom: 32px; border-bottom: 1px solid #eee; padding-bottom: 24px; }
+        .logo { font-size: 28px; font-weight: bold; color: #0648A8; }
+        .content { color: #333; }
+        .content h1 { color: #0648A8; font-size: 22px; margin-top: 0; }
+        .content h2 { color: #333; font-size: 16px; margin: 24px 0 12px; }
+        .steps { margin: 20px 0; padding-left: 20px; }
+        .steps li { margin: 8px 0; }
+        .cta { display: inline-block; background: #0648A8; color: #fff !important; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600; margin: 24px 0; }
+        .cta:hover { background: #053a87; }
+        .footer { text-align: center; color: #666; font-size: 12px; margin-top: 32px; padding-top: 24px; border-top: 1px solid #eee; }
+        .highlight { background: #f0f7ff; border-left: 4px solid #0648A8; padding: 12px 16px; margin: 16px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">Ongoza CyberHub (OCH)</div>
+        </div>
+        <div class="content">
+            <h1>Congratulations, {{ applicant_name|default:"there" }}!</h1>
+            <p>Thank you for taking the important step of applying to <strong>{{ cohort_name }}</strong>. We are pleased to acknowledge your application and to guide you through what comes next.</p>
+
+            <p>Your journey with us follows a clear, professional process designed to ensure the best fit and readiness for the cohort:</p>
+
+            <ol class="steps">
+                <li><strong>Application</strong> – You have completed this step. Well done.</li>
+                <li><strong>Application test</strong> – An online assessment to help us understand your readiness. This is your current step.</li>
+                <li><strong>Payment</strong> – For successful applicants, the next step is payment of the program fee.</li>
+                <li><strong>Interview</strong> – A conversation with our team to align expectations and answer your questions.</li>
+                <li><strong>Onboarding</strong> – Official onboarding into Ongoza CyberHub and the start of your learning journey.</li>
+            </ol>
+
+            <div class="highlight">
+                <strong>Your next step: take the application test</strong><br>
+                The assessment is unique to you. When you are ready, click the button below to open your test. You will see one question per screen; complete each section in the time allowed. When the overall time ends, your answers will be submitted automatically. Once you have completed the test, this link will no longer allow further submissions.
+            </div>
+
+            <p style="text-align: center;">
+                <a href="{{ assessment_url }}" class="cta">Take your assessment</a>
+            </p>
+
+            <p style="font-size: 14px; color: #666;">If the button does not work, copy and paste this link into your browser:</p>
+            <p style="font-size: 13px; word-break: break-all;"><a href="{{ assessment_url }}">{{ assessment_url }}</a></p>
+
+            <p>If you have any questions, please contact your program coordinator.</p>
+            <p>We wish you the best and look forward to the possibility of welcoming you to Ongoza CyberHub.</p>
+        </div>
+        <div class="footer">
+            <p>This is an automated message from Ongoza CyberHub. Please do not reply directly to this email.</p>
+        </div>
+    </div>
+</body>
+</html>

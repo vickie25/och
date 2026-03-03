@@ -1,0 +1,290 @@
+/**
+ * Mentorship Management Hook
+ * Orchestrates mentor matching, sessions, goals, and feedback loops.
+ */
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiGateway } from '@/services/apiGateway';
+
+export type SessionStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+export type GoalStatus = 'draft' | 'in_progress' | 'verified';
+
+export interface Mentor {
+  id: string;
+  name: string;
+  avatar?: string;
+  expertise: string[];
+  track: string;
+  bio: string;
+  timezone: string;
+  readiness_impact: number;
+  cohort_id?: string;
+  cohort_name?: string;
+  assigned_at?: string;
+  mentor_role?: string;
+  assignment_type?: string;
+}
+
+export interface MentorshipSession {
+  id: string;
+  mentor_id: string;
+  mentee_id: string;
+  start_time: string;
+  end_time: string;
+  status: SessionStatus;
+  topic: string;
+  notes?: string;
+  meeting_link?: string;
+}
+
+export interface SmartGoal {
+  id: string;
+  title: string;
+  description: string;
+  status: GoalStatus;
+  deadline: string;
+  category: 'technical' | 'behavioral' | 'career';
+  alignment: 'future-you' | 'cohort' | 'mission';
+}
+
+export interface MentorshipFeedback {
+  id: string;
+  session_id: string;
+  rating: number; // 1-5
+  comment: string;
+  mentor_engagement: number;
+}
+
+export type MentorAssignmentType = 'cohort' | 'track' | 'direct';
+
+export interface StudentMentorAssignment {
+  id: string;
+  uiId: string;
+  mentor_id: string;
+  mentor_name: string;
+  cohort_id?: string;
+  cohort_name?: string;
+  track_id?: string;
+  track_name?: string;
+  status: string;
+  assigned_at?: string;
+  assignment_type?: MentorAssignmentType;
+}
+
+export function useMentorship(userId?: string) {
+  const queryClient = useQueryClient();
+
+  // 1. Mentor Matching & Assignment - Fetch from backend
+  const mentorQuery = useQuery({
+    queryKey: ['mentorship', 'mentor', userId],
+    queryFn: async () => {
+      try {
+        const response = await apiGateway.get(`/mentorship/mentees/${userId}/mentor`);
+        const resp = response as any;
+        if (resp && resp.id) {
+          return {
+            id: resp.id,
+            name: resp.name || 'Mentor',
+            avatar: resp.avatar || undefined,
+            expertise: Array.isArray(resp.expertise) ? resp.expertise : [],
+            track: resp.track || 'Mentor',
+            bio: resp.bio || '',
+            timezone: resp.timezone || 'Africa/Nairobi',
+            readiness_impact: typeof resp.readiness_impact === 'number' ? resp.readiness_impact : 85.0,
+            cohort_id: resp.cohort_id || undefined,
+            cohort_name: resp.cohort_name || undefined,
+            assigned_at: resp.assigned_at || undefined,
+            mentor_role: resp.mentor_role || undefined,
+            assignment_type: resp.assignment_type || undefined
+          } as Mentor;
+        }
+        return null;
+      } catch (error: any) {
+        // 404 = no mentor assigned (expected); treat as success with null
+        const status = error?.response?.status ?? error?.status;
+        if (status === 404) {
+          return null;
+        }
+        console.error('Failed to fetch mentor:', error);
+        throw error; // Re-throw so React Query marks as error and can retry for real failures
+      }
+    },
+    enabled: !!userId,
+    retry: (failureCount, error: any) => {
+      const status = error?.response?.status ?? error?.status;
+      if (status === 404) return false; // Do not retry 404
+      return failureCount < 2;
+    },
+    refetchOnWindowFocus: true,
+  });
+
+  // 2. Scheduling & Session Management - Fetch from backend
+  const sessionsQuery = useQuery({
+    queryKey: ['mentorship', 'sessions', userId],
+    queryFn: async () => {
+      try {
+        // Fetch sessions from backend
+        const response = await apiGateway.get(`/mentorship/sessions?mentee_id=${userId}`);
+        const backendSessions = Array.isArray(response) ? response : (((response as any)?.results) || []);
+        
+        return backendSessions.map((session: any) => ({
+          id: session.id,
+          mentor_id: session.mentor_id || session.mentor?.id,
+          mentee_id: session.mentee_id || session.mentee?.id || userId,
+          start_time: session.start_time || session.scheduled_at,
+          end_time: session.end_time || session.ends_at,
+          status: (session.status || 'pending') as SessionStatus,
+          topic: session.topic || session.title || '',
+          notes: session.notes || session.summary,
+          meeting_link: session.meeting_link || session.meeting_url,
+        })) as MentorshipSession[];
+      } catch (error) {
+        console.error('Failed to fetch sessions:', error);
+        return [] as MentorshipSession[];
+      }
+    },
+    enabled: !!userId,
+  });
+
+  // 2b. All mentorship assignments for this student (all mentors & cohorts)
+  const assignmentsQuery = useQuery({
+    queryKey: ['mentorship', 'assignments', userId],
+    queryFn: async () => {
+      if (!userId) return [] as StudentMentorAssignment[];
+      try {
+        const response = await apiGateway.get(`/mentorship/mentees/${userId}/assignments`);
+        const items = Array.isArray(response) ? response : (((response as any)?.results) || []);
+        return (items as any[]).map((item) => {
+          const rawId = String(item.id);
+          const scope = item.track_id || item.cohort_id || 'none';
+          return {
+            id: rawId,
+            uiId: `${rawId}:${scope}`,
+            mentor_id: String(item.mentor_id),
+            mentor_name: item.mentor_name || 'Mentor',
+            cohort_id: item.cohort_id || undefined,
+            cohort_name: item.cohort_name || undefined,
+            track_id: item.track_id || undefined,
+            track_name: item.track_name || undefined,
+            status: item.status || 'active',
+            assigned_at: item.assigned_at || undefined,
+            assignment_type: (item.assignment_type as MentorAssignmentType) || 'cohort',
+          } as StudentMentorAssignment;
+        });
+      } catch (error) {
+        console.error('Failed to fetch mentorship assignments:', error);
+        return [] as StudentMentorAssignment[];
+      }
+    },
+    enabled: !!userId,
+  });
+
+  // 3. Goals & Milestones - Fetch from backend
+  const goalsQuery = useQuery({
+    queryKey: ['mentorship', 'goals', userId],
+    queryFn: async () => {
+      try {
+        const response = await apiGateway.get<any>('/coaching/goals');
+        const backendGoals = (response as any) || [];
+        
+        // Map backend Goal model to frontend SmartGoal interface
+        return backendGoals.map((goal: any) => {
+          // Map status: backend uses 'active'/'completed'/'abandoned', frontend uses 'draft'/'in_progress'/'verified'
+          let status: GoalStatus = 'draft';
+          if (goal.status === 'active') {
+            status = goal.progress > 0 ? 'in_progress' : 'draft';
+          } else if (goal.status === 'completed') {
+            status = 'verified';
+          }
+          
+          // Determine category from title/description (fallback to technical)
+          let category: 'technical' | 'behavioral' | 'career' = 'technical';
+          const titleLower = (goal.title || '').toLowerCase();
+          const descLower = (goal.description || '').toLowerCase();
+          if (titleLower.includes('communication') || titleLower.includes('leadership') || 
+              descLower.includes('communication') || descLower.includes('leadership')) {
+            category = 'behavioral';
+          } else if (titleLower.includes('career') || descLower.includes('career')) {
+            category = 'career';
+          }
+          
+          // Determine alignment (default to mission)
+          let alignment: 'future-you' | 'cohort' | 'mission' = 'mission';
+          
+          return {
+            id: goal.id,
+            title: goal.title,
+            description: goal.description || '',
+            status,
+            deadline: goal.due_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            category,
+            alignment,
+          } as SmartGoal;
+        });
+      } catch (error) {
+        console.error('Failed to fetch goals:', error);
+        return [] as SmartGoal[];
+      }
+    },
+    enabled: !!userId,
+  });
+
+  // Mutations
+  const scheduleSession = useMutation({
+    mutationFn: async (input: { 
+      title: string;
+      description?: string;
+      preferred_date: string;
+      duration_minutes: number;
+      type?: string;
+    }) => {
+      const response = await apiGateway.post('/mentorship/sessions/request', {
+        title: input.title,
+        description: input.description || '',
+        preferred_date: input.preferred_date,
+        duration_minutes: input.duration_minutes,
+        type: input.type || 'one_on_one',
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mentorship', 'sessions', userId] });
+    },
+  });
+
+  const updateGoalStatus = useMutation({
+    mutationFn: async ({ goalId, status }: { goalId: string; status: GoalStatus }) => {
+      return { success: true, goalId, status };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mentorship', 'goals', userId] });
+    },
+  });
+
+  const submitFeedback = useMutation({
+    mutationFn: async (feedback: Omit<MentorshipFeedback, 'id'>) => {
+      return { success: true, id: 'fb-123' };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mentorship', 'sessions', userId] });
+    },
+  });
+
+  return {
+    mentor: mentorQuery.data,
+    sessions: sessionsQuery.data || [],
+    goals: goalsQuery.data || [],
+    assignments: assignmentsQuery.data || [],
+    isLoading: mentorQuery.isLoading || sessionsQuery.isLoading || goalsQuery.isLoading || assignmentsQuery.isLoading,
+    scheduleSession,
+    updateGoalStatus,
+    submitFeedback,
+    refetchAll: () => {
+      mentorQuery.refetch();
+      sessionsQuery.refetch();
+      goalsQuery.refetch();
+    }
+  };
+}
+
+

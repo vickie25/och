@@ -1,0 +1,257 @@
+/**
+ * Google OAuth Callback Page
+ * Handles the redirect from Google after user authenticates
+ */
+'use client'
+
+export const dynamic = 'force-dynamic'
+
+import { Suspense, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useAuth } from '@/hooks/useAuth'
+import { googleOAuthClient } from '@/services/googleOAuthClient'
+import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+
+function GoogleOAuthCallbackPageInner() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing')
+  const [message, setMessage] = useState('Processing Google authentication...')
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let redirectTimer: NodeJS.Timeout | null = null
+    
+    const handleCallback = async () => {
+      try {
+        // Get authorization code and state from URL
+        const code = searchParams.get('code')
+        const state = searchParams.get('state')
+        const errorParam = searchParams.get('error')
+
+        console.log('[OAuth Callback] URL parameters:', { code: code?.substring(0, 20) + '...', state, error: errorParam })
+        console.log('[OAuth Callback] Full URL:', window.location.href)
+
+        // Handle OAuth errors from Google
+        if (errorParam) {
+          setStatus('error')
+          setError(`Google authentication failed: ${errorParam}`)
+          return
+        }
+
+        if (!code || !state) {
+          setStatus('error')
+          setError('Missing authorization code or state parameter')
+          return
+        }
+
+        // Get device fingerprint
+        const deviceFingerprint = typeof window !== 'undefined' 
+          ? `web-${Date.now()}-${navigator.userAgent.slice(0, 50)}`
+          : 'unknown'
+        
+        const deviceName = typeof window !== 'undefined'
+          ? navigator.userAgent.includes('Mobile') ? 'Mobile Device' : 'Web Browser'
+          : 'Unknown Device'
+
+        // Exchange code for tokens and create/activate account
+        console.log('[OAuth Callback] Sending callback request:', {
+          code: code.substring(0, 20) + '...',
+          state,
+          device_fingerprint: deviceFingerprint,
+          device_name: deviceName
+        })
+
+        const response = await googleOAuthClient.callback({
+          code,
+          state,
+          device_fingerprint: deviceFingerprint,
+          device_name: deviceName,
+        })
+
+        console.log('[OAuth Callback] Backend response:', response)
+
+        // Store tokens in localStorage
+        if (response.access_token) {
+          localStorage.setItem('access_token', response.access_token)
+          localStorage.setItem('auth_token', response.access_token)
+          if (response.refresh_token) {
+            localStorage.setItem('refresh_token', response.refresh_token)
+          }
+          // Also set HttpOnly cookies via Next.js API for SSR consistency
+          try {
+            await fetch('/api/auth/ssologin', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                access_token: response.access_token,
+                refresh_token: response.refresh_token,
+                user: response.user,
+              }),
+            })
+          } catch (e) {
+            console.error('[OAuth] Failed to set cookies via ssologin route', e)
+          }
+        }
+
+        const accountCreated = !!response.account_created
+
+        setStatus('success')
+        setMessage(
+          accountCreated
+            ? 'Account created successfully!'
+            : 'Login successful!'
+        )
+
+        // Determine redirect path based on role and profiling status
+        const userRoles = response.user?.roles || []
+        const user = response.user || {}
+        console.log('[OAuth Callback] User data:', { roles: userRoles, profiling_complete: user.profiling_complete })
+        
+        const isStudent = userRoles.some((r: any) => {
+          const roleName = typeof r === 'string' ? r : (r?.role || r?.name || '').toLowerCase()
+          console.log('[OAuth Callback] Checking role:', roleName)
+          return roleName === 'student' || roleName === 'mentee'
+        })
+
+        let redirectPath = '/dashboard'
+        
+        if (isStudent) {
+          // For newly created student accounts via Google SSO, we now send a
+          // self-onboarding email (password → MFA → profiling). Do NOT drop
+          // them directly into onboarding here; instead, instruct them to
+          // check their email.
+          const profilingComplete = user.profiling_complete ?? false
+          console.log('[OAuth Callback] Student profiling_complete:', profilingComplete)
+
+          if (accountCreated) {
+            setMessage(
+              'Your account has been created. Please check your email for a self-onboarding link to set your password, secure your account with MFA, and complete profiling.'
+            )
+            // Do not auto-redirect; let the user act from the email.
+            return
+          }
+
+          // Existing students logging in with Google keep the previous behavior.
+          if (!profilingComplete) {
+            redirectPath = '/onboarding/ai-profiler'
+          } else {
+            redirectPath = '/dashboard/student'
+          }
+        } else {
+          // Determine dashboard for other roles
+          const role = userRoles[0]
+          const roleName = typeof role === 'string' ? role.toLowerCase() : (role?.role || role?.name || '').toLowerCase()
+          
+          switch (roleName) {
+            case 'mentor':
+              redirectPath = '/dashboard/mentor'
+              break
+            case 'director':
+            case 'program_director':
+              redirectPath = '/dashboard/director'
+              break
+            case 'sponsor':
+            case 'sponsor_admin':
+              redirectPath = '/dashboard/sponsor'
+              break
+            case 'analyst':
+              redirectPath = '/dashboard/analyst'
+              break
+            case 'employer':
+              redirectPath = '/dashboard/employer'
+              break
+            case 'finance':
+              redirectPath = '/dashboard/finance'
+              break
+            case 'admin':
+              redirectPath = '/dashboard/admin'
+              break
+            case 'support':
+              redirectPath = '/support/dashboard'
+              break
+            default:
+              redirectPath = '/dashboard'
+          }
+        }
+        
+        console.log('[OAuth Callback] Will redirect to:', redirectPath)
+
+        // Redirect with a short delay to show success message
+        redirectTimer = setTimeout(() => {
+          console.log('[OAuth Callback] Executing redirect to:', redirectPath)
+          // Use window.location.href for reliable redirect with full page reload
+          window.location.href = redirectPath
+        }, 1000)
+
+      } catch (err: any) {
+        console.error('Google OAuth callback error:', err)
+        setStatus('error')
+        setError(
+          err?.data?.detail || 
+          err?.message || 
+          'Failed to complete Google authentication'
+        )
+      }
+    }
+
+    handleCallback()
+    
+    // Cleanup timer on unmount
+    return () => {
+      if (redirectTimer) {
+        clearTimeout(redirectTimer)
+      }
+    }
+  }, [searchParams, router])
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-och-midnight via-och-space to-och-crimson flex items-center justify-center px-4">
+      <Card className="p-8 max-w-md w-full">
+        <div className="text-center space-y-4">
+          {status === 'processing' && (
+            <>
+              <Loader2 className="w-12 h-12 text-och-orange animate-spin mx-auto" />
+              <h2 className="text-xl font-bold text-white">Processing...</h2>
+              <p className="text-gray-300">{message}</p>
+            </>
+          )}
+
+          {status === 'success' && (
+            <>
+              <CheckCircle2 className="w-12 h-12 text-och-mint mx-auto" />
+              <h2 className="text-xl font-bold text-white">Success!</h2>
+              <p className="text-gray-300">{message}</p>
+              <p className="text-sm text-gray-400">Redirecting to your dashboard...</p>
+            </>
+          )}
+
+          {status === 'error' && (
+            <>
+              <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
+              <h2 className="text-xl font-bold text-white">Authentication Failed</h2>
+              <p className="text-gray-300">{error}</p>
+              <Button
+                onClick={() => router.push('/login')}
+                variant="outline"
+                className="mt-4"
+              >
+                Return to Login
+              </Button>
+            </>
+          )}
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+export default function GoogleOAuthCallbackPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white">Loading...</div>}>
+      <GoogleOAuthCallbackPageInner />
+    </Suspense>
+  )
+}

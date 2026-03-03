@@ -1,0 +1,1008 @@
+"""
+Recipe Engine views - API endpoints for recipes and user progress.
+"""
+from rest_framework import viewsets, status, permissions
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
+from django.db.models import Count, Prefetch, Q, Subquery, OuterRef, Avg
+from django.utils import timezone
+from django.utils.text import slugify
+
+from .models import Recipe, UserRecipeProgress, RecipeContextLink, UserRecipeBookmark, RecipeSource, RecipeLLMJob
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from .serializers import (
+    RecipeListSerializer, RecipeDetailSerializer,
+    UserRecipeProgressSerializer, RecipeContextLinkSerializer,
+    RecipeBookmarkSerializer, RecipeProgressUpdateSerializer,
+    RecipeSourceSerializer
+)
+
+
+class RecipeViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for recipes.
+
+    Endpoints:
+    - GET /recipes/ - List all active recipes (with search/filter) - PUBLIC
+    - GET /recipes/{slug}/ - Get recipe details - PUBLIC
+    - GET /recipes/{slug}/related/ - Get related recipes - PUBLIC
+    - POST /recipes/{slug}/progress/ - Update user progress - REQUIRES AUTH
+    - POST /recipes/{slug}/bookmark/ - Bookmark/unbookmark recipe - REQUIRES AUTH
+    """
+    queryset = Recipe.objects.filter(is_active=True)
+    lookup_field = 'slug'
+
+    def get_permissions(self):
+        """
+        Allow public access to GET methods (list, retrieve, related)
+        Require authentication for POST/PUT/DELETE methods
+        """
+        if self.request.method in ['GET']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
+    
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return RecipeDetailSerializer
+        return RecipeListSerializer
+    
+    def list(self, request):
+        """Override list to use raw SQL for demo purposes."""
+        try:
+            from django.db import connection
+            import json
+
+            with connection.cursor() as cursor:
+                # All authenticated students can access all recipes
+                cursor.execute("""
+                    SELECT id, title, slug, summary, description, difficulty,
+                           estimated_minutes, track_codes, skill_codes,
+                           prerequisites, tools_and_environment, inputs,
+                           steps, validation_checks, is_free_sample
+                    FROM recipes
+                    WHERE is_active = true
+                    ORDER BY created_at DESC
+                """)
+
+                rows = cursor.fetchall()
+
+                recipes = []
+                for row in rows:
+                    try:
+                        track_codes = json.loads(row[7]) if row[7] else []
+                        skill_codes = json.loads(row[8]) if row[8] else []
+
+                        recipes.append({
+                            'id': str(row[0]),
+                            'title': row[1],
+                            'slug': row[2],
+                            'description': row[3] or row[4] or '',
+                            'difficulty': row[5],
+                            'estimated_minutes': row[6] or 20,
+                            'expected_duration_minutes': row[6] or 20,
+                            'track_code': track_codes[0] if track_codes else None,
+                            'track_codes': track_codes,
+                            'skill_code': skill_codes[0] if skill_codes else None,
+                            'level': row[5],
+                            'source_type': 'manual',
+                            'tags': track_codes + skill_codes,
+                            'prerequisites': json.loads(row[9]) if row[9] else [],
+                            'tools_and_environment': json.loads(row[10]) if row[10] else [],
+                            'inputs': json.loads(row[11]) if row[11] else [],
+                            'steps': json.loads(row[12]) if row[12] else [],
+                            'validation_checks': json.loads(row[13]) if row[13] else [],
+                            'is_free_sample': bool(row[14])
+                        })
+                    except Exception as e:
+                        logger.error(f"Error processing row {row[0]}: {e}")
+                        continue
+
+                # Stamp per-recipe bookmark status and get total bookmark count
+                bookmarked_count = 0
+                if request.user.is_authenticated:
+                    bookmarked_ids = set(
+                        str(rid) for rid in UserRecipeBookmark.objects.filter(
+                            user=request.user
+                        ).values_list('recipe_id', flat=True)
+                    )
+                    bookmarked_count = len(bookmarked_ids)
+                    for r in recipes:
+                        r['is_bookmarked'] = r['id'] in bookmarked_ids
+                else:
+                    for r in recipes:
+                        r['is_bookmarked'] = False
+
+                return Response({
+                    'recipes': recipes,
+                    'total': len(recipes),
+                    'bookmarked': bookmarked_count,
+                    'page': 1,
+                    'page_size': len(recipes)
+                })
+        except Exception as e:
+            logger.error(f"Database error: {e}")
+            return Response({'error': 'Database error'}, status=500)
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        # REMOVED: Free user restrictions - all recipes are now accessible to everyone
+
+        # Search
+        search = self.request.query_params.get('search', None)
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) |
+                Q(summary__icontains=search) |
+                Q(description__icontains=search) |
+                Q(skill_codes__icontains=search) |
+                Q(tools_used__icontains=search)
+            )
+
+        # Filters
+        track = self.request.query_params.get('track_code', None)
+        if track:
+            queryset = queryset.filter(track_codes__contains=[track])
+
+        difficulty = self.request.query_params.get('difficulty', None)
+        if difficulty:
+            queryset = queryset.filter(difficulty=difficulty)
+
+        max_time = self.request.query_params.get('max_duration', None)
+        if max_time:
+            try:
+                queryset = queryset.filter(estimated_minutes__lte=int(max_time))
+            except ValueError:
+                pass
+
+        # Free samples filter
+        is_free_sample = self.request.query_params.get('is_free_sample', None)
+        if is_free_sample:
+            queryset = queryset.filter(is_free_sample=is_free_sample.lower() == 'true')
+
+        # Context filter (mission, module, project)
+        context_type = self.request.query_params.get('context', None)
+        if context_type:
+            # Filter recipes that have context links of this type
+            context_ids = RecipeContextLink.objects.filter(
+                context_type=context_type
+            ).values_list('recipe_id', flat=True)
+            queryset = queryset.filter(id__in=context_ids)
+
+        # Sort
+        sort = self.request.query_params.get('sort', 'relevance')
+        if sort == 'popular':
+            queryset = queryset.order_by('-usage_count', '-avg_rating')
+        elif sort == 'recent':
+            queryset = queryset.order_by('-created_at')
+        elif sort == 'rating':
+            queryset = queryset.order_by('-avg_rating', '-usage_count')
+        else:  # relevance default
+            queryset = queryset.order_by('-usage_count', '-avg_rating')
+
+        return queryset.select_related('created_by').prefetch_related('context_links')
+
+    def retrieve(self, request, *args, **kwargs):
+        """Get individual recipe detail using raw SQL."""
+        slug = kwargs.get('slug')
+        if not slug:
+            return Response({'error': 'Recipe slug required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            from django.db import connection
+            import json
+
+            user = request.user
+
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT id, title, slug, summary, description, difficulty,
+                           estimated_minutes, track_codes, skill_codes,
+                           prerequisites, tools_and_environment, inputs,
+                           steps, validation_checks, is_free_sample
+                    FROM recipes
+                    WHERE slug = %s AND is_active = true
+                """, [slug])
+
+                row = cursor.fetchone()
+
+                if not row:
+                    return Response({'error': 'Recipe not found'}, status=status.HTTP_404_NOT_FOUND)
+
+                track_codes = json.loads(row[7]) if row[7] else []
+                skill_codes = json.loads(row[8]) if row[8] else []
+
+                recipe_data = {
+                    'id': str(row[0]),
+                    'title': row[1],
+                    'slug': row[2],
+                    'description': row[3] or row[4] or '',
+                    'difficulty': row[5],
+                    'expected_duration_minutes': row[6] or 20,
+                    'track_code': track_codes[0] if track_codes else None,
+                    'track_codes': track_codes,
+                    'skill_code': skill_codes[0] if skill_codes else None,
+                    'level': row[5],
+                    'source_type': 'manual',
+                    'prerequisites': json.loads(row[9]) if row[9] else [],
+                    'tools_and_environment': json.loads(row[10]) if row[10] else [],
+                    'inputs': json.loads(row[11]) if row[11] else [],
+                    'steps': json.loads(row[12]) if row[12] else [],
+                    'validation_checks': json.loads(row[13]) if row[13] else [],
+                    'is_free_sample': bool(row[14]),
+                    'user_progress': None,
+                    'is_bookmarked': False,
+                }
+
+                # Attach user progress and bookmark status if authenticated
+                if user.is_authenticated:
+                    progress = UserRecipeProgress.objects.filter(
+                        user=user, recipe_id=row[0]
+                    ).first()
+                    if progress:
+                        recipe_data['user_progress'] = {
+                            'status': progress.status,
+                            'rating': progress.rating,
+                            'notes': progress.notes,
+                            'time_spent_minutes': progress.time_spent_minutes,
+                            'completed_at': progress.completed_at.isoformat() if progress.completed_at else None,
+                        }
+                    recipe_data['is_bookmarked'] = UserRecipeBookmark.objects.filter(
+                        user=user, recipe_id=row[0]
+                    ).exists()
+
+                return Response(recipe_data)
+
+        except Exception as e:
+            return Response({'error': f'Database error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['get'])
+    def related(self, request, slug=None):
+        """Get related recipes based on skills/tools."""
+        recipe = self.get_object()
+        related = Recipe.objects.filter(
+            Q(is_active=True) &
+            (
+                Q(skill_codes__overlap=recipe.skill_codes) |
+                Q(tools_used__overlap=recipe.tools_used)
+            )
+        ).exclude(id=recipe.id)[:6]
+        
+        serializer = RecipeListSerializer(related, many=True, context={'request': request})
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post', 'get'], permission_classes=[permissions.IsAuthenticated])
+    def progress(self, request, slug=None):
+        """Update user progress for a recipe."""
+        recipe = self.get_object()
+        user = request.user
+        
+        if request.method == 'GET':
+            progress = UserRecipeProgress.objects.filter(user=user, recipe=recipe).first()
+            if progress:
+                serializer = UserRecipeProgressSerializer(progress)
+                return Response(serializer.data)
+            return Response({'status': None})
+        
+        # POST - Update progress
+        progress, created = UserRecipeProgress.objects.get_or_create(
+            user=user,
+            recipe=recipe
+        )
+        
+        serializer = RecipeProgressUpdateSerializer(data=request.data)
+        if serializer.is_valid():
+            if 'status' in serializer.validated_data:
+                progress.status = serializer.validated_data['status']
+                if serializer.validated_data['status'] == 'completed' and not progress.completed_at:
+                    progress.completed_at = timezone.now()
+                    # Update recipe stats
+                    recipe.usage_count += 1
+                    recipe.save(update_fields=['usage_count'])
+            
+            if 'rating' in serializer.validated_data:
+                progress.rating = serializer.validated_data['rating']
+                # Update recipe avg_rating
+                avg_rating = UserRecipeProgress.objects.filter(
+                    recipe=recipe,
+                    rating__isnull=False
+                ).aggregate(Avg('rating'))['rating__avg']
+                if avg_rating:
+                    recipe.avg_rating = round(avg_rating, 2)
+                    recipe.save(update_fields=['avg_rating'])
+            
+            if 'notes' in serializer.validated_data:
+                progress.notes = serializer.validated_data['notes']
+            
+            if 'time_spent_minutes' in serializer.validated_data:
+                progress.time_spent_minutes = serializer.validated_data['time_spent_minutes']
+            
+            progress.save()
+            
+            response_serializer = UserRecipeProgressSerializer(progress)
+            return Response(response_serializer.data, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['get', 'post', 'delete'], permission_classes=[permissions.IsAuthenticated])
+    def bookmark(self, request, slug=None):
+        """Check, create, or remove a bookmark for a recipe."""
+        recipe = self.get_object()
+        user = request.user
+
+        if request.method == 'GET':
+            is_bookmarked = UserRecipeBookmark.objects.filter(user=user, recipe=recipe).exists()
+            return Response({'bookmarked': is_bookmarked}, status=status.HTTP_200_OK)
+
+        if request.method == 'DELETE':
+            UserRecipeBookmark.objects.filter(user=user, recipe=recipe).delete()
+            return Response({'bookmarked': False}, status=status.HTTP_200_OK)
+
+        # POST - Create bookmark
+        bookmark, created = UserRecipeBookmark.objects.get_or_create(
+            user=user,
+            recipe=recipe
+        )
+
+        serializer = RecipeBookmarkSerializer(bookmark)
+        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
+    def bulk_import(self, request):
+        """Bulk import recipes from JSON data (for seeding)."""
+        recipes_data = request.data
+        if not isinstance(recipes_data, list):
+            recipes_data = [recipes_data]
+
+        created_recipes = []
+        for recipe_data in recipes_data:
+            try:
+                # Transform Next.js format to Django model fields
+                django_recipe_data = {
+                    'title': recipe_data['title'],
+                    'summary': recipe_data['description'][:200],
+                    'description': recipe_data['description'],
+                    'difficulty': recipe_data['level'],
+                    'estimated_minutes': recipe_data['expected_duration_minutes'],
+                    'track_codes': recipe_data.get('track_codes', [recipe_data.get('track_code')]),
+                    'skill_codes': recipe_data.get('skill_codes', [recipe_data.get('skill_code')]),
+                    'tools_used': recipe_data.get('tools_used', []),
+                    'prerequisites': recipe_data.get('prerequisites', []),
+                    'tools_and_environment': recipe_data.get('tools_and_environment', []),
+                    'inputs': recipe_data.get('inputs', []),
+                    'steps': recipe_data.get('steps', []),
+                    'validation_checks': recipe_data.get('validation_checks', []),
+                    'is_free_sample': recipe_data.get('is_free_sample', False),
+                    'is_active': True,
+                }
+
+                # Generate slug if not provided
+                if 'slug' not in recipe_data:
+                    import re
+                    base_slug = f"{recipe_data['track_code']}-{recipe_data['level']}-{recipe_data['skill_code']}".lower()
+                    base_slug = re.sub(r'[^a-z0-9\-]+', '-', base_slug)
+                    django_recipe_data['slug'] = self._ensure_unique_slug(base_slug)
+                else:
+                    django_recipe_data['slug'] = recipe_data['slug']
+
+                recipe = Recipe.objects.create(**django_recipe_data)
+                created_recipes.append({
+                    'id': str(recipe.id),
+                    'slug': recipe.slug,
+                    'title': recipe.title,
+                    'track_code': recipe.track_codes[0] if recipe.track_codes else None,
+                    'difficulty': recipe.difficulty
+                })
+
+            except Exception as e:
+                return Response({'error': f'Failed to create recipe: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def get_profiler_based_recipes(request):
+    """
+    GET /api/v1/recipes/profiler-recommendations
+    Get recipe recommendations based on profiler gap analysis.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        from recipes.services import analyze_gaps_from_profiler, verify_profiler_accessibility
+        
+        user = request.user
+        
+        # Verify profiler accessibility
+        profiler_status = verify_profiler_accessibility(user)
+        if not profiler_status['accessible']:
+            logger.info(f"User {user.id} requested profiler-based recipes but profiler not accessible: {profiler_status['message']}")
+            return Response({
+                'gaps_analysis': {'gaps': [], 'recommended_recipe_skills': []},
+                'recommended_recipes': [],
+                'total_gaps': 0,
+                'total_skills': 0,
+                'profiler_status': profiler_status,
+                'message': 'Complete profiler to get personalized recipe recommendations'
+            }, status=status.HTTP_200_OK)
+        
+        gaps_analysis = analyze_gaps_from_profiler(user)
+        
+        # Get recipes matching recommended skills
+        skill_codes = gaps_analysis.get('recommended_recipe_skills', [])
+        recipes = []
+        
+        if skill_codes:
+            try:
+                recipes = Recipe.objects.filter(
+                    skill_codes__overlap=skill_codes,
+                    is_active=True
+                ).order_by('-usage_count', '-avg_rating')[:10]
+                logger.debug(f"Found {len(recipes)} recipes for user {user.id} based on {len(skill_codes)} skill codes")
+            except Exception as e:
+                logger.error(f"Failed to query recipes for user {user.id}: {e}", exc_info=True)
+        
+        return Response({
+            'gaps_analysis': gaps_analysis,
+            'recommended_recipes': RecipeListSerializer(recipes, many=True, context={'request': request}).data,
+            'total_gaps': len(gaps_analysis.get('gaps', [])),
+            'total_skills': len(skill_codes),
+            'profiler_status': profiler_status
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Failed to get profiler-based recipes for user {request.user.id}: {e}", exc_info=True)
+        return Response({
+            'error': 'Failed to get recipe recommendations',
+            'message': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def get_mission_stage_recipes(request, mission_id):
+    """
+    GET /api/v1/recipes/mission/{mission_id}/recommendations
+    Get recipe recommendations based on current mission stage/subtask.
+    Considers:
+    - Current subtask requirements
+    - User's progress in mission
+    - Required skills for next subtask
+    - Mission's recipe_recommendations field
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        from missions.models import Mission, MissionProgress
+        
+        user = request.user
+        
+        # Get mission
+        try:
+            mission = Mission.objects.get(id=mission_id, is_active=True)
+        except Mission.DoesNotExist:
+            return Response({'error': 'Mission not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get user's progress
+        progress = MissionProgress.objects.filter(user=user, mission=mission).first()
+        current_subtask = progress.current_subtask if progress else 1
+        
+        # Get current subtask details
+        subtasks = mission.subtasks or []
+        current_subtask_data = None
+        if subtasks and len(subtasks) >= current_subtask:
+            current_subtask_data = subtasks[current_subtask - 1]
+        
+        # Get next subtask (if exists)
+        next_subtask_data = None
+        if subtasks and len(subtasks) > current_subtask:
+            next_subtask_data = subtasks[current_subtask]
+        
+        # Collect skill codes from:
+        # 1. Mission's recipe_recommendations (explicit recommendations)
+        # 2. Current subtask requirements
+        # 3. Next subtask requirements
+        # 4. Mission's skills_tags
+        
+        skill_codes = set()
+        
+        # Mission's explicit recipe recommendations
+        if mission.recipe_recommendations:
+            # These might be recipe slugs/IDs, handle accordingly
+            recommended_recipe_ids = [r for r in mission.recipe_recommendations if isinstance(r, str)]
+        
+        # Mission's skill tags
+        if mission.skills_tags:
+            skill_codes.update(mission.skills_tags)
+        
+        # Current subtask skills (if available in subtask data)
+        if current_subtask_data and isinstance(current_subtask_data, dict):
+            subtask_skills = current_subtask_data.get('required_skills', [])
+            if subtask_skills:
+                skill_codes.update(subtask_skills)
+        
+        # Next subtask skills
+        if next_subtask_data and isinstance(next_subtask_data, dict):
+            next_skills = next_subtask_data.get('required_skills', [])
+            if next_skills:
+                skill_codes.update(next_skills)
+        
+        # Query recipes
+        recipes = []
+        if skill_codes:
+            try:
+                recipes = Recipe.objects.filter(
+                    skill_codes__overlap=list(skill_codes),
+                    is_active=True
+                ).order_by('-usage_count', '-avg_rating')[:10]
+                
+                logger.debug(f"Found {len(recipes)} recipes for mission {mission_id}, subtask {current_subtask}, skills: {list(skill_codes)[:5]}")
+            except Exception as e:
+                logger.error(f"Failed to query recipes for mission {mission_id}: {e}", exc_info=True)
+        
+        # Also check mission's explicit recipe recommendations
+        mission_recommended_recipes = []
+        if mission.recipe_recommendations:
+            for recipe_ref in mission.recipe_recommendations:
+                try:
+                    # Try by slug first
+                    recipe = Recipe.objects.filter(slug=recipe_ref, is_active=True).first()
+                    if not recipe:
+                        # Try by ID
+                        recipe = Recipe.objects.filter(id=recipe_ref, is_active=True).first()
+                    if recipe:
+                        mission_recommended_recipes.append(recipe)
+                except Exception:
+                    continue
+        
+        # Combine and deduplicate
+        all_recipes = {str(r.id): r for r in recipes + mission_recommended_recipes}
+        
+        return Response({
+            'mission_id': str(mission_id),
+            'mission_title': mission.title,
+            'current_subtask': current_subtask,
+            'total_subtasks': len(subtasks),
+            'recommended_recipes': RecipeListSerializer(list(all_recipes.values()), many=True, context={'request': request}).data,
+            'skill_codes_matched': list(skill_codes),
+            'recommendation_reason': f'Based on current subtask {current_subtask} and mission requirements'
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Failed to get mission stage recipes for mission {mission_id}: {e}", exc_info=True)
+        return Response({
+            'error': 'Failed to get mission stage recipe recommendations',
+            'message': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def recipe_effectiveness_analytics(request):
+    """
+    GET /api/v1/recipes/analytics/effectiveness
+    Recipe effectiveness metrics for admin.
+    Tracks recipe usage, completion rates, correlation with mission success.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    user = request.user
+    
+    # Check if user is admin
+    user_roles = [ur.role.name for ur in user.user_roles.filter(is_active=True)]
+    is_admin = 'admin' in user_roles or user.is_staff
+    
+    if not is_admin:
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    from django.db.models import Avg, Count, Q
+    from django.utils import timezone
+    
+    # Recipe usage statistics
+    total_recipes = Recipe.objects.filter(is_active=True).count()
+    recipes_with_progress = UserRecipeProgress.objects.values('recipe').distinct().count()
+    
+    # Most used recipes
+    most_used = Recipe.objects.filter(is_active=True).order_by('-usage_count')[:20]
+    
+    # Recipe completion rates
+    recipe_completion_stats = UserRecipeProgress.objects.values('recipe__title', 'recipe__slug').annotate(
+        total_attempts=Count('id'),
+        completed=Count('id', filter=Q(status='completed')),
+        avg_rating=Avg('rating')
+    ).order_by('-total_attempts')[:50]
+    
+    # Recipe effectiveness (correlation with mission success)
+    # Join with mission progress to find recipes used by successful mission completions
+    from missions.models_mxp import MissionProgress
+    
+    # Get recipes used by users who completed missions successfully
+    successful_mission_users = MissionProgress.objects.filter(
+        status='approved',
+        final_status='pass'
+    ).values_list('user_id', flat=True).distinct()
+    
+    # Get recipe progress for these successful users
+    recipe_success_correlation = UserRecipeProgress.objects.filter(
+        user_id__in=successful_mission_users,
+        status='completed'
+    ).values('recipe__title', 'recipe__slug', 'recipe__id').annotate(
+        completion_count=Count('id'),
+        avg_time_spent=Avg('time_spent_minutes'),
+        avg_rating=Avg('rating')
+    ).order_by('-completion_count')[:20]
+    
+    # Recipe usage in mission context
+    recipe_mission_links = RecipeContextLink.objects.filter(
+        context_type='mission'
+    ).values('recipe__title', 'recipe__slug').annotate(
+        mission_count=Count('id')
+    ).order_by('-mission_count')[:20]
+    
+    # Recipe ratings
+    top_rated = Recipe.objects.filter(
+        is_active=True,
+        avg_rating__gt=0
+    ).order_by('-avg_rating')[:20]
+    
+    return Response({
+        'overall_stats': {
+            'total_recipes': total_recipes,
+            'recipes_with_user_progress': recipes_with_progress,
+            'usage_coverage': round((recipes_with_progress / total_recipes * 100) if total_recipes > 0 else 0, 2)
+        },
+        'most_used_recipes': RecipeListSerializer(most_used, many=True, context={'request': request}).data,
+        'completion_stats': list(recipe_completion_stats),
+        'mission_linked_recipes': list(recipe_mission_links),
+        'recipe_success_correlation': list(recipe_success_correlation),
+        'top_rated_recipes': RecipeListSerializer(top_rated, many=True, context={'request': request}).data,
+        'generated_at': timezone.now().isoformat()
+    }, status=status.HTTP_200_OK)
+
+    def _ensure_unique_slug(self, base_slug):
+        """Ensure slug uniqueness."""
+        slug = base_slug
+        counter = 1
+        while Recipe.objects.filter(slug=slug).exists():
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+        return slug
+
+
+class UserRecipeProgressViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet for user recipe progress."""
+    serializer_class = UserRecipeProgressSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        return UserRecipeProgress.objects.filter(
+            user=self.request.user
+        ).select_related('recipe').order_by('-updated_at')
+
+
+class RecipeContextLinkViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet for recipe context links."""
+    serializer_class = RecipeContextLinkSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    
+    def get_queryset(self):
+        queryset = RecipeContextLink.objects.select_related('recipe')
+        
+        context_type = self.request.query_params.get('context_type', None)
+        if context_type:
+            queryset = queryset.filter(context_type=context_type)
+        
+        context_id = self.request.query_params.get('context_id', None)
+        if context_id:
+            queryset = queryset.filter(context_id=context_id)
+        
+        return queryset.order_by('position_order')
+
+
+class BookmarkedRecipesView(APIView):
+    """View for user's bookmarked recipes."""
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        bookmarks = UserRecipeBookmark.objects.filter(
+            user=request.user
+        ).select_related('recipe').order_by('-bookmarked_at')
+        
+        serializer = RecipeBookmarkSerializer(bookmarks, many=True)
+        return Response(serializer.data)
+
+
+class RecipeStatsView(APIView):
+    """View for recipe library statistics."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        total = Recipe.objects.filter(is_active=True).count()
+        user = request.user
+
+        bookmarked = 0
+        if user.is_authenticated:
+            bookmarked = UserRecipeBookmark.objects.filter(user=user).count()
+
+        return Response({
+            'total': total,
+            'bookmarked': bookmarked
+        })
+
+
+class UserRecipesView(APIView):
+    """View for user's recipe progress."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, user_id):
+        # Check if user can access this data
+        if str(request.user.id) != user_id:
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Get recipes with user progress
+        recipes_with_progress = Recipe.objects.filter(
+            is_active=True,
+            user_progress__user=request.user
+        ).select_related('created_by').prefetch_related(
+            'user_progress',
+            Prefetch('context_links', queryset=RecipeContextLink.objects.select_related('recipe'))
+        ).annotate(
+            user_status=Subquery(
+                UserRecipeProgress.objects.filter(
+                    user=request.user,
+                    recipe=OuterRef('pk')
+                ).values('status')[:1]
+            ),
+            user_rating=Subquery(
+                UserRecipeProgress.objects.filter(
+                    user=request.user,
+                    recipe=OuterRef('pk')
+                ).values('rating')[:1]
+            )
+        )
+
+        serializer = RecipeListSerializer(recipes_with_progress, many=True, context={'request': request})
+        return Response(serializer.data)
+
+
+class UserRecipeProgressView(APIView):
+    """View for updating user recipe progress."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, user_id, recipe_id):
+        # Check if user can access this data
+        if str(request.user.id) != user_id:
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            recipe = Recipe.objects.get(id=recipe_id, is_active=True)
+        except Recipe.DoesNotExist:
+            return Response({'error': 'Recipe not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get or create progress record
+        progress, created = UserRecipeProgress.objects.get_or_create(
+            user=request.user,
+            recipe=recipe
+        )
+
+        # Update progress
+        serializer = RecipeProgressUpdateSerializer(data=request.data)
+        if serializer.is_valid():
+            old_status = progress.status
+            new_status = serializer.validated_data.get('status', progress.status)
+
+            progress.status = new_status
+            if new_status == 'completed' and old_status != 'completed':
+                progress.completed_at = timezone.now()
+                # Update recipe stats
+                recipe.usage_count += 1
+                recipe.save(update_fields=['usage_count'])
+
+            if 'rating' in serializer.validated_data:
+                progress.rating = serializer.validated_data['rating']
+                # Update recipe avg_rating
+                avg_rating = UserRecipeProgress.objects.filter(
+                    recipe=recipe,
+                    rating__isnull=False
+                ).aggregate(Avg('rating'))['rating__avg']
+                if avg_rating:
+                    recipe.avg_rating = round(avg_rating, 2)
+                    recipe.save(update_fields=['avg_rating'])
+
+            if 'notes' in serializer.validated_data:
+                progress.notes = serializer.validated_data['notes']
+
+            if 'time_spent_minutes' in serializer.validated_data:
+                progress.time_spent_minutes = serializer.validated_data['time_spent_minutes']
+
+            progress.save()
+
+            # Emit skill signal (placeholder - integrate with TalentScope)
+            # emitSkillSignalFromRecipeCompletion(request.user.id, recipe, new_status)
+
+            response_serializer = UserRecipeProgressSerializer(progress)
+            return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RecipeSourceViewSet(viewsets.ModelViewSet):
+    """ViewSet for recipe sources."""
+    queryset = RecipeSource.objects.all()
+    serializer_class = RecipeSourceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        # Only admin/system can create sources
+        if not request.user.is_staff:
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+        return super().create(request, *args, **kwargs)
+
+
+class RecipeSourceIngestView(APIView):
+    """View for triggering recipe source ingestion."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, source_id):
+        # Only admin/system can trigger ingestion
+        if not request.user.is_staff:
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            source = RecipeSource.objects.get(id=source_id)
+        except RecipeSource.DoesNotExist:
+            return Response({'error': 'Source not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Placeholder - implement actual ingestion logic
+        # This would create RecipeLLMJob records based on source config
+
+        return Response({'message': 'Ingestion started', 'source_id': source_id})
+
+
+class LLMNormalizeRecipesView(APIView):
+    """View for triggering LLM normalization worker."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        # Only admin/system can trigger LLM jobs
+        if not request.user.is_staff:
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Placeholder - implement LLM worker logic
+        # This would pick pending RecipeLLMJob records and process them
+
+        return Response({'message': 'LLM normalization worker triggered'})
+
+
+class RecipeEnvStatusView(APIView):
+    """View for checking AI environment configuration status."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        """Check if AI services are configured."""
+        import os
+        from django.conf import settings
+        
+        # Check for OpenAI/ChatGPT API key
+        chatgpt_key = getattr(settings, 'CHAT_GPT_API_KEY', None) or os.environ.get('CHAT_GPT_API_KEY', '')
+        grok_configured = bool(chatgpt_key and chatgpt_key != 'your-openai-api-key' and chatgpt_key.startswith('sk-'))
+        
+        # Check for Groq/Llama (optional)
+        groq_key = os.environ.get('GROQ_API_KEY', '')
+        llama_configured = bool(groq_key and groq_key != 'your-groq-key')
+        
+        # Check for Supabase (used in some recipe features)
+        supabase_url = os.environ.get('SUPABASE_URL', '')
+        supabase_key = os.environ.get('SUPABASE_KEY', '')
+        supabase_configured = bool(supabase_url and supabase_key)
+        
+        return Response({
+            'grok': grok_configured,  # Frontend expects 'grok' key
+            'llama': llama_configured,
+            'supabase': supabase_configured,
+            'openai': grok_configured,  # Also include explicit openai status
+            'model': getattr(settings, 'AI_COACH_MODEL', 'gpt-4')
+        })
+
+
+class RecipeGenerateView(APIView):
+    """View for generating recipes using LLM."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        # Only admin/system can generate recipes
+        if not request.user.is_staff:
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Get parameters
+        track_code = request.data.get('track_code')
+        level = request.data.get('level', 'beginner')
+        skill_code = request.data.get('skill_code')
+        goal_description = request.data.get('goal_description')
+
+        if not all([track_code, skill_code, goal_description]):
+            return Response({'error': 'Missing required parameters'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Import LLM service (this would be implemented)
+            from recipes.services.llm_service import generate_recipe_with_llm
+
+            # Generate recipe using LLM
+            recipe_data = generate_recipe_with_llm(
+                track_code=track_code,
+                level=level,
+                skill_code=skill_code,
+                goal_description=goal_description
+            )
+
+            # Create recipe in database
+            recipe = Recipe.objects.create(
+                title=recipe_data['title'],
+                slug=recipe_data['slug'],
+                summary=recipe_data['description'],
+                description=recipe_data['description'],
+                track_codes=[track_code],
+                skill_codes=[skill_code],
+                difficulty=level,
+                estimated_minutes=recipe_data.get('expected_duration_minutes', 20),
+                steps=recipe_data.get('steps', []),
+                prerequisites=recipe_data.get('prerequisites', []),
+                tools_and_environment=recipe_data.get('tools_and_environment', []),
+                inputs=recipe_data.get('inputs', []),
+                validation_checks=recipe_data.get('validation_checks', []),
+                is_active=True,
+                created_by=request.user
+            )
+
+            serializer = RecipeDetailSerializer(recipe)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_sample_recipe(request):
+    """
+    GET /api/v1/recipes/sample
+    Get a sample recipe for Foundations preview.
+    Returns a beginner-friendly recipe without starting it.
+    """
+    try:
+        # Get a beginner-friendly sample recipe
+        sample_recipe = Recipe.objects.filter(
+            difficulty='beginner',
+            is_active=True
+        ).order_by('?').first()
+        
+        # If no beginner recipe, try any active recipe
+        if not sample_recipe:
+            sample_recipe = Recipe.objects.filter(
+                is_active=True
+            ).order_by('?').first()
+        
+        if not sample_recipe:
+            return Response(
+                {'error': 'No sample recipe available'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Return recipe data (preview only, don't start it)
+        serializer = RecipeDetailSerializer(sample_recipe)
+        return Response({
+            **serializer.data,
+            'preview_only': True,
+            'message': 'This is a preview. You will access recipes after completing Foundations.'
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to fetch sample recipe: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

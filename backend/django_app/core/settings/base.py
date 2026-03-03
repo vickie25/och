@@ -1,0 +1,416 @@
+"""
+Django settings for core project - Base configuration.
+"""
+import os
+from pathlib import Path
+from datetime import timedelta
+from dotenv import load_dotenv
+
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+# Load environment variables from .env file
+# Priority: 1) Project root, 2) backend/django_app (legacy), 3) backend (legacy)
+# NOTE: In Docker, environment variables are already set - don't override them
+PROJECT_ROOT = BASE_DIR.parent.parent  # /home/caleb/kiptoo/och/ongozaCyberHub
+
+# Check if running in Docker (don't override env vars if they're already set properly)
+# Force local development for now
+IN_DOCKER = False
+
+# Always load local .env files for development
+env_path = BASE_DIR / '.env'
+if env_path.exists():
+    load_dotenv(env_path, override=True)
+    print(f"Loaded .env from django_app: {env_path}")
+else:
+    root_env = PROJECT_ROOT / '.env'
+    if root_env.exists():
+        load_dotenv(root_env, override=True)
+        print(f"Loaded .env from project root: {root_env}")
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-change-me-in-production')
+
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
+
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+
+# Enable APPEND_SLASH to support both with and without trailing slashes
+APPEND_SLASH = True
+
+# Application definition
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'django.contrib.postgres',
+    
+    # Third-party apps
+    'rest_framework',
+    'rest_framework_simplejwt',
+    'drf_spectacular',
+    'corsheaders',
+    
+    # Local apps (order matters - users before organizations)
+    'users',
+    'organizations',
+    'progress',
+    'student_dashboard',
+    'mentorship',
+    'profiler',
+    'foundations',
+    'coaching',
+    'curriculum',
+    'recipes',
+    'missions',
+    'dashboard',
+    'subscriptions',
+    'django_apscheduler',       # Periodic jobs (grace period, renewals)
+    'mentorship_coordination',
+    'mentors',
+    'programs',
+    'sponsor_dashboard',
+    'sponsors',
+    'director_dashboard',
+    'support',
+    'talentscope',
+    'marketplace',
+    'community',
+    'api',
+    'shared_schemas',
+]
+
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',  # Disabled for API endpoints
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'users.middleware.consent_middleware.ConsentMiddleware',
+]
+
+ROOT_URLCONF = 'core.urls'
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+WSGI_APPLICATION = 'core.wsgi.application'
+
+# Database
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DB_NAME', 'ongozacyberhub'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
+        'OPTIONS': {
+            'options': '-c search_path=public'
+        },
+    }
+}
+
+# Password validation
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+    },
+    # CommonPasswordValidator has been disabled to allow common passwords.
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
+
+# Internationalization
+LANGUAGE_CODE = 'en-us'
+TIME_ZONE = 'UTC'
+USE_I18N = True
+USE_TZ = True
+
+# Static files (CSS, JavaScript, Images)
+STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Media files (User uploads)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# File upload settings
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
+
+# Default primary key field type
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Custom User Model
+AUTH_USER_MODEL = 'users.User'
+
+# REST Framework
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# JWT Settings
+# Use JWT_SECRET_KEY from environment, fallback to SECRET_KEY for backward compatibility
+JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', SECRET_KEY)
+JWT_ALGORITHM = os.environ.get('JWT_ALGORITHM', 'HS256')
+
+# Log JWT configuration on startup (for debugging)
+print("="*60)
+print("DJANGO JWT CONFIGURATION:")
+print(f"DJANGO_SECRET_KEY from env: {os.environ.get('DJANGO_SECRET_KEY', 'NOT SET')}")
+print(f"JWT_SECRET_KEY from env: {os.environ.get('JWT_SECRET_KEY', 'NOT SET')}")
+print(f"SECRET_KEY (Django): {SECRET_KEY}")
+print(f"JWT_SECRET_KEY (for JWT): {JWT_SECRET_KEY}")
+print(f"JWT_ALGORITHM: {JWT_ALGORITHM}")
+print(f"Keys match: {JWT_SECRET_KEY == SECRET_KEY}")
+print("="*60)
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'SIGNING_KEY': JWT_SECRET_KEY,  # Use dedicated JWT secret key (rest_framework_simplejwt will use this)
+    'ALGORITHM': JWT_ALGORITHM,
+    'VERIFYING_KEY': None,  # Use SIGNING_KEY for verification too
+}
+
+print(f"Django SIMPLE_JWT SIGNING_KEY: {SIMPLE_JWT['SIGNING_KEY']}")
+print(f"Django SIMPLE_JWT ALGORITHM: {SIMPLE_JWT['ALGORITHM']}")
+print("="*60)
+
+# CORS Settings
+CORS_ALLOWED_ORIGINS = [
+    "https://cybochengine.africa",
+    "https://www.cybochengine.africa",
+    "http://cybochengine.africa",
+    "http://www.cybochengine.africa",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+# CSRF Settings for API
+CSRF_TRUSTED_ORIGINS = [
+    "https://cybochengine.africa",
+    "https://www.cybochengine.africa",
+    "http://cybochengine.africa",
+    "http://www.cybochengine.africa",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+# Redis Configuration
+# Use Redis service name in Docker, localhost for local development
+REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
+REDIS_PORT = os.environ.get('REDIS_PORT', '6379')
+REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', None)
+
+# Cache Configuration (using Redis if available, fallback to dummy cache)
+# Use environment variable to control cache backend
+USE_REDIS_CACHE = os.environ.get('USE_REDIS_CACHE', 'false').lower() == 'true'
+
+if USE_REDIS_CACHE:
+    try:
+        from django_redis.cache import RedisCache
+        CACHES = {
+            "default": {
+                "BACKEND": "django_redis.cache.RedisCache",
+                "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/1",
+                "OPTIONS": {
+                    "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                },
+                "KEY_PREFIX": "och",
+                "TIMEOUT": 300,  # 5 minutes default timeout
+            }
+        }
+    except (ImportError, ModuleNotFoundError):
+        # Fallback to dummy cache if django_redis is not available
+        print("WARNING: django_redis not available, using dummy cache backend")
+        CACHES = {
+            "default": {
+                "BACKEND": "django.core.cache.backends.dummy.DummyCache",
+            }
+        }
+else:
+    # Use dummy cache for local development (no Redis required)
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.dummy.DummyCache",
+        }
+    }
+
+# Celery Configuration (if using Celery)
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', f'redis://{REDIS_HOST}:{REDIS_PORT}/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', f'redis://{REDIS_HOST}:{REDIS_PORT}/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+
+# Celery Beat Schedule (periodic tasks)
+try:
+    from director_dashboard.celery_config import DIRECTOR_DASHBOARD_BEAT_SCHEDULE
+    CELERY_BEAT_SCHEDULE = {
+        **DIRECTOR_DASHBOARD_BEAT_SCHEDULE,
+    }
+except ImportError:
+    CELERY_BEAT_SCHEDULE = {}
+
+# Monitoring & Metrics
+ENABLE_METRICS = os.environ.get('ENABLE_METRICS', 'False').lower() == 'true'
+
+# Frontend URL for email links and redirects
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+
+# Resend settings for email activation and password reset (fallback)
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
+RESEND_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', 'onboarding@resend.dev')
+RESEND_FROM_NAME = os.environ.get('RESEND_FROM_NAME', 'Ongoza CyberHub')
+
+# Email: prefer MAIL_* from .env (e.g. MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM_ADDRESS, MAIL_FROM_NAME, MAIL_ENCRYPTION)
+MAIL_FROM_ADDRESS = os.environ.get('MAIL_FROM_ADDRESS') or RESEND_FROM_EMAIL
+MAIL_FROM_NAME = os.environ.get('MAIL_FROM_NAME') or RESEND_FROM_NAME
+DEFAULT_FROM_EMAIL = f"{MAIL_FROM_NAME} <{MAIL_FROM_ADDRESS}>"
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.environ.get('MAIL_HOST') or os.environ.get('EMAIL_HOST', 'smtp.resend.com')
+EMAIL_PORT = int(os.environ.get('MAIL_PORT') or os.environ.get('EMAIL_PORT', '465'))
+EMAIL_HOST_USER = os.environ.get('MAIL_USERNAME') or os.environ.get('EMAIL_HOST_USER', 'resend')
+EMAIL_HOST_PASSWORD = os.environ.get('MAIL_PASSWORD') or os.environ.get('RESEND_API_KEY') or os.environ.get('EMAIL_HOST_PASSWORD', '')
+
+# MAIL_ENCRYPTION=tls usually means STARTTLS (port 587); port 465 typically uses SSL
+_use_tls = (os.environ.get('MAIL_ENCRYPTION', '').lower() == 'tls')
+_use_ssl = (EMAIL_PORT == 465) or (not _use_tls and EMAIL_PORT in (465, 994))
+EMAIL_USE_SSL = _use_ssl
+EMAIL_USE_TLS = _use_tls and not _use_ssl
+
+# Token expiry settings
+ACTIVATION_TOKEN_EXPIRY = int(os.environ.get('ACTIVATION_TOKEN_EXPIRY', 24))
+PASSWORD_RESET_TOKEN_EXPIRY = int(os.environ.get('PASSWORD_RESET_TOKEN_EXPIRY', 1))
+
+# MFA: TOTP secret encryption at rest (use MFA_TOTP_ENCRYPTION_KEY or fallback to SECRET_KEY)
+MFA_TOTP_ENCRYPTION_KEY = os.environ.get('MFA_TOTP_ENCRYPTION_KEY') or SECRET_KEY
+
+# SMS: provider (textsms = sms.textsms.co.ke, textbelt = testing, twilio = production)
+SMS_PROVIDER = (os.environ.get('SMS_PROVIDER') or 'textsms').lower()
+# TextSMS (https://sms.textsms.co.ke)
+TEXTSMS_PARTNER_ID = os.environ.get('TEXTSMS_PARTNER_ID', '')
+TEXTSMS_API_KEY = os.environ.get('TEXTSMS_API_KEY', '')
+TEXTSMS_SENDER_ID = os.environ.get('TEXTSMS_SENDER_ID', '')
+# Twilio
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
+TWILIO_FROM_NUMBER = os.environ.get('TWILIO_FROM_NUMBER', '')
+
+# AI/LLM Configuration
+CHAT_GPT_API_KEY = os.environ.get('CHAT_GPT_API_KEY', os.environ.get('OPENAI_API_KEY', ''))
+AI_COACH_MODEL = os.environ.get('AI_COACH_MODEL', 'gpt-4o-mini')
+
+# drf-spectacular (Swagger/OpenAPI) Settings
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'OCH Cyber Talent Engine API',
+    'DESCRIPTION': '''
+    Comprehensive API for the OCH Cyber Talent Engine platform.
+    
+    This API provides endpoints for:
+    - User authentication and management
+    - Program, Track, and Cohort management
+    - Mentorship coordination
+    - Student dashboards and progress tracking
+    - Missions and portfolio management
+    - Director dashboards and analytics
+    
+    **Authentication**: Use JWT Bearer tokens. Obtain tokens via `/api/v1/auth/login` or `/api/v1/auth/login/`
+    ''',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'SCHEMA_PATH_PREFIX': '/api/v1/',
+    'COMPONENT_SPLIT_REQUEST': True,
+    'COMPONENT_NO_READ_ONLY_REQUIRED': True,
+    'TAGS': [
+        {'name': 'Authentication', 'description': 'User authentication and JWT token management'},
+        {'name': 'Users', 'description': 'User management and profiles'},
+        {'name': 'Programs', 'description': 'Program, Track, and Cohort management'},
+        {'name': 'Director Dashboard', 'description': 'Director dashboard and analytics'},
+        {'name': 'Mentorship', 'description': 'Mentorship coordination and sessions'},
+        {'name': 'Missions', 'description': 'Mission submissions and approvals'},
+        {'name': 'Coaching', 'description': 'Coaching and habit tracking'},
+        {'name': 'Portfolio', 'description': 'Portfolio management'},
+        {'name': 'Organizations', 'description': 'Organization management'},
+        {'name': 'Progress', 'description': 'Progress tracking'},
+        {'name': 'Subscriptions', 'description': 'Subscription and billing'},
+    ],
+    'SECURITY': [
+        {
+            'type': 'http',
+            'scheme': 'bearer',
+            'bearerFormat': 'JWT',
+        }
+    ],
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'displayOperationId': False,
+        'defaultModelsExpandDepth': 1,
+        'defaultModelExpandDepth': 1,
+        'displayRequestDuration': True,
+        'docExpansion': 'list',
+        'filter': True,
+        'showExtensions': True,
+        'showCommonExtensions': True,
+        'tryItOutEnabled': True,
+    },
+    'REDOC_UI_SETTINGS': {
+        'hideDownloadButton': False,
+        'hideHostname': False,
+        'hideLoading': False,
+        'nativeScrollbars': False,
+        'requiredPropsFirst': True,
+        'scrollYOffset': 0,
+        'showExtensions': True,
+        'sortPropsAlphabetically': True,
+        'theme': {
+            'colors': {
+                'primary': {
+                    'main': '#FF6B35',  # OCH Orange
+                }
+            }
+        },
+    },
+}
