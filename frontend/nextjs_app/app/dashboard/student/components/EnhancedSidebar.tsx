@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDashboardStore } from '../lib/store/dashboardStore';
 import { useRouter, usePathname } from 'next/navigation';
@@ -117,6 +117,7 @@ export function EnhancedSidebar({ isCollapsed = false, onCollapsedChange }: Side
   const [loadingProgress, setLoadingProgress] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   
   // Refresh user data on mount to ensure we have latest track_key
   useEffect(() => {
@@ -212,190 +213,221 @@ export function EnhancedSidebar({ isCollapsed = false, onCollapsedChange }: Side
     }
   };
 
+  // Auto-hide sidebar scrollbar: show only while scrolling this whole column
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    let hideTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const handleScroll = () => {
+      el.classList.add('scrollbar-visible');
+
+      if (hideTimeout) {
+        clearTimeout(hideTimeout);
+      }
+
+      hideTimeout = setTimeout(() => {
+        el.classList.remove('scrollbar-visible');
+      }, 150);
+    };
+
+    el.addEventListener('scroll', handleScroll);
+
+    return () => {
+      el.removeEventListener('scroll', handleScroll);
+      if (hideTimeout) {
+        clearTimeout(hideTimeout);
+      }
+    };
+  }, []);
+
   return (
     <div className={clsx(
       "flex flex-col h-full bg-gradient-to-b from-och-midnight to-och-midnight/95 border-r border-och-steel/20",
       "transition-all duration-300 overflow-hidden"
     )}>
-      {/* ============ HEADER SECTION ============ */}
-      <div className="p-4 lg:p-6 border-b border-och-steel/10">
-        <div className="flex items-center justify-between">
-          {!isCollapsed && (
-            <motion.div 
-              initial={{ opacity: 0, x: -10 }} 
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center gap-2"
-            >
-              <div className="w-7 h-7 rounded-lg bg-och-gold flex items-center justify-center">
-                <Shield className="w-4 h-4 text-black font-black" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-black text-white uppercase tracking-tighter">OCH HUB</span>
-                <span className="text-[10px] text-och-steel/60 font-medium">Control Panel</span>
-              </div>
-            </motion.div>
-          )}
-          
-          <button
-            onClick={() => onCollapsedChange?.(!isCollapsed)}
-            className="p-2 rounded-lg hover:bg-white/5 text-och-steel hover:text-white transition-all"
-            aria-label={isCollapsed ? 'Expand' : 'Collapse'}
-          >
-            {isCollapsed ? (
-              <ChevronRight className="w-4 h-4" />
-            ) : (
-              <ChevronLeft className="w-4 h-4" />
+      {/* ============ SCROLLABLE SIDEBAR COLUMN ============ */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-auto-hide">
+        {/* HEADER SECTION (OCH HUB / Control Panel) */}
+        <div className="p-4 lg:p-6 border-b border-och-steel/10">
+          <div className="flex items-center justify-between">
+            {!isCollapsed && (
+              <motion.div 
+                initial={{ opacity: 0, x: -10 }} 
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center gap-2"
+              >
+                <div className="w-7 h-7 rounded-lg bg-och-gold flex items-center justify-center">
+                  <Shield className="w-4 h-4 text-black font-black" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-black text-white uppercase tracking-tighter">OCH HUB</span>
+                  <span className="text-[10px] text-och-steel/60 font-medium">Control Panel</span>
+                </div>
+              </motion.div>
             )}
-          </button>
-        </div>
-      </div>
-
-      {/* ============ PROFILE CARD SECTION ============ */}
-      {!isCollapsed && (
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="px-4 py-3 border-b border-och-steel/10"
-        >
-          <div className={clsx(
-            "p-4 rounded-2xl border",
-            `bg-gradient-to-br ${theme.bgGradient}`,
-            theme.borderColor,
-            "relative overflow-hidden group cursor-pointer hover:border-opacity-100 transition-all"
-          )}
-          onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-          >
-            {/* Background accent */}
-            <div className="absolute -right-8 -top-8 w-24 h-24 bg-white/5 rounded-full blur-3xl" />
             
-            <div className="relative z-10 flex items-start gap-3">
-              {/* Avatar */}
-              <div className={clsx(
-                "w-10 h-10 rounded-full flex items-center justify-center shrink-0 border",
-                theme.lightBg,
-                theme.borderColor
-              )}>
-                <UserCircle className={clsx("w-6 h-6", theme.accentColor)} />
-              </div>
+            <button
+              onClick={() => onCollapsedChange?.(!isCollapsed)}
+              className="p-2 rounded-lg hover:bg-white/5 text-och-steel hover:text-white transition-all"
+              aria-label={isCollapsed ? 'Expand' : 'Collapse'}
+            >
+              {isCollapsed ? (
+                <ChevronRight className="w-4 h-4" />
+              ) : (
+                <ChevronLeft className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+        </div>
 
-              {/* User Info */}
-              <div className="flex-1 min-w-0">
-                <h3 className="text-xs font-black text-white uppercase tracking-tighter truncate">
-                  {user?.first_name || 'Student'}
-                </h3>
-                <p className="text-[11px] text-och-steel/70 font-medium truncate">
-                  {user?.email}
-                </p>
-                <div className="flex items-center gap-1.5 mt-2">
-                  {theme.icon}
-                  <span className={clsx("text-[10px] font-bold uppercase tracking-widest", theme.accentColor)}>
-                    {theme.label}
-                  </span>
+        {/* PROFILE CARD SECTION */}
+        {!isCollapsed && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="px-4 py-3 border-b border-och-steel/10"
+          >
+            <div className={clsx(
+              "p-4 rounded-2xl border",
+              `bg-gradient-to-br ${theme.bgGradient}`,
+              theme.borderColor,
+              "relative overflow-hidden group cursor-pointer hover:border-opacity-100 transition-all"
+            )}
+            onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+            >
+              {/* Background accent */}
+              <div className="absolute -right-8 -top-8 w-24 h-24 bg-white/5 rounded-full blur-3xl" />
+              
+              <div className="relative z-10 flex items-start gap-3">
+                {/* Avatar */}
+                <div className={clsx(
+                  "w-10 h-10 rounded-full flex items-center justify-center shrink-0 border",
+                  theme.lightBg,
+                  theme.borderColor
+                )}>
+                  <UserCircle className={clsx("w-6 h-6", theme.accentColor)} />
+                </div>
+
+                {/* User Info */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-xs font-black text-white uppercase tracking-tighter truncate">
+                    {user?.first_name || 'Student'}
+                  </h3>
+                  <p className="text-[11px] text-och-steel/70 font-medium truncate">
+                    {user?.email}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-2">
+                    {theme.icon}
+                    <span className={clsx("text-[10px] font-bold uppercase tracking-widest", theme.accentColor)}>
+                      {theme.label}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Status indicator */}
+                <div className="flex flex-col items-center justify-center">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span className="text-[9px] text-och-steel/60 mt-1">Active</span>
                 </div>
               </div>
 
-              {/* Status indicator */}
-              <div className="flex flex-col items-center justify-center">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span className="text-[9px] text-och-steel/60 mt-1">Active</span>
-              </div>
-            </div>
-
-            {/* Profile dropdown menu */}
-            <AnimatePresence>
-              {profileMenuOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="absolute top-full left-4 right-4 mt-2 bg-och-midnight border border-och-steel/20 rounded-lg shadow-xl z-20"
-                >
-                  <button
-                    onClick={() => {
-                      navigateTo('/dashboard/student/settings/profile');
-                      setProfileMenuOpen(false);
-                    }}
-                    className="w-full px-3 py-2 text-left text-xs font-bold text-och-steel hover:text-white hover:bg-white/5 rounded-lg transition-all"
+              {/* Profile dropdown menu */}
+              <AnimatePresence>
+                {profileMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute top-full left-4 right-4 mt-2 bg-och-midnight border border-och-steel/20 rounded-lg shadow-xl z-20"
                   >
-                    View Profile
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Collapsed profile indicator */}
-      {isCollapsed && (
-        <div className="flex justify-center p-4 border-b border-och-steel/10">
-          <div className={clsx(
-            "w-10 h-10 rounded-lg flex items-center justify-center border",
-            theme.lightBg,
-            theme.borderColor
-          )}>
-            {theme.icon}
-          </div>
-        </div>
-      )}
-
-      {/* ============ TRACK PROGRESS SECTION ============ */}
-      {!isCollapsed && trackKey && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="px-4 py-3 border-b border-och-steel/10"
-        >
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-och-steel uppercase tracking-widest">
-                Track Progress
-              </span>
-              {trackProgress?.completion_percentage && (
-                <Badge variant="outline" className="text-[9px]">
-                  {Math.round(trackProgress.completion_percentage)}%
-                </Badge>
-              )}
-            </div>
-            
-            {/* Progress bar */}
-            <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/10">
-              <motion.div
-                className={clsx(
-                  "h-full rounded-full",
-                  trackKey === 'defender' && 'bg-indigo-500',
-                  trackKey === 'offensive' && 'bg-red-500',
-                  trackKey === 'grc' && 'bg-emerald-500',
-                  trackKey === 'innovation' && 'bg-cyan-500',
-                  trackKey === 'leadership' && 'bg-och-gold',
+                    <button
+                      onClick={() => {
+                        navigateTo('/dashboard/student/settings/profile');
+                        setProfileMenuOpen(false);
+                      }}
+                      className="w-full px-3 py-2 text-left text-xs font-bold text-och-steel hover:text-white hover:bg-white/5 rounded-lg transition-all"
+                    >
+                      View Profile
+                    </button>
+                  </motion.div>
                 )}
-                initial={{ width: 0 }}
-                animate={{ width: `${trackProgress?.completion_percentage || 0}%` }}
-                transition={{ delay: 0.2, duration: 1 }}
-              />
+              </AnimatePresence>
             </div>
+          </motion.div>
+        )}
 
-            {/* Stats row — primary track only (Track Progress) */}
-            <div className="grid grid-cols-3 gap-2 text-center text-[9px] font-bold text-och-steel/70 pt-1">
-              <div>
-                <div className="text-white">{trackProgress?.circle_level ?? 0}</div>
-                <div className="text-[8px]">Level</div>
-              </div>
-              <div>
-                <div className="text-white">{trackProgress?.current_streak_days ?? 0}d</div>
-                <div className="text-[8px]">Streak</div>
-              </div>
-              <div>
-                <div className="text-white">{trackProgress?.total_points ?? 0}</div>
-                <div className="text-[8px]">Points</div>
-              </div>
+        {/* Collapsed profile indicator */}
+        {isCollapsed && (
+          <div className="flex justify-center p-4 border-b border-och-steel/10">
+            <div className={clsx(
+              "w-10 h-10 rounded-lg flex items-center justify-center border",
+              theme.lightBg,
+              theme.borderColor
+            )}>
+              {theme.icon}
             </div>
           </div>
-        </motion.div>
-      )}
+        )}
 
-      {/* ============ MAIN NAVIGATION ============ */}
-      <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-1.5">
+        {/* TRACK PROGRESS SECTION (scrolls up, then sticks at top of sidebar, with transparent feel) */}
+        {!isCollapsed && trackKey && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="px-4 py-3 border-b border-och-steel/10 sticky top-0 z-20 bg-och-midnight/70 backdrop-blur-md"
+          >
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-och-steel uppercase tracking-widest">
+                  Track Progress
+                </span>
+                {trackProgress?.completion_percentage && (
+                  <Badge variant="outline" className="text-[9px]">
+                    {Math.round(trackProgress.completion_percentage)}%
+                  </Badge>
+                )}
+              </div>
+              
+              {/* Progress bar */}
+              <div className="h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/10">
+                <motion.div
+                  className={clsx(
+                    "h-full rounded-full",
+                    trackKey === 'defender' && 'bg-indigo-500',
+                    trackKey === 'offensive' && 'bg-red-500',
+                    trackKey === 'grc' && 'bg-emerald-500',
+                    trackKey === 'innovation' && 'bg-cyan-500',
+                    trackKey === 'leadership' && 'bg-och-gold',
+                  )}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${trackProgress?.completion_percentage || 0}%` }}
+                  transition={{ delay: 0.2, duration: 1 }}
+                />
+              </div>
+
+              {/* Stats row — primary track only (Track Progress) */}
+              <div className="grid grid-cols-3 gap-2 text-center text-[9px] font-bold text-och-steel/70 pt-1">
+                <div>
+                  <div className="text-white">{trackProgress?.circle_level ?? 0}</div>
+                  <div className="text-[8px]">Level</div>
+                </div>
+                <div>
+                  <div className="text-white">{trackProgress?.current_streak_days ?? 0}d</div>
+                  <div className="text-[8px]">Streak</div>
+                </div>
+                <div>
+                  <div className="text-white">{trackProgress?.total_points ?? 0}</div>
+                  <div className="text-[8px]">Points</div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ============ MAIN NAVIGATION + FOOTER ============ */}
+        <nav className="px-3 py-4 space-y-1.5">
         {mainNav.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -433,12 +465,12 @@ export function EnhancedSidebar({ isCollapsed = false, onCollapsedChange }: Side
             </motion.button>
           );
         })}
-      </nav>
 
-      {/* ============ SETTINGS SECTION ============ */}
-      <div className="px-3 py-2 border-t border-och-steel/10 space-y-1.5">
-        {/* Settings Dropdown */}
-        <div>
+          {/* Divider before footer actions */}
+          <div className="h-px bg-och-steel/20 mx-1 my-2" />
+
+          {/* Settings Dropdown */}
+          <div className="space-y-1.5">
           <motion.button
             onClick={() => setSettingsOpen(!settingsOpen)}
             whileHover={{ x: 4 }}
@@ -502,40 +534,41 @@ export function EnhancedSidebar({ isCollapsed = false, onCollapsedChange }: Side
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
+          </div>
 
-        {/* Alerts Button */}
-        <motion.button
-          whileHover={{ x: 4 }}
-          whileTap={{ scale: 0.98 }}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-och-steel hover:text-white hover:bg-white/5 transition-all group relative"
-        >
-          <Bell className="w-4 h-4 shrink-0 group-hover:text-och-gold" />
-          {!isCollapsed && (
-            <>
-              <span className="text-xs font-bold uppercase tracking-wider flex-1 text-left">
-                Alerts
-              </span>
-              <div className="w-2 h-2 bg-och-defender rounded-full animate-pulse" />
-            </>
-          )}
-          {isCollapsed && (
-            <div className="absolute top-1 right-1 w-2 h-2 bg-och-defender rounded-full animate-pulse" />
-          )}
-        </motion.button>
+          {/* Alerts Button */}
+          <motion.button
+            whileHover={{ x: 4 }}
+            whileTap={{ scale: 0.98 }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-och-steel hover:text-white hover:bg-white/5 transition-all group relative"
+          >
+            <Bell className="w-4 h-4 shrink-0 group-hover:text-och-gold" />
+            {!isCollapsed && (
+              <>
+                <span className="text-xs font-bold uppercase tracking-wider flex-1 text-left">
+                  Alerts
+                </span>
+                <div className="w-2 h-2 bg-och-defender rounded-full animate-pulse" />
+              </>
+            )}
+            {isCollapsed && (
+              <div className="absolute top-1 right-1 w-2 h-2 bg-och-defender rounded-full animate-pulse" />
+            )}
+          </motion.button>
 
-        {/* Logout Button */}
-        <motion.button
-          onClick={handleLogout}
-          whileHover={{ x: 4 }}
-          whileTap={{ scale: 0.98 }}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-och-steel hover:text-red-400 hover:bg-red-500/10 transition-all group mt-2 border-t border-och-steel/10 pt-3"
-        >
-          <LogOut className="w-4 h-4 shrink-0 group-hover:scale-110 transition-transform" />
-          {!isCollapsed && (
-            <span className="text-xs font-bold uppercase tracking-wider">Logout</span>
-          )}
-        </motion.button>
+          {/* Logout Button */}
+          <motion.button
+            onClick={handleLogout}
+            whileHover={{ x: 4 }}
+            whileTap={{ scale: 0.98 }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-och-steel hover:text-red-400 hover:bg-red-500/10 transition-all group"
+          >
+            <LogOut className="w-4 h-4 shrink-0 group-hover:scale-110 transition-transform" />
+            {!isCollapsed && (
+              <span className="text-xs font-bold uppercase tracking-wider">Logout</span>
+            )}
+          </motion.button>
+        </nav>
       </div>
     </div>
   );

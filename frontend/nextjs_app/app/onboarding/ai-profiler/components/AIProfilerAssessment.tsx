@@ -258,7 +258,7 @@ export default function AIProfilerAssessment({
                 Processing...
               </span>
             ) : questionNumber === totalQuestions ? (
-              'Complete Assessment'
+              'Finish & view recommendation'
             ) : (
               'Next Question'
             )}

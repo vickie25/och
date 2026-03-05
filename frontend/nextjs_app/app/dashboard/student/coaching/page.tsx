@@ -197,9 +197,9 @@ export default function AICoachPage() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-slate-950 text-slate-100 overflow-hidden">
+    <div className="flex flex-col bg-slate-950/0 text-slate-100 min-h-0 relative">
       {loadingProgress && (
-        <div className="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center">
+        <div className="absolute inset-0 bg-slate-950/80 z-20 flex items-center justify-center rounded-2xl">
           <div className="text-center">
             <div className="w-12 h-12 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="text-slate-300 font-medium">Loading your AI Coach...</p>

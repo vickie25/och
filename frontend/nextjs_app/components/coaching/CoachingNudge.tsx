@@ -247,15 +247,26 @@ export function CoachingNudge({ userId, autoLoad = true, onActionClick }: Coachi
             </div>
           )}
 
-          <div className="flex gap-2 pt-2 border-t border-white/20">
+          <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-white/20">
             {nudge.actions && nudge.actions.length > 0 && (
-              <Button
-                size="sm"
-                className="flex-1 bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border-white/30"
-                onClick={() => executeAction(nudge.actions[0])}
-              >
-                🚀 Do This Now
-              </Button>
+              <div className="flex-1 flex flex-col sm:flex-row gap-2">
+                {nudge.actions.slice(0, 3).map((action, index) => (
+                  <Button
+                    key={index}
+                    size="sm"
+                    className={
+                      index === 0
+                        ? 'flex-1 bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border-white/30'
+                        : 'flex-1 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white border-white/20'
+                    }
+                    onClick={() => executeAction(action)}
+                  >
+                    {index === 0
+                      ? '🚀 Do This Now'
+                      : nudge.priorities?.[index]?.action || 'Do This'}
+                  </Button>
+                ))}
+              </div>
             )}
             <Button
               size="sm"

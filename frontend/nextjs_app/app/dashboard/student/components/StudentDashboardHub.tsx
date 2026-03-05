@@ -507,53 +507,6 @@ export function StudentDashboardHub() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-och-midnight via-och-midnight/95 to-slate-950">
-      {/* Compact Top Navigation */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="sticky top-0 z-50 bg-och-midnight/95 backdrop-blur-md border-b border-och-steel/20"
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14">
-            <div className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-lg ${getTrackColorClasses('bg')} ${getTrackColorClasses('border')} border flex items-center justify-center`}>
-                {trackTheme.icon}
-              </div>
-              <div className="hidden sm:block">
-                <p className="text-xs text-och-steel font-bold uppercase tracking-wider">
-                  {loadingTrack ? 'Loading...' : 'Welcome back'}
-                </p>
-                <p className="text-sm font-black text-white">
-                  {user?.first_name || 'Student'}
-                </p>
-              </div>
-              <div className="sm:hidden">
-                <p className="text-sm font-black text-white">
-                  {trackDisplayName}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="relative p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-all"
-              >
-                <Bell className="w-4 h-4 text-och-steel" />
-              </button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push('/dashboard/student/settings')}
-                className="hidden sm:flex text-xs"
-              >
-                Settings
-              </Button>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
       {/* Main Content - Compact */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
         
