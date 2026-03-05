@@ -91,31 +91,8 @@ function GoogleOAuthCallbackPageInner() {
         })
 
         console.log('[OAuth Callback] Backend response:', response)
-
-        // Store tokens in localStorage
-        if (response.access_token) {
-          localStorage.setItem('access_token', response.access_token)
-          localStorage.setItem('auth_token', response.access_token)
-          if (response.refresh_token) {
-            localStorage.setItem('refresh_token', response.refresh_token)
-          }
-          // Also set HttpOnly cookies via Next.js API for SSR consistency
-          try {
-            await fetch('/api/auth/ssologin', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                access_token: response.access_token,
-                refresh_token: response.refresh_token,
-                user: response.user,
-              }),
-            })
-          } catch (e) {
-            console.error('[OAuth] Failed to set cookies via ssologin route', e)
-          }
-        }
-
         const accountCreated = !!response.account_created
+        const onboardingEmailSent = !!response.onboarding_email_sent
 
         setStatus('success')
         setMessage(
@@ -145,7 +122,10 @@ function GoogleOAuthCallbackPageInner() {
           const profilingComplete = user.profiling_complete ?? false
           console.log('[OAuth Callback] Student profiling_complete:', profilingComplete)
 
-          if (accountCreated) {
+          // Either a brand-new account or an existing student started Google from /register
+          // and we (re)sent the onboarding email: in both cases, keep them on this page
+          // and instruct them to start from the email, instead of dropping into profiler.
+          if (accountCreated || onboardingEmailSent) {
             setMessage(
               'Your account has been created. Please check your email for a self-onboarding link to set your password, secure your account with MFA, and complete profiling.'
             )
@@ -206,6 +186,29 @@ function GoogleOAuthCallbackPageInner() {
               break
             default:
               redirectPath = '/dashboard'
+          }
+        }
+
+        // For all flows that reach this point (i.e. not in the student + onboarding-email branch),
+        // persist tokens locally and via the ssologin route so the app can use them.
+        if (response.access_token) {
+          localStorage.setItem('access_token', response.access_token)
+          localStorage.setItem('auth_token', response.access_token)
+          if (response.refresh_token) {
+            localStorage.setItem('refresh_token', response.refresh_token)
+          }
+          try {
+            await fetch('/api/auth/ssologin', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                access_token: response.access_token,
+                refresh_token: response.refresh_token,
+                user: response.user,
+              }),
+            })
+          } catch (e) {
+            console.error('[OAuth] Failed to set cookies via ssologin route', e)
           }
         }
         

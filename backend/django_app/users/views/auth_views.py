@@ -1949,7 +1949,12 @@ def check_password_status(request):
     
     try:
         user = User.objects.get(email__iexact=email)
-        has_password = user.has_usable_password()
+        # Treat blank/empty password as "no password", even though Django's
+        # has_usable_password may consider it usable. This ensures Google SSO
+        # and other passwordless-created accounts correctly show the password
+        # step as pending in the onboarding flow until the student sets one.
+        raw_has_password = user.has_usable_password()
+        has_password = bool(user.password) and raw_has_password
         
         return Response({
             'email': user.email,

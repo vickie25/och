@@ -71,8 +71,12 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <div className="space-y-4 mb-6">
+          <div className="space-y-2 mb-6">
             <GoogleSignInButton role="student" mode="register" />
+            <p className="text-xs text-och-steel text-center">
+              After continuing with Google, you will receive a <span className="font-semibold">Get Started</span> email.
+              Open that email and click the button inside to start your onboarding journey.
+            </p>
           </div>
 
           <div className="relative mb-6">

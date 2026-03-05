@@ -270,6 +270,7 @@ class GoogleOAuthCallbackView(APIView):
 
         user = None
         created = False
+        onboarding_email_sent = False
 
         if oauth_mode == 'register':
             # Registration flow: create a new account if one doesn't exist yet.
@@ -277,6 +278,8 @@ class GoogleOAuthCallbackView(APIView):
             if user:
                 created = False
             else:
+                # IMPORTANT: Use an unusable password so onboarding can correctly
+                # detect that the student still needs to set a password.
                 user = User.objects.create(
                     email=email,
                     username=email,
@@ -287,6 +290,8 @@ class GoogleOAuthCallbackView(APIView):
                     account_status='active' if email_verified else 'pending_verification',
                     is_active=True,
                 )
+                user.set_unusable_password()
+                user.save(update_fields=["password"])
                 created = True
         else:
             # Login flow: require an existing account
@@ -317,7 +322,7 @@ class GoogleOAuthCallbackView(APIView):
             user.is_active = True
             user.save()
 
-        # If this is a newly created account via registration flow, assign role and send onboarding email
+        # If this is a newly created account via registration flow, assign role.
         if created:
             from users.views.auth_views import _assign_user_role
             _assign_user_role(user, intended_role)
@@ -327,17 +332,23 @@ class GoogleOAuthCallbackView(APIView):
                 user.account_status = 'active'
                 user.save()
 
-            try:
-                primary_role_names = [
-                    ur.role.name
-                    for ur in UserRole.objects.filter(user=user, is_active=True).select_related("role")
-                ]
-                if any(r in ("student", "mentee") for r in primary_role_names):
+        # For any student/mentee coming through Google SSO who has NOT completed profiling yet,
+        # send (or re-send) the onboarding email so they always enter via the email link instead
+        # of being dropped directly into the profiler. This applies to both register and login flows.
+        try:
+            primary_role_names = [
+                ur.role.name
+                for ur in UserRole.objects.filter(user=user, is_active=True).select_related("role")
+            ]
+            if any(r in ("student", "mentee") for r in primary_role_names):
+                profiling_complete = getattr(user, "profiling_complete", False)
+                if not profiling_complete:
                     send_onboarding_email(user)
-            except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.warning(f"Failed to send onboarding email for Google SSO user {user.email}: {str(e)}")
+                    onboarding_email_sent = True
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to send onboarding email for Google SSO user {user.email}: {str(e)}")
 
         # Create session and issue tokens
         ip_address = _get_client_ip(request)
@@ -374,6 +385,7 @@ class GoogleOAuthCallbackView(APIView):
             'user': UserSerializer(user).data,
             'consent_scopes': consent_scopes,
             'account_created': created,
+            'onboarding_email_sent': onboarding_email_sent,
         }, status=status.HTTP_200_OK)
 
 

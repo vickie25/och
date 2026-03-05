@@ -29,6 +29,7 @@ export interface GoogleOAuthCallbackResponse {
   consent_scopes: string[]
   account_created: boolean
   account_activated: boolean
+  onboarding_email_sent?: boolean
 }
 
 export const googleOAuthClient = {

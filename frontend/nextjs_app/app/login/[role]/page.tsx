@@ -1065,7 +1065,7 @@ export function LoginForm() {
                 <span className="px-2 bg-[rgba(255,255,255,0.03)] text-[#64748B]">or</span>
               </div>
             </div>
-            <div className="mt-4">
+            <div className="mt-4 space-y-2">
               <Button
                 type="button"
                 variant="outline"
@@ -1090,6 +1090,10 @@ export function LoginForm() {
                 </svg>
                 Continue with Google
               </Button>
+              <p className="text-xs text-[#94A3B8] text-center">
+                After signing in with Google, you will receive a <span className="font-semibold">Get Started</span> email.
+                Open that email and click the button inside to begin your onboarding. You will not start directly in the profiler.
+              </p>
             </div>
           </div>
 
