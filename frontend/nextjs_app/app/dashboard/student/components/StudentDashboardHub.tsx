@@ -998,23 +998,25 @@ export function StudentDashboardHub() {
                     )}
                   </Card>
 
-                  {/* AI Coach */}
+                  {/* AI Coach - dynamic from next actions or coaching */}
                   <Card className={`p-3 bg-gradient-to-br ${getTrackColorClasses('gradient')} border ${getTrackColorClasses('border')}`}>
                     <div className="flex items-center gap-2 mb-2">
                       <Brain className={`w-4 h-4 ${getTrackColorClasses('text')}`} />
                       <h3 className="text-xs font-black text-white">AI Coach</h3>
                     </div>
                     <p className="text-xs text-och-steel mb-2 line-clamp-2">
-                      Get personalized guidance and support
+                      {nextActions.length > 0 && nextActions[0]?.title
+                        ? nextActions[0].title
+                        : 'Get personalized guidance and support'}
                     </p>
                     <Button
                       variant="outline"
                       size="sm"
                       className={`w-full ${getTrackColorClasses('border')} ${getTrackColorClasses('text')} text-xs`}
-                      onClick={() => router.push('/dashboard/student/coaching')}
+                      onClick={() => router.push(nextActions.length > 0 && nextActions[0]?.action_url ? nextActions[0].action_url : '/dashboard/student/coaching')}
                     >
                       <MessageSquare className="w-3 h-3 mr-1" />
-                      Chat Now
+                      {nextActions.length > 0 && nextActions[0]?.action_url ? 'Continue' : 'Chat Now'}
                     </Button>
                   </Card>
                 </div>

@@ -1080,12 +1080,16 @@ function GradesTab({
   cohortFilter,
   setCohortFilter,
   loading,
+  onSetApplicationThreshold,
+  onSetInterviewThreshold,
 }: {
   cohorts: Cohort[]
   applications: Application[]
   cohortFilter: string
   setCohortFilter: (v: string) => void
   loading: boolean
+  onSetApplicationThreshold: () => void
+  onSetInterviewThreshold: () => void
 }) {
   const studentApps = useMemo(() => applications.filter((a) => a.applicant_type === 'student'), [applications])
   const passedReview = useMemo(() => studentApps.filter((a) => (a as Application).review_status === 'passed'), [studentApps])
@@ -1111,8 +1115,8 @@ function GradesTab({
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
-          <Button variant="outline" size="sm">Set application threshold</Button>
-          <Button variant="outline" size="sm">Set interview threshold</Button>
+          <Button variant="outline" size="sm" onClick={onSetApplicationThreshold}>Set application threshold</Button>
+          <Button variant="outline" size="sm" onClick={onSetInterviewThreshold}>Set interview threshold</Button>
         </div>
       </Card>
 
@@ -2048,6 +2052,20 @@ function ApplicationsContent() {
                 cohortFilter={cohortFilter}
                 setCohortFilter={setCohortFilter}
                 loading={loading}
+                onSetApplicationThreshold={() => {
+                  if (!cohortFilter) {
+                    alert('Please select a cohort first.')
+                    return
+                  }
+                  setShowCutoffModal('review')
+                }}
+                onSetInterviewThreshold={() => {
+                  if (!cohortFilter) {
+                    alert('Please select a cohort first.')
+                    return
+                  }
+                  setShowCutoffModal('interview')
+                }}
               />
             </TabsContent>
           </Tabs>

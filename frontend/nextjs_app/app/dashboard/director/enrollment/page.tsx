@@ -1699,6 +1699,7 @@ export default function EnrollmentPage() {
                               return {
                                 ...prev,
                                 selectedOrganizationId: orgId,
+                                organizationId: orgId,
                                 contactPersonName: selectedOrg?.contact_person_name || prev.contactPersonName,
                                 contactEmail: selectedOrg?.contact_email || prev.contactEmail,
                                 contactPhone: selectedOrg?.contact_phone || prev.contactPhone,
@@ -1816,6 +1817,7 @@ export default function EnrollmentPage() {
                                   return {
                                     ...prev,
                                     selectedOrganizationId: orgId,
+                                    organizationId: orgId,
                                     contactPersonName: selectedOrg?.contact_person_name || prev.contactPersonName,
                                     contactEmail: selectedOrg?.contact_email || prev.contactEmail,
                                     contactPhone: selectedOrg?.contact_phone || prev.contactPhone,
@@ -2043,6 +2045,58 @@ export default function EnrollmentPage() {
                                                     {plan.name} ({plan.tier})
                                                   </option>
                                                 ))}
+                                              </select>
+                                            </td>
+                                          )
+                                        }
+                                        if (h === 'gender') {
+                                          return (
+                                            <td key={h} className={`py-2 px-3 ${needsFix ? 'bg-och-orange/10' : ''}`}>
+                                              <select
+                                                value={value}
+                                                onChange={(e) => {
+                                                  const newRows = [...enrollmentForm.csvPreview!.rows]
+                                                  newRows[idx][h] = e.target.value
+                                                  setEnrollmentForm(prev => ({
+                                                    ...prev,
+                                                    csvPreview: prev.csvPreview ? {
+                                                      ...prev.csvPreview,
+                                                      rows: newRows,
+                                                    } : null,
+                                                  }))
+                                                }}
+                                                className="w-full px-2 py-1 bg-och-midnight border border-och-steel/20 rounded text-white text-xs focus:outline-none focus:border-och-defender"
+                                              >
+                                                <option value="">Select</option>
+                                                <option value="male">Male</option>
+                                                <option value="female">Female</option>
+                                                <option value="other">Other</option>
+                                                <option value="prefer_not_to_say">Prefer not to say</option>
+                                              </select>
+                                            </td>
+                                          )
+                                        }
+                                        if (h === 'send_onboarding_email') {
+                                          return (
+                                            <td key={h} className={`py-2 px-3 ${needsFix ? 'bg-och-orange/10' : ''}`}>
+                                              <select
+                                                value={value === true || value === 'true' ? 'true' : value === false || value === 'false' ? 'false' : value}
+                                                onChange={(e) => {
+                                                  const newRows = [...enrollmentForm.csvPreview!.rows]
+                                                  newRows[idx][h] = e.target.value
+                                                  setEnrollmentForm(prev => ({
+                                                    ...prev,
+                                                    csvPreview: prev.csvPreview ? {
+                                                      ...prev.csvPreview,
+                                                      rows: newRows,
+                                                    } : null,
+                                                  }))
+                                                }}
+                                                className="w-full px-2 py-1 bg-och-midnight border border-och-steel/20 rounded text-white text-xs focus:outline-none focus:border-och-defender"
+                                              >
+                                                <option value="">Select</option>
+                                                <option value="true">Yes</option>
+                                                <option value="false">No</option>
                                               </select>
                                             </td>
                                           )

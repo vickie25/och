@@ -5,12 +5,13 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
 import { FinanceNavigation } from '@/components/navigation/FinanceNavigation'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
+import { apiGateway } from '@/services/apiGateway'
 import { 
   FileText, 
   RefreshCcw, 
@@ -27,8 +28,40 @@ import {
 
 type TabType = 'invoices' | 'refunds' | 'dunning' | 'reconciliation'
 
+type OrgEnrollmentInvoice = {
+  id: string
+  invoice_number: string | null
+  organization_id: string | null
+  organization_name: string
+  contact_person_name: string
+  contact_email: string
+  total_amount_kes: number
+  currency: string
+  status: string
+  created_at: string
+  sent_at: string | null
+}
+
 export default function BillingPage() {
   const [activeTab, setActiveTab] = useState<TabType>('invoices')
+  const [orgInvoices, setOrgInvoices] = useState<OrgEnrollmentInvoice[]>([])
+  const [loadingOrgInvoices, setLoadingOrgInvoices] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    apiGateway
+      .get<{ results?: OrgEnrollmentInvoice[]; count?: number }>('/billing/org-enrollment-invoices/')
+      .then((data) => {
+        if (!cancelled && data?.results) setOrgInvoices(data.results)
+      })
+      .catch(() => {
+        if (!cancelled) setOrgInvoices([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingOrgInvoices(false)
+      })
+    return () => { cancelled = true }
+  }, [])
   return (
     <RouteGuard>
       <div className="min-h-screen bg-och-midnight flex">
@@ -101,7 +134,7 @@ export default function BillingPage() {
                   </Button>
                 </div>
                 <p className="body-m text-och-steel mb-4">
-                  Issue tax-compliant PDFs, amend existing invoices (where permitted), and post credits
+                  Organization enrollment invoices (from Director enrollments). Issue tax-compliant PDFs, amend existing invoices (where permitted), and post credits.
                 </p>
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-och-steel/20">
@@ -111,7 +144,7 @@ export default function BillingPage() {
                           Invoice #
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-och-steel uppercase tracking-wider">
-                          Customer
+                          Organization / Customer
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-och-steel uppercase tracking-wider">
                           Amount
@@ -128,13 +161,53 @@ export default function BillingPage() {
                       </tr>
                     </thead>
                     <tbody className="bg-och-midnight divide-y divide-och-steel/20">
-                      <tr>
-                        <td colSpan={6} className="px-6 py-8 text-center text-och-steel">
-                          <FileText className="h-12 w-12 mx-auto mb-2 text-och-steel" />
-                          <p className="body-m">No invoices found</p>
-                          <p className="body-s text-och-steel/70 mt-2">Create your first invoice to get started</p>
-                        </td>
-                      </tr>
+                      {loadingOrgInvoices ? (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-8 text-center text-och-steel">
+                            <p className="body-m">Loading invoices...</p>
+                          </td>
+                        </tr>
+                      ) : orgInvoices.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-8 text-center text-och-steel">
+                            <FileText className="h-12 w-12 mx-auto mb-2 text-och-steel" />
+                            <p className="body-m">No organization invoices found</p>
+                            <p className="body-s text-och-steel/70 mt-2">Invoices are created when directors enroll students from an organization</p>
+                          </td>
+                        </tr>
+                      ) : (
+                        orgInvoices.map((inv) => (
+                          <tr key={inv.id} className="divide-y divide-och-steel/10">
+                            <td className="px-6 py-3 text-sm text-white">{inv.invoice_number || inv.id.slice(0, 8)}</td>
+                            <td className="px-6 py-3 text-sm text-white">
+                              {inv.organization_name || inv.contact_person_name || inv.contact_email || '—'}
+                            </td>
+                            <td className="px-6 py-3 text-sm text-white">
+                              {inv.currency} {inv.total_amount_kes?.toLocaleString() ?? '0'}
+                            </td>
+                            <td className="px-6 py-3">
+                              <Badge variant={inv.status === 'paid' ? 'mint' : inv.status === 'pending' ? 'outline' : 'orange'}>
+                                {inv.status}
+                              </Badge>
+                            </td>
+                            <td className="px-6 py-3 text-sm text-och-steel">
+                              {inv.created_at ? new Date(inv.created_at).toLocaleDateString() : '—'}
+                            </td>
+                            <td className="px-6 py-3">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                asChild
+                              >
+                                <a href={`/pay/invoice/${inv.id}`} target="_blank" rel="noopener noreferrer">
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  View
+                                </a>
+                              </Button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>

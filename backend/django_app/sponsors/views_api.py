@@ -874,12 +874,39 @@ def _paystack_initialize_for_invoice(amount_kes, email, callback_url, metadata=N
     return None, None
 
 
-@api_view(['POST'])
+def _list_org_enrollment_invoices(request):
+    """GET list of all organization enrollment invoices (Finance/Director)."""
+    qs = (
+        OrganizationEnrollmentInvoice.objects.all()
+        .select_related('organization')
+        .order_by('-created_at')
+    )
+    results = []
+    for inv in qs:
+        results.append({
+            'id': str(inv.id),
+            'invoice_number': inv.invoice_number,
+            'organization_id': str(inv.organization.id) if inv.organization else None,
+            'organization_name': inv.organization.name if inv.organization else '',
+            'contact_person_name': inv.contact_person_name,
+            'contact_email': inv.contact_email,
+            'total_amount_kes': float(inv.total_amount_kes),
+            'currency': inv.currency,
+            'status': inv.status,
+            'created_at': inv.created_at.isoformat(),
+            'sent_at': inv.sent_at.isoformat() if inv.sent_at else None,
+        })
+    return Response({'results': results, 'count': len(results)})
+
+
+@api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def create_org_enrollment_invoice(request):
-    """POST /api/v1/billing/org-enrollment-invoices/ - Create invoice after enrolling students from org (Director)."""
+    """GET = list all org enrollment invoices; POST = create (Director/Finance)."""
     if not _is_director_or_finance(request.user):
         return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+    if request.method == 'GET':
+        return _list_org_enrollment_invoices(request)
     try:
         organization_id = request.data.get('organization_id')
         if not organization_id:

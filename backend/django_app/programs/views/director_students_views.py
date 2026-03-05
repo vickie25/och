@@ -122,7 +122,7 @@ def director_students_list(request):
         students = User.objects.filter(
             id__in=student_user_ids,
             is_active=True
-        ).order_by('-created_at')
+        ).select_related('org_id').order_by('-created_at')
         
         TRACK_KEY_DISPLAY = {
             'cyber_defense': 'Career Track (Defender)',
