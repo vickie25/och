@@ -245,15 +245,19 @@ export default function AIProfilerPage() {
   useEffect(() => {
     console.log('[AIProfiler] Auth state:', { isAuthenticated, isLoading, user: user?.email })
 
-    // Allow profiling to proceed even without authentication for demonstration purposes
-    // Authentication is bypassed to allow users to access profiling questions directly
+    // Require authentication: only logged-in users should access AI profiler
+    if (isLoading) return
 
-    if (!isLoading) {
-      console.log('[AIProfiler] Checking profiling status (authentication bypassed for demo)')
-      // Check profiling status first
-      checkProfilingStatus()
+    if (!isAuthenticated || !user) {
+      console.log('[AIProfiler] User not authenticated – redirecting to student login')
+      // Preserve intended destination so user returns here after login
+      router.push('/login/student?redirect=/onboarding/ai-profiler')
+      return
     }
-  }, [isLoading, router])
+
+    console.log('[AIProfiler] Checking profiling status for authenticated user')
+    checkProfilingStatus()
+  }, [isLoading, isAuthenticated, user, router])
 
   // Listen for profiling completion event to refresh user
   useEffect(() => {

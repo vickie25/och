@@ -1071,8 +1071,8 @@ export function LoginForm() {
                 variant="outline"
                 className="w-full py-3 text-base rounded-xl border-[rgba(255,255,255,0.15)] text-[#E2E8F0] hover:border-[rgba(245,158,11,0.6)] hover:text-[#F59E0B] transition-colors duration-200 flex items-center justify-center gap-3"
                   onClick={async () => {
-                    try {
-                      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_API_URL}/api/v1/auth/google/initiate?role=${currentRole}`);
+                  try {
+                      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_API_URL}/api/v1/auth/google/initiate?role=${currentRole}&mode=login`);
                       const data = await response.json();
                       if (data.auth_url) {
                         window.location.replace(data.auth_url);

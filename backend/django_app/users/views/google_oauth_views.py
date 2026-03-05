@@ -72,6 +72,11 @@ class GoogleOAuthInitiateView(APIView):
         if intended_role:
             request.session['oauth_intended_role'] = intended_role
             print(f"[OAuth] Stored intended role for signup: {intended_role}")
+
+        # Store OAuth mode: 'login' (default) vs 'register'
+        oauth_mode = request.GET.get('mode', 'login')
+        request.session['oauth_mode'] = oauth_mode
+        print(f"[OAuth] Stored oauth_mode: {oauth_mode}")
         
         # Build Google OAuth authorization URL WITHOUT PKCE in development
         # PKCE doesn't work well with session-based storage in stateless APIs
@@ -257,21 +262,48 @@ class GoogleOAuthCallbackView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Get or create user
-        user, created = User.objects.get_or_create(
-            email__iexact=email,
-            defaults={
-                'email': email,
-                'username': email,
-                'first_name': first_name,
-                'last_name': last_name,
-                'avatar_url': picture,
-                'email_verified': email_verified,
-                'account_status': 'active' if email_verified else 'pending_verification',
-                'is_active': True,
-            }
-        )
+        # Decide behaviour based on how the flow was started:
+        # - mode = 'login': only allow existing users, do NOT auto-create
+        # - mode = 'register': create account if it doesn't exist yet
+        oauth_mode = request.session.get('oauth_mode', 'login')
+        intended_role = request.session.get('oauth_intended_role', 'student')
 
+        user = None
+        created = False
+
+        if oauth_mode == 'register':
+            # Registration flow: create a new account if one doesn't exist yet.
+            user = User.objects.filter(email__iexact=email).first()
+            if user:
+                created = False
+            else:
+                user = User.objects.create(
+                    email=email,
+                    username=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    avatar_url=picture,
+                    email_verified=email_verified,
+                    account_status='active' if email_verified else 'pending_verification',
+                    is_active=True,
+                )
+                created = True
+        else:
+            # Login flow: require an existing account
+            try:
+                user = User.objects.get(email__iexact=email)
+                created = False
+            except User.DoesNotExist:
+                return Response(
+                    {
+                        'detail': 'No account is registered with this Google email. Please register first, then sign in with Google.',
+                        'code': 'user_not_registered',
+                        'email': email,
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        # Update existing user profile details
         if not created:
             if not user.avatar_url and picture:
                 user.avatar_url = picture
@@ -285,10 +317,9 @@ class GoogleOAuthCallbackView(APIView):
             user.is_active = True
             user.save()
 
-        # Assign role
+        # If this is a newly created account via registration flow, assign role and send onboarding email
         if created:
             from users.views.auth_views import _assign_user_role
-            intended_role = request.session.get('oauth_intended_role', 'student')
             _assign_user_role(user, intended_role)
             request.session.pop('oauth_intended_role', None)
             if email_verified and not user.activated_at:
@@ -296,11 +327,7 @@ class GoogleOAuthCallbackView(APIView):
                 user.account_status = 'active'
                 user.save()
 
-            # For new student/mentee accounts created via Google SSO,
-            # send the same self-onboarding email used for director enrollment
-            # and passwordless signup so the flow is consistent.
             try:
-                # Determine if primary role is student-like for onboarding
                 primary_role_names = [
                     ur.role.name
                     for ur in UserRole.objects.filter(user=user, is_active=True).select_related("role")
@@ -338,6 +365,7 @@ class GoogleOAuthCallbackView(APIView):
         consent_scopes = get_consent_scopes_for_token(user)
         request.session.pop('oauth_code_verifier', None)
         request.session.pop('oauth_state', None)
+        request.session.pop('oauth_mode', None)
         user.refresh_from_db()
 
         return Response({

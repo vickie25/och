@@ -20,12 +20,31 @@ function GoogleOAuthCallbackPageInner() {
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing')
   const [message, setMessage] = useState('Processing Google authentication...')
   const [error, setError] = useState<string | null>(null)
+  const [showRedirectMessage, setShowRedirectMessage] = useState(true)
 
   useEffect(() => {
     let redirectTimer: NodeJS.Timeout | null = null
-    
+
     const handleCallback = async () => {
       try {
+        // If we already showed "account created" success, don't re-run (avoids back-button
+        // bringing user here again and redirecting them to dashboard)
+        const fromSuccess = searchParams.get('success') === '1'
+        const alreadyHandled = typeof window !== 'undefined' && sessionStorage.getItem('oauth_callback_handled') === '1'
+        if (fromSuccess || alreadyHandled) {
+          setStatus('success')
+          setMessage(
+            'Your account has been created. Please check your email for a self-onboarding link to set your password, secure your account with MFA, and complete profiling.'
+          )
+          setShowRedirectMessage(false)
+          // So Back is intercepted and sends user to /register (see popstate effect below)
+          if (typeof window !== 'undefined' && !window.history.state?.oauthSuccessBackGuard) {
+            window.history.replaceState({ oauthSuccessBackGuard: true }, '', window.location.pathname + '?' + (new URLSearchParams(window.location.search)).toString())
+            window.history.pushState({ oauthSuccessBackGuard: true }, '', window.location.href)
+          }
+          return
+        }
+
         // Get authorization code and state from URL
         const code = searchParams.get('code')
         const state = searchParams.get('state')
@@ -130,7 +149,20 @@ function GoogleOAuthCallbackPageInner() {
             setMessage(
               'Your account has been created. Please check your email for a self-onboarding link to set your password, secure your account with MFA, and complete profiling.'
             )
-            // Do not auto-redirect; let the user act from the email.
+            setShowRedirectMessage(false)
+            // Mark as handled and replace URL so Back doesn't reload this page with code
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('oauth_callback_handled', '1')
+              const url = new URL(window.location.href)
+              url.searchParams.delete('code')
+              url.searchParams.delete('state')
+              url.searchParams.set('success', '1')
+              const successUrl = url.pathname + '?' + url.searchParams.toString()
+              window.history.replaceState(null, '', successUrl)
+              // Push an extra history entry so Back stays on this page and we can intercept with popstate,
+              // then send user to /register instead of Google or dashboard
+              window.history.pushState({ oauthSuccessBackGuard: true }, '', successUrl)
+            }
             return
           }
 
@@ -179,11 +211,11 @@ function GoogleOAuthCallbackPageInner() {
         
         console.log('[OAuth Callback] Will redirect to:', redirectPath)
 
-        // Redirect with a short delay to show success message
+        // Redirect with a short delay; use replace so callback is not left in history
+        // (avoids back-button going callback → Google → … instead of to app)
         redirectTimer = setTimeout(() => {
           console.log('[OAuth Callback] Executing redirect to:', redirectPath)
-          // Use window.location.href for reliable redirect with full page reload
-          window.location.href = redirectPath
+          window.location.replace(redirectPath)
         }, 1000)
 
       } catch (err: any) {
@@ -191,6 +223,7 @@ function GoogleOAuthCallbackPageInner() {
         setStatus('error')
         setError(
           err?.data?.detail || 
+          err?.response?.data?.detail ||
           err?.message || 
           'Failed to complete Google authentication'
         )
@@ -206,6 +239,20 @@ function GoogleOAuthCallbackPageInner() {
       }
     }
   }, [searchParams, router])
+
+  // When showing "account created" success, intercept Back so user goes to /register instead of Google or dashboard
+  useEffect(() => {
+    if (status !== 'success' || showRedirectMessage) return
+
+    const handlePopState = () => {
+      window.removeEventListener('popstate', handlePopState)
+      sessionStorage.removeItem('oauth_callback_handled')
+      window.location.replace('/register')
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [status, showRedirectMessage])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-och-midnight via-och-space to-och-crimson flex items-center justify-center px-4">
@@ -224,7 +271,32 @@ function GoogleOAuthCallbackPageInner() {
               <CheckCircle2 className="w-12 h-12 text-och-mint mx-auto" />
               <h2 className="text-xl font-bold text-white">Success!</h2>
               <p className="text-gray-300">{message}</p>
-              <p className="text-sm text-gray-400">Redirecting to your dashboard...</p>
+              {showRedirectMessage && (
+                <p className="text-sm text-gray-400">Redirecting to your dashboard...</p>
+              )}
+              {!showRedirectMessage && (
+                <div className="flex flex-col sm:flex-row gap-3 justify-center mt-4">
+                  <Button
+                    onClick={() => {
+                      if (typeof window !== 'undefined') sessionStorage.removeItem('oauth_callback_handled')
+                      router.push('/register')
+                    }}
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                  >
+                    Back to registration
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (typeof window !== 'undefined') sessionStorage.removeItem('oauth_callback_handled')
+                      router.push('/')
+                    }}
+                    className="w-full sm:w-auto"
+                  >
+                    Go to home
+                  </Button>
+                </div>
+              )}
             </>
           )}
 
@@ -233,13 +305,21 @@ function GoogleOAuthCallbackPageInner() {
               <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
               <h2 className="text-xl font-bold text-white">Authentication Failed</h2>
               <p className="text-gray-300">{error}</p>
-              <Button
-                onClick={() => router.push('/login')}
-                variant="outline"
-                className="mt-4"
-              >
-                Return to Login
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center mt-4">
+                <Button
+                  onClick={() => router.push('/register')}
+                  className="w-full sm:w-auto"
+                >
+                  Go to Registration
+                </Button>
+                <Button
+                  onClick={() => router.push('/login')}
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                >
+                  Return to Login
+                </Button>
+              </div>
             </>
           )}
         </div>

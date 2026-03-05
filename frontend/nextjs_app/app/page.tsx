@@ -528,7 +528,7 @@ const AuthModal = memo(function AuthModal({
               </button>
             </form>
             <div className="pt-2">
-              <GoogleSignInButton role="student" />
+              <GoogleSignInButton role="student" mode={mode} />
             </div>
             <div className="flex items-center justify-between pt-1">
               <p className="text-[10px] text-slate-500 max-w-[70%]">

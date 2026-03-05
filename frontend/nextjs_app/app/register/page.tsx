@@ -72,7 +72,7 @@ export default function RegisterPage() {
           )}
 
           <div className="space-y-4 mb-6">
-            <GoogleSignInButton role="student" />
+            <GoogleSignInButton role="student" mode="register" />
           </div>
 
           <div className="relative mb-6">

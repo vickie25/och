@@ -12,9 +12,10 @@ import { Loader2 } from 'lucide-react'
 
 interface GoogleSignInButtonProps {
   role?: string
+  mode?: 'login' | 'register'
 }
 
-export function GoogleSignInButton({ role = 'student' }: GoogleSignInButtonProps) {
+export function GoogleSignInButton({ role = 'student', mode = 'login' }: GoogleSignInButtonProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -27,7 +28,7 @@ export function GoogleSignInButton({ role = 'student' }: GoogleSignInButtonProps
       // Initiate Google OAuth flow
       // Backend will return auth_url with prompt=select_account
       // This allows users to choose from available Google accounts or add new one
-      const response = await googleOAuthClient.initiate({ role })
+      const response = await googleOAuthClient.initiate({ role, mode })
 
       // Redirect user to Google authorization page
       if (response.auth_url) {

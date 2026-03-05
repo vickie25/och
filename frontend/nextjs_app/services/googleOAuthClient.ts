@@ -7,6 +7,7 @@ import { apiGateway } from './apiGateway'
 
 export interface GoogleOAuthInitiateRequest {
   role?: string
+  mode?: 'login' | 'register'
 }
 
 export interface GoogleOAuthInitiateResponse {
@@ -37,7 +38,9 @@ export const googleOAuthClient = {
    * Returns the Google authorization URL to redirect user to
    */
   async initiate(data?: GoogleOAuthInitiateRequest): Promise<GoogleOAuthInitiateResponse> {
-    const params = data?.role ? { role: data.role } : {}
+    const params: Record<string, string> = {}
+    if (data?.role) params.role = data.role
+    if (data?.mode) params.mode = data.mode
     return apiGateway.get('/auth/google/initiate', { skipAuth: true, params })
   },
 
