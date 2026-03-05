@@ -29,6 +29,10 @@ interface AIProfilerAssessmentProps {
   progress: Progress
   onAnswer: (questionId: string, answer: string) => void
   previousAnswer?: string
+  // Optional flags from parent to control when finishing is allowed
+  canComplete?: boolean
+  minRequiredAnswers?: number
+  answeredCount?: number
 }
 
 export default function AIProfilerAssessment({
@@ -37,7 +41,10 @@ export default function AIProfilerAssessment({
   totalQuestions,
   progress,
   onAnswer,
-  previousAnswer
+  previousAnswer,
+  canComplete = true,
+  minRequiredAnswers,
+  answeredCount
 }: AIProfilerAssessmentProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<string>(previousAnswer || '')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -147,14 +154,24 @@ export default function AIProfilerAssessment({
             <span className="text-gray-400 text-xs">{progressPercentage}%</span>
             <button
               onClick={handleSubmit}
-              disabled={!selectedAnswer || isSubmitting}
+              disabled={
+                !selectedAnswer ||
+                isSubmitting ||
+                (questionNumber === totalQuestions && !canComplete)
+              }
               className={`text-xs font-bold px-4 py-1.5 rounded-full transition-all ${
-                selectedAnswer && !isSubmitting
+                selectedAnswer && !isSubmitting && (questionNumber !== totalQuestions || canComplete)
                   ? 'bg-gradient-to-r from-och-orange to-och-crimson text-white hover:opacity-90'
                   : 'bg-gray-600 text-gray-400 cursor-not-allowed'
               }`}
             >
-              {isSubmitting ? '...' : questionNumber === totalQuestions ? 'Complete' : 'Next'}
+              {isSubmitting
+                ? '...'
+                : questionNumber === totalQuestions
+                ? canComplete
+                  ? 'Complete'
+                  : 'Keep answering'
+                : 'Next'}
             </button>
           </div>
         </div>
@@ -245,9 +262,13 @@ export default function AIProfilerAssessment({
         <div className="flex-shrink-0 text-center pt-2">
           <button
             onClick={handleSubmit}
-            disabled={!selectedAnswer || isSubmitting}
+            disabled={
+              !selectedAnswer ||
+              isSubmitting ||
+              (questionNumber === totalQuestions && !canComplete)
+            }
             className={`text-sm font-bold px-8 py-2.5 rounded-full transition-all ${
-              selectedAnswer && !isSubmitting
+              selectedAnswer && !isSubmitting && (questionNumber !== totalQuestions || canComplete)
                 ? 'bg-gradient-to-r from-och-orange to-och-crimson text-white hover:opacity-90'
                 : 'bg-gray-600 text-gray-400 cursor-not-allowed'
             }`}
@@ -258,11 +279,18 @@ export default function AIProfilerAssessment({
                 Processing...
               </span>
             ) : questionNumber === totalQuestions ? (
-              'Finish & view recommendation'
+              canComplete ? 'Finish & view recommendation' : 'Answer more to finish'
             ) : (
               'Next Question'
             )}
           </button>
+          {questionNumber === totalQuestions && !canComplete && (
+            <p className="mt-2 text-[11px] text-gray-300">
+              {minRequiredAnswers && typeof answeredCount === 'number'
+                ? `You’ve answered ${answeredCount} questions. Please answer at least ${minRequiredAnswers} before finishing so we can give you a reliable recommendation.`
+                : 'Please answer a few more questions before finishing so we can give you a reliable recommendation.'}
+            </p>
+          )}
         </div>
       </motion.div>
     </div>

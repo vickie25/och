@@ -383,7 +383,9 @@ export default function AIProfilerPage() {
     loadSavedProgress()
   }, [user])
 
-  // Calculate progress percentage whenever responses change
+  // Calculate progress percentage whenever responses or question index change.
+  // Use answered questions as the main source of truth so progress reflects
+  // how much data the AI will actually see.
   useEffect(() => {
     if (questions.length === 0) return
 
@@ -391,7 +393,7 @@ export default function AIProfilerPage() {
     const percentage = questions.length > 0 
       ? Math.round((answeredCount / questions.length) * 100) 
       : 0
-    
+
     setProgressPercentage(percentage)
   }, [responses, questions])
 
@@ -935,6 +937,19 @@ export default function AIProfilerPage() {
   const completeProfiling = async () => {
     if (!session) return
 
+    const hasExistingTrack = !!user?.track_key
+
+    // If the user already has a track from a previous run, don't block them
+    // on this enhanced engine – just treat this as complete and send them on.
+    if (hasExistingTrack) {
+      console.log('[AIProfiler] User already has track_key, skipping enhanced completion and redirecting to dashboard')
+      if (reloadUser) {
+        await reloadUser()
+      }
+      router.push('/dashboard/student')
+      return
+    }
+
     try {
       setLoading(true)
       
@@ -1039,6 +1054,22 @@ export default function AIProfilerPage() {
       setCurrentSection('track-confirmation')
       setLoading(false)
     } catch (err: any) {
+      // Handle specific FastAPI validation error for insufficient responses gracefully
+      const msg = (err?.message || err?.errorData || '').toString().toLowerCase()
+      const isInsufficient =
+        err?.status === 400 &&
+        (msg.includes('insufficient responses') || msg.includes('need at least'))
+
+      if (isInsufficient) {
+        console.warn('[AIProfiler] Backend reported insufficient responses, keeping user in assessment:', err)
+        if (typeof window !== 'undefined') {
+          window.alert('You have not answered enough questions yet. Please continue the assessment so we can build a reliable profile.')
+        }
+        setCurrentSection('assessment')
+        setLoading(false)
+        return
+      }
+
       setError(err.message || 'Failed to complete profiling')
       setLoading(false)
     }
@@ -1220,15 +1251,18 @@ export default function AIProfilerPage() {
 
   const currentQuestion = questions[currentQuestionIndex]
 
-  // Calculate progress based on ANSWERED questions, not current question index
+  // Calculate progress based purely on answered questions so
+  // the percentage reflects how much data the AI actually has.
   const answeredCount = Object.keys(responses).length
-  const calculatedPercentage = questions.length > 0
+  const byAnswers = questions.length > 0
     ? Math.round((answeredCount / questions.length) * 100)
     : 0
+  const calculatedPercentage = byAnswers
+  const hasExistingTrack = !!user?.track_key
 
-  const progress = session?.progress || {
+  const progress = {
     session_id: session?.session_id || '',
-    current_question: answeredCount + 1,
+    current_question: currentQuestionIndex + 1,
     total_questions: questions.length,
     progress_percentage: calculatedPercentage,
     estimated_time_remaining: (questions.length - answeredCount) * 120
@@ -1286,6 +1320,12 @@ export default function AIProfilerPage() {
           progress={progress}
           onAnswer={handleAnswer}
           previousAnswer={responses[currentQuestion.id]}
+          // If user already has a track, don't force a minimum answer count –
+          // let them finish freely. Otherwise require a reasonable minimum
+          // so the AI has enough signal.
+          canComplete={hasExistingTrack || answeredCount >= 12}
+          minRequiredAnswers={hasExistingTrack ? undefined : 12}
+          answeredCount={answeredCount}
         />
       )}
       {currentSection === 'track-confirmation' && result && (

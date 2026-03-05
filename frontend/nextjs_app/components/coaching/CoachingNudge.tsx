@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Sparkles, X, RefreshCw, ArrowRight } from 'lucide-react';
 // RecipePill requires full recipe object, so we'll show recipe IDs as badges for now
 import { useAuth } from '@/hooks/useAuth';
+import { useRouter } from 'next/navigation';
 
 interface CoachingPriority {
   priority: 'high' | 'medium' | 'low';
@@ -32,6 +33,7 @@ interface CoachingNudgeProps {
 
 export function CoachingNudge({ userId, autoLoad = true, onActionClick }: CoachingNudgeProps) {
   const { user } = useAuth();
+  const router = useRouter();
   const [nudge, setNudge] = useState<CoachingAdvice | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,19 +87,71 @@ export function CoachingNudge({ userId, autoLoad = true, onActionClick }: Coachi
     }
   }, [userId, user?.id, autoLoad]);
 
-  const executeAction = (action: any) => {
+  const navigateForPriority = (priority?: CoachingPriority) => {
+    if (!priority) {
+      router.push('/dashboard/student');
+      return;
+    }
+
+    const text = `${priority.action} ${priority.reason}`.toLowerCase();
+
+    if (text.includes('mission')) {
+      router.push('/dashboard/student/missions');
+      return;
+    }
+
+    if (text.includes('recipe')) {
+      router.push('/dashboard/student/coaching/recipes');
+      return;
+    }
+
+    if (text.includes('coach') || text.includes('coaching')) {
+      router.push('/dashboard/student/coaching');
+      return;
+    }
+
+    if (text.includes('curriculum') || text.includes('track')) {
+      router.push('/dashboard/student/curriculum');
+      return;
+    }
+
+    router.push('/dashboard/student');
+  };
+
+  const executeAction = (action: any, priorityFallback?: CoachingPriority) => {
     if (onActionClick) {
       onActionClick(action);
     } else {
-      // Default action handling
-      console.log('Executing action:', action);
-      if (action.type === 'send_nudge' && action.target) {
-        // Navigate to target or show notification
+      // Default action handling: try to navigate when a URL is provided
+      const targetUrl =
+        action?.href ||
+        action?.url ||
+        action?.route ||
+        action?.path ||
+        action?.target_url;
+
+      if (typeof targetUrl === 'string') {
+        router.push(targetUrl);
+        return;
+      }
+
+      // Fallback: scroll to in-page target if provided
+      if (action?.target) {
         const element = document.getElementById(action.target);
         if (element) {
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
         }
       }
+
+      // If no explicit URL/target, fall back to priority-based navigation when available
+      if (priorityFallback) {
+        navigateForPriority(priorityFallback);
+        return;
+      }
+
+      // Last resort: log for debugging
+      console.log('CoachingNudge action executed with no navigation target:', action);
     }
   };
 
@@ -197,7 +251,9 @@ export function CoachingNudge({ userId, autoLoad = true, onActionClick }: Coachi
                   className="group p-3 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 hover:bg-white/20 transition-all cursor-pointer"
                   onClick={() => {
                     if (nudge.actions && nudge.actions[i]) {
-                      executeAction(nudge.actions[i]);
+                      executeAction(nudge.actions[i], priority);
+                    } else {
+                      navigateForPriority(priority);
                     }
                   }}
                 >
@@ -259,7 +315,13 @@ export function CoachingNudge({ userId, autoLoad = true, onActionClick }: Coachi
                         ? 'flex-1 bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border-white/30'
                         : 'flex-1 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white border-white/20'
                     }
-                    onClick={() => executeAction(action)}
+                    onClick={() => {
+                      if (action) {
+                        executeAction(action, nudge.priorities?.[index]);
+                      } else {
+                        navigateForPriority(nudge.priorities?.[index]);
+                      }
+                    }}
                   >
                     {index === 0
                       ? '🚀 Do This Now'

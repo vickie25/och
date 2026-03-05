@@ -30,8 +30,14 @@ function getNextApiBase(): string {
  * Determine if a path should go to Django or FastAPI
  */
 function getBaseUrl(path: string): string {
-  // Profiling: always use Next.js proxy so /profiling/status and /profiling/tracks
-  // work even when FastAPI is down (proxy returns fallback responses)
+  // Enhanced profiling should talk directly to FastAPI so we don't depend
+  // on a matching Next.js API route for every sub-endpoint.
+  if (path.startsWith('/profiling/enhanced')) {
+    return `${FASTAPI_API_URL}/api/v1`;
+  }
+
+  // Core profiling (status, tracks, classic engine) still uses Next.js proxy
+  // so those endpoints can return safe fallbacks if FastAPI is down.
   if (path.startsWith('/profiling')) {
     return getNextApiBase();
   }
