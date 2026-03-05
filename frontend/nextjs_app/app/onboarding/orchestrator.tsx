@@ -87,6 +87,9 @@ export default function OnboardingOrchestrator() {
       case 'setup_mfa':
         router.push(`/dashboard/mfa-required`)
         break
+      case 'set_country':
+        router.push('/onboarding/set-country')
+        break
       case 'ai_profiling':
         router.push('/onboarding/ai-profiler')
         break

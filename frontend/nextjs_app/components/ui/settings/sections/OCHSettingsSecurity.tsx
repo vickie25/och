@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { useAuth } from '@/hooks/useAuth';
+import { getUserRoles } from '@/utils/rbac';
 import { apiGateway } from '@/services/apiGateway';
 import { djangoClient } from '@/services/djangoClient';
 
@@ -409,16 +410,15 @@ export function OCHSettingsSecurity() {
         if (pathname && pathname.startsWith('/dashboard/mfa-required')) {
           // Small delay so the success banner is visible briefly
           setTimeout(() => {
-            const roles = (user?.roles || []).map((r: any) =>
-              typeof r === 'string' ? r.toLowerCase() : (r?.role?.name ?? r?.name ?? '').toLowerCase()
-            );
+            // Use same role extraction as rbac.getUserRoles so backend shapes like { role: 'finance' } are recognized
+            const roles = getUserRoles(user ?? null);
             const isAdmin = roles.includes('admin');
-            const isDirector = roles.includes('program_director') || roles.includes('director');
+            const isDirector = roles.includes('program_director');
             const isMentor = roles.includes('mentor');
-            const isFinance = roles.includes('finance') || roles.includes('finance_admin');
+            const isFinance = roles.includes('finance');
             const isAnalyst = roles.includes('analyst');
             const isSupport = roles.includes('support');
-            const isSponsor = roles.includes('sponsor') || roles.includes('sponsor_admin');
+            const isSponsor = roles.includes('sponsor_admin');
             let target = '/dashboard';
             if (isAdmin) target = '/dashboard/admin';
             else if (isDirector) target = '/dashboard/director';

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/Badge'
 import { useAuth } from '@/hooks/useAuth'
 import { apiGateway } from '@/services/apiGateway'
 import { CheckCircle2, CreditCard, Calendar, AlertCircle } from 'lucide-react'
-import { formatCurrencyWithSymbol, convertUSDToLocal } from '@/lib/currency'
+import { formatFromKES } from '@/lib/currency'
 
 interface SubscriptionStatus {
   tier: string
@@ -213,19 +213,17 @@ export default function SubscriptionClient() {
           const isStarter = plan.tier === 'starter'
           const isPremium = plan.tier === 'premium'
           
-          let monthlyPriceUSD = plan.price_monthly || 0
-          let annualPriceUSD: number | null = null
+          // Subscription prices are in KES (primary system currency)
+          let monthlyKes = plan.price_monthly || 0
+          let annualKes: number | null = null
 
           if (isStarter) {
-            monthlyPriceUSD = plan.price_monthly || 5
-            annualPriceUSD = monthlyPriceUSD * 12
+            monthlyKes = plan.price_monthly || 650
+            annualKes = monthlyKes * 12
           } else if (isPremium) {
-            annualPriceUSD = 54
-            monthlyPriceUSD = annualPriceUSD / 12
+            annualKes = 7020
+            monthlyKes = annualKes / 12
           }
-
-          const monthlyLocal = monthlyPriceUSD > 0 ? convertUSDToLocal(monthlyPriceUSD, selectedCountry) : 0
-          const annualLocal = annualPriceUSD ? convertUSDToLocal(annualPriceUSD, selectedCountry) : null
 
           return (
             <div
@@ -261,13 +259,13 @@ export default function SubscriptionClient() {
                   <div className="mb-4">
                     <div className="flex items-baseline gap-2">
                       <p className="text-3xl font-bold text-white">
-                        {formatCurrencyWithSymbol(monthlyLocal, selectedCountry)}
+                        {formatFromKES(monthlyKes, selectedCountry)}
                       </p>
                       <span className="text-sm text-och-steel">/month</span>
                     </div>
                     {selectedCountry !== 'KE' && (
                       <p className="text-xs text-och-steel mt-1">
-                        ${monthlyPriceUSD} USD/month
+                        KSh {monthlyKes.toLocaleString()}/month
                       </p>
                     )}
                   </div>
@@ -275,18 +273,18 @@ export default function SubscriptionClient() {
                   <div className="mb-4">
                     <div className="flex items-baseline gap-2 mb-1">
                       <p className="text-3xl font-bold text-och-mint">
-                        {formatCurrencyWithSymbol(annualLocal!, selectedCountry)}
+                        {formatFromKES(annualKes!, selectedCountry)}
                       </p>
                       <span className="text-sm text-och-steel">/year</span>
                     </div>
                     <div className="flex items-center gap-2 mb-2">
                       <p className="text-xs text-och-steel line-through">
-                        {formatCurrencyWithSymbol(convertUSDToLocal(60, selectedCountry), selectedCountry)}
+                        {formatFromKES(60, selectedCountry)}
                       </p>
                       <Badge variant="mint" className="text-xs">10% OFF</Badge>
                     </div>
                     <p className="text-xs text-och-mint">
-                      💰 {formatCurrencyWithSymbol(monthlyLocal, selectedCountry)}/month
+                      💰 {formatFromKES(monthlyKes, selectedCountry)}/month
                     </p>
                   </div>
                 ) : null}
@@ -423,8 +421,8 @@ export default function SubscriptionClient() {
                     </td>
                     <td className="py-2 px-3 text-white">{b.plan_name}</td>
                     <td className="py-2 px-3 text-white">
-                      {formatCurrencyWithSymbol(
-                        convertUSDToLocal(b.amount, selectedCountry),
+                      {formatFromKES(
+                        b.amount,
                         selectedCountry
                       )}
                     </td>

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { useAuth } from '@/hooks/useAuth';
 import { apiGateway } from '@/services/apiGateway';
-import { formatCurrencyWithSymbol, convertUSDToLocal } from '@/lib/currency';
+import { formatFromKES } from '@/lib/currency';
 
 interface SubscriptionData {
   tier: 'free' | 'starter' | 'professional';
@@ -454,10 +454,7 @@ function SubscriptionHistory() {
                 </td>
                 <td className="py-3 px-4 text-white">{s.plan_name || s.description}</td>
                 <td className="py-3 px-4 text-white">
-                  {formatCurrencyWithSymbol(
-                    convertUSDToLocal(s.amount, selectedCountry),
-                    selectedCountry
-                  )}
+                  {formatFromKES(s.amount, selectedCountry)}
                 </td>
                 <td className="py-3 px-4">
                   <Badge variant={s.status === 'completed' ? 'mint' : s.status === 'active' ? 'defender' : 'steel'} className="text-xs">

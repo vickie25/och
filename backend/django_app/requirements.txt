@@ -29,6 +29,9 @@ anthropic>=0.7.0
 # Payment Processing
 stripe>=7.0.0
 
+# PDF Reports (finance ROI, student progress)
+reportlab>=4.0.0
+
 # MFA/TOTP
 pyotp>=2.9.0
 

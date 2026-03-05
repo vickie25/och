@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { CheckCircle2 } from 'lucide-react'
 import { djangoClient } from '@/services/djangoClient'
 import { GoogleSignInButton } from '../login/[role]/components/GoogleSignInButton'
+import { AfricaCountrySelect } from '@/components/ui/AfricaCountrySelect'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -29,6 +30,10 @@ export default function RegisterPage() {
       setError('First name and last name are required')
       return
     }
+    if (!country || country.length !== 2) {
+      setError('Please select your country')
+      return
+    }
 
     setLoading(true)
     try {
@@ -39,9 +44,7 @@ export default function RegisterPage() {
         passwordless: true,
         role: 'student',
       }
-      if (country.trim()) {
-        payload.country = country.trim().toUpperCase().slice(0, 2)
-      }
+      payload.country = country.trim().toUpperCase().slice(0, 2)
 
       await djangoClient.auth.signup(payload)
       setSuccess('Account created. Please check your email to set your password and complete onboarding.')
@@ -139,19 +142,16 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label htmlFor="country" className="block text-sm font-medium text-och-steel mb-1">
-                Country (Optional)
-              </label>
-              <input
+              <AfricaCountrySelect
                 id="country"
-                type="text"
+                label="Country"
                 value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                className="w-full px-4 py-2 bg-och-midnight border border-och-steel/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-och-defender"
-                placeholder="BW"
+                onChange={setCountry}
+                placeholder="Select your country"
                 disabled={loading}
+                required
               />
-              <p className="mt-1 text-xs text-och-steel">2-letter ISO code (e.g., BW, US, KE)</p>
+              <p className="mt-1 text-xs text-och-steel">All African countries — search by name or code (e.g. KE, Kenya)</p>
             </div>
 
             <Button

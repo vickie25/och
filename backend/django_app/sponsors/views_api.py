@@ -9,7 +9,8 @@ from datetime import datetime, timedelta
 logger = logging.getLogger(__name__)
 from django.shortcuts import get_object_or_404
 from django.db import models, transaction
-from django.db.models import Sum
+from django.db.models import Sum, Count, Q
+from django.db.models.functions import TruncMonth
 from django.db.utils import OperationalError
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
@@ -1136,6 +1137,260 @@ def platform_finance_overview(request):
             {'error': f'Failed to retrieve platform finance overview: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsPlatformFinance])
+def revenue_dashboard(request):
+    """
+    GET /api/v1/finance/platform/revenue-dashboard/
+    Returns subscription plans bought, student outsourced, revenue breakdown, time-series, and distribution.
+    All data from DB (no dummy data).
+    """
+    try:
+        from subscriptions.models import SubscriptionPlan, UserSubscription, PaymentTransaction
+
+        # 1) Subscription plans bought (count of active paid subscriptions)
+        subscription_plans_bought = UserSubscription.objects.filter(status='active').count()
+
+        # 2) Student outsourced (total hires from sponsor cohort billing)
+        hires_agg = SponsorCohortBilling.objects.aggregate(total=Sum('hires'))
+        student_outsourced = int(hires_agg.get('total') or 0)
+
+        # 3) Revenue breakdown by plan (name, users, revenue in USD)
+        plans = SubscriptionPlan.objects.all().order_by('price_monthly')
+        breakdown = []
+        total_sub_revenue_usd = 0
+        for p in plans:
+            user_count = UserSubscription.objects.filter(plan=p, status='active').count()
+            price = float(p.price_monthly or 0)
+            revenue_usd = price * user_count
+            total_sub_revenue_usd += revenue_usd
+            breakdown.append({
+                'id': str(p.id),
+                'name': p.name,
+                'tier': p.tier,
+                'users': user_count,
+                'revenue_usd': round(revenue_usd, 2),
+                'price_monthly_usd': price,
+            })
+        for b in breakdown:
+            b['percent'] = round((b['revenue_usd'] / total_sub_revenue_usd * 100), 1) if total_sub_revenue_usd else 0
+
+        # 4) Revenue time-series: subscription by month (completed payments), placement by month (billing)
+        sub_qs = PaymentTransaction.objects.filter(status='completed').annotate(
+            month=TruncMonth('created_at')
+        ).values('month').annotate(total_usd=Sum('amount')).order_by('month')
+        sub_by_month = list(sub_qs)
+
+        # Placement revenue by month (billing)
+        placement_by_month = list(
+            SponsorCohortBilling.objects.annotate(month=TruncMonth('billing_month'))
+            .values('month')
+            .annotate(total_kes=Sum('revenue_share_kes'), hires=Sum('hires'))
+            .order_by('month')
+        )
+
+        # 5) Global distribution: subscribers by country (User.country)
+        from users.models import User
+        dist_qs = User.objects.filter(
+            subscription__status='active'
+        ).values('country').annotate(count=Count('id')).order_by('-count')[:50]
+        distribution = [{'country': (x['country'] or 'XX').upper(), 'count': x['count']} for x in dist_qs]
+
+        # Available funds / next payout: use total subscription revenue as proxy; next payout in N days from env or default
+        total_placement_kes = float(
+            SponsorCohortBilling.objects.aggregate(s=Sum('revenue_share_kes')).get('s') or 0
+        )
+
+        return Response({
+            'subscription_plans_bought': subscription_plans_bought,
+            'student_outsourced': student_outsourced,
+            'revenue_breakdown': breakdown,
+            'total_subscription_revenue_usd': round(total_sub_revenue_usd, 2),
+            'revenue_by_month_subscription': [
+                {'month': (x['month'].isoformat()[:7] if x.get('month') else ''), 'total_usd': float(x.get('total_usd') or 0)}
+                for x in sub_by_month
+            ],
+            'revenue_by_month_placement': [
+                {
+                    'month': (x['month'].isoformat()[:7] if x.get('month') else ''),
+                    'total_kes': float(x.get('total_kes') or 0),
+                    'hires': int(x.get('hires') or 0),
+                }
+                for x in placement_by_month
+            ],
+            'distribution': distribution,
+            'total_placement_revenue_kes': round(total_placement_kes, 2),
+        })
+    except Exception as e:
+        logger.exception('revenue_dashboard failed')
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsPlatformFinance])
+def finance_roi_report_pdf(request):
+    """
+    GET /api/v1/finance/platform/roi-report/pdf/
+    Returns a clean PDF report (ReportLab) with finance ROI and revenue breakdown. All data from DB.
+    """
+    try:
+        from io import BytesIO
+        from django.http import HttpResponse as HttpResp
+
+        try:
+            from reportlab.lib.pagesizes import A4
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import inch
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+            from reportlab.lib import colors
+        except ImportError:
+            return Response(
+                {'error': 'PDF generation requires reportlab. Install: pip install reportlab'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        # Reuse same revenue data as platform overview + subscription totals
+        agg = SponsorCohortBilling.objects.aggregate(
+            total_platform_cost=Sum('total_cost'),
+            total_revenue_share=Sum('revenue_share_kes'),
+            total_hires=Sum('hires'),
+        )
+        total_platform_cost = float(agg.get('total_platform_cost') or 0)
+        total_revenue_share = float(agg.get('total_revenue_share') or 0)
+        total_hires = int(agg.get('total_hires') or 0)
+        total_roi = (total_platform_cost / total_revenue_share) if total_revenue_share else 0
+
+        # Subscription revenue (from subscription plans + active users)
+        subscription_kes = 0
+        active_users = 0
+        try:
+            from subscriptions.models import SubscriptionPlan, UserSubscription
+            plans = SubscriptionPlan.objects.all()
+            for p in plans:
+                cnt = UserSubscription.objects.filter(plan=p, status='active').count()
+                active_users += cnt
+                subscription_kes += float(p.price_monthly or 0) * cnt
+            # Backend stores USD; convert to KES
+            import os
+            usd_to_kes = float(os.environ.get('USD_TO_KES_RATE') or os.environ.get('NEXT_PUBLIC_USD_TO_KES') or 130)
+            subscription_kes = round(subscription_kes * usd_to_kes, 2)
+        except Exception:
+            subscription_kes = 0
+
+        total_revenue = total_platform_cost + subscription_kes
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            topMargin=0.6 * inch,
+            bottomMargin=0.6 * inch,
+            leftMargin=0.6 * inch,
+            rightMargin=0.6 * inch,
+        )
+        story = []
+        styles = getSampleStyleSheet()
+
+        title_style = ParagraphStyle(
+            'ReportTitle',
+            parent=styles['Heading1'],
+            fontSize=22,
+            textColor=colors.HexColor('#0f172a'),
+            spaceAfter=6,
+            alignment=1,
+        )
+        subtitle_style = ParagraphStyle(
+            'ReportSubtitle',
+            parent=styles['Normal'],
+            fontSize=11,
+            textColor=colors.HexColor('#64748b'),
+            spaceAfter=24,
+            alignment=1,
+        )
+
+        story.append(Paragraph('Ongoza CyberHub', title_style))
+        story.append(Paragraph('Finance ROI Report', subtitle_style))
+        story.append(Spacer(1, 0.15 * inch))
+
+        # Key metrics table
+        metrics_data = [
+            ['Metric', 'Value'],
+            ['Total Revenue (KES)', f'{total_revenue:,.2f}'],
+            ['ROI Multiple', f'{total_roi:.2f}x'],
+            ['Active Users', str(active_users)],
+            ['Placements (Hires)', str(total_hires)],
+        ]
+        metrics_table = Table(metrics_data, colWidths=[3.2 * inch, 2.8 * inch])
+        metrics_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0ea5e9')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8fafc')),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#0f172a')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+        ]))
+        story.append(metrics_table)
+        story.append(Spacer(1, 0.25 * inch))
+
+        # Revenue breakdown
+        story.append(Paragraph('<b>Revenue Breakdown</b>', styles['Heading3']))
+        story.append(Spacer(1, 0.1 * inch))
+        breakdown_data = [
+            ['Source', 'Amount (KES)'],
+            ['Cohort / Platform', f'{total_platform_cost:,.2f}'],
+            ['Placement fees', f'{total_revenue_share:,.2f}'],
+            ['Subscriptions', f'{subscription_kes:,.2f}'],
+            ['Total', f'{total_revenue:,.2f}'],
+        ]
+        breakdown_table = Table(breakdown_data, colWidths=[3.2 * inch, 2.8 * inch])
+        breakdown_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e293b')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8fafc')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+        ]))
+        story.append(breakdown_table)
+        story.append(Spacer(1, 0.4 * inch))
+
+        from datetime import datetime
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor('#64748b'),
+            alignment=1,
+        )
+        story.append(Paragraph(
+            f'Generated on {datetime.now().strftime("%B %d, %Y at %I:%M %p")}',
+            footer_style,
+        ))
+        story.append(Paragraph('Ongoza CyberHub — Finance', footer_style))
+
+        doc.build(story)
+        buffer.seek(0)
+
+        response = HttpResp(buffer.read(), content_type='application/pdf')
+        filename = f'och-finance-roi-report-{datetime.now().strftime("%Y%m%d")}.pdf'
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+    except Exception as e:
+        logger.exception('finance_roi_report_pdf failed')
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])

@@ -49,6 +49,7 @@ def check_onboarding_status(request):
     account_active = user.account_status == 'active' and user.is_active
     has_mfa = MFAMethod.objects.filter(user=user, enabled=True).exists()
     profiling_complete = user.profiling_complete
+    has_country = bool(user.country and str(user.country).strip())
 
     # Students are treated as email-verified (onboarding link is the verification).
     # Skip the verify_email step and set the flag so they are never sent to /auth/verify-email.
@@ -93,6 +94,13 @@ def check_onboarding_status(request):
                 'email': user.email,
                 'message': 'Please set up multi-factor authentication'
             }, status=status.HTTP_200_OK)
+        elif is_student and not has_country:
+            return Response({
+                'onboarding_complete': False,
+                'next_step': 'set_country',
+                'email': user.email,
+                'message': 'Please select your country to continue'
+            }, status=status.HTTP_200_OK)
         elif not profiling_complete:
             return Response({
                 'onboarding_complete': False,
@@ -122,6 +130,13 @@ def check_onboarding_status(request):
             'next_step': 'setup_mfa',
             'email': user.email,
             'message': 'Please set up multi-factor authentication'
+        }, status=status.HTTP_200_OK)
+    elif is_student and not has_country:
+        return Response({
+            'onboarding_complete': False,
+            'next_step': 'set_country',
+            'email': user.email,
+            'message': 'Please select your country to continue'
         }, status=status.HTTP_200_OK)
     elif not profiling_complete:
         return Response({

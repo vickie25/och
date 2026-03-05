@@ -51,6 +51,8 @@ billing_patterns = [
 # =============================================================================
 finance_patterns = [
     path('platform/overview/', views_api.platform_finance_overview, name='platform-finance-overview'),
+    path('platform/revenue-dashboard/', views_api.revenue_dashboard, name='revenue-dashboard'),
+    path('platform/roi-report/pdf/', views_api.finance_roi_report_pdf, name='finance-roi-report-pdf'),
 ]
 
 # =============================================================================

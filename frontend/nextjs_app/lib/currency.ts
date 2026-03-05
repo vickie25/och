@@ -1,73 +1,124 @@
 /**
- * Currency conversion utilities
- * Converts USD to local currencies based on country
+ * System-wide currency model.
+ * Primary currency is KES (Kenyan Shilling). All subscription and stored amounts are in KES.
+ * Converts KES to the user's country currency for display only.
  */
 
-// Currency exchange rates (as of latest update)
-// These should ideally come from an API, but for now we'll use static rates
-// Default to Kenya (KES) as primary market
-const EXCHANGE_RATES: Record<string, number> = {
-  'KE': 130.0, // Kenyan Shilling (KES) - 1 USD = 130 KES
-  'US': 1.0,   // US Dollar
-  'BW': 13.5,  // Botswana Pula
-  'ZA': 18.5,  // South African Rand
-  'NG': 1500.0, // Nigerian Naira
-  'GH': 12.0,  // Ghanaian Cedi
-  'TZ': 2300.0, // Tanzanian Shilling
-  'UG': 3700.0, // Ugandan Shilling
-  'ET': 55.0,  // Ethiopian Birr
-  'RW': 1300.0, // Rwandan Franc
+// Rate: 1 KES = rate units of local currency (e.g. 1 KES ≈ 17.8 TZS)
+const KES_TO_LOCAL: Record<string, number> = {
+  KE: 1,
+  DZ: 0.12,   // Algerian Dinar
+  AO: 6.5,    // Angolan Kwanza
+  BJ: 1.9,    // West African CFA
+  BW: 0.078,  // Botswana Pula
+  BF: 1.9,    // West African CFA
+  BI: 24,     // Burundian Franc
+  CV: 0.65,   // Cape Verdean Escudo
+  CM: 0.52,   // Central African CFA
+  CF: 0.52,   // Central African CFA
+  TD: 0.52,   // Central African CFA
+  KM: 2.1,    // Comorian Franc
+  CG: 0.52,   // Central African CFA
+  CD: 27,     // Congolese Franc
+  CI: 1.9,    // West African CFA
+  DJ: 1.8,    // Djiboutian Franc
+  EG: 0.19,   // Egyptian Pound
+  GQ: 0.52,   // Central African CFA
+  ER: 0.05,   // Eritrean Nakfa
+  SZ: 0.14,   // Swazi Lilangeni
+  ET: 1.5,    // Ethiopian Birr
+  GA: 0.52,   // Central African CFA
+  GM: 0.13,   // Gambian Dalasi
+  GH: 0.012,  // Ghanaian Cedi
+  GN: 0.078,  // Guinean Franc
+  GW: 0.078,  // Guinea-Bissau Peso
+  LS: 0.14,   // Lesotho Loti
+  LR: 0.006,  // Liberian Dollar
+  LY: 0.002,  // Libyan Dinar
+  MG: 0.032,  // Malagasy Ariary
+  MW: 0.11,   // Malawian Kwacha
+  ML: 1.9,    // West African CFA
+  MR: 0.36,   // Mauritanian Ouguiya
+  MU: 0.29,   // Mauritian Rupee
+  MA: 0.078,  // Moroccan Dirham
+  MZ: 0.52,   // Mozambican Metical
+  NA: 0.14,   // Namibian Dollar
+  NE: 1.9,    // West African CFA
+  NG: 0.009,  // Nigerian Naira
+  RW: 0.77,   // Rwandan Franc
+  ST: 0.065,  // Dobra
+  SN: 1.9,    // West African CFA
+  SC: 0.58,   // Seychellois Rupee
+  SL: 0.006,  // Leone
+  SO: 0.014,  // Somali Shilling
+  ZA: 0.14,   // South African Rand
+  SS: 0.025,  // South Sudanese Pound
+  SD: 0.014,  // Sudanese Pound
+  TZ: 17.8,   // Tanzanian Shilling
+  TG: 1.9,    // West African CFA
+  TN: 0.024,  // Tunisian Dinar
+  UG: 28.5,   // Ugandan Shilling
+  ZM: 0.12,   // Zambian Kwacha
+  ZW: 0.014,  // Zimbabwean Dollar (ZWL)
 }
 
-// Currency symbols
+const CURRENCY_CODES: Record<string, string> = {
+  KE: 'KES',
+  DZ: 'DZD', AO: 'AOA', BJ: 'XOF', BW: 'BWP', BF: 'XOF', BI: 'BIF', CV: 'CVE',
+  CM: 'XAF', CF: 'XAF', TD: 'XAF', KM: 'KMF', CG: 'XAF', CD: 'CDF', CI: 'XOF',
+  DJ: 'DJF', EG: 'EGP', GQ: 'XAF', ER: 'ERN', SZ: 'SZL', ET: 'ETB', GA: 'XAF',
+  GM: 'GMD', GH: 'GHS', GN: 'GNF', GW: 'XOF', LS: 'LSL', LR: 'LRD', LY: 'LYD',
+  MG: 'MGA', MW: 'MWK', ML: 'XOF', MR: 'MRU', MU: 'MUR', MA: 'MAD', MZ: 'MZN',
+  NA: 'NAD', NE: 'XOF', NG: 'NGN', RW: 'RWF', ST: 'STN', SN: 'XOF', SC: 'SCR',
+  SL: 'SLE', SO: 'SOS', ZA: 'ZAR', SS: 'SSP', SD: 'SDG', TZ: 'TZS', TG: 'XOF',
+  TN: 'TND', UG: 'UGX', ZM: 'ZMW', ZW: 'ZWL',
+}
+
 const CURRENCY_SYMBOLS: Record<string, string> = {
-  'KE': 'KES',
-  'US': 'USD',
-  'BW': 'BWP',
-  'ZA': 'ZAR',
-  'NG': 'NGN',
-  'GH': 'GHS',
-  'TZ': 'TZS',
-  'UG': 'UGX',
-  'ET': 'ETB',
-  'RW': 'RWF',
+  KES: 'KSh', DZD: 'DA', BWP: 'P', ZAR: 'R', NGN: '₦', GHS: '₵', TZS: 'TSh',
+  UGX: 'USh', ETB: 'Br', RWF: 'FRw', XOF: 'CFA', XAF: 'FCFA', CDF: 'FC',
+  EGP: 'E£', MUR: '₨', MAD: 'DH', ZMW: 'ZK', GMD: 'D', LRD: '$', LYD: 'LD',
+  MGA: 'Ar', MWK: 'MK', MZN: 'MT', NAD: '$', RWF: 'FRw', SLE: 'Le', SOS: 'Sh',
+  SZL: 'E', SSP: '£', SDG: '£', TND: 'DT', ZWL: '$', CVE: 'Esc', DJF: 'Fdj',
+  ERN: 'Nfk', SZL: 'E', GNF: 'FG', LSL: 'L', MRU: 'UM', STN: 'Db', SCR: '₨',
+  KMF: 'CF', BIF: 'FBu', AOA: 'Kz', XAF: 'FCFA',
 }
 
 /**
- * Get currency code for a country
+ * Get currency code for a country (ISO 3166-1 alpha-2).
  */
 export function getCurrencyCode(countryCode?: string | null): string {
-  if (!countryCode) return 'KES' // Default to Kenya
-  return CURRENCY_SYMBOLS[countryCode.toUpperCase()] || 'KES'
+  if (!countryCode) return 'KES'
+  return CURRENCY_CODES[countryCode.toUpperCase()] || 'KES'
 }
 
 /**
- * Convert USD to local currency
+ * Convert KES (system primary) to user's local currency for display.
  */
-export function convertUSDToLocal(usdAmount: number, countryCode?: string | null): number {
-  if (!usdAmount || usdAmount === 0) return 0
+export function convertKEStoLocal(kesAmount: number, countryCode?: string | null): number {
+  if (kesAmount == null || kesAmount === 0) return 0
   const code = countryCode?.toUpperCase() || 'KE'
-  // For Kenya we now treat stored prices as KSh directly (no FX conversion)
-  if (code === 'KE') return usdAmount
-  const rate = EXCHANGE_RATES[code] || EXCHANGE_RATES['KE']
-  return usdAmount * rate
+  const rate = KES_TO_LOCAL[code] ?? KES_TO_LOCAL['KE']
+  return Math.round(kesAmount * rate * 100) / 100
 }
 
 /**
- * Convert local currency back to USD
+ * Format a KES amount in the user's local currency (converts then formats).
+ * Use this across the app for subscriptions, revenue, etc.
  */
-export function convertLocalToUSD(localAmount: number, countryCode?: string | null): number {
-  if (!localAmount || localAmount === 0) return 0
-  const code = countryCode?.toUpperCase() || 'KE'
-  // For Kenya we store KSh directly (no FX conversion)
-  if (code === 'KE') return localAmount
-  const rate = EXCHANGE_RATES[code] || EXCHANGE_RATES['KE']
-  if (!rate) return 0
-  return localAmount / rate
+export function formatFromKES(kesAmount: number, countryCode?: string | null): string {
+  const local = convertKEStoLocal(kesAmount, countryCode)
+  const currencyCode = getCurrencyCode(countryCode)
+  const formatted = new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(local)
+  const symbol = CURRENCY_SYMBOLS[currencyCode] || currencyCode
+  return `${symbol} ${formatted}`
 }
 
 /**
- * Format currency amount
+ * Format currency amount with code (e.g. "1,234 KES").
  */
 export function formatCurrency(amount: number, countryCode?: string | null): string {
   const currencyCode = getCurrencyCode(countryCode)
@@ -75,12 +126,11 @@ export function formatCurrency(amount: number, countryCode?: string | null): str
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount)
-  
   return `${formatted} ${currencyCode}`
 }
 
 /**
- * Format currency with symbol
+ * Format currency with symbol (e.g. "KSh 1,234").
  */
 export function formatCurrencyWithSymbol(amount: number, countryCode?: string | null): string {
   const currencyCode = getCurrencyCode(countryCode)
@@ -88,45 +138,52 @@ export function formatCurrencyWithSymbol(amount: number, countryCode?: string | 
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount)
-  
-  // Add symbol prefix for common currencies
-  const symbolMap: Record<string, string> = {
-    'KES': 'KSh',
-    'USD': '$',
-    'BWP': 'P',
-    'ZAR': 'R',
-    'NGN': '₦',
-    'GHS': '₵',
-  }
-  
-  const symbol = symbolMap[currencyCode] || currencyCode
+  const symbol = CURRENCY_SYMBOLS[currencyCode] || currencyCode
   return `${symbol} ${formatted}`
 }
 
+/** @deprecated Use convertKEStoLocal and formatFromKES. Subscription amounts are in KES. */
+export function convertUSDToLocal(usdAmount: number, countryCode?: string | null): number {
+  return convertKEStoLocal(usdAmount, countryCode)
+}
+
+/** @deprecated System uses KES only; avoid converting to USD. */
+export function convertLocalToUSD(localAmount: number, countryCode?: string | null): number {
+  if (!localAmount || localAmount === 0) return 0
+  const code = countryCode?.toUpperCase() || 'KE'
+  const rate = KES_TO_LOCAL[code] ?? 1
+  if (!rate) return 0
+  return localAmount / rate
+}
+
 /**
- * Calculate annual price with 10% discount
+ * Calculate annual price from monthly KES with 10% discount.
+ * Subscription amounts are in KES.
  */
-export function calculateAnnualPrice(monthlyPriceUSD: number, countryCode?: string | null): {
-  monthlyUSD: number
-  annualUSD: number
+export function calculateAnnualPriceFromKES(monthlyKes: number, countryCode?: string | null): {
+  monthlyKes: number
+  annualKes: number
   annualLocal: number
   discount: number
   formattedMonthly: string
   formattedAnnual: string
 } {
-  const annualUSD = monthlyPriceUSD * 12
-  const discount = annualUSD * 0.1 // 10% discount
-  const annualDiscountedUSD = annualUSD - discount
-  
-  const monthlyLocal = convertUSDToLocal(monthlyPriceUSD, countryCode)
-  const annualLocal = convertUSDToLocal(annualDiscountedUSD, countryCode)
-  
+  const annualKes = monthlyKes * 12
+  const discount = annualKes * 0.1
+  const annualDiscountedKes = annualKes - discount
+  const monthlyLocal = convertKEStoLocal(monthlyKes, countryCode)
+  const annualLocal = convertKEStoLocal(annualDiscountedKes, countryCode)
   return {
-    monthlyUSD: monthlyPriceUSD,
-    annualUSD: annualDiscountedUSD,
+    monthlyKes,
+    annualKes: annualDiscountedKes,
     annualLocal,
     discount,
-    formattedMonthly: formatCurrencyWithSymbol(monthlyLocal, countryCode),
-    formattedAnnual: formatCurrencyWithSymbol(annualLocal, countryCode),
+    formattedMonthly: formatFromKES(monthlyKes, countryCode),
+    formattedAnnual: formatFromKES(annualDiscountedKes, countryCode),
   }
+}
+
+/** @deprecated Use calculateAnnualPriceFromKES; subscription prices are in KES. */
+export function calculateAnnualPrice(monthlyPriceKes: number, countryCode?: string | null): ReturnType<typeof calculateAnnualPriceFromKES> {
+  return calculateAnnualPriceFromKES(monthlyPriceKes, countryCode)
 }

@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { apiGateway } from '@/services/apiGateway'
-import { calculateAnnualPrice, formatCurrencyWithSymbol, convertUSDToLocal } from '@/lib/currency'
+import { calculateAnnualPriceFromKES, formatFromKES } from '@/lib/currency'
 import { useAuth } from '@/hooks/useAuth'
 
 interface SubscriptionPlan {
@@ -208,7 +208,7 @@ export default function PlansManagementClient() {
     const plan = plans.find(p => p.tier === tier)
     if (!plan) return { label: tier, color: 'steel' as const, bgColor: 'bg-och-steel/10' }
     
-    const price = plan.price_monthly ? formatCurrencyWithSymbol(convertUSDToLocal(plan.price_monthly, selectedCountry), selectedCountry) : 'Free'
+    const price = plan.price_monthly ? formatFromKES(plan.price_monthly, selectedCountry) : 'Free'
     return {
       label: `${plan.name} (${price}/month)`,
       color: tier === 'free' ? 'steel' as const : tier === 'starter' ? 'defender' as const : 'mint' as const,
@@ -379,26 +379,20 @@ export default function PlansManagementClient() {
                   const isStarter = plan.tier === 'starter'
                   const isPremium = plan.tier === 'premium'
                   
-                  // Starter: $5/month (monthly billing)
-                  // Premium: $54/year (annual billing, equivalent to $4.50/month)
-                  let monthlyPriceUSD = plan.price_monthly
-                  let annualPriceUSD = null
+                  // Subscription prices in KES. Starter: monthly; Premium: annual.
+                  let monthlyKes = plan.price_monthly ?? 0
+                  let annualKes: number | null = null
                   let billingType = ''
                   
                   if (isStarter) {
-                    // Starter tier: Monthly billing at $5/month
-                    monthlyPriceUSD = plan.price_monthly || 5
-                    annualPriceUSD = monthlyPriceUSD * 12 // $60/year
+                    monthlyKes = plan.price_monthly || 650
+                    annualKes = monthlyKes * 12
                     billingType = 'Monthly'
                   } else if (isPremium) {
-                    // Premium tier: Annual billing at $54/year (10% discount from $60)
-                    annualPriceUSD = 54 // Fixed annual price
-                    monthlyPriceUSD = annualPriceUSD / 12 // $4.50/month equivalent
+                    annualKes = 7020
+                    monthlyKes = annualKes / 12
                     billingType = 'Annual'
                   }
-                  
-                  const monthlyLocal = convertUSDToLocal(monthlyPriceUSD, selectedCountry)
-                  const annualLocal = annualPriceUSD ? convertUSDToLocal(annualPriceUSD, selectedCountry) : null
                   
                   return (
                     <div 
@@ -431,12 +425,12 @@ export default function PlansManagementClient() {
                               <p className="text-sm text-och-steel mb-1">Monthly Subscription</p>
                               <div className="flex items-baseline gap-2">
                                 <p className="text-3xl font-bold text-white">
-                                  {formatCurrencyWithSymbol(monthlyLocal, selectedCountry)}
+                                  {formatFromKES(monthlyKes, selectedCountry)}
                                 </p>
                                 <span className="text-sm text-och-steel">/month</span>
                               </div>
                               <p className="text-xs text-och-steel mt-1">
-                                ${monthlyPriceUSD} USD per month
+                                KSh {monthlyKes.toLocaleString()} per month
                               </p>
                             </div>
                             <div className="mb-4">
@@ -452,23 +446,23 @@ export default function PlansManagementClient() {
                               <p className="text-sm text-och-steel mb-1">Annual Subscription</p>
                               <div className="flex items-baseline gap-2 mb-1">
                                 <p className="text-3xl font-bold text-och-mint">
-                                  {formatCurrencyWithSymbol(annualLocal!, selectedCountry)}
+                                  {formatFromKES(annualKes!, selectedCountry)}
                                 </p>
                                 <span className="text-sm text-och-steel">/year</span>
                               </div>
                               <div className="flex items-center gap-2 mb-2">
                                 <p className="text-xs text-och-steel line-through">
-                                  {formatCurrencyWithSymbol(convertUSDToLocal(60, selectedCountry), selectedCountry)}
+                                  {formatFromKES(7800, selectedCountry)}
                                 </p>
                                 <Badge variant="mint" className="text-xs font-bold">10% OFF</Badge>
                               </div>
                               <p className="text-xs text-och-steel">
-                                ${annualPriceUSD} USD per year
+                                KSh {annualKes?.toLocaleString()} per year
                               </p>
                             </div>
                             <div className="mb-4">
                               <p className="text-xs text-och-mint font-medium">
-                                💰 Equivalent to {formatCurrencyWithSymbol(monthlyLocal, selectedCountry)}/month
+                                💰 Equivalent to {formatFromKES(monthlyKes, selectedCountry)}/month
                               </p>
                               <p className="text-xs text-och-steel mt-1">
                                 Billed annually. Save 10% vs monthly.
@@ -542,7 +536,7 @@ export default function PlansManagementClient() {
                               <span>{plan.name}</span>
                               {plan.price_monthly ? (
                                 <span className="text-xs text-och-steel mt-1 font-normal">
-                                  {formatCurrencyWithSymbol(convertUSDToLocal(plan.price_monthly, selectedCountry), selectedCountry)}/mo
+                                  {formatFromKES(plan.price_monthly!, selectedCountry)}/mo
                                 </span>
                               ) : (
                                 <span className="text-xs text-och-steel mt-1 font-normal">Free</span>
@@ -699,7 +693,7 @@ export default function PlansManagementClient() {
                       <h3 className="text-xl font-bold text-white mt-2">{plan.name}</h3>
                       {plan.price_monthly && (
                         <p className="text-och-defender text-lg font-semibold mt-1">
-                          {formatCurrencyWithSymbol(convertUSDToLocal(plan.price_monthly, selectedCountry), selectedCountry)}
+                          {formatFromKES(plan.price_monthly, selectedCountry)}
                           <span className="text-sm text-och-steel"> /month</span>
                         </p>
                       )}
@@ -852,21 +846,16 @@ function PlanDetailModal({
   const isStarter = plan.tier === 'starter'
   const isPremium = plan.tier === 'premium'
   
-  let monthlyPriceUSD = plan.price_monthly || 0
-  let annualPriceUSD = null
+  let monthlyKes = plan.price_monthly || 0
+  let annualKes: number | null = null
   
   if (isStarter) {
-    // Starter: $5/month (monthly billing)
-    monthlyPriceUSD = plan.price_monthly || 5
-    annualPriceUSD = monthlyPriceUSD * 12 // $60/year
+    monthlyKes = plan.price_monthly || 650
+    annualKes = monthlyKes * 12
   } else if (isPremium) {
-    // Premium: $54/year (annual billing, 10% discount from $60)
-    annualPriceUSD = 54
-    monthlyPriceUSD = annualPriceUSD / 12 // $4.50/month equivalent
+    annualKes = 7020
+    monthlyKes = annualKes / 12
   }
-  
-  const monthlyLocal = monthlyPriceUSD > 0 ? convertUSDToLocal(monthlyPriceUSD, selectedCountry) : 0
-  const annualLocal = annualPriceUSD ? convertUSDToLocal(annualPriceUSD, selectedCountry) : null
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -884,19 +873,19 @@ function PlanDetailModal({
               ) : isStarter ? (
                 <div className="mt-2">
                   <p className="text-och-defender text-xl font-semibold">
-                    {formatCurrencyWithSymbol(monthlyLocal, selectedCountry)} per month
+                    {formatFromKES(monthlyKes, selectedCountry)} per month
                   </p>
                   <p className="text-xs text-och-steel mt-1">
-                    ${monthlyPriceUSD} USD/month • Monthly billing
+                    KSh {monthlyKes.toLocaleString()}/month • Monthly billing
                   </p>
                 </div>
               ) : isPremium ? (
                 <div className="mt-2">
                   <p className="text-och-mint text-xl font-semibold">
-                    {formatCurrencyWithSymbol(annualLocal!, selectedCountry)} per year
+                    {formatFromKES(annualKes!, selectedCountry)} per year
                   </p>
                   <p className="text-xs text-och-steel mt-1">
-                    ${annualPriceUSD} USD/year • Equivalent to {formatCurrencyWithSymbol(monthlyLocal, selectedCountry)}/month
+                    KSh {annualKes?.toLocaleString()}/year • Equivalent to {formatFromKES(monthlyKes, selectedCountry)}/month
                   </p>
                   <p className="text-xs text-och-mint mt-1">
                     Annual billing • Save 10% vs monthly

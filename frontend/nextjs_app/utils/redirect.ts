@@ -65,6 +65,17 @@ export function getRedirectRoute(user: User | null): string {
       return '/support/dashboard'
     }
 
+    // Finance role → Finance dashboard (so finance never gets student dashboard)
+    const hasFinanceRole = user.roles.some((ur: any) => {
+      const roleName = typeof ur === 'string' ? ur : (ur?.role || ur?.name || ur?.role_display_name || '')
+      const n = roleName?.toLowerCase().trim()
+      return n === 'finance' || n === 'finance_admin'
+    })
+    if (hasFinanceRole) {
+      console.log('✅ getRedirectRoute: Finance role detected - redirecting to /finance/dashboard')
+      return '/finance/dashboard'
+    }
+
     // CRITICAL: Check for mentor role - mentors should NEVER go to student dashboard
     const hasMentorRole = user.roles.some((ur: any) => {
       const roleName = typeof ur === 'string' ? ur : (ur?.role || ur?.name || ur?.role_display_name || '')
