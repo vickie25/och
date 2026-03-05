@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { ListChecks, Clock, Brain, Target } from 'lucide-react'
 
 interface AIProfilerInstructionsProps {
   onContinue: () => void
@@ -10,167 +11,115 @@ interface AIProfilerInstructionsProps {
 export default function AIProfilerInstructions({ onContinue, totalQuestions }: AIProfilerInstructionsProps) {
   return (
     <div className="min-h-screen flex flex-col px-4 py-4">
-      {/* Sticky top: button visible so users know they can proceed without scrolling */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="sticky top-0 z-10 flex-shrink-0 flex justify-center py-3 pb-4 bg-gradient-to-b from-och-midnight/95 via-och-midnight/90 to-transparent backdrop-blur-sm"
-      >
-        <button
-          onClick={onContinue}
-          className="bg-gradient-to-r from-och-orange to-och-crimson hover:from-och-orange/80 hover:to-och-crimson/80 text-white text-lg font-bold px-10 py-3 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-        >
-          Start Assessment
-        </button>
-      </motion.div>
-
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
-        className="max-w-3xl mx-auto w-full flex-1 overflow-y-auto"
+        className="max-w-3xl mx-auto w-full flex-1 overflow-hidden flex flex-col gap-4"
       >
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="text-center mb-8"
+          className="text-center space-y-3"
         >
-          <div className="text-5xl mb-4">📋</div>
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Assessment Instructions
+          <div className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(248,250,252,0.12)] bg-[rgba(15,23,42,0.9)]">
+            <ListChecks className="h-5 w-5 text-[#F59E0B]" />
+          </div>
+          <h1 className="font-['Space_Grotesk'] text-[clamp(22px,3vw,28px)] font-bold tracking-[-0.06em] text-[#E2E8F0]">
+            How this assessment works
           </h1>
-          <p className="text-xl text-gray-300">
-            Follow these guidelines for the most accurate results
+          <p className="text-[13px] md:text-[14px] text-[#94A3B8] max-w-[520px] mx-auto">
+            Answer honestly and instinctively. There are no &ldquo;right&rdquo; answers – we&apos;re mapping you to the work you&apos;ll actually thrive in.
           </p>
         </motion.div>
 
-        {/* Instructions */}
+        {/* Instructions + overview (compressed into one block) */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
-          className="bg-white/10 backdrop-blur-sm rounded-xl p-8 mb-8"
+          className="bg-white/5 rounded-xl p-4 md:p-5 flex flex-col gap-4"
         >
-          <div className="space-y-6">
-            <div className="flex items-start space-x-4">
-              <div className="bg-och-orange rounded-full w-8 h-8 flex items-center justify-center text-black font-bold text-sm flex-shrink-0 mt-1">
-                1
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-3 text-left">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[rgba(245,158,11,0.18)] text-[11px] font-semibold text-[#F59E0B]">
+                  1
+                </div>
+                <div>
+                  <p className="text-[13px] font-semibold text-[#E2E8F0]">Be honest.</p>
+                  <p className="text-[12px] text-[#94A3B8]">
+                    Answer based on what you actually enjoy and how you naturally work – not what you think sounds impressive.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-white font-semibold mb-2">Be Authentic</h3>
-                <p className="text-gray-300">
-                  Answer based on your genuine preferences and natural tendencies. There's no "right" answer - we're finding your best fit.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start space-x-4">
-              <div className="bg-och-orange rounded-full w-8 h-8 flex items-center justify-center text-black font-bold text-sm flex-shrink-0 mt-1">
-                2
-              </div>
-              <div>
-                <h3 className="text-white font-semibold mb-2">Think About Scenarios</h3>
-                <p className="text-gray-300">
-                  Many questions present realistic work situations. Consider how you'd actually behave in these scenarios.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start space-x-4">
-              <div className="bg-och-orange rounded-full w-8 h-8 flex items-center justify-center text-black font-bold text-sm flex-shrink-0 mt-1">
-                3
-              </div>
-              <div>
-                <h3 className="text-white font-semibold mb-2">Consider Your Energy</h3>
-                <p className="text-gray-300">
-                  Think about what energizes you most - building things, leading teams, exploring ideas, or helping others grow.
-                </p>
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[rgba(245,158,11,0.18)] text-[11px] font-semibold text-[#F59E0B]">
+                  2
+                </div>
+                <div>
+                  <p className="text-[13px] font-semibold text-[#E2E8F0]">Picture real scenarios.</p>
+                  <p className="text-[12px] text-[#94A3B8]">
+                    Many questions mirror real work situations. Choose the option that feels most like how you&apos;d respond.
+                  </p>
+                </div>
               </div>
             </div>
+            <div className="space-y-3 text-left">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[rgba(245,158,11,0.18)] text-[11px] font-semibold text-[#F59E0B]">
+                  3
+                </div>
+                <div>
+                  <p className="text-[13px] font-semibold text-[#E2E8F0]">Check your energy.</p>
+                  <p className="text-[12px] text-[#94A3B8]">
+                    Pay attention to what gives you energy – building, defending, leading, designing, or advising.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[rgba(245,158,11,0.18)] text-[11px] font-semibold text-[#F59E0B]">
+                  4
+                </div>
+                <div>
+                  <p className="text-[13px] font-semibold text-[#E2E8F0]">No time pressure.</p>
+                  <p className="text-[12px] text-[#94A3B8]">
+                    Take your time. The more thoughtful your responses, the sharper your track match.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
 
-            <div className="flex items-start space-x-4">
-              <div className="bg-och-orange rounded-full w-8 h-8 flex items-center justify-center text-black font-bold text-sm flex-shrink-0 mt-1">
-                4
-              </div>
-              <div>
-                <h3 className="text-white font-semibold mb-2">Take Your Time</h3>
-                <p className="text-gray-300">
-                  Read each question carefully. There's no time limit, but thoughtful responses give better results.
-                </p>
-              </div>
+          <div className="grid grid-cols-2 gap-4 border-t border-[rgba(148,163,184,0.35)] pt-3 mt-1 text-[12px] text-[#CBD5F5]">
+            <div className="flex items-center justify-center gap-2">
+              <Brain className="h-4 w-4 text-[#FBBF24]" />
+              <span>{totalQuestions} questions • scenario-based</span>
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <Clock className="h-4 w-4 text-[#38BDF8]" />
+              <span>10–15 minutes • auto-saves as you go</span>
             </div>
           </div>
         </motion.div>
 
-        {/* Assessment Overview */}
+        {/* Bottom CTA: single Start Assessment button */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.6 }}
-          className="bg-white/5 rounded-xl p-6 mb-8"
-        >
-          <h3 className="text-white font-semibold mb-4 text-center">Assessment Overview</h3>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="text-center">
-              <div className="text-3xl mb-2">❓</div>
-              <div className="text-2xl font-bold text-white">{totalQuestions}</div>
-              <div className="text-gray-300">Questions</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl mb-2">⏱️</div>
-              <div className="text-2xl font-bold text-white">10-15</div>
-              <div className="text-gray-300">Minutes</div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Categories */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.8 }}
-          className="mb-8"
-        >
-          <h3 className="text-white font-semibold mb-4 text-center">What We'll Assess</h3>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { name: 'Technical Aptitude', icon: '🧠', desc: 'Logic & patterns' },
-              { name: 'Problem Solving', icon: '💡', desc: 'Decision making' },
-              { name: 'Work Style', icon: '⚡', desc: 'Energy & preferences' },
-              { name: 'Scenario Analysis', icon: '🎭', desc: 'Real situations' }
-            ].map((category, index) => (
-              <motion.div
-                key={category.name}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.4, delay: 1.0 + index * 0.1 }}
-                className="bg-white/10 rounded-lg p-4 text-center hover:bg-white/20 transition-colors"
-              >
-                <div className="text-2xl mb-2">{category.icon}</div>
-                <div className="text-white font-semibold text-sm mb-1">{category.name}</div>
-                <div className="text-gray-400 text-xs">{category.desc}</div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* In-page continue (same action as sticky button) */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
+          initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6, delay: 1.2 }}
-          className="text-center pb-8"
+          transition={{ duration: 0.4, delay: 0.9 }}
+          className="text-center pb-4"
         >
           <button
             onClick={onContinue}
-            className="bg-gradient-to-r from-och-orange to-och-crimson hover:from-och-orange/80 hover:to-och-crimson/80 text-white text-xl font-bold px-12 py-4 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+            className="inline-flex items-center gap-2 rounded-[999px] bg-gradient-to-r from-och-orange to-och-crimson px-8 py-3 text-[13px] font-semibold text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
           >
-            Start Assessment
+            <Target className="h-4 w-4" />
+            Start assessment
           </button>
-          <p className="text-gray-400 text-sm mt-4">
+          <p className="text-[#94A3B8] text-[11px] mt-2">
             Takes about 10–15 minutes • No wrong answers
           </p>
         </motion.div>

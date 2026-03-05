@@ -10,6 +10,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { googleOAuthClient } from '@/services/googleOAuthClient'
+import { apiGateway } from '@/services/apiGateway'
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -21,6 +22,11 @@ function GoogleOAuthCallbackPageInner() {
   const [message, setMessage] = useState('Processing Google authentication...')
   const [error, setError] = useState<string | null>(null)
   const [showRedirectMessage, setShowRedirectMessage] = useState(true)
+  const [resendEmail, setResendEmail] = useState<string | null>(null)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendSuccess, setResendSuccess] = useState<string | null>(null)
+  const [resendError, setResendError] = useState<string | null>(null)
+  const [resendCooldownSeconds, setResendCooldownSeconds] = useState(0)
 
   useEffect(() => {
     let redirectTimer: NodeJS.Timeout | null = null
@@ -122,10 +128,13 @@ function GoogleOAuthCallbackPageInner() {
           const profilingComplete = user.profiling_complete ?? false
           console.log('[OAuth Callback] Student profiling_complete:', profilingComplete)
 
-          // Either a brand-new account or an existing student started Google from /register
-          // and we (re)sent the onboarding email: in both cases, keep them on this page
-          // and instruct them to start from the email, instead of dropping into profiler.
+          // Either a brand-new account or a student logging in with Google where we (re)sent
+          // the onboarding email: in both cases, keep them on this page and instruct them
+          // to start from the email instead of dropping into profiler. Offer a resend link.
           if (accountCreated || onboardingEmailSent) {
+            const email = user.email || response.user?.email || ''
+            setResendEmail(email || null)
+            setResendCooldownSeconds(60)
             setMessage(
               'Your account has been created. Please check your email for a self-onboarding link to set your password, secure your account with MFA, and complete profiling.'
             )
@@ -243,6 +252,39 @@ function GoogleOAuthCallbackPageInner() {
     }
   }, [searchParams, router])
 
+  const handleResendOnboardingEmail = async () => {
+    if (!resendEmail) return
+    if (resendCooldownSeconds > 0) return
+    setResendLoading(true)
+    setResendSuccess(null)
+    setResendError(null)
+    try {
+      await apiGateway.post('/admin/students/send-onboarding-email/', {
+        email: resendEmail,
+      })
+      setResendSuccess('Onboarding email has been resent. Please check your inbox (and spam folder).')
+    } catch (err: any) {
+      const detail =
+        err?.response?.data?.detail ||
+        err?.response?.data?.error ||
+        err?.data?.detail ||
+        err?.data?.error ||
+        'Failed to resend onboarding email. Please try again or contact support.'
+      setResendError(detail)
+    } finally {
+      setResendLoading(false)
+    }
+  }
+
+  // Countdown timer for resend cooldown
+  useEffect(() => {
+    if (resendCooldownSeconds <= 0) return
+    const timer = setInterval(() => {
+      setResendCooldownSeconds((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [resendCooldownSeconds])
+
   // When showing "account created" success, intercept Back so user goes to /register instead of Google or dashboard
   useEffect(() => {
     if (status !== 'success' || showRedirectMessage) return
@@ -274,6 +316,28 @@ function GoogleOAuthCallbackPageInner() {
               <CheckCircle2 className="w-12 h-12 text-och-mint mx-auto" />
               <h2 className="text-xl font-bold text-white">Success!</h2>
               <p className="text-gray-300">{message}</p>
+              {!showRedirectMessage && resendEmail && (
+                <div className="mt-4 space-y-2">
+                  {resendSuccess && (
+                    <p className="text-xs text-emerald-300">{resendSuccess}</p>
+                  )}
+                  {resendError && (
+                    <p className="text-xs text-red-300">{resendError}</p>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={resendLoading || resendCooldownSeconds > 0}
+                    onClick={handleResendOnboardingEmail}
+                  >
+                    {resendLoading
+                      ? 'Resending...'
+                      : resendCooldownSeconds > 0
+                        ? `You can resend in ${resendCooldownSeconds}s`
+                        : "Didn't receive the email? Resend now"}
+                  </Button>
+                </div>
+              )}
               {showRedirectMessage && (
                 <p className="text-sm text-gray-400">Redirecting to your dashboard...</p>
               )}

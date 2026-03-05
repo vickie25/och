@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { useState } from 'react'
-import { CheckCircle2, XCircle, ArrowRight } from 'lucide-react'
+import { CheckCircle2, XCircle, ArrowRight, Shield, Sword, ClipboardList, FlaskConical, Crown, Crosshair } from 'lucide-react'
 
 interface Track {
   key: string
@@ -18,29 +18,29 @@ interface TrackConfirmationProps {
   onDecline: () => void
 }
 
-const TRACK_INFO: Record<string, { icon: string; color: string; description: string }> = {
+const TRACK_INFO: Record<string, { icon: JSX.Element; color: string; description: string }> = {
   defender: {
-    icon: '🛡️',
+    icon: <Shield className="h-6 w-6" />,
     color: 'from-blue-500 to-blue-700',
     description: 'Protect systems, detect threats, and respond to incidents'
   },
   offensive: {
-    icon: '⚔️',
+    icon: <Sword className="h-6 w-6" />,
     color: 'from-red-500 to-red-700',
     description: 'Ethical hacking, penetration testing, and security research'
   },
   grc: {
-    icon: '📋',
+    icon: <ClipboardList className="h-6 w-6" />,
     color: 'from-purple-500 to-purple-700',
     description: 'Governance, risk management, and compliance'
   },
   innovation: {
-    icon: '💡',
+    icon: <FlaskConical className="h-6 w-6" />,
     color: 'from-green-500 to-green-700',
     description: 'Build security solutions, innovate, and create new technologies'
   },
   leadership: {
-    icon: '👑',
+    icon: <Crown className="h-6 w-6" />,
     color: 'from-yellow-500 to-yellow-700',
     description: 'Lead security teams, strategize, and drive organizational change'
   }
@@ -56,7 +56,7 @@ export default function TrackConfirmation({
   const [showOtherTracks, setShowOtherTracks] = useState(false)
 
   const trackInfo = TRACK_INFO[recommendedTrack.key] || {
-    icon: '🎯',
+    icon: <Crosshair className="h-6 w-6" />,
     color: 'from-gray-500 to-gray-700',
     description: recommendedTrack.description
   }
@@ -76,7 +76,7 @@ export default function TrackConfirmation({
 
   if (showOtherTracks) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-gradient-to-br from-och-midnight via-och-space to-och-crimson">
+      <div className="min-h-screen flex items-center justify-center px-4 py-4 bg-gradient-to-br from-och-midnight via-och-space to-och-crimson">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -162,7 +162,7 @@ export default function TrackConfirmation({
         transition={{ duration: 0.5 }}
         className="max-w-3xl w-full"
       >
-        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 md:p-12 border border-white/20">
+        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 md:p-8 border border-white/20">
           {/* Header */}
           <div className="text-center mb-8">
             <motion.div

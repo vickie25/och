@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { Brain, Zap, Theater, LayoutTemplate } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 interface ProfilingQuestion {
@@ -82,13 +83,22 @@ export default function AIProfilerAssessment({
   }
 
   const getCategoryInfo = (category: string) => {
-    const categories = {
-      technical_aptitude: { icon: '🧠', name: 'Technical Aptitude', color: 'text-blue-400' },
-      problem_solving: { icon: '💡', name: 'Problem Solving', color: 'text-green-400' },
-      scenario_preference: { icon: '🎭', name: 'Scenario Analysis', color: 'text-purple-400' },
-      work_style: { icon: '⚡', name: 'Work Style', color: 'text-yellow-400' }
+    const categories: Record<
+      string,
+      { icon: JSX.Element; name: string; color: string }
+    > = {
+      technical_aptitude: { icon: <Brain className="h-3.5 w-3.5 text-[#38BDF8]" />, name: 'Technical Aptitude', color: 'text-[#38BDF8]' },
+      problem_solving: { icon: <Zap className="h-3.5 w-3.5 text-[#22C55E]" />, name: 'Problem Solving', color: 'text-[#22C55E]' },
+      scenario_preference: { icon: <Theater className="h-3.5 w-3.5 text-[#A855F7]" />, name: 'Scenario Analysis', color: 'text-[#A855F7]' },
+      work_style: { icon: <LayoutTemplate className="h-3.5 w-3.5 text-[#FBBF24]" />, name: 'Work Style', color: 'text-[#FBBF24]' },
     }
-    return categories[category as keyof typeof categories] || { icon: '❓', name: category, color: 'text-gray-400' }
+    return (
+      categories[category] || {
+        icon: <Brain className="h-3.5 w-3.5 text-[#64748B]" />,
+        name: category,
+        color: 'text-[#64748B]',
+      }
+    )
   }
 
   const categoryInfo = getCategoryInfo(question.category)
@@ -157,8 +167,8 @@ export default function AIProfilerAssessment({
         transition={{ duration: 0.3 }}
         className="max-w-4xl mx-auto w-full flex-1 min-h-0 flex flex-col py-2 overflow-y-auto"
       >
-        <p className="text-[10px] text-gray-500 text-center flex-shrink-0 mb-1">
-          💾 Progress is saved automatically.
+        <p className="text-[10px] text-[#64748B] text-center flex-shrink-0 mb-1">
+          Progress is saved automatically.
         </p>
 
         {/* Question card – compact */}
@@ -168,9 +178,11 @@ export default function AIProfilerAssessment({
           transition={{ duration: 0.3 }}
           className="bg-white/10 backdrop-blur-sm rounded-lg p-3 flex-shrink-0"
         >
-          <div className="flex items-center mb-2">
-            <span className="text-lg mr-2">{categoryInfo.icon}</span>
-            <span className={`text-xs font-semibold ${categoryInfo.color}`}>
+          <div className="flex items-center mb-2 gap-2">
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[rgba(15,23,42,0.9)] border border-[rgba(148,163,184,0.4)]">
+              {categoryInfo.icon}
+            </span>
+            <span className={`text-[11px] font-semibold ${categoryInfo.color}`}>
               {categoryInfo.name}
             </span>
           </div>
