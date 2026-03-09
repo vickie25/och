@@ -1,8 +1,7 @@
 'use client'
-
+ 
 import { useState, useEffect } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { DirectorLayout } from '@/components/director/DirectorLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -93,8 +92,7 @@ export default function DirectorTracksPage() {
 
   return (
     <RouteGuard>
-      <DirectorLayout>
-        <div className="space-y-6">
+      <div className="space-y-6">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-white">Curriculum Tracks</h1>
@@ -247,7 +245,6 @@ export default function DirectorTracksPage() {
             </DialogContent>
           </Dialog>
         </div>
-      </DirectorLayout>
     </RouteGuard>
   )
 }

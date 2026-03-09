@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { DirectorLayout } from '@/components/director/DirectorLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -134,8 +133,7 @@ export default function MissionsPage() {
 
   return (
     <RouteGuard>
-      <DirectorLayout>
-        <div className="space-y-6">
+      <div className="space-y-6">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-white">Missions</h1>
@@ -292,7 +290,6 @@ export default function MissionsPage() {
             </DialogContent>
           </Dialog>
         </div>
-      </DirectorLayout>
     </RouteGuard>
   )
 }

@@ -1,8 +1,7 @@
 'use client'
-
+ 
 import { useState, useEffect, useMemo } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { DirectorLayout } from '@/components/director/DirectorLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -205,22 +204,19 @@ export default function SeatAllocationPage() {
   if (isLoading) {
     return (
       <RouteGuard>
-        <DirectorLayout>
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-och-defender mx-auto mb-4"></div>
-              <p className="text-och-steel">Loading seat allocations...</p>
-            </div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-och-defender mx-auto mb-4"></div>
+            <p className="text-och-steel">Loading seat allocations...</p>
           </div>
-        </DirectorLayout>
+        </div>
       </RouteGuard>
     )
   }
-
+ 
   return (
     <RouteGuard>
-      <DirectorLayout>
-        <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -593,7 +589,7 @@ export default function SeatAllocationPage() {
             </Card>
           )}
         </div>
-
+ 
         {/* Manage Seat Pool Modal */}
         {selectedCohortForSeatPool && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
@@ -747,7 +743,6 @@ export default function SeatAllocationPage() {
             </div>
           </div>
         )}
-      </DirectorLayout>
     </RouteGuard>
   )
 }

@@ -1,8 +1,7 @@
 'use client'
-
+ 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { DirectorLayout } from '@/components/director/DirectorLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -377,7 +376,6 @@ export default function MentorshipMatchingPage() {
 
   const content = (
     <RouteGuard>
-      <DirectorLayout>
         <div className="max-w-4xl mx-auto">
           <div className="mb-6">
             <h1 className="text-3xl font-bold text-white mb-1">Mentor Assignment</h1>
@@ -760,7 +758,6 @@ export default function MentorshipMatchingPage() {
             </Card>
           )}
         </div>
-      </DirectorLayout>
     </RouteGuard>
   )
 

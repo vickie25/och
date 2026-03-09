@@ -1,8 +1,7 @@
 'use client'
-
+ 
 import { useState, useEffect, useRef } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { DirectorLayout } from '@/components/director/DirectorLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -256,8 +255,7 @@ export default function DirectorSettingsPage() {
 
   return (
     <RouteGuard>
-      <DirectorLayout>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="mb-8">
             <h1 className="text-4xl font-bold mb-2 text-och-mint">Account Settings</h1>
             <p className="text-och-steel">Manage your account information, security, and preferences</p>
@@ -806,7 +804,6 @@ export default function DirectorSettingsPage() {
           </div>
           </div>
         </div>
-      </DirectorLayout>
     </RouteGuard>
   )
 }

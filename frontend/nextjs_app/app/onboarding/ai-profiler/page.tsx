@@ -1373,6 +1373,7 @@ export default function AIProfilerPage() {
           onComplete={handleComplete}
           onReject={handleRejectProfiling}
           rejecting={rejecting}
+          onChooseAnotherTrack={() => setCurrentSection('track-confirmation')}
         />
       )}
     </div>

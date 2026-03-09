@@ -1,7 +1,6 @@
 'use client'
 
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { DirectorLayout } from '@/components/director/DirectorLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -10,7 +9,6 @@ import Link from 'next/link'
 export default function MentorshipPage() {
   return (
     <RouteGuard>
-      <DirectorLayout>
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <h1 className="text-4xl font-bold mb-2 text-och-defender">Mentorship Management</h1>
@@ -79,7 +77,6 @@ export default function MentorshipPage() {
             </div>
           </Card>
         </div>
-      </DirectorLayout>
     </RouteGuard>
   )
 }

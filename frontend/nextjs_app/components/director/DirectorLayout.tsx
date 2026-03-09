@@ -12,14 +12,19 @@ interface DirectorLayoutProps {
 export function DirectorLayout({ children }: DirectorLayoutProps) {
   return (
     <MFARequiredGuard>
-      <div className="min-h-screen bg-och-midnight">
+      <div className="h-screen bg-och-midnight flex overflow-hidden">
+        {/* Persistent sidebar with its own scrolling (DirectorNavigation already includes its own desktop spacer) */}
         <DirectorNavigation />
-        <main className="lg:ml-64 min-h-screen">
-          <DirectorHeader />
-          <div className="p-4 lg:p-6">
-            {children}
-          </div>
-        </main>
+
+        {/* Main content area sits directly beside the sidebar spacer with no extra gap */}
+        <div className="flex-1 flex flex-col">
+          <main className="flex-1 overflow-y-auto">
+            <DirectorHeader />
+            <div className="w-full p-4 lg:p-6">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
     </MFARequiredGuard>
   )

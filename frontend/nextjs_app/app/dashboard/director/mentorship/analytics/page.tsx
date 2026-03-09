@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { DirectorLayout } from '@/components/director/DirectorLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -195,13 +194,11 @@ export default function MentorPerformanceAnalyticsPage() {
   if (loading) {
     return (
       <RouteGuard requiredRoles={['program_director']}>
-        <DirectorLayout>
-          <div className="p-6">
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
+        <div className="p-6">
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           </div>
-        </DirectorLayout>
+        </div>
       </RouteGuard>
     )
   }
@@ -209,26 +206,23 @@ export default function MentorPerformanceAnalyticsPage() {
   if (error) {
     return (
       <RouteGuard requiredRoles={['program_director']}>
-        <DirectorLayout>
-          <div className="p-6">
-            <Card className="p-6">
-              <div className="text-center">
-                <p className="text-red-600 mb-4">{error}</p>
-                <Button onClick={fetchAnalytics} variant="gold">
-                  Try Again
-                </Button>
-              </div>
-            </Card>
-          </div>
-        </DirectorLayout>
+        <div className="p-6">
+          <Card className="p-6">
+            <div className="text-center">
+              <p className="text-red-600 mb-4">{error}</p>
+              <Button onClick={fetchAnalytics} variant="gold">
+                Try Again
+              </Button>
+            </div>
+          </Card>
+        </div>
       </RouteGuard>
     )
   }
 
   return (
     <RouteGuard requiredRoles={['program_director']}>
-      <DirectorLayout>
-        <div className="p-6 space-y-6">
+      <div className="p-6 space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
@@ -432,7 +426,7 @@ export default function MentorPerformanceAnalyticsPage() {
             )}
           </Card>
         </div>
-      </DirectorLayout>
+      </div>
     </RouteGuard>
   )
 }

@@ -1,9 +1,8 @@
 'use client'
-
+ 
 import { useState, useEffect, useMemo, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { DirectorLayout } from '@/components/director/DirectorLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -1554,7 +1553,6 @@ function ApplicationsContent() {
 
   return (
     <RouteGuard requiredRoles={['program_director', 'admin']}>
-      <DirectorLayout>
         <div className="max-w-7xl mx-auto">
           <div className="mb-6">
             <h1 className="text-3xl font-bold text-white mb-2">Applications</h1>
@@ -2070,7 +2068,6 @@ function ApplicationsContent() {
             </TabsContent>
           </Tabs>
         </div>
-      </DirectorLayout>
     </RouteGuard>
   )
 }
@@ -2079,12 +2076,10 @@ export default function ApplicationsPage() {
   return (
     <Suspense fallback={
       <RouteGuard requiredRoles={['program_director', 'admin']}>
-        <DirectorLayout>
           <div className="max-w-7xl mx-auto p-12 text-center">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-och-defender mx-auto mb-4" />
             <p className="text-och-steel">Loading applications...</p>
           </div>
-        </DirectorLayout>
       </RouteGuard>
     }>
       <ApplicationsContent />

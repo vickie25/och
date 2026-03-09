@@ -1,8 +1,7 @@
 'use client'
-
+ 
 import { useState, useMemo, useEffect } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { DirectorLayout } from '@/components/director/DirectorLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -100,17 +99,14 @@ export default function DirectorSupportTeamPage() {
   if (loading) {
     return (
       <RouteGuard requiredRoles={['program_director', 'admin']}>
-        <DirectorLayout>
-          <div className="flex items-center justify-center min-h-[200px] text-och-steel">Loading...</div>
-        </DirectorLayout>
+        <div className="flex items-center justify-center min-h-[200px] text-och-steel">Loading...</div>
       </RouteGuard>
     )
   }
 
   return (
     <RouteGuard requiredRoles={['program_director', 'admin']}>
-      <DirectorLayout>
-        <div className="max-w-4xl">
+      <div className="max-w-4xl">
           <div className="mb-6 flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-white flex items-center gap-2">
@@ -245,7 +241,6 @@ export default function DirectorSupportTeamPage() {
             </Card>
           </div>
         )}
-      </DirectorLayout>
     </RouteGuard>
   )
 }

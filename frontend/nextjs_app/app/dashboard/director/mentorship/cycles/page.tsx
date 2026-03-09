@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { DirectorLayout } from '@/components/director/DirectorLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -313,8 +312,7 @@ export default function MentorshipCyclesPage() {
 
   return (
     <RouteGuard>
-      <DirectorLayout>
-        <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between">
@@ -628,7 +626,6 @@ export default function MentorshipCyclesPage() {
             </div>
           </Card>
         </div>
-      </DirectorLayout>
     </RouteGuard>
   )
 }

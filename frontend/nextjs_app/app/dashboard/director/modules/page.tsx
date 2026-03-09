@@ -1,7 +1,6 @@
 'use client'
-
+ 
 import { useState, useEffect } from 'react'
-import { DirectorLayout } from '@/components/director/DirectorLayout'
 import { RouteGuard } from '@/components/auth/RouteGuard'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -176,8 +175,7 @@ export default function ModulesPage() {
 
   return (
     <RouteGuard requiredRoles={['program_director', 'admin']}>
-      <DirectorLayout>
-        <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto">
 
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
@@ -436,7 +434,6 @@ export default function ModulesPage() {
             </div>
           </div>
         )}
-      </DirectorLayout>
     </RouteGuard>
   )
 }

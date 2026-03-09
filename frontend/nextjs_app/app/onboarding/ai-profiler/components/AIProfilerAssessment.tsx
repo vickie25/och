@@ -109,7 +109,11 @@ export default function AIProfilerAssessment({
   }
 
   const categoryInfo = getCategoryInfo(question.category)
-  const progressPercentage = Math.round(progress.progress_percentage)
+  // Derive progress purely from questionNumber / totalQuestions so it stays
+  // accurate across browsers/sessions even if backend progress state lags.
+  const progressPercentage = totalQuestions > 0
+    ? Math.round((questionNumber / totalQuestions) * 100)
+    : 0
 
   // Listen for answer selection events (for tracking)
   useEffect(() => {

@@ -2,6 +2,15 @@
 
 import { motion } from 'framer-motion'
 import { useState } from 'react'
+import {
+  Shield,
+  Sword,
+  ClipboardList,
+  FlaskConical,
+  Crown,
+  Sparkles,
+  Crosshair
+} from 'lucide-react'
 
 interface ProfilingResult {
   user_id: string
@@ -84,23 +93,31 @@ interface AIProfilerResultsProps {
   onComplete: () => void
   onReject: () => void
   rejecting?: boolean
+  onChooseAnotherTrack?: () => void
 }
 
-export default function AIProfilerResults({ result, blueprint, onComplete, onReject, rejecting }: AIProfilerResultsProps) {
+export default function AIProfilerResults({
+  result,
+  blueprint,
+  onComplete,
+  onReject,
+  rejecting,
+  onChooseAnotherTrack
+}: AIProfilerResultsProps) {
   const [showDetails, setShowDetails] = useState(false)
   // Removed showRejectConfirm state - retake now happens immediately without confirmation
   const primaryRecommendation = result.recommendations[0]
   const otherRecommendations = result.recommendations.slice(1)
 
   const getTrackIcon = (trackKey: string) => {
-    const icons = {
-      builders: '⚡',
-      leaders: '👑',
-      entrepreneurs: '🚀',
-      researchers: '🔬',
-      educators: '📚'
+    const icons: Record<string, JSX.Element> = {
+      defender: <Shield className="h-4 w-4 text-[#60A5FA]" />,
+      offensive: <Sword className="h-4 w-4 text-[#F97373]" />,
+      grc: <ClipboardList className="h-4 w-4 text-[#A855F7]" />,
+      innovation: <FlaskConical className="h-4 w-4 text-[#22C55E]" />,
+      leadership: <Crown className="h-4 w-4 text-[#FBBF24]" />,
     }
-    return icons[trackKey as keyof typeof icons] || '🎯'
+    return icons[trackKey] || <Crosshair className="h-4 w-4 text-[#E5E7EB]" />
   }
 
   const getConfidenceColor = (level: string) => {
@@ -111,6 +128,15 @@ export default function AIProfilerResults({ result, blueprint, onComplete, onRej
       default: return 'text-gray-400'
     }
   }
+
+  // Normalize strengths across all recommended tracks to percentages that sum to 100.
+  const totalScore = result.recommendations.reduce((sum, rec) => sum + (rec.score || 0), 0)
+  const strengthByTrack = result.recommendations.map((rec) => {
+    const raw = rec.score || 0
+    const pct = totalScore > 0 ? Math.round((raw / totalScore) * 100) : 0
+    return { ...rec, strengthPct: pct }
+  })
+  const bestTrack = strengthByTrack[0]
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8">
@@ -127,12 +153,56 @@ export default function AIProfilerResults({ result, blueprint, onComplete, onRej
           transition={{ duration: 0.6, delay: 0.2 }}
           className="text-center mb-8"
         >
-          <div className="text-6xl mb-4">🎉</div>
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            Your OCH Track Match!
+          <div className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(248,250,252,0.18)] bg-[rgba(15,23,42,0.9)] mb-3">
+            <Sparkles className="h-5 w-5 text-[#F59E0B]" />
+          </div>
+          <h1 className="font-['Space_Grotesk'] text-[clamp(26px,3vw,32px)] font-bold tracking-[-0.06em] text-[#E2E8F0] mb-2">
+            Your OCH track strengths
           </h1>
-          <p className="text-xl text-gray-300">
-            Based on your responses, here's your personalized recommendation
+          <p className="text-[13px] md:text-[14px] text-[#94A3B8] max-w-[540px] mx-auto">
+            Below is how your strengths distribute across each track, and which path we recommend you start with.
+          </p>
+        </motion.div>
+
+        {/* Track strengths overview */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.35 }}
+          className="bg-white/5 rounded-xl p-5 mb-8"
+        >
+          <h2 className="text-[14px] md:text-[15px] font-semibold text-[#E2E8F0] mb-3 text-center">
+            Strength across tracks
+          </h2>
+          <div className="space-y-3">
+            {strengthByTrack.map((rec, idx) => (
+              <div key={rec.track_key} className="space-y-1">
+                <div className="flex items-center justify-between text-[12px] md:text-[13px] text-[#E2E8F0]">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[rgba(15,23,42,0.9)] border border-[rgba(148,163,184,0.5)]">
+                      {getTrackIcon(rec.track_key)}
+                    </span>
+                    <span className="font-medium">{rec.track_name}</span>
+                    {idx === 0 && (
+                      <span className="ml-2 rounded-full bg-[rgba(245,158,11,0.18)] px-2 py-0.5 text-[10px] font-semibold text-[#F59E0B]">
+                        Best match
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-semibold">{rec.strengthPct}%</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-[rgba(15,23,42,0.9)] overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[#F59E0B] to-[#F97316]"
+                    style={{ width: `${rec.strengthPct}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-[12px] text-[#94A3B8] text-center">
+            Your strongest alignment is with the <span className="font-semibold text-[#F59E0B]">{bestTrack.track_name}</span> track,
+            but you also have meaningful strength in the other paths.
           </p>
         </motion.div>
 
@@ -427,29 +497,38 @@ export default function AIProfilerResults({ result, blueprint, onComplete, onRej
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, delay: 1.0 }}
-          className="text-center"
+          className="space-y-4"
         >
-          <button
-            onClick={onComplete}
-            className="bg-gradient-to-r from-och-orange to-och-crimson hover:from-och-orange/80 hover:to-och-crimson/80 text-white text-xl font-bold px-12 py-4 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 mb-4"
-          >
-            Start My OCH Journey
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={onComplete}
+              className="flex-1 sm:flex-none inline-flex items-center justify-center rounded-[999px] bg-gradient-to-r from-och-orange to-och-crimson px-8 py-3 text-[13px] md:text-[14px] font-semibold text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+            >
+              Continue with recommended track
+            </button>
+            {onChooseAnotherTrack && (
+              <button
+                onClick={onChooseAnotherTrack}
+                className="flex-1 sm:flex-none inline-flex items-center justify-center rounded-[999px] border border-[rgba(148,163,184,0.6)] bg-[rgba(15,23,42,0.9)] px-8 py-3 text-[13px] md:text-[14px] font-semibold text-[#E2E8F0] hover:bg-[rgba(15,23,42,0.7)] transition-colors"
+              >
+                Choose another track
+              </button>
+            )}
+          </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3 text-center">
             <p className="text-gray-500 text-xs">
               Assessment completed on {new Date(result.completed_at).toLocaleDateString()}
             </p>
 
             {/* Reject / Redo Section */}
-            <div className="pt-4 border-t border-white/10 mt-4">
+            <div className="pt-4 border-t border-white/10 mt-2">
               <button
                 onClick={onReject}
                 disabled={rejecting}
                 className="w-full py-3 px-6 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 hover:text-red-200 font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span>🔄</span>
-                <span>{rejecting ? 'Resetting...' : 'Not happy with the results? Retake Assessment'}</span>
+                <span>{rejecting ? 'Resetting...' : 'Not happy with the results? Retake assessment'}</span>
               </button>
             </div>
           </div>

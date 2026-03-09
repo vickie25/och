@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { DirectorLayout } from '@/components/director/DirectorLayout'
 import { RouteGuard } from '@/components/auth/RouteGuard'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -31,19 +30,16 @@ export default function MilestonesPage() {
   if (isLoading) {
     return (
       <RouteGuard requiredRoles={['program_director', 'admin']}>
-        <DirectorLayout>
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-och-defender"></div>
-          </div>
-        </DirectorLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-och-defender"></div>
+        </div>
       </RouteGuard>
     )
   }
 
   return (
     <RouteGuard requiredRoles={['program_director', 'admin']}>
-      <DirectorLayout>
-        <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-2xl font-bold text-white mb-2">Milestones</h1>
@@ -147,7 +143,6 @@ export default function MilestonesPage() {
             />
           )}
         </div>
-      </DirectorLayout>
     </RouteGuard>
   )
 }

@@ -1,8 +1,7 @@
 'use client'
-
+ 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { DirectorLayout } from '@/components/director/DirectorLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -1108,22 +1107,19 @@ export default function EnrollmentPage() {
   if (isLoading) {
     return (
       <RouteGuard>
-        <DirectorLayout>
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-och-defender mx-auto mb-4"></div>
-              <p className="text-och-steel">Loading enrollment data...</p>
-            </div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-och-defender mx-auto mb-4"></div>
+            <p className="text-och-steel">Loading enrollment data...</p>
           </div>
-        </DirectorLayout>
+        </div>
       </RouteGuard>
     )
   }
-
+ 
   return (
     <RouteGuard>
-      <DirectorLayout>
-        <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
@@ -2946,7 +2942,6 @@ export default function EnrollmentPage() {
             </div>
           )}
         </div>
-      </DirectorLayout>
     </RouteGuard>
   )
 }
