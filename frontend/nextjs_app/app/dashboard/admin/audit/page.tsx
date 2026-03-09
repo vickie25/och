@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { AdminLayout } from '@/components/admin/AdminLayout'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { apiGateway } from '@/services/apiGateway'
@@ -57,22 +56,19 @@ export default function AuditPage() {
   if (isLoading) {
     return (
       <RouteGuard>
-        <AdminLayout>
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-och-mint mx-auto mb-4"></div>
-              <p className="text-och-steel">Loading audit logs...</p>
-            </div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-och-mint mx-auto mb-4"></div>
+            <p className="text-och-steel">Loading audit logs...</p>
           </div>
-        </AdminLayout>
+        </div>
       </RouteGuard>
     )
   }
 
   return (
     <RouteGuard>
-      <AdminLayout>
-        <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <h1 className="text-4xl font-bold mb-2 text-och-gold">Audit Logs & Compliance</h1>
             <p className="text-och-steel">Monitor system activity and compliance</p>
@@ -160,7 +156,6 @@ export default function AuditPage() {
             </div>
           </Card>
         </div>
-      </AdminLayout>
     </RouteGuard>
   )
 }

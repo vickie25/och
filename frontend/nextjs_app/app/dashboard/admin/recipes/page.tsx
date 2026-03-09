@@ -1,7 +1,6 @@
 'use client';
 
 import { RouteGuard } from '@/components/auth/RouteGuard';
-import { AdminLayout } from '@/components/admin/AdminLayout';
 import { RecipeGenerator } from '@/components/admin/RecipeGenerator';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -137,8 +136,7 @@ export default function AdminRecipesPage() {
 
   return (
     <RouteGuard>
-      <AdminLayout>
-        <div className="space-y-6">
+      <div className="space-y-6">
           <div>
             <h1 className="text-4xl font-bold mb-2 text-och-defender">AI Recipe Engine</h1>
             <p className="text-och-steel">
@@ -359,7 +357,6 @@ export default function AdminRecipesPage() {
             </Card>
           </div>
         </div>
-      </AdminLayout>
     </RouteGuard>
   );
 }

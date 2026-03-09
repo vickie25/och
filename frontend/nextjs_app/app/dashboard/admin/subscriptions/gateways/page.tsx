@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { AdminLayout } from '@/components/admin/AdminLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -89,8 +88,7 @@ export default function PaymentGatewaysPage() {
 
   return (
     <RouteGuard>
-      <AdminLayout>
-        <div className="space-y-6">
+      <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold mb-2 text-och-defender">Payment Gateways</h1>
@@ -189,7 +187,6 @@ export default function PaymentGatewaysPage() {
             />
           )}
         </div>
-      </AdminLayout>
     </RouteGuard>
   )
 }

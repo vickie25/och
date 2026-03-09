@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { AdminLayout } from '@/components/admin/AdminLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -184,7 +183,6 @@ export default function RolesPage() {
 
   return (
     <RouteGuard>
-      <AdminLayout>
         <div className="max-w-7xl mx-auto">
           <div className="mb-8 flex items-center justify-between">
             <div>
@@ -631,7 +629,6 @@ export default function RolesPage() {
             </div>
           )}
         </div>
-      </AdminLayout>
     </RouteGuard>
   )
 }

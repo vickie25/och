@@ -1,9 +1,8 @@
 'use client'
-
+ 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { AdminLayout } from '@/components/admin/AdminLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -179,22 +178,19 @@ export default function StudentDetailPage() {
   if (isLoading) {
     return (
       <RouteGuard requiredRoles={['admin']}>
-        <AdminLayout>
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-och-mint mx-auto mb-4"></div>
               <p className="text-och-steel">Loading student details...</p>
             </div>
           </div>
-        </AdminLayout>
       </RouteGuard>
     )
   }
-
+ 
   if (!student) {
     return (
       <RouteGuard requiredRoles={['admin']}>
-        <AdminLayout>
           <div className="p-6">
             <Button variant="outline" onClick={() => router.back()} className="mb-4">
               <ArrowLeftIcon />
@@ -207,7 +203,6 @@ export default function StudentDetailPage() {
               </div>
             </Card>
           </div>
-        </AdminLayout>
       </RouteGuard>
     )
   }
@@ -218,7 +213,6 @@ export default function StudentDetailPage() {
 
   return (
     <RouteGuard requiredRoles={['admin']}>
-      <AdminLayout>
         <div className="p-6 space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -463,7 +457,6 @@ export default function StudentDetailPage() {
             </div>
           </Card>
         </div>
-      </AdminLayout>
     </RouteGuard>
   )
 }

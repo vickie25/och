@@ -11,13 +11,18 @@ interface AdminLayoutProps {
 export function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <MFARequiredGuard>
-      <div className="min-h-screen bg-och-midnight">
+      <div className="h-screen bg-och-midnight flex overflow-hidden">
+        {/* Persistent sidebar with its own scrolling; AdminNavigation includes its own desktop spacer */}
         <AdminNavigation />
-        <main className="lg:ml-64 min-h-screen">
-          <div className="p-4 lg:p-6">
-            {children}
-          </div>
-        </main>
+
+        {/* Main content area beside sidebar spacer, no extra gap */}
+        <div className="flex-1 flex flex-col">
+          <main className="flex-1 overflow-y-auto">
+            <div className="w-full p-4 lg:p-6">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
     </MFARequiredGuard>
   )

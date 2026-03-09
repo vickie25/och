@@ -1,8 +1,7 @@
 'use client'
-
+ 
 import { useState, useMemo, useEffect } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { AdminLayout } from '@/components/admin/AdminLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -517,7 +516,6 @@ export default function UsersPage() {
 
   return (
     <RouteGuard>
-      <AdminLayout>
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
@@ -1059,7 +1057,6 @@ export default function UsersPage() {
             </div>
           )}
         </div>
-      </AdminLayout>
     </RouteGuard>
   )
 }

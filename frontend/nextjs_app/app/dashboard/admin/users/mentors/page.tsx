@@ -1,10 +1,9 @@
 'use client'
-
+ 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { AdminLayout } from '@/components/admin/AdminLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -194,11 +193,10 @@ export default function MentorsPage() {
   const availableMentors = useMemo(() => {
     return mentors.filter((m) => m.is_active && m.account_status === 'active')
   }, [mentors])
-
+ 
   return (
     <RouteGuard requiredRoles={['admin']}>
-      <AdminLayout>
-        <div className="p-6 space-y-6">
+      <div className="p-6 space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
@@ -475,7 +473,6 @@ export default function MentorsPage() {
             </div>
           )}
         </div>
-      </AdminLayout>
     </RouteGuard>
   )
 }

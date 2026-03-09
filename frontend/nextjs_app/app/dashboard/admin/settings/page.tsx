@@ -1,7 +1,6 @@
 'use client'
 
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { AdminLayout } from '@/components/admin/AdminLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
@@ -10,7 +9,6 @@ import { OCHSettingsSecurity } from '@/components/ui/settings/sections/OCHSettin
 export default function SettingsPage() {
   return (
     <RouteGuard>
-      <AdminLayout>
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <h1 className="text-4xl font-bold mb-2 text-och-gold">Platform Settings</h1>
@@ -126,7 +124,6 @@ export default function SettingsPage() {
             </Card>
           </div>
         </div>
-      </AdminLayout>
     </RouteGuard>
   )
 }

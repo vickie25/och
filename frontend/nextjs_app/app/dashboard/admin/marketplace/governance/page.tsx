@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { AdminLayout } from '@/components/admin/AdminLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -186,8 +185,7 @@ export default function GovernancePage() {
 
   return (
     <RouteGuard>
-      <AdminLayout>
-        <div className="w-full max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -580,7 +578,6 @@ export default function GovernancePage() {
             </>
           )}
         </div>
-      </AdminLayout>
     </RouteGuard>
   )
 }

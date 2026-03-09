@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { AdminLayout } from '@/components/admin/AdminLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -229,19 +228,16 @@ export default function UserSubscriptionsPage() {
   if (loading) {
     return (
       <RouteGuard>
-        <AdminLayout>
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-och-mint"></div>
-          </div>
-        </AdminLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-och-mint"></div>
+        </div>
       </RouteGuard>
     )
   }
-
+ 
   return (
     <RouteGuard>
-      <AdminLayout>
-        <div className="space-y-6">
+      <div className="space-y-6">
           {/* Header */}
           <div>
             <h1 className="text-4xl font-bold mb-2 text-och-gold">User Subscriptions</h1>
@@ -664,7 +660,6 @@ export default function UserSubscriptionsPage() {
             </div>
           )}
         </div>
-      </AdminLayout>
     </RouteGuard>
   )
 }

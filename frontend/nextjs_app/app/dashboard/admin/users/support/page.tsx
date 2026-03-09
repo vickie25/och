@@ -1,8 +1,7 @@
 'use client'
-
+ 
 import { useState, useMemo, useEffect } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { AdminLayout } from '@/components/admin/AdminLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -77,16 +76,13 @@ export default function AdminSupportUsersPage() {
   if (isLoading) {
     return (
       <RouteGuard requiredRoles={['admin']}>
-        <AdminLayout>
           <div className="flex items-center justify-center min-h-[300px] text-och-steel">Loading...</div>
-        </AdminLayout>
       </RouteGuard>
     )
   }
 
   return (
     <RouteGuard requiredRoles={['admin']}>
-      <AdminLayout>
         <div className="max-w-5xl mx-auto">
           <div className="mb-6 flex items-center justify-between">
             <div>
@@ -222,7 +218,6 @@ export default function AdminSupportUsersPage() {
             </div>
           )}
         </div>
-      </AdminLayout>
     </RouteGuard>
   )
 }

@@ -1,7 +1,6 @@
 'use client'
 
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { AdminLayout } from '@/components/admin/AdminLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
@@ -9,7 +8,6 @@ import Link from 'next/link'
 export default function MarketplacePage() {
   return (
     <RouteGuard>
-      <AdminLayout>
         <div className="w-full max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
             <h1 className="text-4xl font-bold mb-2 text-och-gold">Marketplace Management</h1>
@@ -99,7 +97,6 @@ export default function MarketplacePage() {
             </Link>
           </div>
         </div>
-      </AdminLayout>
     </RouteGuard>
   )
 }

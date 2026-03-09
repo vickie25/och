@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { AdminLayout } from '@/components/admin/AdminLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -317,21 +316,18 @@ export default function DirectorsPage() {
   if (isLoading || usersLoading) {
     return (
       <RouteGuard>
-        <AdminLayout>
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-och-mint mx-auto mb-4"></div>
-              <p className="text-och-steel">Loading directors...</p>
-            </div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-och-mint mx-auto mb-4"></div>
+            <p className="text-och-steel">Loading directors...</p>
           </div>
-        </AdminLayout>
+        </div>
       </RouteGuard>
     )
   }
 
   return (
     <RouteGuard>
-      <AdminLayout>
         <div className="max-w-7xl mx-auto">
           <div className="mb-8 flex items-center justify-between">
             <div>
@@ -790,7 +786,6 @@ export default function DirectorsPage() {
             </div>
           )}
         </div>
-      </AdminLayout>
     </RouteGuard>
   )
 }
