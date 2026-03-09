@@ -1,20 +1,45 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { RouteGuard } from '@/components/auth/RouteGuard'
-import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { missionsClient } from '@/services/missionsClient'
-import { programsClient, type Cohort } from '@/services/programsClient'
 import Link from 'next/link'
-import { Plus, Target, Clock, Star, Users, Eye, Pencil } from 'lucide-react'
-
-interface AssignedCohort {
-  cohort_id: string
-  cohort_name: string
-}
+import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
+import { missionsClient } from '@/services/missionsClient'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  CircularProgress,
+  Box,
+  Typography,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
+  Tooltip,
+} from '@mui/material'
+import {
+  MoreVert,
+  Edit,
+  Delete,
+  Visibility,
+  Refresh,
+  Add,
+  Star,
+  StarBorder,
+} from '@mui/icons-material'
 
 interface Mission {
   id: string
@@ -26,11 +51,9 @@ interface Mission {
   is_active: boolean
   created_at: string
   track?: string
-  assigned_cohorts?: AssignedCohort[]
 }
 
 function normalizeMission(m: Record<string, unknown>): Mission {
-  const rawCohorts = (m.assigned_cohorts as AssignedCohort[] | undefined) ?? []
   return {
     id: String(m.id ?? ''),
     title: String(m.title ?? m.code ?? ''),
@@ -41,7 +64,6 @@ function normalizeMission(m: Record<string, unknown>): Mission {
     is_active: (m.status === 'published' || m.status === 'active' || m.is_active) === true,
     created_at: String(m.created_at ?? ''),
     track: m.track ? String(m.track) : undefined,
-    assigned_cohorts: Array.isArray(rawCohorts) ? rawCohorts : [],
   }
 }
 
@@ -49,13 +71,12 @@ export default function MissionsPage() {
   const router = useRouter()
   const [missions, setMissions] = useState<Mission[]>([])
   const [loading, setLoading] = useState(true)
-  const [assignMissionId, setAssignMissionId] = useState<string | null>(null)
-  const [showAssignModal, setShowAssignModal] = useState(false)
-  const [cohorts, setCohorts] = useState<Cohort[]>([])
-  const [selectedCohortIds, setSelectedCohortIds] = useState<Set<string>>(new Set())
-  const [assignLoading, setAssignLoading] = useState(false)
-  const [assignError, setAssignError] = useState<string | null>(null)
-  const [assignSuccess, setAssignSuccess] = useState<string | null>(null)
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const [selectedMission, setSelectedMission] = useState<Mission | null>(null)
+  const [missionToDelete, setMissionToDelete] = useState<Mission | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     fetchMissions()
@@ -63,6 +84,7 @@ export default function MissionsPage() {
 
   const fetchMissions = async () => {
     try {
+      setLoading(true)
       const { results } = await missionsClient.getAllMissionsAdmin()
       setMissions((results as Record<string, unknown>[]).map(normalizeMission))
     } catch (err) {
@@ -72,224 +94,318 @@ export default function MissionsPage() {
     }
   }
 
-  const openAssignModal = async (missionId: string) => {
-    setAssignMissionId(missionId)
-    setSelectedCohortIds(new Set())
-    setAssignError(null)
-    setAssignSuccess(null)
-    setShowAssignModal(true)
-    try {
-      const { results } = await programsClient.getCohorts()
-      setCohorts(results)
-    } catch (err) {
-      console.error('Failed to load cohorts:', err)
-      setAssignError('Failed to load cohorts.')
-    }
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, mission: Mission) => {
+    setAnchorEl(event.currentTarget)
+    setSelectedMission(mission)
   }
 
-  const toggleCohort = (cohortId: string) => {
-    setSelectedCohortIds(prev => {
-      const next = new Set(prev)
-      if (next.has(cohortId)) next.delete(cohortId)
-      else next.add(cohortId)
-      return next
-    })
+  const handleMenuClose = () => {
+    setAnchorEl(null)
+    setSelectedMission(null)
   }
 
-  const handleAssignToCohorts = async () => {
-    if (!assignMissionId || selectedCohortIds.size === 0) {
-      setAssignError('Select at least one cohort.')
-      return
-    }
-    setAssignError(null)
-    setAssignLoading(true)
+  const handleDeleteClick = () => {
+    setMissionToDelete(selectedMission)
+    setDeleteDialogOpen(true)
+    handleMenuClose()
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!missionToDelete) return
+    setDeleting(true)
     try {
-      await Promise.all(
-        Array.from(selectedCohortIds).map(cohortId =>
-          missionsClient.assignMissionToCohort(assignMissionId, cohortId)
-        )
-      )
-      setAssignSuccess(`Assigned to ${selectedCohortIds.size} cohort(s).`)
-      setShowAssignModal(false)
-      setAssignMissionId(null)
-      setSelectedCohortIds(new Set())
-    } catch (err: unknown) {
-      setAssignError(err instanceof Error ? err.message : 'Failed to assign mission to cohorts.')
+      await missionsClient.deleteMission(missionToDelete.id)
+      await fetchMissions()
+      setDeleteDialogOpen(false)
+      setMissionToDelete(null)
+    } catch (err: any) {
+      alert(err?.message || 'Failed to delete mission.')
     } finally {
-      setAssignLoading(false)
+      setDeleting(false)
     }
   }
 
-  const getDifficultyColor = (difficulty: number) => {
-    const colors = {
-      1: 'text-green-400',
-      2: 'text-blue-400', 
-      3: 'text-yellow-400',
-      4: 'text-orange-400',
-      5: 'text-red-400'
-    }
-    return colors[difficulty as keyof typeof colors] || 'text-och-steel'
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false)
+    setMissionToDelete(null)
+  }
+
+  const filteredMissions = useMemo(() => {
+    return missions.filter((mission) => {
+      if (searchQuery && 
+          !mission.title?.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !mission.description?.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false
+      }
+      return true
+    })
+  }, [missions, searchQuery])
+
+  const kpis = useMemo(() => {
+    const total = missions.length
+    const active = missions.filter(m => m.is_active).length
+    const inactive = missions.filter(m => !m.is_active).length
+    const avgDuration = missions.length > 0 
+      ? Math.round(missions.reduce((sum, m) => sum + (m.estimated_duration_min || 0), 0) / missions.length)
+      : 0
+    
+    return { total, active, inactive, avgDuration }
+  }, [missions])
+
+  const renderDifficulty = (difficulty: number) => {
+    return (
+      <Box display="flex" gap={0.5}>
+        {[1, 2, 3, 4, 5].map((level) => (
+          level <= difficulty ? (
+            <Star key={level} sx={{ fontSize: 16, color: '#FFD700' }} />
+          ) : (
+            <StarBorder key={level} sx={{ fontSize: 16, color: '#8B9DAF' }} />
+          )
+        ))}
+      </Box>
+    )
   }
 
   return (
-    <RouteGuard>
-      <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-white">Missions</h1>
-              <p className="text-och-steel">Manage curriculum missions</p>
-            </div>
-            <Button
-              onClick={() => router.push('/dashboard/director/missions/new')}
-              variant="defender"
-              className="flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
+    <div className="max-w-7xl mx-auto">
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-4xl font-bold mb-2 text-white">Missions</h1>
+            <p className="text-och-steel">Manage curriculum missions</p>
+          </div>
+          <Link href="/dashboard/director/missions/new">
+            <Button variant="defender" size="sm" className="gap-2">
+              <Add className="w-4 h-4" />
               Create Mission
             </Button>
-          </div>
-
-          {loading ? (
-            <Card className="p-8 text-center">
-              <p className="text-och-steel">Loading missions...</p>
-            </Card>
-          ) : missions.length === 0 ? (
-            <Card className="p-8 text-center">
-              <Target className="w-12 h-12 text-och-steel mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-white mb-2">No missions yet</h3>
-              <p className="text-och-steel mb-4">Create your first mission to get started</p>
-              <Button
-                onClick={() => router.push('/dashboard/director/missions/new')}
-                variant="defender"
-              >
-                Create Mission
-              </Button>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              {missions.map((mission) => (
-                <Card key={mission.id} className="p-6">
-                  <div className="flex justify-between items-start gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2 flex-wrap">
-                        <h3 className="text-lg font-semibold text-white">{mission.title}</h3>
-                        {mission.track && (
-                          <span className="px-2 py-1 rounded bg-och-mint/15 text-och-mint text-xs font-medium uppercase tracking-wide">
-                            {mission.track}
-                          </span>
-                        )}
-                        <div className="flex items-center gap-1">
-                          {[...Array(mission.difficulty)].map((_, i) => (
-                            <Star key={i} className={`w-4 h-4 ${getDifficultyColor(mission.difficulty)}`} />
-                          ))}
-                        </div>
-                        <span className="px-2 py-1 bg-och-steel/20 text-och-steel text-xs rounded">
-                          {mission.mission_type}
-                        </span>
-                      </div>
-                      <p className="text-och-steel text-sm mb-3 line-clamp-2">{mission.description}</p>
-                      <div className="flex items-center gap-4 text-xs text-och-steel mb-2">
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {mission.estimated_duration_min} min
-                        </div>
-                        <div className={`px-2 py-1 rounded ${mission.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                          {mission.is_active ? 'Active' : 'Inactive'}
-                        </div>
-                      </div>
-                      {mission.assigned_cohorts && mission.assigned_cohorts.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 items-center">
-                          <span className="text-xs text-och-steel">Assigned to:</span>
-                          {mission.assigned_cohorts.map((c, i) => (
-                            <Link
-                              key={c.cohort_id ? `${c.cohort_id}-${i}` : `cohort-${i}`}
-                              href={`/dashboard/director/cohorts/${c.cohort_id}`}
-                              className="text-xs px-2 py-0.5 rounded bg-och-defender/20 text-och-defender hover:bg-och-defender/30"
-                            >
-                              {c.cohort_name}
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-2 shrink-0">
-                      <Link href={`/dashboard/director/missions/${mission.id}`}>
-                        <Button variant="outline" size="sm" className="gap-1 w-full sm:w-auto">
-                          <Eye className="w-3.5 h-3.5" />
-                          View details
-                        </Button>
-                      </Link>
-                      <Link href={`/dashboard/director/missions/${mission.id}/edit`}>
-                        <Button variant="outline" size="sm" className="gap-1 w-full sm:w-auto">
-                          <Pencil className="w-3.5 h-3.5" />
-                          Edit
-                        </Button>
-                      </Link>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1 w-full sm:w-auto"
-                        onClick={() => openAssignModal(mission.id)}
-                      >
-                        <Users className="w-3.5 h-3.5" />
-                        Assign to cohorts
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          <Dialog open={showAssignModal} onOpenChange={setShowAssignModal}>
-            <DialogContent className="max-w-md border-och-steel/20 bg-och-midnight">
-              <DialogHeader>
-                <DialogTitle className="text-white">Assign mission to cohorts</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-3 py-2">
-                {assignError && (
-                  <p className="text-sm text-red-400" role="alert">{assignError}</p>
-                )}
-                {assignSuccess && (
-                  <p className="text-sm text-och-mint" role="status">{assignSuccess}</p>
-                )}
-                <p className="text-sm text-och-steel">Select one or more cohorts:</p>
-                <div className="max-h-48 overflow-y-auto space-y-2 border border-och-steel/20 rounded-lg p-2">
-                  {cohorts.length === 0 && !assignError && (
-                    <p className="text-sm text-och-steel">Loading cohorts…</p>
-                  )}
-                  {cohorts.map((c) => (
-                    <label
-                      key={c.id}
-                      className="flex items-center gap-2 cursor-pointer rounded px-2 py-1.5 hover:bg-och-steel/10"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedCohortIds.has(c.id)}
-                        onChange={() => toggleCohort(c.id)}
-                        className="rounded border-och-steel/40 text-och-defender focus:ring-och-defender"
-                      />
-                      <span className="text-sm text-white">{c.name}</span>
-                      <span className="text-xs text-och-steel">{c.status}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <DialogFooter className="gap-2 sm:gap-0">
-                <Button variant="outline" onClick={() => setShowAssignModal(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="defender"
-                  onClick={handleAssignToCohorts}
-                  disabled={assignLoading || selectedCohortIds.size === 0}
-                >
-                  {assignLoading ? 'Assigning…' : 'Assign'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          </Link>
         </div>
-    </RouteGuard>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <Card className="bg-gradient-to-br from-och-defender/20 to-och-defender/5 border-och-defender/30">
+            <div className="p-4">
+              <p className="text-och-steel text-sm mb-1">Total Missions</p>
+              <p className="text-3xl font-bold text-white">{kpis.total}</p>
+            </div>
+          </Card>
+          <Card className="bg-gradient-to-br from-och-mint/20 to-och-mint/5 border-och-mint/30">
+            <div className="p-4">
+              <p className="text-och-steel text-sm mb-1">Active</p>
+              <p className="text-3xl font-bold text-och-mint">{kpis.active}</p>
+            </div>
+          </Card>
+          <Card className="bg-gradient-to-br from-och-orange/20 to-och-orange/5 border-och-orange/30">
+            <div className="p-4">
+              <p className="text-och-steel text-sm mb-1">Inactive</p>
+              <p className="text-3xl font-bold text-och-orange">{kpis.inactive}</p>
+            </div>
+          </Card>
+          <Card className="bg-gradient-to-br from-och-gold/20 to-och-gold/5 border-och-gold/30">
+            <div className="p-4">
+              <p className="text-och-steel text-sm mb-1">Avg Duration</p>
+              <p className="text-3xl font-bold text-och-gold">{kpis.avgDuration}min</p>
+            </div>
+          </Card>
+        </div>
+
+        {/* Search */}
+        <Card className="border-och-steel/20 bg-gradient-to-r from-och-midnight/50 to-och-midnight/30">
+          <div className="p-4">
+            <label className="block text-sm font-medium text-white mb-2">Search Missions</label>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by title or description..."
+              className="w-full px-4 py-2.5 bg-och-midnight/70 border border-och-steel/30 rounded-lg text-white placeholder-och-steel/50 focus:outline-none focus:border-och-defender focus:ring-2 focus:ring-och-defender/20"
+            />
+          </div>
+        </Card>
+      </div>
+
+      <Card>
+        {loading ? (
+          <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+            <CircularProgress sx={{ color: '#00D9FF' }} />
+          </Box>
+        ) : filteredMissions.length === 0 ? (
+          <Box p={6} textAlign="center">
+            <Typography variant="h6" color="#8B9DAF" mb={2}>
+              No missions found
+            </Typography>
+            <Link href="/dashboard/director/missions/new">
+              <Button variant="defender">Create Your First Mission</Button>
+            </Link>
+          </Box>
+        ) : (
+          <TableContainer component={Paper} sx={{ backgroundColor: 'transparent', boxShadow: 'none' }}>
+            <Table sx={{ border: '1px solid rgba(139, 157, 175, 0.2)' }}>
+              <TableHead>
+                <TableRow sx={{ borderBottom: '2px solid rgba(139, 157, 175, 0.3)', backgroundColor: 'rgba(0, 217, 255, 0.05)' }}>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>#</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Mission Title</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Type</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Difficulty</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Duration</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Status</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }} align="right">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredMissions.map((mission: Mission, index: number) => (
+                  <TableRow
+                    key={mission.id}
+                    sx={{
+                      '&:hover': { backgroundColor: 'rgba(0, 217, 255, 0.05)' },
+                      borderBottom: '1px solid rgba(139, 157, 175, 0.1)',
+                    }}
+                  >
+                    <TableCell sx={{ color: '#8B9DAF', fontWeight: 600, border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      {index + 1}
+                    </TableCell>
+                    <TableCell sx={{ color: '#fff', border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      <div>
+                        <div className="font-semibold">{mission.title}</div>
+                        <Tooltip title={mission.description} arrow>
+                          <div className="text-sm text-och-steel line-clamp-1 hover:line-clamp-none cursor-help">
+                            {mission.description}
+                          </div>
+                        </Tooltip>
+                      </div>
+                    </TableCell>
+                    <TableCell sx={{ border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      <Badge variant="outline" className="text-xs">
+                        {mission.mission_type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell sx={{ border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      {renderDifficulty(mission.difficulty)}
+                    </TableCell>
+                    <TableCell sx={{ color: '#8B9DAF', border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      {mission.estimated_duration_min} min
+                    </TableCell>
+                    <TableCell sx={{ border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      <Badge
+                        variant={mission.is_active ? 'defender' : 'steel'}
+                        className="text-xs"
+                      >
+                        {mission.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell align="right" sx={{ border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      <IconButton
+                        onClick={(e) => handleMenuOpen(e, mission)}
+                        sx={{ color: '#8B9DAF', '&:hover': { color: '#00D9FF' } }}
+                      >
+                        <MoreVert />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </Card>
+
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        PaperProps={{
+          sx: {
+            backgroundColor: '#0A1628',
+            border: '1px solid rgba(139, 157, 175, 0.2)',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+            minWidth: 180,
+          },
+        }}
+      >
+        <MenuItem
+          onClick={() => {
+            router.push(`/dashboard/director/missions/${selectedMission?.id}`)
+            handleMenuClose()
+          }}
+          sx={{ color: '#8B9DAF', '&:hover': { backgroundColor: 'rgba(0, 217, 255, 0.1)', color: '#00D9FF' } }}
+        >
+          <ListItemIcon>
+            <Visibility sx={{ color: '#8B9DAF' }} fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>View</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            router.push(`/dashboard/director/missions/${selectedMission?.id}/edit`)
+            handleMenuClose()
+          }}
+          sx={{ color: '#8B9DAF', '&:hover': { backgroundColor: 'rgba(0, 217, 255, 0.1)', color: '#00D9FF' } }}
+        >
+          <ListItemIcon>
+            <Edit sx={{ color: '#8B9DAF' }} fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Edit</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            fetchMissions()
+            handleMenuClose()
+          }}
+          sx={{ color: '#8B9DAF', '&:hover': { backgroundColor: 'rgba(0, 217, 255, 0.1)', color: '#00D9FF' } }}
+        >
+          <ListItemIcon>
+            <Refresh sx={{ color: '#8B9DAF' }} fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Refresh</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={handleDeleteClick}
+          disabled={deleting}
+          sx={{ color: '#FF6B35', '&:hover': { backgroundColor: 'rgba(255, 107, 53, 0.1)' } }}
+        >
+          <ListItemIcon>
+            <Delete sx={{ color: '#FF6B35' }} fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Delete</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        PaperProps={{
+          sx: {
+            backgroundColor: '#0A1628',
+            border: '1px solid rgba(139, 157, 175, 0.2)',
+            boxShadow: '0 8px 16px rgba(0, 0, 0, 0.4)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: '#fff', fontWeight: 600 }}>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: '#8B9DAF' }}>
+            Are you sure you want to delete "{missionToDelete?.title}"? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ padding: '16px 24px' }}>
+          <Button
+            onClick={handleDeleteCancel}
+            variant="outline"
+            disabled={deleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            variant="orange"
+            disabled={deleting}
+            className="bg-och-orange hover:bg-och-orange/90"
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </div>
   )
 }

@@ -1,7 +1,6 @@
 'use client'
 
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { DirectorLayout } from '@/components/director/DirectorLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -20,7 +19,7 @@ export default function ProgramDetailPage() {
   if (!programId) {
     return (
       <RouteGuard>
-        <DirectorLayout>
+        <div className="max-w-7xl mx-auto">
           <Card className="border-och-orange/50">
             <div className="p-6 text-center">
               <p className="text-och-orange mb-4">Invalid program ID</p>
@@ -29,7 +28,7 @@ export default function ProgramDetailPage() {
               </Link>
             </div>
           </Card>
-        </DirectorLayout>
+        </div>
       </RouteGuard>
     )
   }
@@ -41,14 +40,12 @@ export default function ProgramDetailPage() {
   if (isLoading) {
     return (
       <RouteGuard>
-        <DirectorLayout>
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-och-defender mx-auto mb-4"></div>
-              <p className="text-och-steel">Loading program...</p>
-            </div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-och-defender mx-auto mb-4"></div>
+            <p className="text-och-steel">Loading program...</p>
           </div>
-        </DirectorLayout>
+        </div>
       </RouteGuard>
     )
   }
@@ -57,7 +54,7 @@ export default function ProgramDetailPage() {
     console.error('ProgramDetailPage error:', error)
     return (
       <RouteGuard>
-        <DirectorLayout>
+        <div className="max-w-7xl mx-auto">
           <Card className="border-och-orange/50">
             <div className="p-6 text-center">
               <p className="text-och-orange mb-2">Error loading program</p>
@@ -69,7 +66,7 @@ export default function ProgramDetailPage() {
               </div>
             </div>
           </Card>
-        </DirectorLayout>
+        </div>
       </RouteGuard>
     )
   }
@@ -77,7 +74,7 @@ export default function ProgramDetailPage() {
   if (!program) {
     return (
       <RouteGuard>
-        <DirectorLayout>
+        <div className="max-w-7xl mx-auto">
           <Card className="border-och-orange/50">
             <div className="p-6 text-center">
               <p className="text-och-orange mb-4">Program not found</p>
@@ -87,15 +84,14 @@ export default function ProgramDetailPage() {
               </Link>
             </div>
           </Card>
-        </DirectorLayout>
+        </div>
       </RouteGuard>
     )
   }
 
   return (
     <RouteGuard>
-      <DirectorLayout>
-        <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -214,7 +210,6 @@ export default function ProgramDetailPage() {
             </Card>
           )}
         </div>
-      </DirectorLayout>
     </RouteGuard>
   )
 }

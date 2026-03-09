@@ -1,16 +1,55 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { RouteGuard } from '@/components/auth/RouteGuard'
+import { useState, useEffect, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { MilestoneResponse, CreateMilestonePayload } from '@/types/api'
+import { Badge } from '@/components/ui/Badge'
+import { MilestoneResponse } from '@/types/api'
 import { apiGateway } from '@/services/apiGateway'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  CircularProgress,
+  Box,
+  Typography,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
+  Tooltip,
+} from '@mui/material'
+import {
+  MoreVert,
+  Edit,
+  Delete,
+  Visibility,
+  Refresh,
+  Add,
+} from '@mui/icons-material'
 
 export default function MilestonesPage() {
+  const router = useRouter()
   const [milestones, setMilestones] = useState<MilestoneResponse[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const [selectedMilestone, setSelectedMilestone] = useState<MilestoneResponse | null>(null)
+  const [milestoneToDelete, setMilestoneToDelete] = useState<MilestoneResponse | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     fetchMilestones()
@@ -18,291 +57,310 @@ export default function MilestonesPage() {
 
   const fetchMilestones = async () => {
     try {
+      setLoading(true)
       const data = await apiGateway.get('/milestones/') as any
       setMilestones(data?.results || data?.data || data || [])
     } catch (error) {
       console.error('Failed to fetch milestones:', error)
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
-  if (isLoading) {
-    return (
-      <RouteGuard requiredRoles={['program_director', 'admin']}>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-och-defender"></div>
-        </div>
-      </RouteGuard>
-    )
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, milestone: MilestoneResponse) => {
+    setAnchorEl(event.currentTarget)
+    setSelectedMilestone(milestone)
   }
 
-  return (
-    <RouteGuard requiredRoles={['program_director', 'admin']}>
-      <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-2xl font-bold text-white mb-2">Milestones</h1>
-              <p className="text-och-steel">Manage major checkpoints and learning milestones</p>
-            </div>
-            <Button
-              onClick={() => setShowCreateForm(true)}
-              variant="defender"
-              className="flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Create Milestone
-            </Button>
-          </div>
-
-          {milestones.length === 0 ? (
-            <Card className="border-och-steel/20 bg-och-midnight/50">
-              <div className="p-12 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-och-midnight/50 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-och-steel" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <p className="text-och-steel mb-2 text-lg">No milestones found</p>
-                <p className="text-och-steel/70 mb-6">Create major checkpoints and learning milestones</p>
-                <Button
-                  onClick={() => setShowCreateForm(true)}
-                  variant="defender"
-                >
-                  Create Your First Milestone
-                </Button>
-              </div>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {milestones.map((milestone) => (
-                <Card key={milestone.id} className="border-och-steel/20 bg-och-midnight/50 hover:border-och-defender/50 transition-colors">
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-white mb-1">{milestone.name}</h3>
-                        <p className="text-sm text-och-mint">
-                          {milestone.track.name} • {milestone.track.program.name}
-                        </p>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <div className="text-xs text-och-steel bg-och-steel/10 px-2 py-1 rounded text-center">
-                          #{milestone.order}
-                        </div>
-                        {milestone.duration_weeks && (
-                          <div className="text-xs text-och-orange bg-och-orange/10 px-2 py-1 rounded text-center">
-                            {milestone.duration_weeks}w
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {milestone.description && (
-                      <p className="text-sm text-och-steel mb-4 line-clamp-3">
-                        {milestone.description}
-                      </p>
-                    )}
-
-                    <div className="flex items-center justify-between text-sm text-och-steel mb-4">
-                      <span>Modules: {milestone.modules?.length || 0}</span>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 text-xs border-och-defender/50 text-och-defender hover:bg-och-defender hover:text-white"
-                      >
-                        View Details
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="px-2 border-och-steel/50 text-och-steel hover:border-och-mint hover:text-och-mint"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                        </svg>
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {showCreateForm && (
-            <CreateMilestoneModal
-              onClose={() => setShowCreateForm(false)}
-              onSuccess={() => {
-                setShowCreateForm(false)
-                fetchMilestones()
-              }}
-            />
-          )}
-        </div>
-    </RouteGuard>
-  )
-}
-
-interface CreateMilestoneModalProps {
-  onClose: () => void
-  onSuccess: () => void
-}
-
-function CreateMilestoneModal({ onClose, onSuccess }: CreateMilestoneModalProps) {
-  const [tracks, setTracks] = useState<Array<{ id: string; name: string; program: { name: string } }>>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [formData, setFormData] = useState<CreateMilestonePayload>({
-    track: '',
-    name: '',
-    description: '',
-    order: 1
-  })
-
-  useEffect(() => {
-    fetchTracks()
-  }, [])
-
-  const fetchTracks = async () => {
-    try {
-      const data = await apiGateway.get('/tracks/') as any
-      console.log('Tracks API response:', data)
-      // Handle different response formats
-      const tracksArray = data?.results || data?.data || data || []
-      console.log('Tracks array:', tracksArray)
-      setTracks(tracksArray)
-    } catch (error) {
-      console.error('Failed to fetch tracks:', error)
-    }
+  const handleMenuClose = () => {
+    setAnchorEl(null)
+    setSelectedMilestone(null)
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+  const handleDeleteClick = () => {
+    setMilestoneToDelete(selectedMilestone)
+    setDeleteDialogOpen(true)
+    handleMenuClose()
+  }
 
+  const handleDeleteConfirm = async () => {
+    if (!milestoneToDelete) return
+    setDeleting(true)
     try {
-      await apiGateway.post('/milestones/', formData)
-      onSuccess()
-    } catch (error) {
-      console.error('Failed to create milestone:', error)
+      await apiGateway.delete(`/milestones/${milestoneToDelete.id}/`)
+      await fetchMilestones()
+      setDeleteDialogOpen(false)
+      setMilestoneToDelete(null)
+    } catch (err: any) {
+      alert(err?.message || 'Failed to delete milestone.')
     } finally {
-      setIsLoading(false)
+      setDeleting(false)
     }
   }
 
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false)
+    setMilestoneToDelete(null)
+  }
+
+  const filteredMilestones = useMemo(() => {
+    return milestones.filter((milestone) => {
+      if (searchQuery && 
+          !milestone.name?.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !milestone.description?.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false
+      }
+      return true
+    })
+  }, [milestones, searchQuery])
+
+  const kpis = useMemo(() => {
+    const total = milestones.length
+    const avgDuration = milestones.length > 0 
+      ? Math.round(milestones.reduce((sum, m) => sum + (m.duration_weeks || 0), 0) / milestones.length)
+      : 0
+    const withModules = milestones.filter(m => m.modules && m.modules.length > 0).length
+    const avgModules = milestones.length > 0
+      ? Math.round(milestones.reduce((sum, m) => sum + (m.modules?.length || 0), 0) / milestones.length)
+      : 0
+    
+    return { total, avgDuration, withModules, avgModules }
+  }, [milestones])
+
   return (
-    <div className="fixed inset-0 bg-och-midnight/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl border-och-steel/20 bg-och-midnight">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-white">Create Milestone</h2>
-            <button
-              onClick={onClose}
-              className="text-och-steel hover:text-white transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+    <div className="max-w-7xl mx-auto">
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-4xl font-bold mb-2 text-white">Milestones</h1>
+            <p className="text-och-steel">Manage major checkpoints and learning milestones</p>
           </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">Track *</label>
-              <select
-                value={formData.track}
-                onChange={(e) => setFormData(prev => ({ ...prev, track: e.target.value }))}
-                required
-                className="w-full px-4 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white focus:outline-none focus:border-och-defender"
-              >
-                <option value="">Select a track</option>
-                {tracks.length === 0 ? (
-                  <option disabled>Loading tracks...</option>
-                ) : (
-                  tracks.map((track) => (
-                    <option key={track.id} value={track.id}>
-                      {track.name} ({track.program?.name || 'No Program'})
-                    </option>
-                  ))
-                )}
-              </select>
-              {tracks.length === 0 && (
-                <p className="text-xs text-och-orange mt-1">No tracks available. Create a track first.</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">Name *</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="e.g., Capstone Project Review"
-                required
-                className="w-full px-4 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white focus:outline-none focus:border-och-defender"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">Description</label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Formal evaluation of student projects..."
-                rows={3}
-                className="w-full px-4 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white focus:outline-none focus:border-och-defender"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-white mb-2">Order *</label>
-                <input
-                  type="number"
-                  value={formData.order}
-                  onChange={(e) => setFormData(prev => ({ ...prev, order: parseInt(e.target.value) }))}
-                  min="1"
-                  required
-                  className="w-full px-4 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white focus:outline-none focus:border-och-defender"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-white mb-2">Duration (weeks)</label>
-                <input
-                  type="number"
-                  value={formData.duration_weeks || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, duration_weeks: e.target.value ? parseInt(e.target.value) : undefined }))}
-                  min="1"
-                  className="w-full px-4 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white focus:outline-none focus:border-och-defender"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-4 pt-6 border-t border-och-steel/20">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                className="flex-1 border-och-steel/50 text-och-steel hover:bg-och-steel/10"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="defender"
-                disabled={isLoading}
-                className="flex-1"
-              >
-                {isLoading ? 'Creating...' : 'Create Milestone'}
-              </Button>
-            </div>
-          </form>
+          <Button variant="defender" size="sm" className="gap-2">
+            <Add className="w-4 h-4" />
+            Create Milestone
+          </Button>
         </div>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <Card className="bg-gradient-to-br from-och-defender/20 to-och-defender/5 border-och-defender/30">
+            <div className="p-4">
+              <p className="text-och-steel text-sm mb-1">Total Milestones</p>
+              <p className="text-3xl font-bold text-white">{kpis.total}</p>
+            </div>
+          </Card>
+          <Card className="bg-gradient-to-br from-och-mint/20 to-och-mint/5 border-och-mint/30">
+            <div className="p-4">
+              <p className="text-och-steel text-sm mb-1">With Modules</p>
+              <p className="text-3xl font-bold text-och-mint">{kpis.withModules}</p>
+            </div>
+          </Card>
+          <Card className="bg-gradient-to-br from-och-orange/20 to-och-orange/5 border-och-orange/30">
+            <div className="p-4">
+              <p className="text-och-steel text-sm mb-1">Avg Duration</p>
+              <p className="text-3xl font-bold text-och-orange">{kpis.avgDuration}w</p>
+            </div>
+          </Card>
+          <Card className="bg-gradient-to-br from-och-gold/20 to-och-gold/5 border-och-gold/30">
+            <div className="p-4">
+              <p className="text-och-steel text-sm mb-1">Avg Modules</p>
+              <p className="text-3xl font-bold text-och-gold">{kpis.avgModules}</p>
+            </div>
+          </Card>
+        </div>
+
+        {/* Search */}
+        <Card className="border-och-steel/20 bg-gradient-to-r from-och-midnight/50 to-och-midnight/30">
+          <div className="p-4">
+            <label className="block text-sm font-medium text-white mb-2">Search Milestones</label>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name or description..."
+              className="w-full px-4 py-2.5 bg-och-midnight/70 border border-och-steel/30 rounded-lg text-white placeholder-och-steel/50 focus:outline-none focus:border-och-defender focus:ring-2 focus:ring-och-defender/20"
+            />
+          </div>
+        </Card>
+      </div>
+
+      <Card>
+        {loading ? (
+          <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+            <CircularProgress sx={{ color: '#00D9FF' }} />
+          </Box>
+        ) : filteredMilestones.length === 0 ? (
+          <Box p={6} textAlign="center">
+            <Typography variant="h6" color="#8B9DAF" mb={2}>
+              No milestones found
+            </Typography>
+            <Button variant="defender">Create Your First Milestone</Button>
+          </Box>
+        ) : (
+          <TableContainer component={Paper} sx={{ backgroundColor: 'transparent', boxShadow: 'none' }}>
+            <Table sx={{ border: '1px solid rgba(139, 157, 175, 0.2)' }}>
+              <TableHead>
+                <TableRow sx={{ borderBottom: '2px solid rgba(139, 157, 175, 0.3)', backgroundColor: 'rgba(0, 217, 255, 0.05)' }}>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>#</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Milestone Name</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Track</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Order</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Duration</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Modules</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }} align="right">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredMilestones.map((milestone: MilestoneResponse, index: number) => (
+                  <TableRow
+                    key={milestone.id}
+                    sx={{
+                      '&:hover': { backgroundColor: 'rgba(0, 217, 255, 0.05)' },
+                      borderBottom: '1px solid rgba(139, 157, 175, 0.1)',
+                    }}
+                  >
+                    <TableCell sx={{ color: '#8B9DAF', fontWeight: 600, border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      {index + 1}
+                    </TableCell>
+                    <TableCell sx={{ color: '#fff', border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      <div>
+                        <div className="font-semibold">{milestone.name}</div>
+                        <Tooltip title={milestone.description || ''} arrow>
+                          <div className="text-sm text-och-steel line-clamp-1 hover:line-clamp-none cursor-help">
+                            {milestone.description}
+                          </div>
+                        </Tooltip>
+                      </div>
+                    </TableCell>
+                    <TableCell sx={{ border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      <div>
+                        <div className="text-sm text-och-mint">{milestone.track?.name}</div>
+                        <div className="text-xs text-och-steel">{milestone.track?.program?.name}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell sx={{ color: '#8B9DAF', border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      <Badge variant="outline" className="text-xs">
+                        #{milestone.order}
+                      </Badge>
+                    </TableCell>
+                    <TableCell sx={{ color: '#8B9DAF', border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      {milestone.duration_weeks ? `${milestone.duration_weeks} weeks` : 'N/A'}
+                    </TableCell>
+                    <TableCell sx={{ color: '#8B9DAF', border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      {milestone.modules?.length || 0}
+                    </TableCell>
+                    <TableCell align="right" sx={{ border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      <IconButton
+                        onClick={(e) => handleMenuOpen(e, milestone)}
+                        sx={{ color: '#8B9DAF', '&:hover': { color: '#00D9FF' } }}
+                      >
+                        <MoreVert />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
       </Card>
+
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        PaperProps={{
+          sx: {
+            backgroundColor: '#0A1628',
+            border: '1px solid rgba(139, 157, 175, 0.2)',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+            minWidth: 180,
+          },
+        }}
+      >
+        <MenuItem
+          onClick={() => {
+            // View action
+            handleMenuClose()
+          }}
+          sx={{ color: '#8B9DAF', '&:hover': { backgroundColor: 'rgba(0, 217, 255, 0.1)', color: '#00D9FF' } }}
+        >
+          <ListItemIcon>
+            <Visibility sx={{ color: '#8B9DAF' }} fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>View</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            // Edit action
+            handleMenuClose()
+          }}
+          sx={{ color: '#8B9DAF', '&:hover': { backgroundColor: 'rgba(0, 217, 255, 0.1)', color: '#00D9FF' } }}
+        >
+          <ListItemIcon>
+            <Edit sx={{ color: '#8B9DAF' }} fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Edit</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            fetchMilestones()
+            handleMenuClose()
+          }}
+          sx={{ color: '#8B9DAF', '&:hover': { backgroundColor: 'rgba(0, 217, 255, 0.1)', color: '#00D9FF' } }}
+        >
+          <ListItemIcon>
+            <Refresh sx={{ color: '#8B9DAF' }} fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Refresh</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={handleDeleteClick}
+          disabled={deleting}
+          sx={{ color: '#FF6B35', '&:hover': { backgroundColor: 'rgba(255, 107, 53, 0.1)' } }}
+        >
+          <ListItemIcon>
+            <Delete sx={{ color: '#FF6B35' }} fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Delete</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        PaperProps={{
+          sx: {
+            backgroundColor: '#0A1628',
+            border: '1px solid rgba(139, 157, 175, 0.2)',
+            boxShadow: '0 8px 16px rgba(0, 0, 0, 0.4)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: '#fff', fontWeight: 600 }}>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: '#8B9DAF' }}>
+            Are you sure you want to delete "{milestoneToDelete?.name}"? This will also delete all modules linked to this milestone. This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ padding: '16px 24px' }}>
+          <Button
+            onClick={handleDeleteCancel}
+            variant="outline"
+            disabled={deleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            variant="orange"
+            disabled={deleting}
+            className="bg-och-orange hover:bg-och-orange/90"
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   )
 }

@@ -1,21 +1,43 @@
 'use client'
- 
-import { useState, useEffect } from 'react'
-import { RouteGuard } from '@/components/auth/RouteGuard'
-import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Badge'
+
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
 import { apiGateway } from '@/services/apiGateway'
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  CircularProgress,
+  Box,
+  Typography,
   Dialog,
-  DialogContent,
-  DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog'
-import { Loader2, Trash2 } from 'lucide-react'
+  DialogContent,
+  DialogActions,
+  DialogContentText,
+} from '@mui/material'
+import {
+  MoreVert,
+  Edit,
+  Delete,
+  Visibility,
+  Refresh,
+  Add,
+  ViewModule,
+} from '@mui/icons-material'
 
 interface CurriculumTrack {
   id: string
@@ -35,10 +57,13 @@ export default function DirectorTracksPage() {
   const [tracks, setTracks] = useState<CurriculumTrack[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [detailsModalOpen, setDetailsModalOpen] = useState(false)
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [selectedTrack, setSelectedTrack] = useState<CurriculumTrack | null>(null)
+  const [trackToDelete, setTrackToDelete] = useState<CurriculumTrack | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [deleteError, setDeleteError] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const router = useRouter()
 
   const fetchTracks = async () => {
     try {
@@ -58,193 +83,318 @@ export default function DirectorTracksPage() {
     fetchTracks()
   }, [])
 
-  const openDetails = (track: CurriculumTrack) => {
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, track: CurriculumTrack) => {
+    setAnchorEl(event.currentTarget)
     setSelectedTrack(track)
-    setDeleteError('')
-    setDetailsModalOpen(true)
   }
 
-  const closeDetails = () => {
-    setDetailsModalOpen(false)
+  const handleMenuClose = () => {
+    setAnchorEl(null)
     setSelectedTrack(null)
-    setDeleteError('')
   }
 
-  const handleDeleteTrack = async () => {
-    if (!selectedTrack) return
-    const confirmed = window.confirm(
-      `Permanently delete the track "${selectedTrack.title || selectedTrack.name}" and all modules linked to it? This cannot be undone.`
-    )
-    if (!confirmed) return
+  const handleDeleteClick = () => {
+    setTrackToDelete(selectedTrack)
+    setDeleteDialogOpen(true)
+    handleMenuClose()
+  }
 
+  const handleDeleteConfirm = async () => {
+    if (!trackToDelete) return
     setDeleting(true)
-    setDeleteError('')
     try {
-      await apiGateway.delete(`/curriculum/tracks/${selectedTrack.slug}/`)
-      closeDetails()
+      await apiGateway.delete(`/curriculum/tracks/${trackToDelete.slug}/`)
       await fetchTracks()
+      setDeleteDialogOpen(false)
+      setTrackToDelete(null)
     } catch (err: any) {
-      setDeleteError(err?.message || 'Failed to delete track. It may have linked progress or enrollments.')
+      alert(err?.message || 'Failed to delete track. It may have linked progress or enrollments.')
     } finally {
       setDeleting(false)
     }
   }
 
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false)
+    setTrackToDelete(null)
+  }
+
+  const filteredTracks = useMemo(() => {
+    return tracks.filter((track) => {
+      if (searchQuery && 
+          !track.title?.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !track.name?.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !track.description?.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false
+      }
+      return true
+    })
+  }, [tracks, searchQuery])
+
+  const kpis = useMemo(() => {
+    const total = tracks.length
+    const active = tracks.filter(t => t.is_active).length
+    const inactive = tracks.filter(t => !t.is_active).length
+    const avgTier = tracks.length > 0 
+      ? Math.round(tracks.reduce((sum, t) => sum + (t.tier || 0), 0) / tracks.length)
+      : 0
+    
+    return { total, active, inactive, avgTier }
+  }, [tracks])
+
   return (
-    <RouteGuard>
-      <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-white">Curriculum Tracks</h1>
-              <p className="text-och-steel">Manage curriculum tracks and learning paths</p>
-            </div>
-            <Link href="/dashboard/director/tracks/new">
-              <Button variant="defender">
-                Create Track
-              </Button>
-            </Link>
+    <div className="max-w-7xl mx-auto">
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-4xl font-bold mb-2 text-white">Curriculum Tracks</h1>
+            <p className="text-och-steel">Manage curriculum tracks and learning paths</p>
           </div>
-
-          {loading ? (
-            <Card className="p-12 text-center">
-              <p className="text-och-steel">Loading tracks...</p>
-            </Card>
-          ) : error ? (
-            <Card className="p-12 text-center border-och-orange/50">
-              <p className="text-och-orange mb-4">{error}</p>
-              <Button onClick={fetchTracks} variant="outline">Retry</Button>
-            </Card>
-          ) : tracks.length > 0 ? (
-            <div className="grid gap-4">
-              {tracks.map((track) => (
-                <Card key={track.id} className="p-6 border-och-steel/20">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-xl font-bold text-white">{track.title || track.name}</h3>
-                        {!track.is_active && (
-                          <Badge variant="outline" className="text-xs">Inactive</Badge>
-                        )}
-                      </div>
-                      <p className="text-och-steel mb-3">{track.description || '—'}</p>
-                      <div className="flex items-center gap-4 flex-wrap text-sm">
-                        <span className="text-och-mint">Level: {track.level}</span>
-                        <span className="text-och-steel">Tier {track.tier}</span>
-                        <span className="text-och-steel">Order: {track.order_number}</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2 shrink-0">
-                      <Button variant="outline" size="sm" onClick={() => openDetails(track)}>
-                        View Details
-                      </Button>
-                      <Link href={`/dashboard/director/tracks/${track.slug}/edit`}>
-                        <Button variant="outline" size="sm">Edit</Button>
-                      </Link>
-                      <Link href={`/dashboard/director/modules?track=${track.slug}`}>
-                        <Button variant="outline" size="sm">View Modules</Button>
-                      </Link>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 text-sm text-och-steel pt-4 border-t border-och-steel/20">
-                    <span>Slug: <code className="px-1.5 py-0.5 bg-och-midnight/50 rounded text-och-defender font-mono">{track.slug}</code></span>
-                    <span>Code: <code className="px-1.5 py-0.5 bg-och-midnight/50 rounded text-och-mint font-mono">{track.code}</code></span>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card className="col-span-full border-och-steel/20">
-              <div className="p-12 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-och-midnight/50 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-och-steel" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                  </svg>
-                </div>
-                <p className="text-och-steel mb-2 text-lg">No tracks found</p>
-                <p className="text-och-steel/70 mb-6">Create your first curriculum track to get started</p>
-                <Link href="/dashboard/director/tracks/new">
-                  <Button variant="defender">
-                    Create Your First Track
-                  </Button>
-                </Link>
-              </div>
-            </Card>
-          )}
-
-          {/* View track details modal with delete */}
-          <Dialog open={detailsModalOpen} onOpenChange={(open) => !open && closeDetails()}>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle className="text-white">
-                  {selectedTrack ? (selectedTrack.title || selectedTrack.name) : 'Track details'}
-                </DialogTitle>
-                <DialogDescription>
-                  Track information and actions. Deleting removes this track and all its modules permanently.
-                </DialogDescription>
-              </DialogHeader>
-              {selectedTrack && (
-                <div className="space-y-4 py-2">
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="text-och-steel block mb-0.5">Code</span>
-                      <code className="px-2 py-1 bg-och-midnight/50 rounded text-och-defender font-mono text-xs">
-                        {selectedTrack.code}
-                      </code>
-                    </div>
-                    <div>
-                      <span className="text-och-steel block mb-0.5">Slug</span>
-                      <code className="px-2 py-1 bg-och-midnight/50 rounded text-och-mint font-mono text-xs">
-                        {selectedTrack.slug}
-                      </code>
-                    </div>
-                    <div>
-                      <span className="text-och-steel block mb-0.5">Level</span>
-                      <Badge className="capitalize">{selectedTrack.level}</Badge>
-                    </div>
-                    <div>
-                      <span className="text-och-steel block mb-0.5">Tier</span>
-                      <span className="text-white">Tier {selectedTrack.tier}</span>
-                    </div>
-                    <div className="col-span-2">
-                      <span className="text-och-steel block mb-0.5">Description</span>
-                      <p className="text-white text-sm">{selectedTrack.description || '—'}</p>
-                    </div>
-                  </div>
-                  {deleteError && (
-                    <p className="text-sm text-red-400">{deleteError}</p>
-                  )}
-                </div>
-              )}
-              <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-between gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300"
-                  onClick={handleDeleteTrack}
-                  disabled={deleting || !selectedTrack}
-                >
-                  {deleting ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Trash2 className="w-4 h-4 mr-2" />
-                  )}
-                  Delete track and all modules
-                </Button>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={closeDetails}>
-                    Close
-                  </Button>
-                  {selectedTrack && (
-                    <Link href={`/dashboard/director/tracks/${selectedTrack.slug}/edit`}>
-                      <Button variant="defender">Edit track</Button>
-                    </Link>
-                  )}
-                </div>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Link href="/dashboard/director/tracks/new">
+            <Button variant="defender" size="sm" className="gap-2">
+              <Add className="w-4 h-4" />
+              Create Track
+            </Button>
+          </Link>
         </div>
-    </RouteGuard>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <Card className="bg-gradient-to-br from-och-defender/20 to-och-defender/5 border-och-defender/30">
+            <div className="p-4">
+              <p className="text-och-steel text-sm mb-1">Total Tracks</p>
+              <p className="text-3xl font-bold text-white">{kpis.total}</p>
+            </div>
+          </Card>
+          <Card className="bg-gradient-to-br from-och-mint/20 to-och-mint/5 border-och-mint/30">
+            <div className="p-4">
+              <p className="text-och-steel text-sm mb-1">Active</p>
+              <p className="text-3xl font-bold text-och-mint">{kpis.active}</p>
+            </div>
+          </Card>
+          <Card className="bg-gradient-to-br from-och-orange/20 to-och-orange/5 border-och-orange/30">
+            <div className="p-4">
+              <p className="text-och-steel text-sm mb-1">Inactive</p>
+              <p className="text-3xl font-bold text-och-orange">{kpis.inactive}</p>
+            </div>
+          </Card>
+          <Card className="bg-gradient-to-br from-och-gold/20 to-och-gold/5 border-och-gold/30">
+            <div className="p-4">
+              <p className="text-och-steel text-sm mb-1">Avg Tier</p>
+              <p className="text-3xl font-bold text-och-gold">{kpis.avgTier}</p>
+            </div>
+          </Card>
+        </div>
+
+        {/* Search */}
+        <Card className="border-och-steel/20 bg-gradient-to-r from-och-midnight/50 to-och-midnight/30">
+          <div className="p-4">
+            <label className="block text-sm font-medium text-white mb-2">Search Tracks</label>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name or description..."
+              className="w-full px-4 py-2.5 bg-och-midnight/70 border border-och-steel/30 rounded-lg text-white placeholder-och-steel/50 focus:outline-none focus:border-och-defender focus:ring-2 focus:ring-och-defender/20"
+            />
+          </div>
+        </Card>
+      </div>
+
+      <Card>
+        {loading ? (
+          <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+            <CircularProgress sx={{ color: '#00D9FF' }} />
+          </Box>
+        ) : error ? (
+          <Box p={6} textAlign="center">
+            <Typography variant="h6" color="#FF6B35" mb={2}>
+              {error}
+            </Typography>
+            <Button onClick={fetchTracks} variant="outline">Retry</Button>
+          </Box>
+        ) : filteredTracks.length === 0 ? (
+          <Box p={6} textAlign="center">
+            <Typography variant="h6" color="#8B9DAF" mb={2}>
+              No tracks found
+            </Typography>
+            <Link href="/dashboard/director/tracks/new">
+              <Button variant="defender">Create Your First Track</Button>
+            </Link>
+          </Box>
+        ) : (
+          <TableContainer component={Paper} sx={{ backgroundColor: 'transparent', boxShadow: 'none' }}>
+            <Table sx={{ border: '1px solid rgba(139, 157, 175, 0.2)' }}>
+              <TableHead>
+                <TableRow sx={{ borderBottom: '2px solid rgba(139, 157, 175, 0.3)', backgroundColor: 'rgba(0, 217, 255, 0.05)' }}>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>#</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Track Name</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Code</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Tier</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Status</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }} align="right">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredTracks.map((track: CurriculumTrack, index: number) => (
+                  <TableRow
+                    key={track.id}
+                    sx={{
+                      '&:hover': { backgroundColor: 'rgba(0, 217, 255, 0.05)' },
+                      borderBottom: '1px solid rgba(139, 157, 175, 0.1)',
+                    }}
+                  >
+                    <TableCell sx={{ color: '#8B9DAF', fontWeight: 600, border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      {index + 1}
+                    </TableCell>
+                    <TableCell sx={{ color: '#fff', border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      <div>
+                        <div className="font-semibold">{track.title || track.name}</div>
+                        <div className="text-sm text-och-steel line-clamp-1 hover:line-clamp-none" title={track.description}>
+                          {track.description}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell sx={{ border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      <code className="px-2 py-1 bg-och-midnight/50 rounded text-och-mint font-mono text-xs">
+                        {track.code}
+                      </code>
+                    </TableCell>
+                    <TableCell sx={{ color: '#8B9DAF', border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      Tier {track.tier}
+                    </TableCell>
+                    <TableCell sx={{ border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      <Badge
+                        variant={track.is_active ? 'defender' : 'steel'}
+                        className="text-xs"
+                      >
+                        {track.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell align="right" sx={{ border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      <IconButton
+                        onClick={(e) => handleMenuOpen(e, track)}
+                        sx={{ color: '#8B9DAF', '&:hover': { color: '#00D9FF' } }}
+                      >
+                        <MoreVert />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </Card>
+
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        PaperProps={{
+          sx: {
+            backgroundColor: '#0A1628',
+            border: '1px solid rgba(139, 157, 175, 0.2)',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+            minWidth: 180,
+          },
+        }}
+      >
+        <MenuItem
+          onClick={() => {
+            router.push(`/dashboard/director/tracks/${selectedTrack?.slug}`)
+            handleMenuClose()
+          }}
+          sx={{ color: '#8B9DAF', '&:hover': { backgroundColor: 'rgba(0, 217, 255, 0.1)', color: '#00D9FF' } }}
+        >
+          <ListItemIcon>
+            <Visibility sx={{ color: '#8B9DAF' }} fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>View</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            router.push(`/dashboard/director/tracks/${selectedTrack?.slug}/edit`)
+            handleMenuClose()
+          }}
+          sx={{ color: '#8B9DAF', '&:hover': { backgroundColor: 'rgba(0, 217, 255, 0.1)', color: '#00D9FF' } }}
+        >
+          <ListItemIcon>
+            <Edit sx={{ color: '#8B9DAF' }} fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Edit</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            router.push(`/dashboard/director/modules?track=${selectedTrack?.slug}`)
+            handleMenuClose()
+          }}
+          sx={{ color: '#8B9DAF', '&:hover': { backgroundColor: 'rgba(0, 217, 255, 0.1)', color: '#00D9FF' } }}
+        >
+          <ListItemIcon>
+            <ViewModule sx={{ color: '#8B9DAF' }} fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>View Modules</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            fetchTracks()
+            handleMenuClose()
+          }}
+          sx={{ color: '#8B9DAF', '&:hover': { backgroundColor: 'rgba(0, 217, 255, 0.1)', color: '#00D9FF' } }}
+        >
+          <ListItemIcon>
+            <Refresh sx={{ color: '#8B9DAF' }} fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Refresh</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={handleDeleteClick}
+          disabled={deleting}
+          sx={{ color: '#FF6B35', '&:hover': { backgroundColor: 'rgba(255, 107, 53, 0.1)' } }}
+        >
+          <ListItemIcon>
+            <Delete sx={{ color: '#FF6B35' }} fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Delete</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        PaperProps={{
+          sx: {
+            backgroundColor: '#0A1628',
+            border: '1px solid rgba(139, 157, 175, 0.2)',
+            boxShadow: '0 8px 16px rgba(0, 0, 0, 0.4)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: '#fff', fontWeight: 600 }}>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: '#8B9DAF' }}>
+            Are you sure you want to delete "{trackToDelete?.title || trackToDelete?.name}"? This will also delete all modules linked to this track. This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ padding: '16px 24px' }}>
+          <Button
+            onClick={handleDeleteCancel}
+            variant="outline"
+            disabled={deleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            variant="orange"
+            disabled={deleting}
+            className="bg-och-orange hover:bg-och-orange/90"
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </div>
   )
 }

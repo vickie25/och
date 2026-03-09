@@ -23,6 +23,11 @@ import {
   CircularProgress,
   Box,
   Typography,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
 } from '@mui/material'
 import {
   MoreVert,
@@ -40,9 +45,11 @@ export default function ProgramsPage() {
   const router = useRouter()
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [selectedProgram, setSelectedProgram] = useState<any>(null)
+  const [programToDelete, setProgramToDelete] = useState<any>(null)
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, program: any) => {
     setAnchorEl(event.currentTarget)
@@ -54,19 +61,28 @@ export default function ProgramsPage() {
     setSelectedProgram(null)
   }
 
-  const handleDelete = async () => {
-    if (!selectedProgram) return
-    if (!confirm(`Are you sure you want to delete "${selectedProgram.name}"? This action cannot be undone.`)) {
-      handleMenuClose()
-      return
-    }
+  const handleDeleteClick = () => {
+    setProgramToDelete(selectedProgram)
+    setDeleteDialogOpen(true)
+    handleMenuClose()
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!programToDelete) return
     try {
-      await deleteProgram(selectedProgram.id)
+      await deleteProgram(programToDelete.id)
       await reload()
-      handleMenuClose()
+      setDeleteDialogOpen(false)
+      setProgramToDelete(null)
     } catch (err) {
       console.error('Failed to delete program:', err)
+      alert('Failed to delete program. Please try again.')
     }
+  }
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false)
+    setProgramToDelete(null)
   }
 
   const filteredPrograms = useMemo(() => {
@@ -78,6 +94,18 @@ export default function ProgramsPage() {
       return true
     })
   }, [programs, filterCategory, filterStatus, searchQuery])
+
+  const kpis = useMemo(() => {
+    const total = programs.length
+    const active = programs.filter(p => p.status === 'active').length
+    const inactive = programs.filter(p => p.status === 'inactive').length
+    const archived = programs.filter(p => p.status === 'archived').length
+    const avgDuration = programs.length > 0 
+      ? Math.round(programs.reduce((sum, p) => sum + (p.duration_months || 0), 0) / programs.length)
+      : 0
+    
+    return { total, active, inactive, archived, avgDuration }
+  }, [programs])
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -95,6 +123,41 @@ export default function ProgramsPage() {
           </Link>
         </div>
 
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+          <Card className="bg-gradient-to-br from-och-defender/20 to-och-defender/5 border-och-defender/30">
+            <div className="p-4">
+              <p className="text-och-steel text-sm mb-1">Total Programs</p>
+              <p className="text-3xl font-bold text-white">{kpis.total}</p>
+            </div>
+          </Card>
+          <Card className="bg-gradient-to-br from-och-mint/20 to-och-mint/5 border-och-mint/30">
+            <div className="p-4">
+              <p className="text-och-steel text-sm mb-1">Active</p>
+              <p className="text-3xl font-bold text-och-mint">{kpis.active}</p>
+            </div>
+          </Card>
+          <Card className="bg-gradient-to-br from-och-orange/20 to-och-orange/5 border-och-orange/30">
+            <div className="p-4">
+              <p className="text-och-steel text-sm mb-1">Inactive</p>
+              <p className="text-3xl font-bold text-och-orange">{kpis.inactive}</p>
+            </div>
+          </Card>
+          <Card className="bg-gradient-to-br from-och-steel/20 to-och-steel/5 border-och-steel/30">
+            <div className="p-4">
+              <p className="text-och-steel text-sm mb-1">Archived</p>
+              <p className="text-3xl font-bold text-och-steel">{kpis.archived}</p>
+            </div>
+          </Card>
+          <Card className="bg-gradient-to-br from-och-gold/20 to-och-gold/5 border-och-gold/30">
+            <div className="p-4">
+              <p className="text-och-steel text-sm mb-1">Avg Duration</p>
+              <p className="text-3xl font-bold text-och-gold">{kpis.avgDuration}mo</p>
+            </div>
+          </Card>
+        </div>
+
+        {/* Filters */}
         <Card className="border-och-steel/20 bg-gradient-to-r from-och-midnight/50 to-och-midnight/30">
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -156,19 +219,20 @@ export default function ProgramsPage() {
           </Box>
         ) : (
           <TableContainer component={Paper} sx={{ backgroundColor: 'transparent', boxShadow: 'none' }}>
-            <Table>
+            <Table sx={{ border: '1px solid rgba(139, 157, 175, 0.2)' }}>
               <TableHead>
-                <TableRow sx={{ borderBottom: '1px solid rgba(139, 157, 175, 0.2)' }}>
-                  <TableCell sx={{ color: '#fff', fontWeight: 600, fontSize: '0.875rem' }}>Program Name</TableCell>
-                  <TableCell sx={{ color: '#fff', fontWeight: 600, fontSize: '0.875rem' }}>Category</TableCell>
-                  <TableCell sx={{ color: '#fff', fontWeight: 600, fontSize: '0.875rem' }}>Status</TableCell>
-                  <TableCell sx={{ color: '#fff', fontWeight: 600, fontSize: '0.875rem' }}>Duration</TableCell>
-                  <TableCell sx={{ color: '#fff', fontWeight: 600, fontSize: '0.875rem' }}>Price</TableCell>
-                  <TableCell sx={{ color: '#fff', fontWeight: 600, fontSize: '0.875rem' }} align="right">Actions</TableCell>
+                <TableRow sx={{ borderBottom: '2px solid rgba(139, 157, 175, 0.3)', backgroundColor: 'rgba(0, 217, 255, 0.05)' }}>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>#</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Program Name</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Category</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Status</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Duration</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Price</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }} align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredPrograms.map((program: any) => (
+                {filteredPrograms.map((program: any, index: number) => (
                   <TableRow
                     key={program.id}
                     sx={{
@@ -176,18 +240,21 @@ export default function ProgramsPage() {
                       borderBottom: '1px solid rgba(139, 157, 175, 0.1)',
                     }}
                   >
-                    <TableCell sx={{ color: '#fff' }}>
+                    <TableCell sx={{ color: '#8B9DAF', fontWeight: 600, border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                      {index + 1}
+                    </TableCell>
+                    <TableCell sx={{ color: '#fff', border: '1px solid rgba(139, 157, 175, 0.1)' }}>
                       <div>
                         <div className="font-semibold">{program.name}</div>
                         <div className="text-sm text-och-steel line-clamp-1">{program.description}</div>
                       </div>
                     </TableCell>
-                    <TableCell sx={{ color: '#8B9DAF' }}>
+                    <TableCell sx={{ border: '1px solid rgba(139, 157, 175, 0.1)' }}>
                       <Badge variant="outline" className="text-xs">
                         {program.category || 'General'}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ border: '1px solid rgba(139, 157, 175, 0.1)' }}>
                       <Badge
                         variant={program.status === 'active' ? 'defender' : program.status === 'archived' ? 'steel' : 'outline'}
                         className="text-xs"
@@ -195,13 +262,13 @@ export default function ProgramsPage() {
                         {program.status || 'active'}
                       </Badge>
                     </TableCell>
-                    <TableCell sx={{ color: '#8B9DAF' }}>
+                    <TableCell sx={{ color: '#8B9DAF', border: '1px solid rgba(139, 157, 175, 0.1)' }}>
                       {program.duration_months ? `${program.duration_months} months` : 'N/A'}
                     </TableCell>
-                    <TableCell sx={{ color: '#8B9DAF' }}>
+                    <TableCell sx={{ color: '#8B9DAF', border: '1px solid rgba(139, 157, 175, 0.1)' }}>
                       {program.currency} {program.default_price || 0}
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell align="right" sx={{ border: '1px solid rgba(139, 157, 175, 0.1)' }}>
                       <IconButton
                         onClick={(e) => handleMenuOpen(e, program)}
                         sx={{ color: '#8B9DAF', '&:hover': { color: '#00D9FF' } }}
@@ -279,7 +346,7 @@ export default function ProgramsPage() {
           <ListItemText>Analytics</ListItemText>
         </MenuItem>
         <MenuItem
-          onClick={handleDelete}
+          onClick={handleDeleteClick}
           disabled={isDeleting}
           sx={{ color: '#FF6B35', '&:hover': { backgroundColor: 'rgba(255, 107, 53, 0.1)' } }}
         >
@@ -289,6 +356,42 @@ export default function ProgramsPage() {
           <ListItemText>Delete</ListItemText>
         </MenuItem>
       </Menu>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        PaperProps={{
+          sx: {
+            backgroundColor: '#0A1628',
+            border: '1px solid rgba(139, 157, 175, 0.2)',
+            boxShadow: '0 8px 16px rgba(0, 0, 0, 0.4)',
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: '#fff', fontWeight: 600 }}>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: '#8B9DAF' }}>
+            Are you sure you want to delete "{programToDelete?.name}"? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ padding: '16px 24px' }}>
+          <Button
+            onClick={handleDeleteCancel}
+            variant="outline"
+            disabled={isDeleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            variant="orange"
+            disabled={isDeleting}
+            className="bg-och-orange hover:bg-och-orange/90"
+          >
+            {isDeleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   )
 }

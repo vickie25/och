@@ -11,6 +11,8 @@ import { djangoClient } from '@/services/djangoClient'
 import { apiGateway } from '@/services/apiGateway'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
+import { Menu, MenuItem, IconButton } from '@mui/material'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
 
 interface EnrolledStudent extends Omit<Enrollment, 'enrollment_type'> {
   enrollment_type: 'self' | 'invite' | 'director'
@@ -119,10 +121,12 @@ export default function EnrollmentPage() {
   const [selectedStudentDetails, setSelectedStudentDetails] = useState<EnrolledStudent | null>(null)
   const [showStudentDetailsModal, setShowStudentDetailsModal] = useState(false)
   const [selectedOrganizationDetails, setSelectedOrganizationDetails] = useState<any | null>(null)
-  const [openActionMenu, setOpenActionMenu] = useState<string | null>(null)
+  const [actionMenuAnchor, setActionMenuAnchor] = useState<null | HTMLElement>(null)
+  const [actionMenuStudentId, setActionMenuStudentId] = useState<string | null>(null)
   const [showChangeTrackModal, setShowChangeTrackModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
+  const [bulkDeleteConfirmText, setBulkDeleteConfirmText] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showReportModal, setShowReportModal] = useState(false)
@@ -389,18 +393,16 @@ export default function EnrollmentPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Empty deps - only run on mount
 
-  // Close action menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (openActionMenu) {
-        setOpenActionMenu(null)
-      }
-    }
-    if (openActionMenu) {
-      document.addEventListener('click', handleClickOutside)
-      return () => document.removeEventListener('click', handleClickOutside)
-    }
-  }, [openActionMenu])
+  const handleOpenActionMenu = (event: React.MouseEvent<HTMLElement>, studentId: string, student: EnrolledStudent) => {
+    setActionMenuAnchor(event.currentTarget)
+    setActionMenuStudentId(studentId)
+    setStudentForAction(student)
+  }
+
+  const handleCloseActionMenu = () => {
+    setActionMenuAnchor(null)
+    setActionMenuStudentId(null)
+  }
 
   // Fetch full organization details when view-details modal opens and student has organization_id
   useEffect(() => {
@@ -464,16 +466,9 @@ export default function EnrollmentPage() {
     const studentIds = Array.from(selectedStudents)
     const studentsToDelete = enrolledStudents.filter(s => studentIds.includes(s.id))
     
-    const confirmMessage = `⚠️ WARNING: This will PERMANENTLY DELETE ${studentsToDelete.length} student(s) and ALL their data from the database.\n\nThis includes:\n- User account\n- All enrollments\n- All progress data\n- All submissions\n- All related records\n\nThis action CANNOT be undone. Continue?`
-    
-    if (!confirm(confirmMessage)) {
-      return
-    }
-
-    // Double confirmation
-    const doubleConfirm = prompt(`Type "DELETE" in capital letters to confirm permanent deletion of ${studentsToDelete.length} student(s):`)
-    if (doubleConfirm !== 'DELETE') {
-      toast.error('Deletion cancelled. You must type "DELETE" exactly to confirm.')
+    // Validate confirmation text
+    if (bulkDeleteConfirmText !== 'DELETE') {
+      toast.error('Please type "DELETE" to confirm')
       return
     }
     
@@ -495,6 +490,7 @@ export default function EnrollmentPage() {
 
     setIsDeleting(false)
     setShowBulkDeleteModal(false)
+    setBulkDeleteConfirmText('')
     setSelectedStudents(new Set())
     
     if (successCount > 0) {
@@ -1402,98 +1398,13 @@ export default function EnrollmentPage() {
                                 </Badge>
                               </td>
                               <td className="py-3 px-4">
-                                <div className="relative">
-                                  <button
-                                    onClick={() => {
-                                      setOpenActionMenu(openActionMenu === student.id ? null : student.id)
-                                      setStudentForAction(student)
-                                    }}
-                                    className="text-och-defender hover:text-och-mint transition-colors"
-                                  >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                                    </svg>
-                                  </button>
-                                  {openActionMenu === student.id && (
-                                    <div className="absolute right-0 mt-2 w-48 bg-och-midnight border border-och-steel/20 rounded-lg shadow-lg z-50" onClick={(e) => e.stopPropagation()}>
-                                      <div className="py-1">
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            setSelectedStudentDetails(student)
-                                            setShowStudentDetailsModal(true)
-                                            setOpenActionMenu(null)
-                                          }}
-                                          className="w-full text-left px-4 py-2 text-sm text-white hover:bg-och-midnight/50 transition-colors"
-                                        >
-                                          View Details
-                                        </button>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            setStudentForAction(student)
-                                            setShowChangeTrackModal(true)
-                                            setOpenActionMenu(null)
-                                            // Load tracks
-                                            apiGateway.get('/curriculum/tracks/').then((data: any) => {
-                                              const list = data?.results ?? data?.data ?? data ?? []
-                                              setCurriculumTracks(Array.isArray(list) ? list : [])
-                                            }).catch(() => setCurriculumTracks([]))
-                                          }}
-                                          className="w-full text-left px-4 py-2 text-sm text-white hover:bg-och-midnight/50 transition-colors"
-                                        >
-                                          Change Track
-                                        </button>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            setStudentForAction(student)
-                                            // Load student data for editing
-                                            apiGateway.get(`/users/${student.user}/`).then((userData: any) => {
-                                              setEditFormData({
-                                                first_name: userData.first_name || '',
-                                                last_name: userData.last_name || '',
-                                                email: userData.email || '',
-                                                phone_number: userData.phone_number || '',
-                                                country: userData.country || '',
-                                                organization_id: student.organization_id || '',
-                                              })
-                                              setShowEditModal(true)
-                                              setOpenActionMenu(null)
-                                            }).catch(() => {
-                                              toast.error('Failed to load student data')
-                                            })
-                                          }}
-                                          className="w-full text-left px-4 py-2 text-sm text-white hover:bg-och-midnight/50 transition-colors"
-                                        >
-                                          Edit
-                                        </button>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            setStudentForAction(student)
-                                            setShowDeleteModal(true)
-                                            setOpenActionMenu(null)
-                                          }}
-                                          className="w-full text-left px-4 py-2 text-sm text-och-orange hover:bg-och-midnight/50 transition-colors"
-                                        >
-                                          Delete
-                                        </button>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            setStudentForAction(student)
-                                            setShowReportModal(true)
-                                            setOpenActionMenu(null)
-                                          }}
-                                          className="w-full text-left px-4 py-2 text-sm text-white hover:bg-och-midnight/50 transition-colors"
-                                        >
-                                          Report
-                                        </button>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
+                                <IconButton
+                                  onClick={(e) => handleOpenActionMenu(e, student.id, student)}
+                                  size="small"
+                                  sx={{ color: '#00d4ff' }}
+                                >
+                                  <MoreVertIcon />
+                                </IconButton>
                               </td>
                             </tr>
                           )
@@ -1558,6 +1469,89 @@ export default function EnrollmentPage() {
               )}
             </div>
           </Card>
+
+          {/* MUI Action Menu */}
+          <Menu
+            anchorEl={actionMenuAnchor}
+            open={Boolean(actionMenuAnchor)}
+            onClose={handleCloseActionMenu}
+            PaperProps={{
+              sx: {
+                bgcolor: '#0f1419',
+                border: '1px solid rgba(148, 163, 184, 0.2)',
+                borderRadius: '8px',
+                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+              }
+            }}
+          >
+            <MenuItem
+              onClick={() => {
+                if (studentForAction) {
+                  setSelectedStudentDetails(studentForAction)
+                  setShowStudentDetailsModal(true)
+                }
+                handleCloseActionMenu()
+              }}
+              sx={{ color: '#fff', fontSize: '14px', '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.05)' } }}
+            >
+              View Details
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                setShowChangeTrackModal(true)
+                handleCloseActionMenu()
+                apiGateway.get('/curriculum/tracks/').then((data: any) => {
+                  const list = data?.results ?? data?.data ?? data ?? []
+                  setCurriculumTracks(Array.isArray(list) ? list : [])
+                }).catch(() => setCurriculumTracks([]))
+              }}
+              sx={{ color: '#fff', fontSize: '14px', '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.05)' } }}
+            >
+              Change Track
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                if (studentForAction) {
+                  apiGateway.get(`/users/${studentForAction.user}/`).then((userData: any) => {
+                    setEditFormData({
+                      first_name: userData.first_name || '',
+                      last_name: userData.last_name || '',
+                      email: userData.email || '',
+                      phone_number: userData.phone_number || '',
+                      country: userData.country || '',
+                      organization_id: studentForAction.organization_id || '',
+                    })
+                    setShowEditModal(true)
+                    handleCloseActionMenu()
+                  }).catch(() => {
+                    toast.error('Failed to load student data')
+                    handleCloseActionMenu()
+                  })
+                }
+              }}
+              sx={{ color: '#fff', fontSize: '14px', '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.05)' } }}
+            >
+              Edit
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                setShowDeleteModal(true)
+                handleCloseActionMenu()
+              }}
+              sx={{ color: '#ff6b6b', fontSize: '14px', '&:hover': { bgcolor: 'rgba(255, 107, 107, 0.1)' } }}
+            >
+              Delete
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                setShowReportModal(true)
+                handleCloseActionMenu()
+              }}
+              sx={{ color: '#fff', fontSize: '14px', '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.05)' } }}
+            >
+              Report
+            </MenuItem>
+          </Menu>
 
           {/* Enrollment Form Modal */}
           {showEnrollmentForm && (
@@ -2751,11 +2745,24 @@ export default function EnrollmentPage() {
                     </ul>
                     <p className="text-och-orange text-sm font-bold mt-3">This action CANNOT be undone!</p>
                   </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-white mb-2">
+                      Type <span className="font-mono font-bold text-och-orange">DELETE</span> to confirm:
+                    </label>
+                    <Input
+                      type="text"
+                      value={bulkDeleteConfirmText}
+                      onChange={(e) => setBulkDeleteConfirmText(e.target.value)}
+                      placeholder="Type DELETE here"
+                      className="font-mono"
+                    />
+                  </div>
                   <div className="flex gap-2 justify-end">
                     <Button
                       variant="outline"
                       onClick={() => {
                         setShowBulkDeleteModal(false)
+                        setBulkDeleteConfirmText('')
                       }}
                       disabled={isDeleting}
                     >
@@ -2764,8 +2771,8 @@ export default function EnrollmentPage() {
                     <Button
                       variant="outline"
                       onClick={handleBulkDelete}
-                      disabled={isDeleting}
-                      className="bg-och-orange/20 text-och-orange border-och-orange/50 hover:bg-och-orange/30"
+                      disabled={isDeleting || bulkDeleteConfirmText !== 'DELETE'}
+                      className="bg-och-orange/20 text-och-orange border-och-orange/50 hover:bg-och-orange/30 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isDeleting ? 'Deleting...' : `Delete ${selectedStudents.size} Student(s) Permanently`}
                     </Button>

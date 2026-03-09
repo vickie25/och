@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { useAuth } from '@/hooks/useAuth'
+import { curriculumClient } from '@/services/curriculumClient'
 
 interface ProgramFormData {
   name: string
@@ -17,14 +18,8 @@ interface ProgramFormData {
   currency: string
   outcomes: string[]
   missions_registry_link: string
+  structure?: Record<string, any>
 }
-
-const CATEGORY_OPTIONS = [
-  { value: 'technical', label: 'Technical', color: 'defender' },
-  { value: 'leadership', label: 'Leadership', color: 'mint' },
-  { value: 'mentorship', label: 'Mentorship', color: 'orange' },
-  { value: 'executive', label: 'Executive', color: 'purple' }
-]
 
 export default function CreateProgramClient() {
   const router = useRouter()
@@ -41,8 +36,32 @@ export default function CreateProgramClient() {
     default_price: 0,
     currency: 'KSh',
     outcomes: [''],
-    missions_registry_link: ''
+    missions_registry_link: '',
+    structure: undefined
   })
+  const [tracks, setTracks] = useState<any[]>([])
+  const [tracksLoading, setTracksLoading] = useState(true)
+  const [tracksError, setTracksError] = useState<string | null>(null)
+  const [selectedTrackCodes, setSelectedTrackCodes] = useState<string[]>([])
+
+  useEffect(() => {
+    const loadTracks = async () => {
+      try {
+        setTracksLoading(true)
+        setTracksError(null)
+        const data = await curriculumClient.getTracks()
+        setTracks(Array.isArray(data) ? data : [])
+      } catch (err: any) {
+        console.error('Failed to load curriculum tracks:', err)
+        setTracksError(err?.message || 'Failed to load tracks')
+        setTracks([])
+      } finally {
+        setTracksLoading(false)
+      }
+    }
+
+    loadTracks()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,16 +70,25 @@ export default function CreateProgramClient() {
     setSuccess(false)
 
     try {
+      const payload: any = {
+        ...formData,
+        outcomes: formData.outcomes.filter(o => o.trim() !== '')
+      }
+
+      if (selectedTrackCodes.length > 0) {
+        payload.structure = {
+          ...(formData.structure || {}),
+          curriculum_tracks: selectedTrackCodes
+        }
+      }
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_API_URL}/api/v1/programs/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`
         },
-        body: JSON.stringify({
-          ...formData,
-          outcomes: formData.outcomes.filter(o => o.trim() !== '')
-        })
+        body: JSON.stringify(payload)
       })
 
       if (response.ok) {
@@ -108,6 +136,12 @@ export default function CreateProgramClient() {
         ? prev.categories.filter(c => c !== category)
         : [...prev.categories, category]
     }))
+  }
+
+  const toggleTrack = (code: string) => {
+    setSelectedTrackCodes(prev =>
+      prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
+    )
   }
 
   return (
@@ -196,32 +230,51 @@ export default function CreateProgramClient() {
 
         <Card className="mb-6">
           <div className="p-6">
-            <h2 className="text-xl font-bold text-white mb-4">Categories</h2>
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {CATEGORY_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => toggleCategory(option.value)}
-                  className={`p-3 rounded-lg border-2 transition-all ${
-                    formData.categories.includes(option.value)
-                      ? 'border-och-defender bg-och-defender/20'
-                      : 'border-och-steel/30 hover:border-och-steel/50'
-                  }`}
-                >
-                  <Badge variant={option.color as any} className="mb-2">
-                    {option.label}
-                  </Badge>
-                  <p className="text-xs text-och-steel">
-                    {option.value === 'technical' && 'Hands-on technical skills'}
-                    {option.value === 'leadership' && 'Management and strategy'}
-                    {option.value === 'mentorship' && 'Coaching and guidance'}
-                    {option.value === 'executive' && 'C-level competencies'}
-                  </p>
-                </button>
-              ))}
-            </div>
+            <h2 className="text-xl font-bold text-white mb-4">Tracks</h2>
+
+            {tracksLoading ? (
+              <p className="text-och-steel text-sm">Loading tracks...</p>
+            ) : tracksError ? (
+              <p className="text-och-orange text-sm">{tracksError}</p>
+            ) : tracks.length === 0 ? (
+              <p className="text-och-steel text-sm">No curriculum tracks available.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {tracks.map((track: any) => {
+                  const code = (track.code || track.slug || track.id || '').toString()
+                  const title = track.title || track.name || track.code || 'Track'
+                  const description = track.description || ''
+                  const selected = selectedTrackCodes.includes(code)
+
+                  return (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() => toggleTrack(code)}
+                      className={`text-left p-3 rounded-lg border-2 transition-all ${
+                        selected
+                          ? 'border-och-defender bg-och-defender/20'
+                          : 'border-och-steel/30 hover:border-och-steel/50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-semibold text-white text-sm">{title}</span>
+                        {track.tier != null && (
+                          <Badge variant="outline" className="text-xs text-och-steel border-och-steel/40">
+                            Tier {track.tier}
+                          </Badge>
+                        )}
+                      </div>
+                      {description && (
+                        <p className="text-xs text-och-steel line-clamp-2">
+                          {description}
+                        </p>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </Card>
 

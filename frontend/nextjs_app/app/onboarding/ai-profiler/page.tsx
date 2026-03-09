@@ -409,28 +409,36 @@ export default function AIProfilerPage() {
       console.log('[AIProfiler] User ID:', user?.id)
 
       // CRITICAL: Check Django's profiling_complete as SOURCE OF TRUTH
-      // This prevents redirect loops when admin resets profiling
+      // This prevents redirect loops when admin resets profiling and also
+      // prevents creating a brand new session after we've already completed
+      // and are viewing results.
       try {
         const { djangoClient } = await import('@/services/djangoClient')
         const freshUser = await djangoClient.auth.getCurrentUser()
         console.log('[AIProfiler] Django profiling_complete:', freshUser?.profiling_complete)
         console.log('[AIProfiler] Current section:', currentSection)
         console.log('[AIProfiler] Has result:', !!result)
+        const profilingComplete = freshUser?.profiling_complete === true
 
-        // If Django says profiling is complete AND we're not viewing results or track-confirmation, redirect to dashboard
-        // Never redirect when user is on results or choosing track (fixes Finish Assessment redirect glitch)
-        if (
-          freshUser?.profiling_complete === true &&
-          currentSection !== 'results' &&
-          currentSection !== 'track-confirmation' &&
-          !result
-        ) {
-          console.log('✅ Profiling already complete - redirecting to dashboard...')
+        if (profilingComplete) {
+          // Case 1: User already has completed profiling AND we already have results
+          // or are on the track-confirmation/results screens. In this case, do NOT
+          // talk to FastAPI again or create a new session – just keep showing results.
+          if (currentSection === 'results' || currentSection === 'track-confirmation' || !!result) {
+            console.log('[AIProfiler] Profiling complete and results already loaded – skipping FastAPI status check and session creation.')
+            setLoading(false)
+            return
+          }
+
+          // Case 2: Profiling complete but we don't have results in this view
+          // (fresh navigation to profiler). Redirect to student dashboard instead
+          // of silently starting a brand new session.
+          console.log('✅ Profiling already complete - redirecting to dashboard instead of starting new session...')
           window.location.href = '/dashboard/student'
           return
         }
 
-        // Django says not complete OR we're viewing results - allow user to stay
+        // Django says not complete – allow user to proceed into profiler flow
         console.log('[AIProfiler] Allowing profiler access - profiling_complete:', freshUser?.profiling_complete, 'viewing results:', currentSection === 'results' || !!result)
       } catch (djangoError) {
         console.error('[AIProfiler] Failed to check Django status:', djangoError)
@@ -937,19 +945,6 @@ export default function AIProfilerPage() {
   const completeProfiling = async () => {
     if (!session) return
 
-    const hasExistingTrack = !!user?.track_key
-
-    // If the user already has a track from a previous run, don't block them
-    // on this enhanced engine – just treat this as complete and send them on.
-    if (hasExistingTrack) {
-      console.log('[AIProfiler] User already has track_key, skipping enhanced completion and redirecting to dashboard')
-      if (reloadUser) {
-        await reloadUser()
-      }
-      router.push('/dashboard/student')
-      return
-    }
-
     try {
       setLoading(true)
       
@@ -1027,28 +1022,6 @@ export default function AIProfilerPage() {
       // Clear saved progress on completion
       localStorage.removeItem('profiling_progress')
       console.log('[AIProfiler] Profiling completed - cleared saved progress')
-
-      // Sync to Django in the background
-      try {
-        const { apiGateway } = await import('@/services/apiGateway')
-        await apiGateway.post('/profiler/sync-fastapi', {
-          user_id: user?.id?.toString(),
-          session_id: resultResponse.session_id,
-          completed_at: resultResponse.completed_at,
-          primary_track: resultResponse.primary_track.key,
-          recommendations: resultResponse.recommendations.map(rec => ({
-            track_key: rec.track_key,
-            score: rec.score,
-            confidence_level: rec.confidence_level
-          }))
-        })
-        console.log('✅ Results synced to Django')
-        if (reloadUser) {
-          reloadUser()
-        }
-      } catch (syncError: any) {
-        console.warn('⚠️ Background sync failed (non-critical):', syncError)
-      }
 
       // Give student opportunity to select track before showing results (issue 10)
       setCurrentSection('track-confirmation')
@@ -1133,8 +1106,11 @@ export default function AIProfilerPage() {
       if (reloadUser) {
         reloadUser()
       }
-      setCurrentSection('results')
-      setLoading(false)
+
+      // After student confirms their track, skip the long
+      // "results" breakdown screen and take them straight
+      // into their OCH journey (student dashboard).
+      await handleComplete()
     } catch (err: any) {
       setError(err.message || 'Failed to confirm track')
       setLoading(false)
@@ -1259,6 +1235,9 @@ export default function AIProfilerPage() {
     : 0
   const calculatedPercentage = byAnswers
   const hasExistingTrack = !!user?.track_key
+  const minRequiredAnswersForCompletion = hasExistingTrack
+    ? 0
+    : Math.ceil(questions.length * 0.6)
 
   const progress = {
     session_id: session?.session_id || '',
@@ -1323,8 +1302,8 @@ export default function AIProfilerPage() {
           // If user already has a track, don't force a minimum answer count –
           // let them finish freely. Otherwise require a reasonable minimum
           // so the AI has enough signal.
-          canComplete={hasExistingTrack || answeredCount >= 12}
-          minRequiredAnswers={hasExistingTrack ? undefined : 12}
+          canComplete={hasExistingTrack || answeredCount >= minRequiredAnswersForCompletion}
+          minRequiredAnswers={hasExistingTrack ? undefined : minRequiredAnswersForCompletion}
           answeredCount={answeredCount}
         />
       )}
@@ -1362,6 +1341,11 @@ export default function AIProfilerPage() {
               description: 'Lead security teams, strategize, and drive organizational change'
             }
           ]}
+          recommendations={result.recommendations.map(r => ({
+            track_key: r.track_key,
+            track_name: r.track_name,
+            score: r.score
+          }))}
           onConfirm={handleTrackConfirm}
           onDecline={handleTrackDecline}
         />
