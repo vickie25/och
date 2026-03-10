@@ -204,6 +204,12 @@ export function StudentDashboardHub() {
   const [loadingCurriculum, setLoadingCurriculum] = useState(true);
   const [showStudentTour, setShowStudentTour] = useState(false);
   const [tourStepIndex, setTourStepIndex] = useState(0);
+
+  // Guards to avoid duplicate API calls in React StrictMode / remounts
+  const didFetchDashboardRef = useRef(false);
+  const didFetchFoundationsRef = useRef(false);
+  const didFetchCurriculumRef = useRef(false);
+  const didFetchCohortRef = useRef(false);
   
   // Real data from backend
   const [readinessScore, setReadinessScore] = useState(0);
@@ -293,7 +299,8 @@ export function StudentDashboardHub() {
   // Fetch all dashboard data in parallel for better performance
   useEffect(() => {
     const fetchAllData = async () => {
-      if (!user?.id) return;
+      if (!user?.id || didFetchDashboardRef.current) return;
+      didFetchDashboardRef.current = true;
 
       setLoadingMissions(true);
 
@@ -479,10 +486,11 @@ export function StudentDashboardHub() {
   // Fetch Foundations status
   useEffect(() => {
     const fetchFoundations = async () => {
-      if (!user?.id) {
+      if (!user?.id || didFetchFoundationsRef.current) {
         setLoadingFoundations(false);
         return;
       }
+      didFetchFoundationsRef.current = true;
 
       try {
         const status = await foundationsClient.getStatus();
@@ -504,10 +512,11 @@ export function StudentDashboardHub() {
   // Fetch curriculum progress
   useEffect(() => {
     const fetchCurriculumProgress = async () => {
-      if (!user?.id || !profiledTrack) {
+      if (!user?.id || !profiledTrack || didFetchCurriculumRef.current) {
         setLoadingCurriculum(false);
         return;
       }
+      didFetchCurriculumRef.current = true;
 
       try {
         // First, try to get track info from curriculum tracks API
@@ -555,10 +564,11 @@ export function StudentDashboardHub() {
   // Fetch cohort data
   useEffect(() => {
     const fetchCohortData = async () => {
-      if (!user?.id) {
+      if (!user?.id || didFetchCohortRef.current) {
         setLoadingCohortData(false);
         return;
       }
+      didFetchCohortRef.current = true;
 
       setLoadingCohortData(true);
       try {
@@ -711,6 +721,12 @@ export function StudentDashboardHub() {
   // When we have no foundations status after load (e.g. new user), show simplified dashboard too
   const showSimplifiedDashboard = foundationsIncomplete || (!loadingFoundations && !foundationsStatus);
 
+  // Only block the whole dashboard on the core data;
+  // cohort/community and some curriculum pieces can continue loading behind skeletons.
+  const overallLoading =
+    loadingDashboard ||
+    loadingFoundations;
+
   const currentTourStep = studentTourSteps[tourStepIndex] ?? studentTourSteps[0];
 
   const closeStudentTour = () => {
@@ -724,11 +740,22 @@ export function StudentDashboardHub() {
     }
   };
 
+  if (overallLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-och-midnight via-och-midnight/95 to-slate-950 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 border-2 border-och-gold border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs text-och-steel">Loading your Control Center…</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-och-midnight via-och-midnight/95 to-slate-950">
       {/* Main Content - Compact */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
-        
+
         {/* Hero Section - Compact (reduced vertical space) */}
         {profiledTrack && (
           <motion.div

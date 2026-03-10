@@ -168,7 +168,7 @@ async function getStudentState(userId: string, accessToken: string = ''): Promis
     }
     
     // Fetch user data to get track_key
-    const userResponse = await fetch(`${djangoApiUrl}/api/v1/users/${userId}`, { headers: authHeaders }).catch(() => ({ ok: false }));
+    const userResponse = await fetch(`${djangoApiUrl}/api/v1/users/${userId}/`, { headers: authHeaders }).catch(() => ({ ok: false }));
     const userData = userResponse && userResponse.ok ? await userResponse.json() : null;
     const userTrackKey = userData?.track_key || userData?.recommended_track || null;
     const defaultTrackCode = getTrackCode(userTrackKey);
@@ -270,7 +270,7 @@ async function getStudentState(userId: string, accessToken: string = ''): Promis
     let fallbackTrackCode = 'SOCDEFENSE';
     try {
       const djangoApiUrl = process.env.NEXT_PUBLIC_DJANGO_API_URL;
-      const userResponse = await fetch(`${djangoApiUrl}/api/v1/users/${userId}`, { 
+      const userResponse = await fetch(`${djangoApiUrl}/api/v1/users/${userId}/`, { 
         headers: { 'Content-Type': 'application/json' } 
       }).catch(() => null);
       if (userResponse && userResponse.ok) {

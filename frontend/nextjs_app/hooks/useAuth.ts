@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { djangoClient } from '../services/djangoClient';
 import { setAuthTokens, clearAuthTokens, getAccessToken, isAuthenticated } from '../utils/auth';
@@ -17,7 +17,22 @@ interface AuthState {
   isAuthenticated: boolean;
 }
 
-export function useAuth() {
+interface AuthContextValue extends AuthState {
+  login: (credentials: LoginRequest) => Promise<any>;
+  logout: () => Promise<void>;
+  refresh: () => Promise<any>;
+  reloadUser: () => Promise<void>;
+  completeMFA: (params: {
+    refresh_token: string;
+    code: string;
+    method: 'totp' | 'sms' | 'email' | 'backup_codes';
+  }) => Promise<{ user: User; access_token: string }>;
+  sendMFAChallenge: (refresh_token: string, method?: 'email' | 'sms') => Promise<any>;
+}
+
+const AuthContext = React.createContext<AuthContextValue | null>(null);
+
+function useProvideAuth(): AuthContextValue {
   const router = useRouter();
   const [state, setState] = useState<AuthState>({
     user: null,
@@ -266,3 +281,20 @@ export function useAuth() {
   };
 }
 
+/**
+ * AuthProvider wraps the app and ensures we fetch /auth/me only once,
+ * sharing the result via React context.
+ */
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const value = useProvideAuth();
+  // Avoid JSX here so this file can remain .ts (not .tsx)
+  return React.createElement(AuthContext.Provider, { value }, children);
+}
+
+export function useAuth(): AuthContextValue {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return ctx;
+}
