@@ -240,14 +240,18 @@ export function StudentDashboardHub() {
   // Next actions
   const [nextActions, setNextActions] = useState<any[]>([]);
 
-  // Get track theme
-  const trackTheme = profiledTrack 
-    ? trackThemes[profiledTrack.toLowerCase()] || trackThemes.defender
-    : trackThemes.defender;
+  // Get track theme — prefer the student's actual enrolled track if present,
+  // fall back to profiled track, then Defender as a safe default.
+  const effectiveTrackKey =
+    (user as any)?.track_key?.toLowerCase?.() ||
+    profiledTrack?.toLowerCase?.() ||
+    'defender';
+
+  const trackTheme = trackThemes[effectiveTrackKey] || trackThemes.defender;
 
   // Get track color classes
   const getTrackColorClasses = (type: 'bg' | 'border' | 'text' | 'gradient') => {
-    const trackKey = profiledTrack?.toLowerCase() || 'defender';
+    const trackKey = effectiveTrackKey;
     const theme = trackThemes[trackKey] || trackThemes.defender;
     
     const colorMap: Record<string, Record<string, string>> = {
