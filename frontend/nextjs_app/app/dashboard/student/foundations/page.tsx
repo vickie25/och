@@ -187,6 +187,10 @@ export default function FoundationsPage() {
         ? foundationsStatus.modules.find((m) => m.id === moduleIdFromUrl)
         : null
 
+      const hasModuleProgress =
+        (foundationsStatus.completion_percentage ?? 0) > 0 ||
+        (foundationsStatus.modules ?? []).some((m) => m.completed);
+
       if (moduleToOpen) {
         setCurrentModule(moduleToOpen)
         if (moduleToOpen.title.toLowerCase().includes('mission preview')) {
@@ -216,7 +220,11 @@ export default function FoundationsPage() {
         } else {
           setCurrentView('landing')
         }
+      } else if (!foundationsStatus.is_complete && hasModuleProgress) {
+        // Student has already started Foundations — go straight to modules view
+        setCurrentView('modules')
       } else {
+        // No progress yet and not in a special module: show landing/modules chooser
         setCurrentView('modules')
       }
 

@@ -147,7 +147,8 @@ export default function StudentClient() {
             return;
           }
 
-          // If Foundations is not complete, redirect to Foundations
+          // If Foundations is not complete, redirect to the dashboard Foundations
+          // section so the student can resume exactly where they left off.
           if (!foundationsStatus.is_complete) {
             // Allow a special deep-link that shows the Foundations
             // card + video preview on the dashboard without bouncing
@@ -161,8 +162,11 @@ export default function StudentClient() {
               }
             }
 
-            console.log('✅ Foundations not completed - redirecting to Foundations');
-            router.push('/dashboard/student/foundations');
+            console.log('✅ Foundations not completed - redirecting to dashboard Foundations section');
+            // Allow dashboard to render while the router navigation happens
+            setCheckingFoundations(false);
+            setCheckingProfiling(false);
+            router.push('/dashboard/student#student-tour-foundations');
             return;
           }
 
