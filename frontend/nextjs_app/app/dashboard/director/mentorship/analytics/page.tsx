@@ -436,7 +436,6 @@ export default function MentorPerformanceAnalyticsPage() {
             )}
           </Card>
         </div>
-      </div>
     </RouteGuard>
   )
 }

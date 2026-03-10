@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'organizations',
     'progress',
     'student_dashboard',
+    'notifications',
     'mentorship',
     'profiler',
     'foundations',

@@ -139,6 +139,43 @@ const trackThemes: Record<string, {
   },
 };
 
+// Simple first-time tour steps for the student dashboard
+const studentTourSteps: Array<{
+  id: string;
+  title: string;
+  body: string;
+  targetId?: string;
+}> = [
+  {
+    id: 'welcome',
+    title: 'Welcome to your Control Center',
+    body:
+      'This dashboard is your home base. You will see your track, Foundations, missions, progress, and community all in one place.',
+    targetId: 'student-tour-hero',
+  },
+  {
+    id: 'foundations',
+    title: 'Start with Foundations',
+    body:
+      'Beginner Level – Foundations is your starting point. Watch each lesson, then click Next or Complete. Your progress and module completion are tracked automatically.',
+    targetId: 'student-tour-foundations',
+  },
+  {
+    id: 'track-and-missions',
+    title: 'Your Track & Missions',
+    body:
+      'After Foundations, you will move into your track curriculum and missions. Missions are hands-on exercises that help you apply what you learn.',
+    targetId: 'student-tour-missions',
+  },
+  {
+    id: 'coach-and-community',
+    title: 'AI Coach & Community',
+    body:
+      'Your AI coach gives you personalized guidance, and the community section shows discussions, updates, and mentorship activity. Visit these often to stay engaged.',
+    targetId: 'student-tour-community',
+  },
+];
+
 export function StudentDashboardHub() {
   const router = useRouter();
   const { user } = useAuth();
@@ -165,6 +202,8 @@ export function StudentDashboardHub() {
   const maxWatchedTimeRef = useRef(0);
   const lastLessonIdRef = useRef<string | null>(null);
   const [loadingCurriculum, setLoadingCurriculum] = useState(true);
+  const [showStudentTour, setShowStudentTour] = useState(false);
+  const [tourStepIndex, setTourStepIndex] = useState(0);
   
   // Real data from backend
   const [readinessScore, setReadinessScore] = useState(0);
@@ -412,6 +451,31 @@ export function StudentDashboardHub() {
     fetchProfiledTrack();
   }, [user?.id]);
 
+  // First-time tour: show once per browser unless reopened
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const seen = window.localStorage.getItem('och_student_tour_seen');
+      if (!seen) {
+        setShowStudentTour(true);
+        setTourStepIndex(0);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  // When tour step changes, scroll the relevant section into view to create a navigational feel
+  useEffect(() => {
+    if (!showStudentTour) return;
+    const step = studentTourSteps[tourStepIndex];
+    if (!step?.targetId || typeof window === 'undefined') return;
+    const el = document.getElementById(step.targetId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [showStudentTour, tourStepIndex]);
+
   // Fetch Foundations status
   useEffect(() => {
     const fetchFoundations = async () => {
@@ -647,6 +711,19 @@ export function StudentDashboardHub() {
   // When we have no foundations status after load (e.g. new user), show simplified dashboard too
   const showSimplifiedDashboard = foundationsIncomplete || (!loadingFoundations && !foundationsStatus);
 
+  const currentTourStep = studentTourSteps[tourStepIndex] ?? studentTourSteps[0];
+
+  const closeStudentTour = () => {
+    setShowStudentTour(false);
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem('och_student_tour_seen', '1');
+      } catch {
+        // ignore storage write errors
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-och-midnight via-och-midnight/95 to-slate-950">
       {/* Main Content - Compact */}
@@ -655,9 +732,14 @@ export function StudentDashboardHub() {
         {/* Hero Section - Compact (reduced vertical space) */}
         {profiledTrack && (
           <motion.div
+            id="student-tour-hero"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`relative overflow-hidden rounded-lg bg-gradient-to-br ${getTrackColorClasses('gradient')} border ${getTrackColorClasses('border')} px-3 py-2.5`}
+            className={`relative overflow-hidden rounded-lg bg-gradient-to-br ${getTrackColorClasses('gradient')} border ${getTrackColorClasses('border')} px-3 py-2.5 transition-shadow ${
+              showStudentTour && studentTourSteps[tourStepIndex]?.targetId === 'student-tour-hero'
+                ? 'ring-2 ring-och-gold/80 shadow-[0_0_0_1px_rgba(250,204,21,0.6)]'
+                : ''
+            }`}
           >
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 flex-1 min-w-0">
@@ -683,6 +765,7 @@ export function StudentDashboardHub() {
         {/* Foundations section: flat lessons list + video preview (no module UI) */}
         {foundationsIncomplete && (
           <motion.div
+            id="student-tour-foundations"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
           >
@@ -1144,7 +1227,15 @@ export function StudentDashboardHub() {
 
                   {/* Active Missions */}
                   {activeMissions.length > 0 && (
-                    <Card className={`p-4 bg-gradient-to-br ${getTrackColorClasses('gradient')} border ${getTrackColorClasses('border')}`}>
+                    <Card
+                      id="student-tour-missions"
+                      className={`p-4 bg-gradient-to-br ${getTrackColorClasses('gradient')} border ${getTrackColorClasses('border')} transition-shadow ${
+                        showStudentTour &&
+                        studentTourSteps[tourStepIndex]?.targetId === 'student-tour-missions'
+                          ? 'ring-2 ring-och-gold/80 shadow-[0_0_0_1px_rgba(250,204,21,0.6)]'
+                          : ''
+                      }`}
+                    >
                       <div className="flex items-center gap-2 mb-3">
                         <Target className={`w-4 h-4 ${getTrackColorClasses('text')}`} />
                         <h3 className="text-sm font-black text-white">Active Missions</h3>
@@ -1533,7 +1624,15 @@ export function StudentDashboardHub() {
               className="space-y-3"
             >
               {/* Community Feed */}
-              <Card className="p-4 bg-och-midnight/60 border border-och-steel/20">
+              <Card
+                id="student-tour-community"
+                className={`p-4 bg-och-midnight/60 border border-och-steel/20 transition-shadow ${
+                  showStudentTour &&
+                  studentTourSteps[tourStepIndex]?.targetId === 'student-tour-community'
+                    ? 'ring-2 ring-och-gold/80 shadow-[0_0_0_1px_rgba(250,204,21,0.6)]'
+                    : ''
+                }`}
+              >
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-och-gold" />
@@ -1598,6 +1697,92 @@ export function StudentDashboardHub() {
           context={foundationsIncomplete ? 'foundations' : foundationsComplete ? 'foundations_complete' : 'dashboard'}
         />
       </Suspense>
+
+      {/* Student first-time tour overlay */}
+      {showStudentTour && (
+        <div className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="max-w-lg w-full bg-slate-950 border border-slate-700 rounded-2xl shadow-2xl p-5 space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-semibold text-och-steel uppercase tracking-[0.18em] mb-1">
+                  Quick tour
+                </p>
+                <h2 className="text-lg font-bold text-white mb-1">
+                  {currentTourStep.title}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={closeStudentTour}
+                className="text-och-steel hover:text-white text-xs border border-white/10 rounded-full px-2 py-0.5"
+              >
+                Skip
+              </button>
+            </div>
+
+            <p className="text-sm text-och-steel leading-relaxed">
+              {currentTourStep.body}
+            </p>
+
+            <div className="flex items-center justify-between pt-2">
+              <div className="flex items-center gap-1.5">
+                {studentTourSteps.map((step, index) => (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => setTourStepIndex(index)}
+                    className={`h-1.5 rounded-full transition-all ${
+                      index === tourStepIndex
+                        ? 'w-6 bg-och-gold'
+                        : 'w-2 bg-white/20'
+                    }`}
+                    aria-label={`Go to tour step ${index + 1}`}
+                  />
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {tourStepIndex > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setTourStepIndex((prev) => Math.max(prev - 1, 0))}
+                    className="text-xs text-och-steel hover:text-white px-2 py-1 rounded border border-transparent hover:border-white/10"
+                  >
+                    Back
+                  </button>
+                )}
+                <Button
+                  size="sm"
+                  className="text-xs px-3 py-1 h-7"
+                  onClick={() => {
+                    if (tourStepIndex < studentTourSteps.length - 1) {
+                      setTourStepIndex((prev) => prev + 1);
+                    } else {
+                      closeStudentTour();
+                    }
+                  }}
+                >
+                  {tourStepIndex < studentTourSteps.length - 1 ? 'Next' : 'Got it'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Re-open tour button */}
+      {!showStudentTour && (
+        <button
+          type="button"
+          onClick={() => {
+            setShowStudentTour(true);
+            setTourStepIndex(0);
+          }}
+          className="fixed bottom-4 right-4 z-[60] text-[11px] px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-600 text-och-steel hover:text-white hover:border-och-gold/60 hover:bg-slate-900 transition-colors"
+        >
+          Need a tour?
+        </button>
+      )}
     </div>
   );
 }

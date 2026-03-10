@@ -133,6 +133,9 @@ urlpatterns = [
     # Curriculum Engine
     path('curriculum/', include('curriculum.urls')),
     
+    # Notifications
+    path('notifications/', include('notifications.urls')),
+    
     # Recipe Engine
     path('', include('recipes.urls')),
 ]
