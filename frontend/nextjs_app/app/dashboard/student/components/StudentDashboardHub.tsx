@@ -47,6 +47,7 @@ import { Badge } from '@/components/ui/Badge';
 import { useAuth } from '@/hooks/useAuth';
 import { lazy, Suspense } from 'react';
 import { fastapiClient } from '@/services/fastapiClient';
+import { profilerClient } from '@/services/profilerClient';
 
 // Lazy load CoachingNudge for better performance
 const CoachingNudge = lazy(() => import('@/components/coaching/CoachingNudge').then(module => ({ default: module.CoachingNudge })));
@@ -185,6 +186,9 @@ export function StudentDashboardHub() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [profiledTrack, setProfiledTrack] = useState<string | null>(null);
   const [profilingResults, setProfilingResults] = useState<any>(null);
+  const [futureYouInsights, setFutureYouInsights] = useState<any | null>(null);
+  const [initialProfiler, setInitialProfiler] = useState<any | null>(null);
+  const [profileFutureYou, setProfileFutureYou] = useState<any | null>(null);
   const [loadingTrack, setLoadingTrack] = useState(true);
   const [loadingDashboard, setLoadingDashboard] = useState(true);
   const [foundationsStatus, setFoundationsStatus] = useState<FoundationsStatus | null>(null);
@@ -408,6 +412,22 @@ export function StudentDashboardHub() {
           if (profilingStatus.completed && profilingStatus.session_id) {
             const results = await fastapiClient.profiling.getResults(profilingStatus.session_id);
             setProfilingResults(results);
+
+            // Also load Future-You insights to align dashboard with Future You page
+            try {
+              const insights = await profilerClient.getFutureYouInsights();
+              setFutureYouInsights(insights);
+            } catch (insightsError) {
+              console.warn('Future-You insights not available for dashboard:', insightsError);
+            }
+
+            // Load initial profiler baseline (where the student started)
+            try {
+              const base = await profilerClient.getResults();
+              setInitialProfiler(base);
+            } catch (baselineError) {
+              console.warn('Initial profiler baseline not available:', baselineError);
+            }
             
             if (results.primary_track) {
               const trackKey = results.primary_track.key || results.primary_track.track_key;
@@ -429,10 +449,30 @@ export function StudentDashboardHub() {
           }
         } catch (fastapiError) {
           console.log('FastAPI profiling not available, trying Django...', fastapiError);
+
+          // Fallback: even if FastAPI profiling is not configured or not complete,
+          // still try to load Django profiler baselines and Future-You insights
+          try {
+            const insights = await profilerClient.getFutureYouInsights();
+            setFutureYouInsights(insights);
+          } catch (insightsError) {
+            console.warn('Future-You insights not available for dashboard (Django fallback):', insightsError);
+          }
+
+          try {
+            const base = await profilerClient.getResults();
+            setInitialProfiler(base);
+          } catch (baselineError) {
+            console.warn('Initial profiler baseline not available (Django fallback):', baselineError);
+          }
         }
 
         try {
           const profileResponse = await apiGateway.get<any>('/student/profile');
+
+          if (profileResponse?.future_you) {
+            setProfileFutureYou(profileResponse.future_you);
+          }
           
           if (profileResponse?.profiled_track?.track_key) {
             setProfiledTrack(profileResponse.profiled_track.track_key);
@@ -799,15 +839,7 @@ export function StudentDashboardHub() {
             <Card className={`p-4 bg-slate-900/50 border-slate-700 border ${getTrackColorClasses('border')}`}>
               {foundationsStatus.modules && foundationsStatus.modules.length > 0 ? (
                 <>
-                  {loadingFoundationLessons ? (
-                    <>
-                      <div className="flex items-center justify-between gap-2 mb-3">
-                        <h2 className="text-base font-semibold text-white">Beginner Level – Foundations</h2>
-                        <span className="text-xs text-och-steel shrink-0">Loading…</span>
-                      </div>
-                      <p className="text-xs text-och-steel">Loading lessons…</p>
-                    </>
-                  ) : (() => {
+                  {(() => {
                     const curriculumModules = foundationsStatus.modules.filter((m: FoundationsModule) => m.source === 'curriculum');
                     const allLessons: Lesson[] = curriculumModules.flatMap((m: FoundationsModule) => foundationLessonsByModule[m.id] ?? []);
                     if (allLessons.length === 0) return <p className="text-xs text-och-steel">No lessons yet.</p>;
@@ -1101,20 +1133,32 @@ export function StudentDashboardHub() {
           </div>
         )}
 
-        {/* Foundations (compact when complete) & Subscription - Compact Row */}
+        {/* Next step after Foundations & Subscription - Compact Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {/* Foundations Status: only show compact card when complete (full section shown above when not complete) */}
+          {/* What's next after Foundations */}
           {foundationsComplete && (
-            <Card className={`p-4 bg-gradient-to-br ${getTrackColorClasses('gradient')} border ${getTrackColorClasses('border')}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <GraduationCap className={`w-4 h-4 ${getTrackColorClasses('text')}`} />
+            <Card className="p-4 bg-gradient-to-br from-och-gold/10 via-och-gold/5 to-transparent border border-och-gold/30">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-2">
+                  <GraduationCap className="w-4 h-4 text-och-gold mt-0.5" />
                   <div>
-                    <h3 className="text-sm font-black text-white">Beginner Level - Foundations</h3>
-                    <p className="text-xs text-och-steel">Complete</p>
+                    <h3 className="text-sm font-black text-white">Foundations complete</h3>
+                    <p className="text-xs text-och-steel">
+                      {curriculumProgress
+                        ? 'Start your track modules next to continue your learning path.'
+                        : 'Your Foundations are done. Your track content will appear here once modules are added.'}
+                    </p>
                   </div>
                 </div>
-                <CheckCircle2 className="w-5 h-5 text-och-mint" />
+                {curriculumProgress && (
+                  <Button
+                    size="sm"
+                    className="text-xs h-7 px-3"
+                    onClick={() => router.push('/dashboard/student/curriculum/learn')}
+                  >
+                    Go to My Learning
+                  </Button>
+                )}
               </div>
             </Card>
           )}
@@ -1537,26 +1581,111 @@ export function StudentDashboardHub() {
                       Readiness Breakdown
                     </h4>
                     <div className="space-y-2">
-                      {[
-                        { label: 'Technical Depth', value: 74, color: 'bg-och-gold' },
-                        { label: 'Behavioral Readiness', value: 88, color: 'bg-och-mint' },
-                        { label: 'Identity Alignment', value: 92, color: getTrackColorClasses('bg') },
-                      ].map((metric) => (
-                        <div key={metric.label} className="space-y-1">
-                          <div className="flex justify-between text-xs font-bold">
-                            <span className="text-och-steel">{metric.label}</span>
-                            <span className="text-white">{metric.value}%</span>
+                      {(() => {
+                        // Baseline from first profiler run (backend: /profiler/results -> { completed, result: { overall_score, aptitude_score, behavioral_score, ... } })
+                        const baselineOverall =
+                          initialProfiler?.result?.overall_score ??
+                          futureYouInsights?.profiler?.overall_score ??
+                          0;
+
+                        const baselineAptitude =
+                          initialProfiler?.result?.aptitude_score ??
+                          futureYouInsights?.profiler?.aptitude_score ??
+                          0;
+
+                        const baselineBehavioral =
+                          initialProfiler?.result?.behavioral_score ??
+                          futureYouInsights?.profiler?.behavioral_score ??
+                          0;
+
+                        // Current from AI insights / track progress / readiness score
+                        const currentReadiness =
+                          futureYouInsights?.ai_insights?.readiness_assessment?.percentage ??
+                          futureYouInsights?.track_progress?.readiness_score ??
+                          readinessScore ??
+                          baselineOverall ??
+                          0;
+
+                        const currentAptitude =
+                          futureYouInsights?.analytics?.aptitude_score ??
+                          profilingResults?.aptitude_score ??
+                          baselineAptitude ??
+                          0;
+
+                        const currentBehavioral =
+                          futureYouInsights?.analytics?.behavioral_score ??
+                          profilingResults?.behavioral_score ??
+                          baselineBehavioral ??
+                          0;
+
+                        // If we truly have no profiler/readiness data at all, show guidance instead of 0% dummy bars
+                        const hasAnyBaseline =
+                          (baselineAptitude ?? 0) > 0 ||
+                          (baselineBehavioral ?? 0) > 0 ||
+                          (baselineOverall ?? 0) > 0;
+
+                        const hasAnyCurrent =
+                          (currentAptitude ?? 0) > 0 ||
+                          (currentBehavioral ?? 0) > 0 ||
+                          (currentReadiness ?? 0) > 0;
+
+                        if (!hasAnyBaseline && !hasAnyCurrent) {
+                          return (
+                            <p className="text-[11px] text-och-steel">
+                              Complete your AI Profiler to unlock your readiness breakdown for this track.
+                            </p>
+                          );
+                        }
+
+                        const metrics = [
+                          {
+                            label: 'Technical Depth',
+                            initial: Math.round(baselineAptitude),
+                            current: Math.round(currentAptitude),
+                            color: 'bg-och-gold',
+                          },
+                          {
+                            label: 'Behavioral Readiness',
+                            initial: Math.round(baselineBehavioral),
+                            current: Math.round(currentBehavioral),
+                            color: 'bg-och-mint',
+                          },
+                          {
+                            label: 'Identity Alignment',
+                            initial: Math.round(baselineOverall),
+                            current: Math.round(currentReadiness),
+                            color: getTrackColorClasses('bg'),
+                          },
+                        ];
+
+                        return metrics.map((metric) => (
+                          <div key={metric.label} className="space-y-1">
+                            <div className="flex justify-between text-xs font-bold">
+                              <span className="text-och-steel">{metric.label}</span>
+                              <span className="text-white">
+                                {metric.initial > 0 && metric.current > 0 && metric.initial !== metric.current
+                                  ? `${metric.initial}% → ${metric.current}%`
+                                  : metric.initial > 0 && (metric.current === 0 || metric.current === metric.initial)
+                                  ? `${metric.initial}%`
+                                  : `${metric.current}%`}
+                              </span>
+                            </div>
+                            <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                              <motion.div
+                                className={`h-full ${metric.color} rounded-full`}
+                                initial={{ width: 0 }}
+                                animate={{
+                                  width: `${Math.max(
+                                    0,
+                                    Math.min(metric.current, 100),
+                                  )}%`,
+                                }}
+                                transition={{ duration: 1, delay: 0.2 }}
+                              />
+                            </div>
                           </div>
-                          <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                            <motion.div
-                              className={`h-full ${metric.color} rounded-full`}
-                              initial={{ width: 0 }}
-                              animate={{ width: `${metric.value}%` }}
-                              transition={{ duration: 1, delay: 0.2 }}
-                            />
-                          </div>
-                        </div>
-                      ))}
+                        ));
+                      })()}
                     </div>
                   </div>
 
@@ -1574,12 +1703,22 @@ export function StudentDashboardHub() {
                             Persona
                           </p>
                           <p className="text-sm font-black text-white">
-                            {profilingResults?.persona || (user as any)?.persona || "Not Set"}
+                            {futureYouInsights?.persona?.name ||
+                              futureYouInsights?.ai_insights?.predicted_persona?.name ||
+                              (profileFutureYou?.persona && profileFutureYou.persona !== 'Not assessed'
+                                ? profileFutureYou.persona
+                                : null) ||
+                              profilingResults?.persona ||
+                              (user as any)?.persona ||
+                              'Not Set'}
                           </p>
                         </div>
                       </div>
                       <p className="text-xs text-och-steel leading-relaxed">
-                        Your personalized career path based on your strengths and aspirations.
+                        {futureYouInsights?.persona?.career_vision ||
+                          futureYouInsights?.ai_insights?.predicted_persona?.career_vision ||
+                          futureYouInsights?.analytics?.career_vision ||
+                          'Your personalized career path based on your strengths and aspirations.'}
                       </p>
                     </div>
                   </div>
