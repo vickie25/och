@@ -28,10 +28,11 @@ interface CoachingAdvice {
 interface CoachingNudgeProps {
   userId?: string;
   autoLoad?: boolean;
+  context?: string;
   onActionClick?: (action: any) => void;
 }
 
-export function CoachingNudge({ userId, autoLoad = true, onActionClick }: CoachingNudgeProps) {
+export function CoachingNudge({ userId, autoLoad = true, context: contextProp, onActionClick }: CoachingNudgeProps) {
   const { user } = useAuth();
   const router = useRouter();
   const [nudge, setNudge] = useState<CoachingAdvice | null>(null);
@@ -57,7 +58,7 @@ export function CoachingNudge({ userId, autoLoad = true, onActionClick }: Coachi
         },
         body: JSON.stringify({
           user_id: targetUserId,
-          context: 'dashboard',
+          context: contextProp || 'dashboard',
           trigger: 'daily'
         })
       });

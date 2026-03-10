@@ -159,7 +159,8 @@ class FoundationsProgress(models.Model):
         mandatory_modules = FoundationsModule.objects.filter(is_mandatory=True, is_active=True)
         
         if not mandatory_modules.exists():
-            return 100.0
+            self.completion_percentage = 0
+            return 0.0
         
         completed_count = 0
         for module in mandatory_modules:
@@ -174,6 +175,10 @@ class FoundationsProgress(models.Model):
     def is_complete(self):
         """Check if Foundations is complete (all mandatory modules + assessment + reflection)."""
         mandatory_modules = FoundationsModule.objects.filter(is_mandatory=True, is_active=True)
+        
+        # No mandatory modules configured => not complete (avoids new users seeing "complete")
+        if not mandatory_modules.exists():
+            return False
         
         # Check all mandatory modules are completed
         for module in mandatory_modules:

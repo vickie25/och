@@ -129,7 +129,29 @@ export default function FoundationsPage() {
       }
 
       // Determine starting view
-      if (foundationsStatus.status === 'not_started') {
+      const moduleIdFromUrl = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('module') : null
+      const moduleToOpen = moduleIdFromUrl && foundationsStatus.modules?.length
+        ? foundationsStatus.modules.find((m) => m.id === moduleIdFromUrl)
+        : null
+
+      if (moduleToOpen) {
+        setCurrentModule(moduleToOpen)
+        if (moduleToOpen.title.toLowerCase().includes('mission preview')) {
+          setCurrentView('mission-preview')
+        } else if (moduleToOpen.title.toLowerCase().includes('recipe demo') || moduleToOpen.title.toLowerCase().includes('recipe')) {
+          setCurrentView('recipe-demo')
+        } else if (moduleToOpen.title.toLowerCase().includes('portfolio')) {
+          setCurrentView('portfolio-overview')
+        } else if (moduleToOpen.title.toLowerCase().includes('mentorship') || moduleToOpen.title.toLowerCase().includes('mentor')) {
+          setCurrentView('mentorship-overview')
+        } else if (moduleToOpen.module_type === 'assessment') {
+          setCurrentView('assessment')
+        } else if (moduleToOpen.module_type === 'reflection') {
+          setCurrentView('reflection')
+        } else {
+          setCurrentView('module-viewer')
+        }
+      } else if (foundationsStatus.status === 'not_started') {
         setCurrentView('landing')
       } else {
         setCurrentView('modules')
@@ -481,6 +503,56 @@ export default function FoundationsPage() {
         )}
       </div>
     </div>
+  )
+}
+
+// Progress sidebar for module views
+function ProgressSidebar({
+  status: s,
+  currentModuleId,
+  onModuleClick: onModuleClickProp,
+}: {
+  status: FoundationsStatus
+  currentModuleId?: string
+  onModuleClick: (module: FoundationsModule) => void
+}) {
+  const modules = s?.modules ?? []
+  return (
+    <aside className="w-56 shrink-0 border-r border-white/10 bg-och-midnight/80 flex flex-col p-4">
+      <div className="text-xs font-bold text-och-steel uppercase tracking-wider mb-3">Progress</div>
+      <div className="text-white font-black mb-1">{Math.round(s.completion_percentage)}%</div>
+      <div className="h-1.5 bg-white/10 rounded-full overflow-hidden mb-4">
+        <motion.div
+          className="h-full bg-och-mint rounded-full"
+          initial={{ width: 0 }}
+          animate={{ width: `${s.completion_percentage}%` }}
+          transition={{ duration: 0.5 }}
+        />
+      </div>
+      <nav className="space-y-1">
+        {modules.map((mod, i) => (
+          <button
+            key={mod.id}
+            type="button"
+            onClick={() => onModuleClickProp(mod)}
+            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+              currentModuleId === mod.id
+                ? 'bg-och-gold/20 text-och-gold border border-och-gold/30'
+                : 'text-gray-300 hover:bg-white/5 border border-transparent'
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              {mod.completed ? (
+                <CheckCircle2 className="w-4 h-4 text-och-mint shrink-0" />
+              ) : (
+                <span className="w-4 h-4 rounded-full border border-current shrink-0 flex items-center justify-center text-[10px]">{i + 1}</span>
+              )}
+              <span className="truncate">Module {i + 1}</span>
+            </span>
+          </button>
+        ))}
+      </nav>
+    </aside>
   )
 }
 

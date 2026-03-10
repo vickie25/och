@@ -156,6 +156,18 @@ export const curriculumClient = {
   },
 
   /**
+   * List lessons for a module
+   * GET /curriculum/lessons/?module={moduleId}
+   */
+  async getLessonsByModule(moduleId: string): Promise<Lesson[]> {
+    const response = await apiGateway.get(`/curriculum/lessons/?module=${encodeURIComponent(moduleId)}`)
+    if (Array.isArray(response)) return response
+    if (response?.results) return response.results
+    if (response?.data) return response.data
+    return []
+  },
+
+  /**
    * Get lesson details
    * GET /curriculum/lessons/{id}/
    */

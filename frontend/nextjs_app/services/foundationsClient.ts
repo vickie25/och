@@ -19,6 +19,9 @@ export interface FoundationsModule {
   completed: boolean
   watch_percentage: number
   completed_at?: string
+  /** When set, module comes from Foundation curriculum track; link to curriculum instead of foundations page */
+  source?: 'foundations' | 'curriculum'
+  track_code?: string
 }
 
 export interface FoundationsStatus {

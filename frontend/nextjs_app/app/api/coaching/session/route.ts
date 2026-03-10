@@ -350,6 +350,8 @@ COMMUNITY: ${JSON.stringify(studentState.community_activity || {}, null, 2)}
 MENTORSHIP: ${JSON.stringify(studentState.mentorship_status || [], null, 2)}
 
 Context: ${context}
+${context === 'foundations' ? "The student is on the Control Center in Beginner Foundations. Welcome them warmly, focus only on their foundation progress and these lessons, and clearly explain what comes next after they complete Foundations (their track curriculum, missions, community)." : ''}
+${context === 'foundations_complete' ? "The student has just finished Foundations. Welcome them to real learning: their track curriculum, missions, and recipes. Be encouraging and point them to their next step (e.g. next module or first mission)." : ''}
 
 Generate coaching session with priorities and actions.`;
 
@@ -418,6 +420,8 @@ Completion rate: ${studentState.mission_stats?.completion_rate?.toFixed(1) || 0}
 RECIPE COVERAGE: ${studentState.recipe_coverage?.percentage?.toFixed(1) || 0}%
 
 Context: ${context}
+${context === 'foundations' ? "The student is in Beginner Foundations. Welcome them, focus on foundation progress, and explain what comes after Foundations (track curriculum, missions)." : ''}
+${context === 'foundations_complete' ? "The student just finished Foundations. Welcome them to real learning in their track and suggest next step (curriculum or mission)." : ''}
 
 Generate comprehensive coaching session with learning path adjustments.`;
 
@@ -469,6 +473,8 @@ Completion rate: ${studentState.mission_stats?.completion_rate?.toFixed(1) || 0}
 RECIPE COVERAGE: ${studentState.recipe_coverage?.percentage?.toFixed(1) || 0}%
 
 Context: ${context}
+${context === 'foundations' ? "The student is in Beginner Foundations. Welcome them, focus on foundation progress, and explain what comes after Foundations (track curriculum, missions)." : ''}
+${context === 'foundations_complete' ? "The student just finished Foundations. Welcome them to real learning in their track (curriculum, missions). Be encouraging and suggest next step." : ''}
 
 Generate coaching session with priorities and actions.`;
 
@@ -616,6 +622,54 @@ export async function POST(request: NextRequest) {
       const trackCode = studentState.track_code || 'your track';
       const trackDisplayName = getTrackDisplayName(studentState.track_code || null);
       const circleLevel = studentState.circle_level || 1;
+
+      if (context === 'foundations') {
+        parsedAdvice = {
+          greeting: "Welcome to your Control Center!",
+          diagnosis: "You're in Beginner Level – Foundations. Watch each lesson here and use Next when done; complete all to unlock your track. No skipping — watch at the pace of the video.",
+          priorities: [
+            {
+              priority: 'high',
+              action: 'Complete foundation lessons',
+              reason: 'Each lesson unlocks when you watch it; use Next when done, then Complete when all are done.',
+              recipes: [],
+              deadline: null
+            },
+            {
+              priority: 'medium',
+              action: 'After Foundations',
+              reason: `You'll unlock your ${trackDisplayName} track: modules, missions, and recipes.`,
+              recipes: [],
+              deadline: null
+            }
+          ],
+          encouragement: "Take your time with each video — you've got this!",
+          actions: []
+        };
+      } else if (context === 'foundations_complete') {
+        parsedAdvice = {
+          greeting: "Welcome to real learning!",
+          diagnosis: `You've completed Foundations. Your ${trackDisplayName} track is now your home: curriculum modules, missions, and recipes. Start with your next module or pick a mission.`,
+          priorities: [
+            {
+              priority: 'high',
+              action: 'Open your track curriculum',
+              reason: `Continue with ${trackDisplayName} modules and lessons.`,
+              recipes: [],
+              deadline: null
+            },
+            {
+              priority: 'medium',
+              action: 'Try a mission',
+              reason: 'Missions give you hands-on practice and build skills fast.',
+              recipes: [],
+              deadline: null
+            }
+          ],
+          encouragement: "You're ready — go build!",
+          actions: []
+        };
+      } else {
       
       // Dynamic encouragement messages based on track and level
       const encouragementMessages: Record<string, Record<number, string>> = {
@@ -685,6 +739,7 @@ export async function POST(request: NextRequest) {
           { type: 'send_nudge', target: 'recipes', payload: {} }
         ]
       };
+      }
     }
 
     // 5. Execute actions

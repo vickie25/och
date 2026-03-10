@@ -85,6 +85,8 @@ export default function ModulesPage() {
   const [viewMode, setViewMode] = useState<'list' | 'student'>('list')
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null)
   const [selectedModule, setSelectedModule] = useState<CurriculumModule | null>(null)
+  const [editModule, setEditModule] = useState<CurriculumModule | null>(null)
+  const [editLesson, setEditLesson] = useState<{ moduleId: string; lesson: Lesson } | null>(null)
 
   useEffect(() => {
     fetchTracks()
@@ -623,6 +625,15 @@ export default function ModulesPage() {
                                     <Button
                                       variant="outline"
                                       size="sm"
+                                      onClick={() => setEditModule(module)}
+                                      className="text-xs border-och-steel/50 text-och-steel hover:border-och-defender hover:text-och-defender"
+                                      title="Edit module"
+                                    >
+                                      Edit
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
                                       onClick={() => setDeleteModuleDialog(module)}
                                       disabled={!!deletingModuleId}
                                       className="text-xs border-red-500/50 text-red-400 hover:border-red-500 hover:bg-red-500/10"
@@ -681,6 +692,12 @@ export default function ModulesPage() {
                                                 View
                                               </button>
                                             )}
+                                            <button
+                                              onClick={() => setEditLesson({ moduleId: module.id, lesson })}
+                                              className="text-xs text-och-defender hover:text-och-defender/80 hover:underline"
+                                            >
+                                              Edit
+                                            </button>
                                             <Button
                                               variant="ghost"
                                               size="sm"
@@ -740,6 +757,39 @@ export default function ModulesPage() {
                   fetchModules()
                   setAddLessonToModule(null)
                   setExpandedModuleId(addLessonToModule.id)
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Edit Module Modal */}
+        {editModule && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-2xl bg-och-midnight border border-och-steel/20 rounded-lg shadow-xl">
+              <EditModuleForm
+                module={editModule}
+                tracks={tracks}
+                onClose={() => setEditModule(null)}
+                onSuccess={() => { setEditModule(null); fetchModules() }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Edit Lesson Modal */}
+        {editLesson && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-lg bg-och-midnight border border-och-steel/20 rounded-lg shadow-xl">
+              <EditLessonForm
+                lesson={editLesson.lesson}
+                moduleId={editLesson.moduleId}
+                tracks={tracks}
+                onClose={() => setEditLesson(null)}
+                onSuccess={() => {
+                  fetchLessons(editLesson.moduleId)
+                  fetchModules()
+                  setEditLesson(null)
                 }}
               />
             </div>
@@ -1028,6 +1078,10 @@ function AddLessonForm({
   onSuccess: () => void
 }) {
   const [isLoading, setIsLoading] = useState(false)
+  const [uploadMethod, setUploadMethod] = useState<'url' | 'file'>('url')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [isUploading, setIsUploading] = useState(false)
   const [form, setForm] = useState({
     title: '',
     lesson_type: LESSON_TYPES[0].key,
@@ -1044,15 +1098,61 @@ function AddLessonForm({
     e.preventDefault()
     setIsLoading(true)
     try {
+      let contentUrl = form.content_url || ''
+
+      // If video type and file upload method, upload file first
+      if (form.lesson_type === 'video' && uploadMethod === 'file' && selectedFile) {
+        setIsUploading(true)
+        const formData = new FormData()
+        formData.append('video', selectedFile)
+        
+        const xhr = new XMLHttpRequest()
+        
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            const percentComplete = Math.round((e.loaded / e.total) * 100)
+            setUploadProgress(percentComplete)
+          }
+        })
+        
+        const uploadPromise = new Promise<string>((resolve, reject) => {
+          xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              const response = JSON.parse(xhr.responseText)
+              resolve(response.url)
+            } else {
+              const error = JSON.parse(xhr.responseText)
+              reject(new Error(error.error || 'Failed to upload video'))
+            }
+          })
+          
+          xhr.addEventListener('error', () => {
+            reject(new Error('Network error during upload'))
+          })
+          
+          xhr.open('POST', `${process.env.NEXT_PUBLIC_DJANGO_API_URL}/api/v1/curriculum/lessons/upload-video/`)
+          xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('access_token') || localStorage.getItem('auth_token')}`)
+          xhr.send(formData)
+        })
+        
+        contentUrl = await uploadPromise
+        setIsUploading(false)
+      }
+
+      // Create lesson with content URL
       await apiGateway.post('/curriculum/lessons/', {
         ...form,
+        content_url: contentUrl,
         module: module.id,
       })
       onSuccess()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to add lesson:', error)
+      alert(error.message || 'Failed to add lesson')
+      setIsUploading(false)
     } finally {
       setIsLoading(false)
+      setUploadProgress(0)
     }
   }
 
@@ -1115,16 +1215,73 @@ function AddLessonForm({
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-och-steel mb-1">Content URL</label>
-          <input
-            type="url"
-            value={form.content_url}
-            onChange={(e) => updateField('content_url', e.target.value)}
-            className="w-full px-3 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-sm focus:border-och-defender focus:outline-none"
-            placeholder="https://..."
-          />
-        </div>
+        {form.lesson_type === 'video' && (
+          <div>
+            <label className="block text-sm font-medium text-och-steel mb-2">Content Source</label>
+            <div className="flex gap-2 mb-3">
+              <Button
+                type="button"
+                variant={uploadMethod === 'url' ? 'defender' : 'outline'}
+                size="sm"
+                onClick={() => setUploadMethod('url')}
+              >
+                URL
+              </Button>
+              <Button
+                type="button"
+                variant={uploadMethod === 'file' ? 'defender' : 'outline'}
+                size="sm"
+                onClick={() => setUploadMethod('file')}
+              >
+                Upload File
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {form.lesson_type === 'video' && uploadMethod === 'file' ? (
+          <div>
+            <label className="block text-sm font-medium text-och-steel mb-1">Upload Video File</label>
+            <input
+              type="file"
+              accept="video/*"
+              onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+              className="w-full px-3 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-sm focus:border-och-defender focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-och-defender file:text-white hover:file:bg-och-defender/80"
+            />
+            {selectedFile && (
+              <p className="text-xs text-och-steel mt-1">
+                Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+              </p>
+            )}
+            {isUploading && (
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-och-steel">Uploading...</span>
+                  <span className="text-xs text-och-mint font-semibold">{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-och-midnight/70 rounded-full h-2 overflow-hidden">
+                  <div 
+                    className="bg-och-defender h-full transition-all duration-300 ease-out"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            <label className="block text-sm font-medium text-och-steel mb-1">
+              {form.lesson_type === 'video' ? 'Content URL' : 'Content URL'}
+            </label>
+            <input
+              type="url"
+              value={form.content_url || ''}
+              onChange={(e) => updateField('content_url', e.target.value)}
+              className="w-full px-3 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-sm focus:border-och-defender focus:outline-none"
+              placeholder="https://..."
+            />
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-och-steel mb-1">Duration (minutes)</label>
@@ -1138,11 +1295,422 @@ function AddLessonForm({
         </div>
 
         <div className="flex justify-end gap-3 pt-2">
+          <Button type="button" variant="outline" onClick={onClose} disabled={isLoading || isUploading}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="defender" disabled={isLoading || isUploading}>
+            {isUploading ? `Uploading ${uploadProgress}%` : isLoading ? 'Adding...' : 'Add Lesson'}
+          </Button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// --- Edit Module Form ---
+
+function EditModuleForm({
+  module,
+  tracks,
+  onClose,
+  onSuccess,
+}: {
+  module: CurriculumModule
+  tracks: Track[]
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [isLoading, setIsLoading] = useState(false)
+  const [form, setForm] = useState({
+    track_key: module.track_key,
+    level: module.level,
+    title: module.title,
+    description: module.description || '',
+    order_index: module.order_index,
+    estimated_time_minutes: module.estimated_time_minutes || 30,
+    is_core: module.is_core,
+    is_required: module.is_required,
+  })
+
+  const updateField = (key: keyof typeof form, value: any) => {
+    setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    try {
+      await apiGateway.put(`/curriculum/modules/${module.id}/`, form)
+      onSuccess()
+    } catch (error) {
+      console.error('Failed to update module:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-white">Edit Module</h2>
+          <p className="text-och-steel text-sm mt-1">
+            Update module details and settings.
+          </p>
+        </div>
+        <button onClick={onClose} className="text-och-steel hover:text-white p-1">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-och-steel mb-1">Track</label>
+            <select
+              value={form.track_key}
+              onChange={(e) => updateField('track_key', e.target.value)}
+              className="w-full px-3 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-sm focus:border-och-defender focus:outline-none"
+            >
+              {tracks.map((t) => (
+                <option key={t.slug} value={t.slug}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-och-steel mb-1">Level</label>
+            <select
+              value={form.level}
+              onChange={(e) => updateField('level', e.target.value)}
+              className="w-full px-3 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-sm focus:border-och-defender focus:outline-none"
+            >
+              {LEVELS.map((l) => (
+                <option key={l.key} value={l.key}>
+                  {l.label} ({l.tier})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-och-steel mb-1">Title *</label>
+          <input
+            type="text"
+            value={form.title}
+            onChange={(e) => updateField('title', e.target.value)}
+            required
+            className="w-full px-3 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-sm focus:border-och-defender focus:outline-none"
+            placeholder="e.g. SOC Operations Fundamentals"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-och-steel mb-1">Description</label>
+          <textarea
+            value={form.description}
+            onChange={(e) => updateField('description', e.target.value)}
+            rows={3}
+            className="w-full px-3 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-sm focus:border-och-defender focus:outline-none"
+            placeholder="Short summary of what this module covers"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-och-steel mb-1">Order</label>
+            <input
+              type="number"
+              min={1}
+              value={form.order_index}
+              onChange={(e) => updateField('order_index', parseInt(e.target.value) || 1)}
+              className="w-full px-3 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-sm focus:border-och-defender focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-och-steel mb-1">Estimated Time (min)</label>
+            <input
+              type="number"
+              min={5}
+              value={form.estimated_time_minutes}
+              onChange={(e) =>
+                updateField('estimated_time_minutes', parseInt(e.target.value) || 0)
+              }
+              className="w-full px-3 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-sm focus:border-och-defender focus:outline-none"
+            />
+          </div>
+          <div className="flex items-center gap-4 mt-6 md:mt-0">
+            <label className="flex items-center gap-2 text-sm text-och-steel">
+              <input
+                type="checkbox"
+                checked={form.is_core}
+                onChange={(e) => updateField('is_core', e.target.checked)}
+              />
+              Core
+            </label>
+            <label className="flex items-center gap-2 text-sm text-och-steel">
+              <input
+                type="checkbox"
+                checked={form.is_required}
+                onChange={(e) => updateField('is_required', e.target.checked)}
+              />
+              Required
+            </label>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit" variant="defender" disabled={isLoading}>
-            {isLoading ? 'Adding...' : 'Add Lesson'}
+            {isLoading ? 'Updating...' : 'Update Module'}
+          </Button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// --- Edit Lesson Form ---
+
+function EditLessonForm({
+  lesson,
+  moduleId,
+  tracks,
+  onClose,
+  onSuccess,
+}: {
+  lesson: Lesson
+  moduleId: string
+  tracks: Track[]
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [isLoading, setIsLoading] = useState(false)
+  const [uploadMethod, setUploadMethod] = useState<'url' | 'file'>('url')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [isUploading, setIsUploading] = useState(false)
+  const [form, setForm] = useState({
+    title: lesson.title,
+    lesson_type: lesson.lesson_type,
+    content_url: lesson.content_url || '',
+    duration_minutes: lesson.duration_minutes || 15,
+    order_index: lesson.order_index,
+  })
+
+  const updateField = (key: keyof typeof form, value: any) => {
+    setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    try {
+      let contentUrl = form.content_url || ''
+
+      // If video type and file upload method, upload file first
+      if (form.lesson_type === 'video' && uploadMethod === 'file' && selectedFile) {
+        setIsUploading(true)
+        const formData = new FormData()
+        formData.append('video', selectedFile)
+        
+        const xhr = new XMLHttpRequest()
+        
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            const percentComplete = Math.round((e.loaded / e.total) * 100)
+            setUploadProgress(percentComplete)
+          }
+        })
+        
+        const uploadPromise = new Promise<string>((resolve, reject) => {
+          xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              const response = JSON.parse(xhr.responseText)
+              resolve(response.url)
+            } else {
+              const error = JSON.parse(xhr.responseText)
+              reject(new Error(error.error || 'Failed to upload video'))
+            }
+          })
+          
+          xhr.addEventListener('error', () => {
+            reject(new Error('Network error during upload'))
+          })
+          
+          xhr.open('POST', `${process.env.NEXT_PUBLIC_DJANGO_API_URL}/api/v1/curriculum/lessons/upload-video/`)
+          xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('access_token') || localStorage.getItem('auth_token')}`)
+          xhr.send(formData)
+        })
+        
+        contentUrl = await uploadPromise
+        setIsUploading(false)
+      }
+
+      // Update lesson with content URL
+      await apiGateway.put(`/curriculum/lessons/${lesson.id}/`, {
+        ...form,
+        content_url: contentUrl,
+        module: moduleId,
+      })
+      onSuccess()
+    } catch (error: any) {
+      console.error('Failed to update lesson:', error)
+      alert(error.message || 'Failed to update lesson')
+      setIsUploading(false)
+    } finally {
+      setIsLoading(false)
+      setUploadProgress(0)
+    }
+  }
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-lg font-bold text-white">Edit Lesson</h2>
+          <p className="text-och-steel text-xs mt-1">
+            Update lesson details and content.
+          </p>
+        </div>
+        <button onClick={onClose} className="text-och-steel hover:text-white p-1">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-och-steel mb-1">Lesson Type</label>
+            <select
+              value={form.lesson_type}
+              onChange={(e) => updateField('lesson_type', e.target.value)}
+              className="w-full px-3 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-sm focus:border-och-defender focus:outline-none"
+            >
+              {LESSON_TYPES.map((t) => (
+                <option key={t.key} value={t.key}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-och-steel mb-1">Order</label>
+            <input
+              type="number"
+              min={1}
+              value={form.order_index}
+              onChange={(e) => updateField('order_index', parseInt(e.target.value) || 1)}
+              className="w-full px-3 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-sm focus:border-och-defender focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-och-steel mb-1">Title *</label>
+          <input
+            type="text"
+            value={form.title}
+            onChange={(e) => updateField('title', e.target.value)}
+            required
+            className="w-full px-3 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-sm focus:border-och-defender focus:outline-none"
+            placeholder="e.g. SOC Analyst Workflow — From Alert to Closure"
+          />
+        </div>
+
+        {form.lesson_type === 'video' && (
+          <div>
+            <label className="block text-sm font-medium text-och-steel mb-2">Content Source</label>
+            <div className="flex gap-2 mb-3">
+              <Button
+                type="button"
+                variant={uploadMethod === 'url' ? 'defender' : 'outline'}
+                size="sm"
+                onClick={() => setUploadMethod('url')}
+              >
+                URL
+              </Button>
+              <Button
+                type="button"
+                variant={uploadMethod === 'file' ? 'defender' : 'outline'}
+                size="sm"
+                onClick={() => setUploadMethod('file')}
+              >
+                Upload File
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {form.lesson_type === 'video' && uploadMethod === 'file' ? (
+          <div>
+            <label className="block text-sm font-medium text-och-steel mb-1">Upload Video File</label>
+            <input
+              type="file"
+              accept="video/*"
+              onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+              className="w-full px-3 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-sm focus:border-och-defender focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-och-defender file:text-white hover:file:bg-och-defender/80"
+            />
+            {selectedFile && (
+              <p className="text-xs text-och-steel mt-1">
+                Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+              </p>
+            )}
+            {isUploading && (
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-och-steel">Uploading...</span>
+                  <span className="text-xs text-och-mint font-semibold">{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-och-midnight/70 rounded-full h-2 overflow-hidden">
+                  <div 
+                    className="bg-och-defender h-full transition-all duration-300 ease-out"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            <label className="block text-sm font-medium text-och-steel mb-1">
+              {form.lesson_type === 'video' ? 'Content URL' : 'Content URL'}
+            </label>
+            <input
+              type="url"
+              value={form.content_url || ''}
+              onChange={(e) => updateField('content_url', e.target.value)}
+              className="w-full px-3 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-sm focus:border-och-defender focus:outline-none"
+              placeholder="https://..."
+            />
+          </div>
+        )}
+
+        <div>
+          <label className="block text-sm font-medium text-och-steel mb-1">Duration (minutes)</label>
+          <input
+            type="number"
+            min={1}
+            value={form.duration_minutes}
+            onChange={(e) => updateField('duration_minutes', parseInt(e.target.value) || 1)}
+            className="w-full px-3 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-sm focus:border-och-defender focus:outline-none"
+          />
+        </div>
+
+        <div className="flex justify-end gap-3 pt-2">
+          <Button type="button" variant="outline" onClick={onClose} disabled={isLoading || isUploading}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="defender" disabled={isLoading || isUploading}>
+            {isUploading ? `Uploading ${uploadProgress}%` : isLoading ? 'Updating...' : 'Update Lesson'}
           </Button>
         </div>
       </form>

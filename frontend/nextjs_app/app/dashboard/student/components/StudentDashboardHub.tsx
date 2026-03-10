@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Shield, 
@@ -58,8 +58,29 @@ import { curriculumClient } from '@/services/curriculumClient';
 import clsx from 'clsx';
 import { useRouter } from 'next/navigation';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import type { FoundationsStatus } from '@/services/foundationsClient';
-import type { CurriculumTrack, UserTrackProgress } from '@/services/types/curriculum';
+import type { FoundationsStatus, FoundationsModule } from '@/services/foundationsClient';
+import type { CurriculumTrack, UserTrackProgress, Lesson } from '@/services/types/curriculum';
+
+/** Resolve relative/media URLs to absolute (fixes "localhost refused to connect" when content_url is /media/...) */
+function resolveContentUrl(url: string | undefined): string {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const base = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_DJANGO_API_URL || '' : '';
+  return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
+/** YouTube/Vimeo embed URL for iframe; null for direct video files (use <video> with resolveContentUrl). */
+function getEmbedUrl(url: string): string | null {
+  if (!url) return null;
+  const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  if (ytMatch) {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    return `https://www.youtube.com/embed/${ytMatch[1]}?enablejsapi=1&origin=${encodeURIComponent(origin)}`;
+  }
+  const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+  if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+  return null;
+}
 
 // Track-specific color themes
 const trackThemes: Record<string, {
@@ -132,6 +153,17 @@ export function StudentDashboardHub() {
   const [foundationsStatus, setFoundationsStatus] = useState<FoundationsStatus | null>(null);
   const [curriculumProgress, setCurriculumProgress] = useState<UserTrackProgress | null>(null);
   const [loadingFoundations, setLoadingFoundations] = useState(true);
+  const [foundationLessonsByModule, setFoundationLessonsByModule] = useState<Record<string, Lesson[]>>({});
+  const [loadingFoundationLessons, setLoadingFoundationLessons] = useState(false);
+  const [currentFoundationLessonIndex, setCurrentFoundationLessonIndex] = useState(0);
+  const [foundationLessonsCompletedCount, setFoundationLessonsCompletedCount] = useState(0);
+  const [currentLessonWatchedEnough, setCurrentLessonWatchedEnough] = useState(false);
+  const [currentLessonWatchFraction, setCurrentLessonWatchFraction] = useState(0);
+  const [recordingProgress, setRecordingProgress] = useState(false);
+  const currentLessonIsYouTubeRef = useRef(false);
+  const hasRestoredFoundationProgressRef = useRef(false);
+  const maxWatchedTimeRef = useRef(0);
+  const lastLessonIdRef = useRef<string | null>(null);
   const [loadingCurriculum, setLoadingCurriculum] = useState(true);
   
   // Real data from backend
@@ -503,127 +535,378 @@ export function StudentDashboardHub() {
     fetchCohortData();
   }, [user?.id]);
 
+  // Fetch lessons for all curriculum foundation modules so we can show a flat lesson list
+  useEffect(() => {
+    const curriculumModules = foundationsStatus?.modules?.filter((m: FoundationsModule) => m.source === 'curriculum') ?? [];
+    const missing = curriculumModules.filter((m: FoundationsModule) => !foundationLessonsByModule[m.id]);
+    if (missing.length === 0) return;
+    let cancelled = false;
+    setLoadingFoundationLessons(true);
+    Promise.all(missing.map((m: FoundationsModule) => curriculumClient.getLessonsByModule(m.id).catch(() => [])))
+      .then((results) => {
+        if (cancelled) return;
+        setFoundationLessonsByModule((prev) => {
+          const next = { ...prev };
+          missing.forEach((m: FoundationsModule, i: number) => { next[m.id] = results[i] ?? []; });
+          return next;
+        });
+      })
+      .finally(() => { if (!cancelled) setLoadingFoundationLessons(false); });
+    return () => { cancelled = true; };
+  }, [foundationsStatus?.modules, foundationLessonsByModule]);
+
+  // Restore which lesson to show (resume at first incomplete) — do NOT restore completed count from API so % and X/Y modules stay correct until user actually clicks Next
+  useEffect(() => {
+    if (hasRestoredFoundationProgressRef.current || loadingFoundationLessons) return;
+    const modules = foundationsStatus?.modules?.filter((m: FoundationsModule) => m.source === 'curriculum') ?? [];
+    const allLessons: Lesson[] = modules.flatMap((m: FoundationsModule) => foundationLessonsByModule[m.id] ?? []);
+    if (allLessons.length === 0) return;
+    hasRestoredFoundationProgressRef.current = true;
+    const firstIncomplete = allLessons.findIndex((l) => !(l as Lesson & { is_completed?: boolean }).is_completed);
+    if (firstIncomplete >= 0) setCurrentFoundationLessonIndex(firstIncomplete);
+  }, [foundationsStatus?.modules, foundationLessonsByModule, loadingFoundationLessons]);
+
+  // Reset "watched enough" and in-lesson progress when user moves to a different lesson (Next)
+  useEffect(() => {
+    setCurrentLessonWatchedEnough(false);
+    setCurrentLessonWatchFraction(0);
+  }, [currentFoundationLessonIndex]);
+
+  // Listen for YouTube iframe "video ended" so Next unlocks only after watching
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== 'https://www.youtube.com') return;
+      try {
+        const data = JSON.parse(event.data);
+        if (data.event === 'onStateChange' && data.info === 0 && currentLessonIsYouTubeRef.current) {
+          setCurrentLessonWatchedEnough(true);
+          setCurrentLessonWatchFraction(1);
+        }
+      } catch {
+        // ignore non-JSON
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  // Minimum watch time for Vimeo/article iframes (no progress API) — unlock Next after ~90% of lesson duration
+  useEffect(() => {
+    const modules = foundationsStatus?.modules?.filter((m: FoundationsModule) => m.source === 'curriculum') ?? [];
+    const allLessons: Lesson[] = modules.flatMap((m: FoundationsModule) => foundationLessonsByModule[m.id] ?? []);
+    const idx = Math.min(currentFoundationLessonIndex, allLessons.length - 1);
+    const lesson = allLessons[idx];
+    if (!lesson || !lesson.content_url) return;
+    const isYt = lesson.content_url.includes('youtube.com') || lesson.content_url.includes('youtu.be');
+    const embedUrl = getEmbedUrl(lesson.content_url);
+    const isVimeo = embedUrl && !isYt;
+    const isArticle = lesson.lesson_type !== 'video';
+    const minutes = (lesson.duration_minutes ?? 1) * 0.9;
+    const ms = (isArticle ? 1 : minutes) * 60 * 1000;
+    if (isVimeo || isArticle) {
+      const t = setTimeout(() => setCurrentLessonWatchedEnough(true), ms);
+      return () => clearTimeout(t);
+    }
+  }, [foundationsStatus?.modules, foundationLessonsByModule, currentFoundationLessonIndex]);
+
   const trackDisplayName = trackTheme.name;
+
+  // Treat foundations as incomplete when status says so OR completion < 100 (avoids backend returning is_complete: true for new users)
+  const foundationsIncomplete = foundationsStatus && (
+    foundationsStatus.status === 'not_started' ||
+    foundationsStatus.status === 'in_progress' ||
+    !foundationsStatus.is_complete ||
+    (foundationsStatus.completion_percentage ?? 0) < 100
+  );
+  const foundationsComplete = foundationsStatus && foundationsStatus.is_complete && foundationsStatus.status === 'completed';
+  // When we have no foundations status after load (e.g. new user), show simplified dashboard too
+  const showSimplifiedDashboard = foundationsIncomplete || (!loadingFoundations && !foundationsStatus);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-och-midnight via-och-midnight/95 to-slate-950">
       {/* Main Content - Compact */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
         
-        {/* Hero Section - Compact */}
+        {/* Hero Section - Compact (reduced vertical space) */}
         {profiledTrack && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${getTrackColorClasses('gradient')} border ${getTrackColorClasses('border')} p-4`}
+            className={`relative overflow-hidden rounded-lg bg-gradient-to-br ${getTrackColorClasses('gradient')} border ${getTrackColorClasses('border')} px-3 py-2.5`}
           >
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className={`p-2 rounded-lg ${getTrackColorClasses('bg')} ${getTrackColorClasses('border')} border`}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                <div className={`p-1.5 rounded-md ${getTrackColorClasses('bg')} ${getTrackColorClasses('border')} border`}>
                   {trackTheme.icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge className={`${getTrackColorClasses('bg')} ${getTrackColorClasses('text')} text-xs border-0`}>
-                      Your Track
-                    </Badge>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge className={`${getTrackColorClasses('bg')} ${getTrackColorClasses('text')} text-[10px] border-0 px-1.5 py-0`}>Your Track</Badge>
+                    <h1 className="text-base font-black text-white truncate">{trackTheme.name}</h1>
+                    <span className="text-[10px] text-och-steel truncate hidden sm:inline">— {trackTheme.description}</span>
                   </div>
-                  <h1 className="text-xl font-black text-white truncate">
-                    {trackTheme.name}
-                  </h1>
-                  <p className="text-xs text-och-steel line-clamp-1">
-                    {trackTheme.description}
-                  </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className={`text-lg font-black ${getTrackColorClasses('text')}`}>
-                    {curriculumProgress && curriculumProgress.completion_percentage !== null && curriculumProgress.completion_percentage !== undefined
-                      ? Math.round(curriculumProgress.completion_percentage)
-                      : 0}%
-                  </div>
-                  <div className="text-xs text-och-steel">Progress</div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={`${getTrackColorClasses('border')} ${getTrackColorClasses('text')} hover:${getTrackColorClasses('bg')} border text-xs`}
-                  onClick={() => router.push('/dashboard/student/curriculum')}
-                >
-                  View
-                </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs text-och-steel">{curriculumProgress && curriculumProgress.completion_percentage != null ? Math.round(curriculumProgress.completion_percentage) : 0}%</span>
+                <Button variant="outline" size="sm" className={`${getTrackColorClasses('border')} ${getTrackColorClasses('text')} hover:${getTrackColorClasses('bg')} border text-xs h-7 px-2`} onClick={() => router.push('/dashboard/student/curriculum')}>View</Button>
               </div>
             </div>
           </motion.div>
         )}
 
-        {/* Quick Stats - Compact Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Card className={`p-3 bg-gradient-to-br ${getTrackColorClasses('gradient')} border ${getTrackColorClasses('border')}`}>
-            <div className="flex items-center justify-between mb-2">
-              <TrendingUp className={`w-4 h-4 ${getTrackColorClasses('text')}`} />
-              <Badge className={`${getTrackColorClasses('bg')} ${getTrackColorClasses('text')} text-xs border-0`}>
-                {readinessScore}/100
-              </Badge>
-            </div>
-            <div className="text-lg font-black text-white">{readinessScore}</div>
-            <div className="text-xs text-och-steel uppercase tracking-wide">Readiness</div>
-          </Card>
+        {/* Foundations section: flat lessons list + video preview (no module UI) */}
+        {foundationsIncomplete && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Card className={`p-4 bg-slate-900/50 border-slate-700 border ${getTrackColorClasses('border')}`}>
+              {foundationsStatus.modules && foundationsStatus.modules.length > 0 ? (
+                <>
+                  {loadingFoundationLessons ? (
+                    <>
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <h2 className="text-base font-semibold text-white">Beginner Level – Foundations</h2>
+                        <span className="text-xs text-och-steel shrink-0">Loading…</span>
+                      </div>
+                      <p className="text-xs text-och-steel">Loading lessons…</p>
+                    </>
+                  ) : (() => {
+                    const curriculumModules = foundationsStatus.modules.filter((m: FoundationsModule) => m.source === 'curriculum');
+                    const allLessons: Lesson[] = curriculumModules.flatMap((m: FoundationsModule) => foundationLessonsByModule[m.id] ?? []);
+                    if (allLessons.length === 0) return <p className="text-xs text-och-steel">No lessons yet.</p>;
+                    const lessonIdToIndex: Record<string, number> = {};
+                    allLessons.forEach((l, i) => { lessonIdToIndex[l.id] = i; });
+                    const modulesCompletedCount = curriculumModules.filter((m: FoundationsModule) => {
+                      const ids = (foundationLessonsByModule[m.id] ?? []).map((l: Lesson) => l.id);
+                      return ids.length > 0 && ids.every((id: string) => lessonIdToIndex[id] < foundationLessonsCompletedCount);
+                    }).length;
+                    const totalModules = curriculumModules.length;
+                    const currentIndex = Math.min(currentFoundationLessonIndex, allLessons.length - 1);
+                    const currentLesson = allLessons[currentIndex];
+                    const totalLessons = allLessons.length;
+                    const progressPercent = totalLessons ? ((foundationLessonsCompletedCount + currentLessonWatchFraction) / totalLessons) * 100 : 0;
+                    const completedSegmentPercent = totalLessons ? (foundationLessonsCompletedCount / totalLessons) * 100 : 0;
+                    const inProgressSegmentPercent = totalLessons ? (currentLessonWatchFraction / totalLessons) * 100 : 0;
+                    const isLastLesson = currentIndex === allLessons.length - 1;
+                    const allPreviousCompleted = foundationLessonsCompletedCount >= allLessons.length - 1;
+                    const canComplete = isLastLesson && allPreviousCompleted && currentLessonWatchedEnough;
+                    const isYouTube = !!(currentLesson.content_url && (currentLesson.content_url.includes('youtube.com') || currentLesson.content_url.includes('youtu.be')));
+                    currentLessonIsYouTubeRef.current = currentLesson.lesson_type === 'video' && isYouTube;
 
-          <Card className="p-3 bg-gradient-to-br from-och-gold/10 to-transparent border border-och-gold/20">
-            <div className="flex items-center justify-between mb-2">
-              <Flame className="w-4 h-4 text-och-gold" />
-            </div>
-            <div className="text-lg font-black text-white">{streak}</div>
-            <div className="text-xs text-och-steel uppercase tracking-wide">Day Streak</div>
-          </Card>
+                    const handleNext = async () => {
+                      if (recordingProgress) return;
+                      setRecordingProgress(true);
+                      try {
+                        await curriculumClient.updateLessonProgress(currentLesson.id, { status: 'completed', progress_percentage: 100 });
+                        setFoundationLessonsCompletedCount((prev) => prev + 1);
+                        if (!isLastLesson) setCurrentFoundationLessonIndex((prev) => Math.min(prev + 1, allLessons.length - 1));
+                        else {
+                          const status = await foundationsClient.getStatus();
+                          setFoundationsStatus(status);
+                        }
+                      } catch (e) {
+                        if (!isLastLesson) setCurrentFoundationLessonIndex((prev) => Math.min(prev + 1, allLessons.length - 1));
+                      } finally {
+                        setRecordingProgress(false);
+                      }
+                    };
 
-          <Card className="p-3 bg-gradient-to-br from-och-defender/10 to-transparent border border-och-defender/20">
-            <div className="flex items-center justify-between mb-2">
-              <Star className="w-4 h-4 text-och-defender" />
-            </div>
-            <div className="text-lg font-black text-white">{points.toLocaleString()}</div>
-            <div className="text-xs text-och-steel uppercase tracking-wide">Points</div>
-          </Card>
+                    return (
+                      <>
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <h2 className="text-base font-semibold text-white">Beginner Level – Foundations</h2>
+                          <span className="text-xs text-och-steel shrink-0">
+                            {Math.round(progressPercent)}% · {modulesCompletedCount}/{totalModules} modules
+                          </span>
+                        </div>
+                        <div className="space-y-2 flex flex-col min-h-0">
+                        {/* Progress bar with lesson markers */}
+                        <div className="space-y-1 flex-shrink-0">
+                          <div className="flex items-center justify-between text-[10px] sm:text-xs text-och-steel">
+                            <span>Lesson {currentIndex + 1} of {allLessons.length}</span>
+                            <span>{Math.round(progressPercent)}%</span>
+                          </div>
+                          <div className="relative h-2.5 rounded-full bg-white/10 overflow-visible">
+                            {/* Completed lessons: gold */}
+                            <motion.div
+                              className="absolute inset-y-0 left-0 rounded-l-full bg-och-gold"
+                              initial={false}
+                              animate={{ width: `${completedSegmentPercent}%` }}
+                              transition={{ duration: 0.25 }}
+                            />
+                            {/* Current lesson in progress: moves with video, different color */}
+                            <motion.div
+                              className="absolute inset-y-0 rounded-r-full bg-blue-500/80"
+                              style={{ left: `${completedSegmentPercent}%` }}
+                              initial={false}
+                              animate={{ width: `${inProgressSegmentPercent}%` }}
+                              transition={{ duration: 0.25 }}
+                            />
+                            {/* Dots at the START of each lesson (1 = start of lesson 1, 2 = start of lesson 2) with number inside */}
+                            {allLessons.map((lesson, i) => {
+                              const positionPercent = allLessons.length > 1 ? (i / allLessons.length) * 100 : 0;
+                              const isCompleted = (i + 1) <= foundationLessonsCompletedCount;
+                              const isFirst = i === 0;
+                              return (
+                                <button
+                                  key={lesson.id}
+                                  type="button"
+                                  onClick={() => setCurrentFoundationLessonIndex(i)}
+                                  className={clsx(
+                                    'absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full z-10 border-2 transition-colors cursor-pointer hover:scale-110 focus:outline-none focus:ring-2 focus:ring-och-gold focus:ring-offset-2 focus:ring-offset-slate-900 flex items-center justify-center text-[10px] font-bold',
+                                    isCompleted ? 'bg-och-gold border-och-gold text-slate-900' : 'bg-slate-800 border-white/60 text-och-steel'
+                                  )}
+                                  style={{ left: isFirst ? '0' : `calc(${positionPercent}% - 12px)` }}
+                                  title={`Lesson ${i + 1}: ${lesson.title}${isCompleted ? ' (completed)' : ''} — click to go`}
+                                >
+                                  {i + 1}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        {/* Lesson row + video */}
+                        <div className="space-y-0 flex-1 min-h-0 flex flex-col">
+                          <div className="w-full text-left p-2 rounded-t-lg flex items-center gap-2 bg-white/5 border border-och-steel/20 border-b-0 flex-shrink-0">
+                            <span className="text-xs text-och-steel w-6 shrink-0">{currentIndex + 1}</span>
+                            <span className="text-sm text-white truncate flex-1">{currentLesson.title}</span>
+                          </div>
+                          <div className="rounded-b-lg overflow-hidden border border-och-steel/20 border-t-0 bg-black flex-1 min-h-[480px] flex flex-col">
+                            {currentLesson.content_url ? (
+                              currentLesson.lesson_type === 'video' ? (
+                                getEmbedUrl(currentLesson.content_url) ? (
+                                  <iframe
+                                    src={getEmbedUrl(currentLesson.content_url)!}
+                                    title={currentLesson.title}
+                                    className="w-full aspect-video min-h-[480px]"
+                                    allowFullScreen
+                                  />
+                                ) : (
+                                  <video
+                                    src={resolveContentUrl(currentLesson.content_url)}
+                                    controls
+                                    className="w-full aspect-video min-h-[480px]"
+                                    title={currentLesson.title}
+                                    onLoadedMetadata={(e) => {
+                                      if (lastLessonIdRef.current !== currentLesson.id) {
+                                        lastLessonIdRef.current = currentLesson.id;
+                                        maxWatchedTimeRef.current = 0;
+                                      }
+                                    }}
+                                    onTimeUpdate={(e) => {
+                                      const v = e.currentTarget;
+                                      const max = maxWatchedTimeRef.current;
+                                      if (v.currentTime > max + 1.5) {
+                                        v.currentTime = max;
+                                      } else {
+                                        maxWatchedTimeRef.current = v.currentTime;
+                                      }
+                                      if (v.duration > 0) {
+                                        const frac = v.currentTime / v.duration;
+                                        setCurrentLessonWatchFraction(frac);
+                                        if (frac >= 0.9) setCurrentLessonWatchedEnough(true);
+                                      }
+                                    }}
+                                    onEnded={() => { setCurrentLessonWatchedEnough(true); setCurrentLessonWatchFraction(1); }}
+                                  />
+                                )
+                              ) : (
+                                <iframe
+                                  src={resolveContentUrl(currentLesson.content_url)}
+                                  title={currentLesson.title}
+                                  className="w-full aspect-video min-h-[480px]"
+                                  allowFullScreen
+                                />
+                              )
+                            ) : (
+                              <div className="flex items-center justify-center aspect-video min-h-[480px] text-och-steel text-sm">No content URL</div>
+                            )}
+                          </div>
+                        </div>
+                        {/* Next / Complete — visible without scrolling */}
+                        <div className="flex justify-end items-center gap-3 pt-1 flex-shrink-0">
+                          {!currentLessonWatchedEnough && (
+                            <span className="text-xs text-och-steel">Watch the video to continue</span>
+                          )}
+                          {isLastLesson && !allPreviousCompleted && (
+                            <span className="text-xs text-och-steel">Complete all previous lessons first</span>
+                          )}
+                          <Button
+                            onClick={handleNext}
+                            disabled={recordingProgress || (isLastLesson ? !canComplete : !currentLessonWatchedEnough)}
+                            className={`${getTrackColorClasses('bg')} ${getTrackColorClasses('text')} border ${getTrackColorClasses('border')} text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none`}
+                          >
+                            {recordingProgress ? 'Saving…' : isLastLesson ? 'Complete' : 'Next'}
+                          </Button>
+                        </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </>
+              ) : (
+                <div className="py-8 text-center text-och-steel text-sm">No Foundation Module added yet.</div>
+              )}
+            </Card>
+          </motion.div>
+        )}
 
-          <Card className="p-3 bg-gradient-to-br from-och-orange/10 to-transparent border border-och-orange/20">
-            <div className="flex items-center justify-between mb-2">
-              <Award className="w-4 h-4 text-och-orange" />
-            </div>
-            <div className="text-lg font-black text-white">{badges}</div>
-            <div className="text-xs text-och-steel uppercase tracking-wide">Badges</div>
-          </Card>
-        </div>
+        {/* Quick Stats - only when foundations complete (simplified dashboard for new students) */}
+        {!showSimplifiedDashboard && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Card className={`p-3 bg-gradient-to-br ${getTrackColorClasses('gradient')} border ${getTrackColorClasses('border')}`}>
+              <div className="flex items-center justify-between mb-2">
+                <TrendingUp className={`w-4 h-4 ${getTrackColorClasses('text')}`} />
+                <Badge className={`${getTrackColorClasses('bg')} ${getTrackColorClasses('text')} text-xs border-0`}>
+                  {readinessScore}/100
+                </Badge>
+              </div>
+              <div className="text-lg font-black text-white">{readinessScore}</div>
+              <div className="text-xs text-och-steel uppercase tracking-wide">Readiness</div>
+            </Card>
 
-        {/* Foundations & Subscription - Compact Row */}
+            <Card className="p-3 bg-gradient-to-br from-och-gold/10 to-transparent border border-och-gold/20">
+              <div className="flex items-center justify-between mb-2">
+                <Flame className="w-4 h-4 text-och-gold" />
+              </div>
+              <div className="text-lg font-black text-white">{streak}</div>
+              <div className="text-xs text-och-steel uppercase tracking-wide">Day Streak</div>
+            </Card>
+
+            <Card className="p-3 bg-gradient-to-br from-och-defender/10 to-transparent border border-och-defender/20">
+              <div className="flex items-center justify-between mb-2">
+                <Star className="w-4 h-4 text-och-defender" />
+              </div>
+              <div className="text-lg font-black text-white">{points.toLocaleString()}</div>
+              <div className="text-xs text-och-steel uppercase tracking-wide">Points</div>
+            </Card>
+
+            <Card className="p-3 bg-gradient-to-br from-och-orange/10 to-transparent border border-och-orange/20">
+              <div className="flex items-center justify-between mb-2">
+                <Award className="w-4 h-4 text-och-orange" />
+              </div>
+              <div className="text-lg font-black text-white">{badges}</div>
+              <div className="text-xs text-och-steel uppercase tracking-wide">Badges</div>
+            </Card>
+          </div>
+        )}
+
+        {/* Foundations (compact when complete) & Subscription - Compact Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {/* Foundations Status */}
-          {foundationsStatus && (
+          {/* Foundations Status: only show compact card when complete (full section shown above when not complete) */}
+          {foundationsComplete && (
             <Card className={`p-4 bg-gradient-to-br ${getTrackColorClasses('gradient')} border ${getTrackColorClasses('border')}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <GraduationCap className={`w-4 h-4 ${getTrackColorClasses('text')}`} />
                   <div>
                     <h3 className="text-sm font-black text-white">Beginner Level - Foundations</h3>
-                    <p className="text-xs text-och-steel">
-                      {foundationsStatus.is_complete 
-                        ? 'Complete'
-                        : `${Math.round(foundationsStatus.completion_percentage)}% Complete`
-                      }
-                    </p>
+                    <p className="text-xs text-och-steel">Complete</p>
                   </div>
                 </div>
-                {!foundationsStatus.is_complete && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={`${getTrackColorClasses('border')} ${getTrackColorClasses('text')} text-xs`}
-                    onClick={() => router.push('/dashboard/student/foundations')}
-                  >
-                    {foundationsStatus.status === 'in_progress' ? 'Continue' : 'Start'}
-                  </Button>
-                )}
+                <CheckCircle2 className="w-5 h-5 text-och-mint" />
               </div>
             </Card>
           )}
@@ -666,6 +949,36 @@ export function StudentDashboardHub() {
           </Card>
         </div>
 
+        {/* When foundations incomplete: only Foundations section is shown above (no extra card). When no status: one CTA. Otherwise: full tabs. */}
+        {showSimplifiedDashboard && !foundationsIncomplete ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-3"
+          >
+            <Card className={`p-6 bg-gradient-to-br ${getTrackColorClasses('gradient')} border ${getTrackColorClasses('border')}`}>
+              <div className="flex flex-col items-center text-center gap-4">
+                <Lock className={`w-10 h-10 ${getTrackColorClasses('text')}`} />
+                <div>
+                  <h3 className="text-base font-black text-white mb-1">Start Foundations to unlock your dashboard</h3>
+                  <p className="text-sm text-och-steel">
+                    Complete Foundations to access your Learning Path, Missions, Discussions, Mentors, and AI Coach.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`${getTrackColorClasses('border')} ${getTrackColorClasses('text')}`}
+                  onClick={() => router.push('/dashboard/student/foundations')}
+                >
+                  Start
+                  <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                </Button>
+              </div>
+            </Card>
+          </motion.div>
+        ) : showSimplifiedDashboard && foundationsIncomplete ? null : (
+          <>
         {/* Tab Navigation - Compact */}
         <div className="flex gap-1 border-b border-och-steel/20">
           {[
@@ -1174,11 +1487,18 @@ export function StudentDashboardHub() {
             </motion.div>
           )}
         </AnimatePresence>
+          </>
+        )}
       </div>
 
-      {/* AI Coaching Nudge */}
+      {/* AI Coaching Nudge — foundations info while in Foundations; welcome to track when just finished (key so it refetches when context changes) */}
       <Suspense fallback={null}>
-        <CoachingNudge userId={user?.id?.toString()} autoLoad={true} />
+        <CoachingNudge
+          key={foundationsIncomplete ? 'foundations' : foundationsComplete ? 'foundations_complete' : 'dashboard'}
+          userId={user?.id?.toString()}
+          autoLoad={true}
+          context={foundationsIncomplete ? 'foundations' : foundationsComplete ? 'foundations_complete' : 'dashboard'}
+        />
       </Suspense>
     </div>
   );

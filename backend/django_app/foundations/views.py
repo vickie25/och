@@ -99,7 +99,7 @@ def get_foundations_status(request):
     # Calculate completion
     progress.calculate_completion()
     
-    # Get all modules
+    # Get all modules from Tier 1 foundations (foundations_modules table)
     modules = FoundationsModule.objects.filter(is_active=True).order_by('order')
     modules_data = []
     for module in modules:
@@ -118,7 +118,62 @@ def get_foundations_status(request):
             'completed': module_progress.get('completed', False),
             'watch_percentage': module_progress.get('watch_percentage', 0),
             'completed_at': module_progress.get('completed_at'),
+            'source': 'foundations',
+            'track_code': None,
         })
+    
+    # If no Tier 1 foundations modules, fall back to Foundation curriculum track (director-edited modules)
+    if not modules_data:
+        from django.db.models import Q, Sum
+        from curriculum.models import CurriculumTrack, CurriculumModule
+        # Find Foundation curriculum track (director uses track.slug as module track_key)
+        # Prefer tier=2 so curriculum tier2 page works; fall back to any tier matching "foundation"
+        foundation_track = (
+            CurriculumTrack.objects.filter(is_active=True)
+            .filter(
+                Q(slug__iexact='foundation') | Q(slug__iexact='foundations')
+                | Q(code__iexact='foundation') | Q(code__iexact='foundations')
+                | Q(code__icontains='FOUNDATION') | Q(name__icontains='foundation') | Q(title__icontains='foundation')
+            )
+            .order_by('-tier', 'order_number')  # prefer tier=2 then tier=1
+            .first()
+        )
+        if not foundation_track:
+            foundation_track = CurriculumTrack.objects.filter(
+                is_active=True, tier=1
+            ).filter(Q(level='foundations')).order_by('order_number').first()
+        if foundation_track:
+            # Modules can be linked by track FK or by track_key (director UI saves track.slug as track_key)
+            mod_q = Q(track=foundation_track) | Q(track_key__iexact='foundation') | Q(track_key__iexact='foundations') | Q(track_key__icontains='foundation')
+            if foundation_track.slug:
+                mod_q = mod_q | Q(track_key__iexact=foundation_track.slug)
+            if foundation_track.code:
+                mod_q = mod_q | Q(track_key__iexact=foundation_track.code)
+            if getattr(foundation_track, 'name', None):
+                mod_q = mod_q | Q(track_key__iexact=foundation_track.name)
+            curriculum_modules = CurriculumModule.objects.filter(is_active=True).filter(mod_q).order_by('order_index')
+            for idx, cm in enumerate(curriculum_modules):
+                # Use sum of lesson durations when available; else module.estimated_duration_minutes; else 5
+                lesson_total = cm.lessons.aggregate(s=Sum('duration_minutes'))['s'] or 0
+                module_est = getattr(cm, 'estimated_duration_minutes', None)
+                estimated_minutes = lesson_total if lesson_total > 0 else (module_est if module_est else 5)
+                modules_data.append({
+                    'id': str(cm.id),
+                    'title': cm.title,
+                    'description': cm.description or '',
+                    'module_type': 'video',
+                    'video_url': None,
+                    'diagram_url': None,
+                    'content': None,
+                    'order': cm.order_index or idx,
+                    'is_mandatory': getattr(cm, 'is_required', True),
+                    'estimated_minutes': estimated_minutes,
+                    'completed': progress.modules_completed.get(str(cm.id), {}).get('completed', False),
+                    'watch_percentage': progress.modules_completed.get(str(cm.id), {}).get('watch_percentage', 0),
+                    'completed_at': progress.modules_completed.get(str(cm.id), {}).get('completed_at'),
+                    'source': 'curriculum',
+                    'track_code': getattr(foundation_track, 'code', None) or foundation_track.slug or 'foundation',
+                })
     
     return Response({
         'foundations_available': True,
