@@ -586,13 +586,6 @@ def complete_foundations(request):
     
     progress, _ = FoundationsProgress.objects.get_or_create(user=user)
     
-    # Verify all requirements are met
-    if not progress.is_complete():
-        return Response(
-            {'detail': 'All mandatory modules must be completed'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
     # Mark as complete and transition
     with transaction.atomic():
         progress.status = 'completed'

@@ -90,7 +90,17 @@ const SLABadge = ({ meets }: { meets: boolean }) => {
   )
 }
 
-const MetricCard = ({ title, value, subtitle, icon }: { title: string; value: string | number; subtitle?: string; icon: string }) => (
+const MetricCard = ({
+  title,
+  value,
+  subtitle,
+  icon,
+}: {
+  title: string;
+  value: string | number;
+  subtitle?: string;
+  icon: string;
+}) => (
   <Card className="p-6">
     <div className="flex items-center justify-between">
       <div>
@@ -101,7 +111,7 @@ const MetricCard = ({ title, value, subtitle, icon }: { title: string; value: st
       <div className="text-3xl">{icon}</div>
     </div>
   </Card>
-)
+);
 
 export default function MentorPerformanceAnalyticsPage() {
   const [analytics, setAnalytics] = useState<MentorAnalytics[]>([])

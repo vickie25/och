@@ -555,15 +555,33 @@ export function StudentDashboardHub() {
     return () => { cancelled = true; };
   }, [foundationsStatus?.modules, foundationLessonsByModule]);
 
-  // Restore which lesson to show (resume at first incomplete) — do NOT restore completed count from API so % and X/Y modules stay correct until user actually clicks Next
+  // Restore which lesson to show (resume at first incomplete) AND completed count from API so progress survives refresh
   useEffect(() => {
     if (hasRestoredFoundationProgressRef.current || loadingFoundationLessons) return;
     const modules = foundationsStatus?.modules?.filter((m: FoundationsModule) => m.source === 'curriculum') ?? [];
     const allLessons: Lesson[] = modules.flatMap((m: FoundationsModule) => foundationLessonsByModule[m.id] ?? []);
     if (allLessons.length === 0) return;
     hasRestoredFoundationProgressRef.current = true;
-    const firstIncomplete = allLessons.findIndex((l) => !(l as Lesson & { is_completed?: boolean }).is_completed);
-    if (firstIncomplete >= 0) setCurrentFoundationLessonIndex(firstIncomplete);
+    const isLessonCompleted = (l: Lesson & { is_completed?: boolean }) =>
+      l.is_completed || (l.user_progress && l.user_progress.status === 'completed');
+
+    const completedFromApi = allLessons.filter(isLessonCompleted).length;
+    if (completedFromApi > 0) {
+      setFoundationLessonsCompletedCount((prev) =>
+        Math.max(prev, Math.min(completedFromApi, allLessons.length))
+      );
+    }
+
+    const firstIncomplete = allLessons.findIndex((l) => !isLessonCompleted(l as any));
+    if (firstIncomplete >= 0) {
+      // Resume at first incomplete lesson
+      setCurrentFoundationLessonIndex(firstIncomplete);
+    } else if (completedFromApi > 0) {
+      // All lessons completed: show the last lesson and treat it as fully watched
+      setCurrentFoundationLessonIndex(allLessons.length - 1);
+      setCurrentLessonWatchedEnough(true);
+      setCurrentLessonWatchFraction(1);
+    }
   }, [foundationsStatus?.modules, foundationLessonsByModule, loadingFoundationLessons]);
 
   // Reset "watched enough" and in-lesson progress when user moves to a different lesson (Next)
@@ -611,14 +629,21 @@ export function StudentDashboardHub() {
 
   const trackDisplayName = trackTheme.name;
 
-  // Treat foundations as incomplete when status says so OR completion < 100 (avoids backend returning is_complete: true for new users)
-  const foundationsIncomplete = foundationsStatus && (
-    foundationsStatus.status === 'not_started' ||
-    foundationsStatus.status === 'in_progress' ||
-    !foundationsStatus.is_complete ||
-    (foundationsStatus.completion_percentage ?? 0) < 100
-  );
-  const foundationsComplete = foundationsStatus && foundationsStatus.is_complete && foundationsStatus.status === 'completed';
+  // Normalize Foundations completion: trust backend flags first, but don't let stale percentages keep UI "incomplete"
+  const rawCompletion = foundationsStatus?.completion_percentage ?? 0;
+  const backendSaysComplete =
+    !!foundationsStatus &&
+    (foundationsStatus.status === 'completed' ||
+      foundationsStatus.is_complete === true ||
+      // some APIs may expose a direct boolean
+      (foundationsStatus as any).foundations_complete === true);
+
+  const displayedFoundationsCompletion = backendSaysComplete
+    ? 100
+    : Math.round(rawCompletion);
+
+  const foundationsComplete = !!backendSaysComplete;
+  const foundationsIncomplete = !!foundationsStatus && !backendSaysComplete;
   // When we have no foundations status after load (e.g. new user), show simplified dashboard too
   const showSimplifiedDashboard = foundationsIncomplete || (!loadingFoundations && !foundationsStatus);
 
@@ -686,9 +711,33 @@ export function StudentDashboardHub() {
                     const currentIndex = Math.min(currentFoundationLessonIndex, allLessons.length - 1);
                     const currentLesson = allLessons[currentIndex];
                     const totalLessons = allLessons.length;
-                    const progressPercent = totalLessons ? ((foundationLessonsCompletedCount + currentLessonWatchFraction) / totalLessons) * 100 : 0;
-                    const completedSegmentPercent = totalLessons ? (foundationLessonsCompletedCount / totalLessons) * 100 : 0;
-                    const inProgressSegmentPercent = totalLessons ? (currentLessonWatchFraction / totalLessons) * 100 : 0;
+                    const safeCompleted = Math.min(foundationLessonsCompletedCount, totalLessons);
+                    const safeWatchFraction = Math.min(Math.max(currentLessonWatchFraction, 0), 1);
+
+                    // If backend already marks current lesson completed, don't double-count its watch fraction
+                    const currentLessonCompletedFromApi =
+                      (currentLesson as any).is_completed ||
+                      ((currentLesson as any).user_progress &&
+                        (currentLesson as any).user_progress.status === 'completed');
+
+                    const effectiveWatchFraction =
+                      currentLessonCompletedFromApi || safeCompleted >= totalLessons
+                        ? 0
+                        : safeWatchFraction;
+
+                    const progressLessons = Math.min(
+                      safeCompleted + effectiveWatchFraction,
+                      totalLessons
+                    );
+                    const progressPercent = totalLessons
+                      ? (progressLessons / totalLessons) * 100
+                      : 0;
+                    const completedSegmentPercent = totalLessons
+                      ? (safeCompleted / totalLessons) * 100
+                      : 0;
+                    const inProgressSegmentPercent = totalLessons
+                      ? (effectiveWatchFraction / totalLessons) * 100
+                      : 0;
                     const isLastLesson = currentIndex === allLessons.length - 1;
                     const allPreviousCompleted = foundationLessonsCompletedCount >= allLessons.length - 1;
                     const canComplete = isLastLesson && allPreviousCompleted && currentLessonWatchedEnough;
@@ -699,15 +748,43 @@ export function StudentDashboardHub() {
                       if (recordingProgress) return;
                       setRecordingProgress(true);
                       try {
-                        await curriculumClient.updateLessonProgress(currentLesson.id, { status: 'completed', progress_percentage: 100 });
-                        setFoundationLessonsCompletedCount((prev) => prev + 1);
-                        if (!isLastLesson) setCurrentFoundationLessonIndex((prev) => Math.min(prev + 1, allLessons.length - 1));
-                        else {
-                          const status = await foundationsClient.getStatus();
-                          setFoundationsStatus(status);
+                        await curriculumClient.updateLessonProgress(currentLesson.id, {
+                          status: 'completed',
+                          progress_percentage: 100,
+                        });
+                        // Only count each lesson once and never exceed total lessons
+                        setFoundationLessonsCompletedCount((prev) => {
+                          const next = Math.max(prev, currentIndex + 1);
+                          return Math.min(next, totalLessons);
+                        });
+
+                        if (!isLastLesson) {
+                          // Move to next lesson locally
+                          setCurrentFoundationLessonIndex((prev) =>
+                            Math.min(prev + 1, allLessons.length - 1),
+                          );
+                        } else {
+                          // Last lesson: now that backend accepts completion unconditionally,
+                          // call completeFoundations so Foundations is marked done immediately.
+                          try {
+                            await foundationsClient.completeFoundations();
+                          } catch (completeError) {
+                            console.error('Failed to complete Foundations:', completeError);
+                          }
+                          try {
+                            const status = await foundationsClient.getStatus();
+                            setFoundationsStatus(status);
+                          } catch (statusError) {
+                            console.error('Failed to refresh Foundations status:', statusError);
+                          }
                         }
                       } catch (e) {
-                        if (!isLastLesson) setCurrentFoundationLessonIndex((prev) => Math.min(prev + 1, allLessons.length - 1));
+                        console.error('Failed to update lesson progress:', e);
+                        if (!isLastLesson) {
+                          setCurrentFoundationLessonIndex((prev) =>
+                            Math.min(prev + 1, allLessons.length - 1),
+                          );
+                        }
                       } finally {
                         setRecordingProgress(false);
                       }
@@ -790,9 +867,30 @@ export function StudentDashboardHub() {
                                     className="w-full aspect-video min-h-[480px]"
                                     title={currentLesson.title}
                                     onLoadedMetadata={(e) => {
+                                      const v = e.currentTarget;
                                       if (lastLessonIdRef.current !== currentLesson.id) {
                                         lastLessonIdRef.current = currentLesson.id;
                                         maxWatchedTimeRef.current = 0;
+
+                                        // Restore approximate watch position from backend (resume)
+                                        const up: any = (currentLesson as any).user_progress;
+                                        let backendFrac = 0;
+                                        if (up && typeof up.progress_percentage === 'number') {
+                                          backendFrac = up.progress_percentage / 100;
+                                        } else if ((currentLesson as any).is_completed) {
+                                          backendFrac = 1;
+                                        }
+                                        const clampedFrac = Math.min(Math.max(backendFrac, 0), 1);
+                                        if (clampedFrac > 0 && v.duration > 0) {
+                                          const targetTime =
+                                            clampedFrac >= 1 ? v.duration * 0.98 : v.duration * clampedFrac;
+                                          v.currentTime = targetTime;
+                                          maxWatchedTimeRef.current = v.currentTime;
+                                          setCurrentLessonWatchFraction(clampedFrac);
+                                          if (clampedFrac >= 0.9) {
+                                            setCurrentLessonWatchedEnough(true);
+                                          }
+                                        }
                                       }
                                     }}
                                     onTimeUpdate={(e) => {
