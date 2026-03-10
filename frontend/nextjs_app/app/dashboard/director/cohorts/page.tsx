@@ -1,17 +1,53 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
 import { CohortResponse } from '@/types/api'
 import { apiGateway } from '@/services/apiGateway'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  CircularProgress,
+  Box,
+  Typography,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
+} from '@mui/material'
+import {
+  MoreVert,
+  Edit,
+  Delete,
+  Visibility,
+  Add,
+} from '@mui/icons-material'
 
 export default function CohortsPage() {
   const [cohorts, setCohorts] = useState<CohortResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const [selectedCohort, setSelectedCohort] = useState<CohortResponse | null>(null)
+  const [cohortToDelete, setCohortToDelete] = useState<CohortResponse | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -20,6 +56,7 @@ export default function CohortsPage() {
 
   const fetchCohorts = async () => {
     try {
+      setIsLoading(true)
       const data = await apiGateway.get('/cohorts/') as any
       setCohorts(data?.results || data?.data || data || [])
     } catch (error) {
@@ -28,6 +65,62 @@ export default function CohortsPage() {
       setIsLoading(false)
     }
   }
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, cohort: CohortResponse) => {
+    setAnchorEl(event.currentTarget)
+    setSelectedCohort(cohort)
+  }
+
+  const handleMenuClose = () => {
+    setAnchorEl(null)
+    setSelectedCohort(null)
+  }
+
+  const handleDeleteClick = () => {
+    setCohortToDelete(selectedCohort)
+    setDeleteDialogOpen(true)
+    handleMenuClose()
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!cohortToDelete) return
+    setDeleting(true)
+    try {
+      await apiGateway.delete(`/cohorts/${cohortToDelete.id}/`)
+      await fetchCohorts()
+      setDeleteDialogOpen(false)
+      setCohortToDelete(null)
+    } catch (err: any) {
+      alert(err?.message || 'Failed to delete cohort.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false)
+    setCohortToDelete(null)
+  }
+
+  const filteredCohorts = useMemo(() => {
+    return cohorts.filter((cohort) => {
+      if (searchQuery && 
+          !cohort.name?.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !cohort.track?.name?.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false
+      }
+      return true
+    })
+  }, [cohorts, searchQuery])
+
+  const kpis = useMemo(() => {
+    const total = cohorts.length
+    const active = cohorts.filter(c => c.status === 'active').length
+    const totalEnrollment = cohorts.reduce((sum, c) => sum + (c.enrollment_count || 0), 0)
+    const totalCapacity = cohorts.reduce((sum, c) => sum + (c.seat_cap || 0), 0)
+    
+    return { total, active, totalEnrollment, totalCapacity }
+  }, [cohorts])
 
   if (isLoading) {
     return (
@@ -42,104 +135,226 @@ export default function CohortsPage() {
   return (
     <RouteGuard requiredRoles={['program_director', 'admin']}>
       <div className="max-w-7xl mx-auto">
+        <div className="mb-6">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-2xl font-bold text-white mb-2">Cohorts</h1>
+              <h1 className="text-4xl font-bold mb-2 text-white">Cohorts</h1>
               <p className="text-och-steel">Manage cohort instances and enrollment</p>
             </div>
             <Link href="/dashboard/director/cohorts/new">
-              <Button variant="defender" className="flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
+              <Button variant="defender" size="sm" className="gap-2">
+                <Add className="w-4 h-4" />
                 Create Cohort
               </Button>
             </Link>
           </div>
 
-          {cohorts.length === 0 ? (
-            <Card className="border-och-steel/20 bg-och-midnight/50">
-              <div className="p-12 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-och-midnight/50 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-och-steel" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
-                <p className="text-och-steel mb-2 text-lg">No cohorts found</p>
-                <p className="text-och-steel/70 mb-6">Create your first cohort to get started</p>
-                <Link href="/dashboard/director/cohorts/new">
-                  <Button variant="defender">
-                    Create Your First Cohort
-                  </Button>
-                </Link>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <Card className="bg-gradient-to-br from-och-defender/20 to-och-defender/5 border-och-defender/30">
+              <div className="p-4">
+                <p className="text-och-steel text-sm mb-1">Total Cohorts</p>
+                <p className="text-3xl font-bold text-white">{kpis.total}</p>
               </div>
             </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {cohorts.map((cohort) => (
-                <Card key={cohort.id} className="border-och-steel/20 bg-och-midnight/50 hover:border-och-defender/50 transition-colors">
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-white mb-1">{cohort.name}</h3>
-                        <p className="text-sm text-och-mint">
-                          {cohort.track?.name || cohort.curriculum_tracks?.join(', ') || 'No Track Assigned'}
-                          {cohort.track?.program?.name && ` • ${cohort.track.program.name}`}
-                        </p>
-                      </div>
-                      <div className="text-xs text-och-steel bg-och-steel/10 px-2 py-1 rounded">
-                        {cohort.status}
-                      </div>
-                    </div>
+            <Card className="bg-gradient-to-br from-och-mint/20 to-och-mint/5 border-och-mint/30">
+              <div className="p-4">
+                <p className="text-och-steel text-sm mb-1">Active</p>
+                <p className="text-3xl font-bold text-och-mint">{kpis.active}</p>
+              </div>
+            </Card>
+            <Card className="bg-gradient-to-br from-och-orange/20 to-och-orange/5 border-och-orange/30">
+              <div className="p-4">
+                <p className="text-och-steel text-sm mb-1">Total Enrollment</p>
+                <p className="text-3xl font-bold text-och-orange">{kpis.totalEnrollment}</p>
+              </div>
+            </Card>
+            <Card className="bg-gradient-to-br from-och-gold/20 to-och-gold/5 border-och-gold/30">
+              <div className="p-4">
+                <p className="text-och-steel text-sm mb-1">Total Capacity</p>
+                <p className="text-3xl font-bold text-och-gold">{kpis.totalCapacity}</p>
+              </div>
+            </Card>
+          </div>
 
-                    <div className="space-y-2 mb-4">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-och-steel">Start Date:</span>
-                        <span className="text-white">{new Date(cohort.start_date).toLocaleDateString()}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-och-steel">Mode:</span>
-                        <span className="text-white capitalize">{cohort.mode}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-och-steel">Enrollment:</span>
-                        <span className="text-white">{cohort.enrollment_count}/{cohort.seat_cap}</span>
-                      </div>
-                    </div>
-
-                    <div className="w-full bg-och-midnight/50 rounded-full h-2 mb-4">
-                      <div 
-                        className="bg-gradient-to-r from-och-mint to-och-defender h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${cohort.seat_utilization}%` }}
-                      />
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 text-xs border-och-defender/50 text-och-defender hover:bg-och-defender hover:text-white"
-                        onClick={() => router.push(`/dashboard/director/cohorts/${cohort.id}`)}
-                      >
-                        View Details
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="px-2 border-och-steel/50 text-och-steel hover:border-och-mint hover:text-och-mint"
-                        onClick={() => router.push(`/dashboard/director/cohorts/${cohort.id}/edit`)}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                        </svg>
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))}
+          {/* Search */}
+          <Card className="border-och-steel/20 bg-gradient-to-r from-och-midnight/50 to-och-midnight/30">
+            <div className="p-4">
+              <label className="block text-sm font-medium text-white mb-2">Search Cohorts</label>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name or track..."
+                className="w-full px-4 py-2.5 bg-och-midnight/70 border border-och-steel/30 rounded-lg text-white placeholder-och-steel/50 focus:outline-none focus:border-och-defender focus:ring-2 focus:ring-och-defender/20"
+              />
             </div>
-          )}
+          </Card>
         </div>
+
+        <Card>
+          {isLoading ? (
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+              <CircularProgress sx={{ color: '#00D9FF' }} />
+            </Box>
+          ) : filteredCohorts.length === 0 ? (
+            <Box p={6} textAlign="center">
+              <Typography variant="h6" color="#8B9DAF" mb={2}>
+                No cohorts found
+              </Typography>
+              <Link href="/dashboard/director/cohorts/new">
+                <Button variant="defender">Create Your First Cohort</Button>
+              </Link>
+            </Box>
+          ) : (
+            <TableContainer component={Paper} sx={{ backgroundColor: 'transparent', boxShadow: 'none' }}>
+              <Table sx={{ border: '1px solid rgba(139, 157, 175, 0.2)' }}>
+                <TableHead>
+                  <TableRow sx={{ borderBottom: '2px solid rgba(139, 157, 175, 0.3)', backgroundColor: 'rgba(0, 217, 255, 0.05)' }}>
+                    <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>#</TableCell>
+                    <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Cohort Name</TableCell>
+                    <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Track</TableCell>
+                    <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Start Date</TableCell>
+                    <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Enrollment</TableCell>
+                    <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }}>Status</TableCell>
+                    <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(139, 157, 175, 0.2)' }} align="right">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredCohorts.map((cohort: CohortResponse, index: number) => (
+                    <TableRow
+                      key={cohort.id}
+                      sx={{
+                        '&:hover': { backgroundColor: 'rgba(0, 217, 255, 0.05)' },
+                        borderBottom: '1px solid rgba(139, 157, 175, 0.1)',
+                      }}
+                    >
+                      <TableCell sx={{ color: '#8B9DAF', fontWeight: 600, border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                        {index + 1}
+                      </TableCell>
+                      <TableCell sx={{ color: '#fff', border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                        <div className="font-semibold">{cohort.name}</div>
+                      </TableCell>
+                      <TableCell sx={{ border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                        <span className="text-och-mint">
+                          {cohort.track?.name || cohort.curriculum_tracks?.join(', ') || 'No Track'}
+                        </span>
+                      </TableCell>
+                      <TableCell sx={{ color: '#8B9DAF', border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                        {new Date(cohort.start_date).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell sx={{ color: '#8B9DAF', border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                        {cohort.enrollment_count}/{cohort.seat_cap}
+                      </TableCell>
+                      <TableCell sx={{ border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                        <Badge
+                          variant={cohort.status === 'active' ? 'defender' : 'steel'}
+                          className="text-xs"
+                        >
+                          {cohort.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell align="right" sx={{ border: '1px solid rgba(139, 157, 175, 0.1)' }}>
+                        <IconButton
+                          onClick={(e) => handleMenuOpen(e, cohort)}
+                          sx={{ color: '#8B9DAF', '&:hover': { color: '#00D9FF' } }}
+                        >
+                          <MoreVert />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </Card>
+
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={handleMenuClose}
+          PaperProps={{
+            sx: {
+              backgroundColor: '#0A1628',
+              border: '1px solid rgba(139, 157, 175, 0.2)',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+              minWidth: 180,
+            },
+          }}
+        >
+          <MenuItem
+            onClick={() => {
+              router.push(`/dashboard/director/cohorts/${selectedCohort?.id}`)
+              handleMenuClose()
+            }}
+            sx={{ color: '#8B9DAF', '&:hover': { backgroundColor: 'rgba(0, 217, 255, 0.1)', color: '#00D9FF' } }}
+          >
+            <ListItemIcon>
+              <Visibility sx={{ color: '#8B9DAF' }} fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>View</ListItemText>
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              router.push(`/dashboard/director/cohorts/${selectedCohort?.id}/edit`)
+              handleMenuClose()
+            }}
+            sx={{ color: '#8B9DAF', '&:hover': { backgroundColor: 'rgba(0, 217, 255, 0.1)', color: '#00D9FF' } }}
+          >
+            <ListItemIcon>
+              <Edit sx={{ color: '#8B9DAF' }} fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Edit</ListItemText>
+          </MenuItem>
+          <MenuItem
+            onClick={handleDeleteClick}
+            disabled={deleting}
+            sx={{ color: '#FF6B35', '&:hover': { backgroundColor: 'rgba(255, 107, 53, 0.1)' } }}
+          >
+            <ListItemIcon>
+              <Delete sx={{ color: '#FF6B35' }} fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Delete</ListItemText>
+          </MenuItem>
+        </Menu>
+
+        <Dialog
+          open={deleteDialogOpen}
+          onClose={handleDeleteCancel}
+          PaperProps={{
+            sx: {
+              backgroundColor: '#0A1628',
+              border: '1px solid rgba(139, 157, 175, 0.2)',
+              boxShadow: '0 8px 16px rgba(0, 0, 0, 0.4)',
+            },
+          }}
+        >
+          <DialogTitle sx={{ color: '#fff', fontWeight: 600 }}>Confirm Delete</DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ color: '#8B9DAF' }}>
+              Are you sure you want to delete "{cohortToDelete?.name}"? This action cannot be undone.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions sx={{ padding: '16px 24px' }}>
+            <Button
+              onClick={handleDeleteCancel}
+              variant="outline"
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDeleteConfirm}
+              variant="orange"
+              disabled={deleting}
+              className="bg-och-orange hover:bg-och-orange/90"
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </div>
     </RouteGuard>
   )
 }

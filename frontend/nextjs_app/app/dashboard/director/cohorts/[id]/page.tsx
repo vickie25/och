@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { DirectorLayout } from '@/components/director/DirectorLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -273,14 +272,12 @@ export default function CohortDetailPage() {
   if (loadingCohort || isLoading) {
     return (
       <RouteGuard>
-        <DirectorLayout>
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-och-defender mx-auto mb-4"></div>
-              <p className="text-och-steel">Loading cohort...</p>
-            </div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-och-defender mx-auto mb-4"></div>
+            <p className="text-och-steel">Loading cohort...</p>
           </div>
-        </DirectorLayout>
+        </div>
       </RouteGuard>
     )
   }
@@ -288,24 +285,21 @@ export default function CohortDetailPage() {
   if (!cohort) {
     return (
       <RouteGuard>
-        <DirectorLayout>
-          <Card className="border-och-orange/50">
-            <div className="p-6 text-center">
-              <p className="text-och-orange mb-4">Cohort not found</p>
-              <Link href="/dashboard/director/cohorts">
-                <Button variant="outline">Back to Cohorts</Button>
-              </Link>
-            </div>
-          </Card>
-        </DirectorLayout>
+        <Card className="border-och-orange/50">
+          <div className="p-6 text-center">
+            <p className="text-och-orange mb-4">Cohort not found</p>
+            <Link href="/dashboard/director/cohorts">
+              <Button variant="outline">Back to Cohorts</Button>
+            </Link>
+          </div>
+        </Card>
       </RouteGuard>
     )
   }
 
   return (
     <RouteGuard>
-      <DirectorLayout>
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full">
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -971,7 +965,6 @@ export default function CohortDetailPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </DirectorLayout>
     </RouteGuard>
   )
 }

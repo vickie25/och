@@ -542,6 +542,16 @@ function ApplicationQuestionsTab({ cohorts }: { cohorts: Cohort[] }) {
   const [saving, setSaving] = useState(false)
   const [showAiAddModal, setShowAiAddModal] = useState(false)
   const [aiAddType, setAiAddType] = useState<'logical' | 'critical' | 'track' | 'behavioral'>('logical')
+  const [mcqCount, setMcqCount] = useState(3)
+  const [behavioralCount, setBehavioralCount] = useState(1)
+  const [scenarioCount, setScenarioCount] = useState(1)
+  const [totalMarks, setTotalMarks] = useState(100)
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
+
+  const computedMarks = useMemo(
+    () => questions.reduce((sum, q) => sum + (Number(q.scoring_weight) || 0), 0),
+    [questions],
+  )
 
   // On mount / when cohorts are loaded, fetch summary from backend so ticks persist after refresh
   useEffect(() => {
@@ -567,11 +577,31 @@ function ApplicationQuestionsTab({ cohorts }: { cohorts: Cohort[] }) {
     setShowSetModal(true)
   }
 
+  const buildManualQuestionsFromCounts = () => {
+    const next: AppQuestionItem[] = []
+    const add = (count: number, type: AppQuestionItem['type']) => {
+      for (let i = 0; i < count; i += 1) {
+        next.push({
+          ...DEFAULT_QUESTION,
+          id: crypto.randomUUID(),
+          type,
+        })
+      }
+    }
+    add(mcqCount, 'mcq')
+    add(behavioralCount, 'behavioral')
+    add(scenarioCount, 'scenario')
+    if (next.length === 0) {
+      next.push({ ...DEFAULT_QUESTION, id: crypto.randomUUID() })
+    }
+    return next
+  }
+
   const openEditor = (mode: 'manual' | 'ai') => {
     setEditorMode(mode)
     setShowSetModal(false)
     if (mode === 'manual') {
-      setQuestions([{ ...DEFAULT_QUESTION, id: crypto.randomUUID() }])
+      setQuestions(buildManualQuestionsFromCounts())
       setTimeLimitMinutes(60)
       setTestDate('')
       setShowEditorModal(true)
@@ -597,12 +627,25 @@ function ApplicationQuestionsTab({ cohorts }: { cohorts: Cohort[] }) {
         .catch(() => ({ name: selectedCohortName, curriculum_tracks: [] }))
         .then(async (c: any) => {
           try {
+            const totalRequested = Math.max(
+              1,
+              (mcqCount || 0) + (behavioralCount || 0) + (scenarioCount || 0),
+            )
+            const categories: string[] = []
+            if (mcqCount > 0) categories.push('mcq')
+            if (behavioralCount > 0) categories.push('behavioral')
+            if (scenarioCount > 0) categories.push('scenario')
             const ai = await fastapiApi.generateApplicationQuestions({
               cohort_id: selectedCohortId!,
               cohort_name: c?.name,
               tracks: c?.curriculum_tracks ?? [],
-              categories: ['logical', 'critical', 'track', 'behavioral'],
-              count: 4,
+              categories: categories.length > 0 ? categories : ['mcq', 'behavioral', 'scenario'],
+              count: totalRequested,
+              distribution: {
+                mcq: mcqCount,
+                behavioral: behavioralCount,
+                scenario: scenarioCount,
+              },
             })
             const mapped: AppQuestionItem[] = ai.questions.map((q) => ({
               id: crypto.randomUUID(),
@@ -688,6 +731,7 @@ function ApplicationQuestionsTab({ cohorts }: { cohorts: Cohort[] }) {
         cohort_id: selectedCohortId,
         time_limit_minutes: timeLimitMinutes,
         test_date: testDate || null,
+        total_marks: totalMarks,
         questions: questions.map(({ type, question_text, options, correct_answer, scoring_weight }) => ({ type, question_text, options, correct_answer, scoring_weight })),
       })
       setHasQuestions((p) => ({ ...p, [selectedCohortId]: true }))
@@ -712,6 +756,7 @@ function ApplicationQuestionsTab({ cohorts }: { cohorts: Cohort[] }) {
       const data = res as {
         time_limit_minutes?: number
         opens_at?: string | null
+        total_marks?: number
         questions?: Array<{
           id: string
           type: 'mcq' | 'scenario' | 'behavioral'
@@ -737,6 +782,7 @@ function ApplicationQuestionsTab({ cohorts }: { cohorts: Cohort[] }) {
       }
       setEditorMode('manual')
       setTimeLimitMinutes(data.time_limit_minutes ?? 60)
+      setTotalMarks(data.total_marks ?? 100)
       // Convert ISO datetime to datetime-local input value
       const opensAt = data.opens_at
       setTestDate(opensAt ? opensAt.slice(0, 16).replace(' ', 'T') : '')
@@ -797,52 +843,107 @@ function ApplicationQuestionsTab({ cohorts }: { cohorts: Cohort[] }) {
       </div>
 
       <Dialog open={showSetModal} onOpenChange={setShowSetModal}>
-        <DialogContent className="max-w-sm border-och-steel/20 bg-och-midnight">
+        <DialogContent className="max-w-md border-och-steel/20 bg-och-midnight">
           <DialogHeader>
             <DialogTitle className="text-white">Set application questions</DialogTitle>
           </DialogHeader>
-          <p className="text-och-steel text-sm mb-4">
-            How would you like to set the questions?
-          </p>
-          <div className="flex gap-3">
-            <Button
-              type="button"
-              variant="defender"
-              size="sm"
-              className="flex-1"
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                openEditor('manual')
-              }}
-            >
-              Set manually
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                openEditor('ai')
-              }}
-            >
-              AI setting
-            </Button>
-          </div>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={(e) => {
-                e.preventDefault()
-                setShowSetModal(false)
-              }}
-            >
-              Cancel
-            </Button>
+          <div className="space-y-4">
+            <p className="text-och-steel text-sm">
+              How many questions should this application test have in each category?
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs text-och-steel mb-1">MCQ</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={20}
+                  value={mcqCount}
+                  onChange={(e) => setMcqCount(Math.max(0, Number(e.target.value) || 0))}
+                  className="w-full px-2 py-1.5 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-och-steel mb-1">Behavioral</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={20}
+                  value={behavioralCount}
+                  onChange={(e) =>
+                    setBehavioralCount(Math.max(0, Number(e.target.value) || 0))
+                  }
+                  className="w-full px-2 py-1.5 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-och-steel mb-1">Scenario</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={20}
+                  value={scenarioCount}
+                  onChange={(e) =>
+                    setScenarioCount(Math.max(0, Number(e.target.value) || 0))
+                  }
+                  className="w-full px-2 py-1.5 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-xs"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-och-steel mb-1">Total marks for this test</label>
+              <input
+                type="number"
+                min={1}
+                max={1000}
+                value={totalMarks}
+                onChange={(e) => setTotalMarks(Math.max(1, Number(e.target.value) || 1))}
+                className="w-full px-2 py-1.5 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-xs"
+              />
+            </div>
+            <p className="text-och-steel text-xs">
+              Then choose whether to enter the questions manually or let AI generate them.
+            </p>
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="defender"
+                size="sm"
+                className="flex-1"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  openEditor('manual')
+                }}
+              >
+                Set manually
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  openEditor('ai')
+                }}
+              >
+                AI setting
+              </Button>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={(e) => {
+                  e.preventDefault()
+                  setShowSetModal(false)
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -862,7 +963,7 @@ function ApplicationQuestionsTab({ cohorts }: { cohorts: Cohort[] }) {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs text-och-steel mb-1">Time limit (minutes)</label>
                     <input
@@ -883,11 +984,32 @@ function ApplicationQuestionsTab({ cohorts }: { cohorts: Cohort[] }) {
                       className="w-full px-3 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-sm"
                     />
                   </div>
+                  <div>
+                    <label className="block text-xs text-och-steel mb-1">Total marks</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={1000}
+                      value={totalMarks}
+                      onChange={(e) => setTotalMarks(Math.max(1, Number(e.target.value) || 1))}
+                      className="w-full px-3 py-2 bg-och-midnight border border-och-steel/30 rounded-lg text-white text-sm"
+                    />
+                    <p className="text-[11px] mt-1 text-och-steel">
+                      Sum of question weights: <span className="text-och-mint">{computedMarks}</span>
+                    </p>
+                  </div>
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-sm font-medium text-white">Questions</label>
-                    <Button variant="outline" size="sm" onClick={addQuestion}>Add question</Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setShowPreviewModal(true)}>
+                        Preview
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={addQuestion}>
+                        Add question
+                      </Button>
+                    </div>
                   </div>
                   <div className="space-y-4">
                     {questions.map((q, idx) => (
@@ -961,6 +1083,61 @@ function ApplicationQuestionsTab({ cohorts }: { cohorts: Cohort[] }) {
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview modal */}
+      <Dialog open={showPreviewModal} onOpenChange={setShowPreviewModal}>
+        <DialogContent className="max-w-3xl w-full max-h-[80vh] flex flex-col border-och-steel/20 bg-och-midnight">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              Questions preview — {selectedCohortName || 'Cohort'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+            <p className="text-xs text-och-steel mb-2">
+              Total marks configured: <span className="text-och-mint font-semibold">{totalMarks}</span>.{' '}
+              Sum of question weights: <span className="text-och-mint font-semibold">{computedMarks}</span>.
+            </p>
+            {questions.length === 0 ? (
+              <p className="text-och-steel text-sm">No questions defined yet.</p>
+            ) : (
+              questions.map((q, idx) => (
+                <Card key={q.id} className="border-och-steel/20 bg-och-midnight/70">
+                  <div className="p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-och-steel">Question {idx + 1}</span>
+                      <span className="text-xs text-och-mint">
+                        {q.type === 'mcq'
+                          ? 'MCQ'
+                          : q.type === 'behavioral'
+                          ? 'Behavioral'
+                          : q.type === 'scenario'
+                          ? 'Scenario'
+                          : q.type}
+                        {typeof q.scoring_weight === 'number' && (
+                          <> · {q.scoring_weight} mark{q.scoring_weight === 1 ? '' : 's'}</>
+                        )}
+                      </span>
+                    </div>
+                    <p className="text-sm text-white whitespace-pre-wrap">{q.question_text}</p>
+                    {q.type === 'mcq' && q.options && q.options.length > 0 && (
+                      <ul className="text-xs text-och-steel list-disc list-inside space-y-1">
+                        {q.options.map((opt, i) => (
+                          <li key={i}>{opt}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" size="sm" onClick={() => setShowPreviewModal(false)}>
+              Close
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -1080,7 +1257,7 @@ function GradesTab({
   setCohortFilter,
   loading,
   onSetApplicationThreshold,
-  onSetInterviewThreshold,
+  currentCutoff,
 }: {
   cohorts: Cohort[]
   applications: Application[]
@@ -1088,7 +1265,7 @@ function GradesTab({
   setCohortFilter: (v: string) => void
   loading: boolean
   onSetApplicationThreshold: () => void
-  onSetInterviewThreshold: () => void
+  currentCutoff?: number
 }) {
   const studentApps = useMemo(() => applications.filter((a) => a.applicant_type === 'student'), [applications])
   const passedReview = useMemo(() => studentApps.filter((a) => (a as Application).review_status === 'passed'), [studentApps])
@@ -1098,9 +1275,9 @@ function GradesTab({
   return (
     <div className="space-y-6">
       <Card className="border-och-steel/20 p-4">
-        <h3 className="text-lg font-semibold text-white mb-2">Passing grades (thresholds)</h3>
+        <h3 className="text-lg font-semibold text-white mb-2">Passing grade (threshold)</h3>
         <p className="text-sm text-och-steel mb-4">
-          Set minimum passing scores per cohort for application test and interview. Use the cohort filter below to view pass/fail by cohort.
+          Set the minimum passing score per cohort for the application test. Use the cohort filter below to view pass/fail by cohort.
         </p>
         <div className="flex flex-wrap items-center gap-4">
           <label className="text-och-steel text-sm">Cohort</label>
@@ -1115,7 +1292,11 @@ function GradesTab({
             ))}
           </select>
           <Button variant="outline" size="sm" onClick={onSetApplicationThreshold}>Set application threshold</Button>
-          <Button variant="outline" size="sm" onClick={onSetInterviewThreshold}>Set interview threshold</Button>
+          {cohortFilter && typeof currentCutoff === 'number' && (
+            <span className="text-xs text-och-steel">
+              Current cutoff: <span className="text-och-mint font-semibold">{currentCutoff}%</span>
+            </span>
+          )}
         </div>
       </Card>
 
@@ -1149,7 +1330,7 @@ function GradesTab({
   )
 }
 
-type ApplicationsTab = 'applicants' | 'application-questions' | 'interview-questions' | 'grades'
+type ApplicationsTab = 'applicants' | 'application-questions' | 'grades'
 
 function ApplicationsContent() {
   const searchParams = useSearchParams()
@@ -1159,6 +1340,7 @@ function ApplicationsContent() {
   const [loading, setLoading] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [cohortFilter, setCohortFilter] = useState<string>('')
+  const [reviewCutoffs, setReviewCutoffs] = useState<Record<string, number>>({})
   const [applicantTypeFilter, setApplicantTypeFilter] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [reviewStatusFilter, setReviewStatusFilter] = useState<string>('')
@@ -1169,7 +1351,7 @@ function ApplicationsContent() {
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [mentors, setMentors] = useState<MentorAssignment[]>([])
   const [assigning, setAssigning] = useState(false)
-  const [showCutoffModal, setShowCutoffModal] = useState<'review' | 'interview' | null>(null)
+  const [showCutoffModal, setShowCutoffModal] = useState<'review' | null>(null)
   const [cutoffGrade, setCutoffGrade] = useState('')
   const [settingCutoff, setSettingCutoff] = useState(false)
   const [showEnrollModal, setShowEnrollModal] = useState(false)
@@ -1386,6 +1568,7 @@ function ApplicationsContent() {
       fetchApplications()
       const data = res as { eligible_count?: number; passed_count?: number; failed_count?: number; graded_count?: number }
       if (phase === 'review') {
+        setReviewCutoffs((prev) => ({ ...prev, [cohortId]: val }))
         const passed = data?.passed_count ?? 0
         const failed = data?.failed_count ?? 0
         alert(`Review cutoff set. ${passed} passed, ${failed} failed.`)
@@ -1568,9 +1751,6 @@ function ApplicationsContent() {
               </TabsTrigger>
               <TabsTrigger value="application-questions" className="gap-2 data-[state=active]:bg-och-defender/20 data-[state=active]:text-och-mint">
                 <FileQuestion className="w-4 h-4" /> Application Questions
-              </TabsTrigger>
-              <TabsTrigger value="interview-questions" className="gap-2 data-[state=active]:bg-och-defender/20 data-[state=active]:text-och-mint">
-                <MessageSquare className="w-4 h-4" /> Interview Questions
               </TabsTrigger>
               <TabsTrigger value="grades" className="gap-2 data-[state=active]:bg-och-defender/20 data-[state=active]:text-och-mint">
                 <Gauge className="w-4 h-4" /> Grades
@@ -1985,33 +2165,6 @@ function ApplicationsContent() {
                 onAssign={handleAssign}
                 assigning={assigning}
               />
-              {showCutoffModal && (
-                <Dialog open={!!showCutoffModal} onOpenChange={(o) => !o && setShowCutoffModal(null)}>
-                  <DialogContent className="max-w-sm border-och-steel/20 bg-och-midnight">
-                    <DialogHeader>
-                      <DialogTitle className="text-white">
-                        Set {showCutoffModal} cutoff grade
-                      </DialogTitle>
-                    </DialogHeader>
-                    <p className="text-och-steel text-sm mb-2">Applications with score ≥ cutoff pass.</p>
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      placeholder="0-100"
-                      value={cutoffGrade}
-                      onChange={(e) => setCutoffGrade(e.target.value)}
-                      className="w-full px-3 py-2 bg-och-midnight border border-och-steel/30 rounded text-white"
-                    />
-                    <div className="flex justify-end gap-2 mt-4">
-                      <Button variant="outline" onClick={() => setShowCutoffModal(null)}>Cancel</Button>
-                      <Button variant="defender" disabled={settingCutoff} onClick={() => handleSetCutoff(showCutoffModal)}>
-                        {settingCutoff ? 'Setting...' : 'Set cutoff'}
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              )}
               {showEnrollModal && (
                 <Dialog open={showEnrollModal} onOpenChange={setShowEnrollModal}>
                   <DialogContent className="max-w-sm border-och-steel/20 bg-och-midnight">
@@ -2039,10 +2192,6 @@ function ApplicationsContent() {
               <ApplicationQuestionsTab cohorts={cohorts} />
             </TabsContent>
 
-            <TabsContent value="interview-questions" className="mt-6">
-              <InterviewQuestionsTab cohorts={cohorts} />
-            </TabsContent>
-
             <TabsContent value="grades" className="mt-6">
               <GradesTab
                 cohorts={cohorts}
@@ -2057,16 +2206,45 @@ function ApplicationsContent() {
                   }
                   setShowCutoffModal('review')
                 }}
-                onSetInterviewThreshold={() => {
-                  if (!cohortFilter) {
-                    alert('Please select a cohort first.')
-                    return
-                  }
-                  setShowCutoffModal('interview')
-                }}
+                currentCutoff={cohortFilter ? reviewCutoffs[cohortFilter] : undefined}
               />
             </TabsContent>
           </Tabs>
+
+          {/* Application cutoff modal (available from Grades tab) */}
+          {showCutoffModal && (
+            <Dialog open={!!showCutoffModal} onOpenChange={(o) => !o && setShowCutoffModal(null)}>
+              <DialogContent className="max-w-sm border-och-steel/20 bg-och-midnight">
+                <DialogHeader>
+                  <DialogTitle className="text-white">
+                    Set application cutoff grade
+                  </DialogTitle>
+                </DialogHeader>
+                <p className="text-och-steel text-sm mb-2">
+                  Applications with score ≥ cutoff pass. Enter a value between 0 and 100.
+                </p>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  placeholder="0-100"
+                  value={cutoffGrade}
+                  onChange={(e) => setCutoffGrade(e.target.value)}
+                  className="w-full px-3 py-2 bg-och-midnight border border-och-steel/30 rounded text-white"
+                />
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button variant="outline" onClick={() => setShowCutoffModal(null)}>Cancel</Button>
+                  <Button
+                    variant="defender"
+                    disabled={settingCutoff}
+                    onClick={() => handleSetCutoff('review')}
+                  >
+                    {settingCutoff ? 'Setting...' : 'Set cutoff'}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
     </RouteGuard>
   )
