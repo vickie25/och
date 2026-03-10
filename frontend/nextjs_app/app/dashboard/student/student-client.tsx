@@ -149,6 +149,18 @@ export default function StudentClient() {
 
           // If Foundations is not complete, redirect to Foundations
           if (!foundationsStatus.is_complete) {
+            // Allow a special deep-link that shows the Foundations
+            // card + video preview on the dashboard without bouncing
+            // back to the standalone Foundations page.
+            if (typeof window !== 'undefined') {
+              const hash = window.location.hash || '';
+              if (hash === '#student-tour-foundations') {
+                console.log('✅ Foundations incomplete but hash deep-link present - staying on dashboard');
+                setCheckingFoundations(false);
+                return;
+              }
+            }
+
             console.log('✅ Foundations not completed - redirecting to Foundations');
             router.push('/dashboard/student/foundations');
             return;

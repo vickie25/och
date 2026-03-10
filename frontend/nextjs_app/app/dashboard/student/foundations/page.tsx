@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { foundationsClient, FoundationsModule, FoundationsStatus } from '@/services/foundationsClient'
 import { fastapiClient } from '@/services/fastapiClient'
+import { curriculumClient } from '@/services/curriculumClient'
+import type { Lesson } from '@/services/types/curriculum'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   CheckCircle2, 
@@ -28,6 +30,31 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 
+// Mirror media helpers from StudentDashboardHub so Foundations landing
+// can show the same style of lesson preview.
+function resolveContentUrl(url: string | undefined): string {
+  if (!url) return ''
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  const base = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_DJANGO_API_URL || '' : ''
+  return `${base}${url.startsWith('/') ? '' : '/'}${url}`
+}
+
+function getEmbedUrl(url: string | undefined): string | null {
+  if (!url) return null
+  const ytMatch = url.match(
+    /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/
+  )
+  if (ytMatch) {
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    return `https://www.youtube.com/embed/${ytMatch[1]}?enablejsapi=1&origin=${encodeURIComponent(
+      origin
+    )}`
+  }
+  const vimeoMatch = url.match(/vimeo\.com\/(\d+)/)
+  if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`
+  return null
+}
+
 type FoundationsView = 'landing' | 'modules' | 'module-viewer' | 'assessment' | 'reflection' | 'track-confirmation' | 'completion' | 'mission-preview' | 'recipe-demo' | 'portfolio-overview' | 'mentorship-overview'
 
 export default function FoundationsPage() {
@@ -42,6 +69,7 @@ export default function FoundationsPage() {
   const [profilerResult, setProfilerResult] = useState<any>(null)
   const hasLoadedRef = useRef(false)
   const isCompletingRef = useRef(false)
+  const [landingLessons, setLandingLessons] = useState<Lesson[]>([])
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -107,6 +135,31 @@ export default function FoundationsPage() {
 
       setStatus(foundationsStatus)
 
+      // For the landing view, mirror StudentDashboardHub by loading
+      // a flat list of curriculum lessons so we can show lesson titles
+      // and a first-video preview directly on the Foundations route.
+      try {
+        const curriculumModules =
+          foundationsStatus.modules?.filter((m: FoundationsModule) => m.source === 'curriculum') ??
+          []
+        if (curriculumModules.length > 0) {
+          const lessonResults = await Promise.all(
+            curriculumModules.map((m: FoundationsModule) =>
+              curriculumClient.getLessonsByModule(m.id).catch(() => [] as Lesson[])
+            )
+          )
+          const allLessons = lessonResults
+            .flat()
+            .slice()
+            .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+          setLandingLessons(allLessons)
+        } else {
+          setLandingLessons([])
+        }
+      } catch {
+        setLandingLessons([])
+      }
+
       // If already complete, show completion screen
       if (foundationsStatus.is_complete) {
         setCurrentView('completion')
@@ -152,7 +205,17 @@ export default function FoundationsPage() {
           setCurrentView('module-viewer')
         }
       } else if (foundationsStatus.status === 'not_started') {
-        setCurrentView('landing')
+        // If there is a dedicated Mission Preview module, use that as the first-touch
+        // landing experience; otherwise fall back to the text-based landing card.
+        const missionPreviewModule = foundationsStatus.modules.find(
+          (m) => m.title.toLowerCase().includes('mission preview')
+        )
+        if (missionPreviewModule) {
+          setCurrentModule(missionPreviewModule)
+          setCurrentView('mission-preview')
+        } else {
+          setCurrentView('landing')
+        }
       } else {
         setCurrentView('modules')
       }
@@ -166,7 +229,13 @@ export default function FoundationsPage() {
   }
 
   const handleStartFoundations = () => {
-    setCurrentView('modules')
+    // Navigate to the Student Dashboard Foundations section so the
+    // existing full lesson viewer (with progress, Next, etc) is used.
+    if (typeof window !== 'undefined') {
+      window.location.href = '/dashboard/student#student-tour-foundations'
+    } else {
+      router.push('/dashboard/student#student-tour-foundations')
+    }
   }
 
   const handleModuleClick = (module: FoundationsModule) => {
@@ -349,6 +418,14 @@ export default function FoundationsPage() {
         onStart={handleStartFoundations}
         profilerResult={profilerResult}
         blueprint={blueprint}
+        status={status}
+        landingLessons={landingLessons}
+        selectedTrackKey={
+          status.confirmed_track_key ||
+          // fall back to the student's chosen track if available
+          (user as any)?.track_key ||
+          profilerResult?.primary_track?.key
+        }
       />
     )
   }
@@ -560,97 +637,151 @@ function ProgressSidebar({
 function FoundationsLanding({ 
   onStart, 
   profilerResult,
-  blueprint 
+  blueprint,
+  status,
+  landingLessons,
+  selectedTrackKey,
 }: { 
   onStart: () => void
   profilerResult: any
   blueprint: any
+  status: FoundationsStatus | null
+  landingLessons: Lesson[]
+  selectedTrackKey?: string | null
 }) {
+  const mandatoryModules = status?.modules?.filter(m => m.is_mandatory) ?? status?.modules ?? []
+  const sortedModules = [...mandatoryModules].sort((a, b) => a.order - b.order)
+  const whatYoullLearn =
+    landingLessons.length > 0
+      ? landingLessons.slice(0, 5).map((l) => l.title)
+      : sortedModules.slice(0, 5).map((m) => m.title)
+
+  const totalMinutesFromLessons = landingLessons.reduce(
+    (sum, l) => sum + (l.duration_minutes || 0),
+    0
+  )
+  const totalMinutesFromModules = sortedModules.reduce(
+    (sum, m) => sum + (m.estimated_minutes || 0),
+    0
+  )
+  const totalMinutes = totalMinutesFromLessons || totalMinutesFromModules
+
+  let durationLabel = '30–45 minutes'
+  if (totalMinutes > 0) {
+    if (totalMinutes < 60) {
+      durationLabel = `${totalMinutes} minute${totalMinutes === 1 ? '' : 's'}`
+    } else {
+      const hours = totalMinutes / 60
+      if (hours < 1.5) {
+        durationLabel = 'about 1 hour'
+      } else {
+        durationLabel = `about ${Math.round(hours)} hours`
+      }
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-och-midnight via-och-space to-och-crimson flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-och-midnight via-och-space to-och-crimson flex items-center justify-center px-3 py-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-        className="max-w-4xl mx-auto w-full"
+        transition={{ duration: 0.5 }}
+        className="max-w-3xl mx-auto w-full"
       >
-        <Card className="p-8 sm:p-12 bg-och-midnight/90 border-2 border-och-gold/30">
-          <div className="text-center mb-8">
+        <Card className="p-4 sm:p-6 bg-och-midnight/90 border border-och-gold/30">
+          <div className="text-center mb-4">
             <motion.div
               initial={{ scale: 0, rotate: -180 }}
               animate={{ scale: 1, rotate: 0 }}
-              transition={{ delay: 0.2, type: "spring" }}
-              className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-och-gold to-och-mint mb-6"
+              transition={{ delay: 0.1, type: "spring", stiffness: 260, damping: 20 }}
+              className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-och-gold to-och-mint mb-3"
             >
-              <Sparkles className="w-10 h-10 text-white" />
+              <Sparkles className="w-6 h-6 text-white" />
             </motion.div>
-            <h1 className="text-4xl md:text-5xl font-black text-white mb-4 uppercase tracking-tight">
+            <h1 className="text-xl md:text-2xl font-black text-white mb-1 uppercase tracking-tight">
               Your Journey Starts Here
             </h1>
-            <p className="text-xl text-gray-300 mb-6">
+            <p className="text-sm text-gray-300 mb-2">
               Welcome to Beginner Level: Foundations
             </p>
-            {profilerResult?.primary_track && (
-              <Badge variant="gold" className="text-lg px-4 py-2 mb-4">
-                Recommended Track: {profilerResult.primary_track.name}
-              </Badge>
-            )}
+            {(() => {
+              const confirmedKey = status?.confirmed_track_key
+              const effectiveTrackKey = confirmedKey || selectedTrackKey || profilerResult?.primary_track?.key
+              const trackNames: Record<string, string> = {
+                defender: 'Defender',
+                offensive: 'Offensive',
+                grc: 'GRC',
+                innovation: 'Innovation',
+                leadership: 'Leadership',
+              }
+              const recommendedName = effectiveTrackKey
+                ? trackNames[effectiveTrackKey] || profilerResult?.primary_track?.name
+                : profilerResult?.primary_track?.name
+              return recommendedName ? (
+                <Badge variant="gold" className="text-xs px-3 py-1 mb-2">
+                  Recommended Track: {recommendedName}
+                </Badge>
+              ) : null
+            })()}
           </div>
 
-          <div className="space-y-6 mb-8">
-            <div className="bg-white/5 rounded-lg p-6">
-              <h2 className="text-white font-bold text-xl mb-4 flex items-center gap-3">
-                <Compass className="w-6 h-6 text-och-gold" />
+          <div className="space-y-4 mb-4">
+            <div className="bg-white/5 rounded-lg p-4">
+              <h2 className="text-white font-semibold text-base mb-3 flex items-center gap-2">
+                <Compass className="w-4 h-4 text-och-gold" />
                 What You'll Learn
               </h2>
-              <ul className="space-y-3 text-gray-300">
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-och-mint shrink-0 mt-0.5" />
-                  <span>How OCH works end-to-end</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-och-mint shrink-0 mt-0.5" />
-                  <span>Understanding missions, recipes, and tracks</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-och-mint shrink-0 mt-0.5" />
-                  <span>The VIP (Value, Impact, Purpose) framework</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-och-mint shrink-0 mt-0.5" />
-                  <span>Navigating your dashboard and portfolio</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-och-mint shrink-0 mt-0.5" />
-                  <span>How to interact with mentors</span>
-                </li>
+              <ul className="space-y-2 text-gray-300 text-sm">
+                {whatYoullLearn.length > 0 ? (
+                  whatYoullLearn.map((title) => (
+                    <li key={title} className="flex items-start gap-3">
+                      <CheckCircle2 className="w-5 h-5 text-och-mint shrink-0 mt-0.5" />
+                      <span>{title}</span>
+                    </li>
+                  ))
+                ) : (
+                  <>
+                    <li className="flex items-start gap-3">
+                      <CheckCircle2 className="w-5 h-5 text-och-mint shrink-0 mt-0.5" />
+                      <span>How OCH works end-to-end</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <CheckCircle2 className="w-5 h-5 text-och-mint shrink-0 mt-0.5" />
+                      <span>Understanding missions, recipes, and tracks</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <CheckCircle2 className="w-5 h-5 text-och-mint shrink-0 mt-0.5" />
+                      <span>The VIP (Value, Impact, Purpose) framework</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <CheckCircle2 className="w-5 h-5 text-och-mint shrink-0 mt-0.5" />
+                      <span>Navigating your dashboard and portfolio</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <CheckCircle2 className="w-5 h-5 text-och-mint shrink-0 mt-0.5" />
+                      <span>How to interact with mentors</span>
+                    </li>
+                  </>
+                )}
               </ul>
             </div>
 
-            {blueprint?.suggested_starting_point && (
-              <div className="bg-och-gold/10 border border-och-gold/30 rounded-lg p-6">
-                <h3 className="text-white font-bold mb-2 flex items-center gap-2">
-                  <Target className="w-5 h-5 text-och-gold" />
-                  Your Starting Point
-                </h3>
-                <p className="text-gray-300">{blueprint.suggested_starting_point}</p>
-              </div>
-            )}
+            {/* (Preview removed – handled in StudentDashboardHub Foundations block) */}
           </div>
 
-          <div className="text-center">
+          <div className="text-center mt-2">
             <Button
               onClick={onStart}
               variant="mint"
-              size="lg"
-              className="font-black uppercase tracking-widest text-lg px-8 py-4"
+              size="sm"
+              className="font-black uppercase tracking-widest text-xs px-5 py-2"
               glow
             >
-              <Rocket className="w-5 h-5 mr-2" />
+              <Rocket className="w-4 h-4 mr-1" />
               Begin Foundations
             </Button>
-            <p className="text-gray-400 text-sm mt-4">
-              Takes about 30-45 minutes • You can save and resume anytime
+            <p className="text-gray-400 text-xs mt-2">
+              Takes about {durationLabel} • You can save and resume anytime
             </p>
           </div>
         </Card>

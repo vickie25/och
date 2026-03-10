@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { DirectorLayout } from '@/components/director/DirectorLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { apiGateway } from '@/services/apiGateway'
@@ -55,8 +54,7 @@ export default function CreateTrackPage() {
 
   return (
     <RouteGuard>
-      <DirectorLayout>
-        <div className="max-w-2xl mx-auto space-y-6">
+        <div className="w-full space-y-6">
           <div>
             <h1 className="text-3xl font-bold text-white">Create Curriculum Track</h1>
             <p className="text-och-steel">Create a new curriculum track (Defender, Offensive, GRC, Innovation, Leadership)</p>
@@ -207,7 +205,6 @@ export default function CreateTrackPage() {
             </form>
           </Card>
         </div>
-      </DirectorLayout>
     </RouteGuard>
   )
 }
