@@ -1025,6 +1025,15 @@ def sync_fastapi_profiling(request):
     completed_at = request.data.get('completed_at')
     primary_track = request.data.get('primary_track')
     recommendations = request.data.get('recommendations', [])
+    # Optional detailed scores/payload from FastAPI (backwards compatible if missing)
+    scores = request.data.get('scores') or {}
+    overall_score = scores.get('overall') or request.data.get('overall_score')
+    aptitude_score = scores.get('aptitude') or request.data.get('aptitude_score')
+    behavioral_score = scores.get('behavioral') or request.data.get('behavioral_score')
+    aptitude_breakdown = request.data.get('aptitude_breakdown') or {}
+    behavioral_traits = request.data.get('behavioral_traits') or {}
+    strengths = request.data.get('strengths') or scores.get('strengths') or []
+    areas_for_growth = request.data.get('areas_for_growth') or []
     
     # Verify user_id matches authenticated user
     if user_id and str(user.id) != str(user_id):
@@ -1034,7 +1043,122 @@ def sync_fastapi_profiling(request):
         )
     
     try:
-        # Update user profiling status
+        # 1) Persist a Django-side ProfilerSession + ProfilerResult so all
+        # downstream analytics (Future-You, dashboard readiness) have data,
+        # even when the assessment ran entirely in FastAPI.
+
+        from .models import ProfilerSession, ProfilerResult
+
+        profiler_session_obj = None
+
+        # Try to bind to existing session by UUID (if we already synced once or
+        # the session was created server-side earlier)
+        if session_id:
+            try:
+                import uuid
+                session_uuid = uuid.UUID(str(session_id))
+                profiler_session_obj = ProfilerSession.objects.filter(
+                    id=session_uuid,
+                    user=user,
+                ).first()
+            except Exception as e:
+                logger.warning(f"Failed to look up ProfilerSession by session_id {session_id}: {e}")
+
+        # If no session exists yet, create a minimal finished/locked session
+        # using the FastAPI payload as the source of truth.
+        if not profiler_session_obj:
+            profiler_session_obj = ProfilerSession.objects.create(
+                user=user,
+                status='finished',
+                is_locked=True,
+            )
+
+        # Update core scores/telemetry on the session when provided
+        if aptitude_score is not None:
+            profiler_session_obj.aptitude_score = aptitude_score
+        if strengths:
+            profiler_session_obj.strengths = strengths
+        # Track alignment percentages can be derived from recommendations in future;
+        # for now, leave as-is unless explicitly provided.
+        if completed_at:
+            from datetime import datetime
+            from django.utils import timezone as tz
+            try:
+                parsed_dt = datetime.fromisoformat(str(completed_at).replace('Z', '+00:00'))
+                if parsed_dt.tzinfo is None:
+                    parsed_dt = tz.make_aware(parsed_dt)
+                profiler_session_obj.completed_at = parsed_dt
+            except (ValueError, AttributeError, TypeError):
+                profiler_session_obj.completed_at = tz.now()
+
+        # If we have a primary_track, try to link it via recommended_track_id
+        # to the matching CurriculumTrack (best-effort; safe if not found).
+        if primary_track and not profiler_session_obj.recommended_track_id:
+            try:
+                from curriculum.models import CurriculumTrack
+                track_slug = str(primary_track).lower()
+                matched_track = CurriculumTrack.objects.filter(
+                    slug__iexact=track_slug,
+                    is_active=True,
+                ).first()
+                if matched_track:
+                    profiler_session_obj.recommended_track_id = matched_track.id
+            except Exception as e:
+                logger.warning(f"Failed to map primary_track '{primary_track}' to CurriculumTrack: {e}")
+
+        # Ensure the session is locked to mirror a completed one-time attempt.
+        if not profiler_session_obj.is_locked:
+            profiler_session_obj.lock()
+        else:
+            # If already locked, just save any updates we made above.
+            profiler_session_obj.save()
+
+        # Create or update ProfilerResult tied to this session/user
+        profiler_result_obj = None
+        try:
+            profiler_result_obj = profiler_session_obj.result  # OneToOne
+        except ProfilerResult.DoesNotExist:
+            profiler_result_obj = None
+
+        if not profiler_result_obj:
+            # Only create if we have at least an overall_score; otherwise skip
+            # the detailed result but still rely on the session-level fields.
+            if overall_score is not None:
+                profiler_result_obj = ProfilerResult.objects.create(
+                    session=profiler_session_obj,
+                    user=user,
+                    overall_score=overall_score,
+                    aptitude_score=aptitude_score or (overall_score or 0),
+                    behavioral_score=behavioral_score or (overall_score or 0),
+                    aptitude_breakdown=aptitude_breakdown or {},
+                    behavioral_traits=behavioral_traits or {},
+                    strengths=strengths or [],
+                    areas_for_growth=areas_for_growth or [],
+                    recommended_tracks=recommendations or [],
+                    learning_path_suggestions=[],
+                    och_mapping={},
+                )
+        else:
+            # Update existing result with latest scores if present
+            if overall_score is not None:
+                profiler_result_obj.overall_score = overall_score
+            if aptitude_score is not None:
+                profiler_result_obj.aptitude_score = aptitude_score
+            if behavioral_score is not None:
+                profiler_result_obj.behavioral_score = behavioral_score
+            if aptitude_breakdown:
+                profiler_result_obj.aptitude_breakdown = aptitude_breakdown
+            if behavioral_traits:
+                profiler_result_obj.behavioral_traits = behavioral_traits
+            if strengths:
+                profiler_result_obj.strengths = strengths
+            if areas_for_growth:
+                profiler_result_obj.areas_for_growth = areas_for_growth
+            if recommendations:
+                profiler_result_obj.recommended_tracks = recommendations
+            profiler_result_obj.save()
+
+        # 2) Update user profiling status (authoritative Tier-0 flag)
         user.profiling_complete = True
 
         if completed_at:
@@ -1048,12 +1172,9 @@ def sync_fastapi_profiling(request):
             except (ValueError, AttributeError):
                 user.profiling_completed_at = tz.now()
 
-        if session_id:
-            try:
-                import uuid
-                user.profiling_session_id = uuid.UUID(session_id)
-            except Exception as e:
-                logger.warning(f"Failed to set profiling_session_id: {e}")
+        # Always link user to the Django-side ProfilerSession we just resolved/created
+        if profiler_session_obj:
+            user.profiling_session_id = profiler_session_obj.id
 
         # Set user's track_key from profiler recommendation
         if primary_track:
