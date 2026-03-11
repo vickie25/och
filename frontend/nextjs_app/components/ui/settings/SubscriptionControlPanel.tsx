@@ -11,6 +11,7 @@ import { Sparkles, Check, ArrowRight, X, CreditCard, Calendar, TrendingUp, BarCh
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { formatFromKES, getCurrencyCode } from '@/lib/currency';
 
 // Local types to replace missing @/lib/settings imports
 export interface UserEntitlements {
@@ -89,13 +90,28 @@ export function getUpgradeRecommendations(entitlements: UserEntitlements, settin
 interface SubscriptionControlPanelProps {
   entitlements: UserEntitlements | null;
   settings: UserSettings | null;
+  userCountry?: string | null; // ISO 3166-1 alpha-2 country code
 }
 
-export function SubscriptionControlPanel({ entitlements, settings }: SubscriptionControlPanelProps) {
+export function SubscriptionControlPanel({ entitlements, settings, userCountry }: SubscriptionControlPanelProps) {
   // All hooks must be called before any conditional returns
   const [showBillingHistory, setShowBillingHistory] = useState(false);
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
   const [showUsageAnalytics, setShowUsageAnalytics] = useState(false);
+  
+  // Prices in KES (system base currency)
+  const planPricesKES = {
+    free: 0,
+    starter: 300,      // ~$3 USD
+    professional: 700, // ~$7 USD
+  };
+
+  // Helper to format prices in user's currency
+  const formatPrice = (kesAmount: number) => {
+    return formatFromKES(kesAmount, userCountry);
+  };
+
+  const userCurrency = getCurrencyCode(userCountry);
   
   // Always render with defaults if data is missing
   if (!entitlements || !settings) {
@@ -181,7 +197,8 @@ export function SubscriptionControlPanel({ entitlements, settings }: Subscriptio
   const tiers = [
     {
       name: 'Free',
-      price: '$0',
+      price: formatPrice(planPricesKES.free),
+      priceKES: planPricesKES.free,
       priceLabel: 'Free forever',
       features: [
         { name: 'Basic portfolio', included: true },
@@ -196,7 +213,8 @@ export function SubscriptionControlPanel({ entitlements, settings }: Subscriptio
     },
     {
       name: 'Starter',
-      price: '$29',
+      price: formatPrice(planPricesKES.starter),
+      priceKES: planPricesKES.starter,
       priceLabel: 'per month',
       features: [
         { name: 'Everything in Free', included: true },
@@ -210,7 +228,8 @@ export function SubscriptionControlPanel({ entitlements, settings }: Subscriptio
     },
     {
       name: 'Professional',
-      price: '$99',
+      price: formatPrice(planPricesKES.professional),
+      priceKES: planPricesKES.professional,
       priceLabel: 'per month',
       features: [
         { name: 'Everything in Starter', included: true },
@@ -351,9 +370,17 @@ export function SubscriptionControlPanel({ entitlements, settings }: Subscriptio
               className="bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-500/50 rounded-xl p-6 text-center"
             >
               <h3 className="text-lg font-bold text-slate-100 mb-2">Upgrade to Professional</h3>
-              <p className="text-sm text-slate-400 mb-4">
+              <p className="text-sm text-slate-400 mb-2">
                 Unlock unlimited AI Coach and priority support
               </p>
+              <div className="text-2xl font-bold text-white mb-4">
+                {formatPrice(planPricesKES.professional)}/month
+                {userCountry && userCountry !== 'KE' && (
+                  <span className="text-xs text-slate-500 block mt-1">
+                    (≈ {planPricesKES.professional} KES)
+                  </span>
+                )}
+              </div>
               <div className="flex gap-3">
                 <Button
                   variant="defender"
@@ -403,7 +430,14 @@ export function SubscriptionControlPanel({ entitlements, settings }: Subscriptio
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <div className="font-bold text-slate-100">{tier.name}</div>
-                    <div className="text-sm text-slate-400">{tier.price} {tier.priceLabel}</div>
+                    <div className="text-sm text-slate-400">
+                      {tier.price} {tier.priceLabel !== 'Free forever' && tier.priceLabel}
+                    </div>
+                    {userCountry && userCountry !== 'KE' && tier.priceKES > 0 && (
+                      <div className="text-xs text-slate-500 mt-0.5">
+                        (≈ {tier.priceKES} KES)
+                      </div>
+                    )}
                   </div>
                   {tier.current && (
                     <Badge variant="steel" className="bg-indigo-500/20 text-indigo-400">
@@ -514,7 +548,12 @@ export function SubscriptionControlPanel({ entitlements, settings }: Subscriptio
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-lg font-bold text-slate-100">${invoice.amount}</div>
+                        <div className="text-lg font-bold text-slate-100">{formatPrice(invoice.amount)}</div>
+                        {userCountry && userCountry !== 'KE' && (
+                          <div className="text-xs text-slate-500 mt-0.5">
+                            (≈ {invoice.amount} KES)
+                          </div>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"

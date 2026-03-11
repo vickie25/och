@@ -89,202 +89,191 @@ def subscription_status(request):
 def upgrade_subscription(request):
     """
     POST /api/v1/subscription/upgrade
-    Upgrade subscription (creates Stripe session or mocks upgrade).
+    Upgrade subscription with proration and promo code support.
+    Body: {
+        "plan": "starter_3" | "professional_7",
+        "promo_code": "CYBER2026" (optional),
+        "mock": true (optional)
+    }
     """
+    from .utils import calculate_proration, apply_promo_code, record_promo_redemption, attempt_payment_charge
+    
     serializer = UpgradeSubscriptionSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     
     plan_identifier = serializer.validated_data['plan']
+    promo_code = request.data.get('promo_code', '').strip()
     mock_upgrade = request.data.get('mock', False)
     
-    # Try to find plan by name first, then by tier
-    # Frontend sends: 'starter_3', 'professional_7' as plan names
+    # Find plan
     try:
         plan = SubscriptionPlan.objects.get(name=plan_identifier)
     except SubscriptionPlan.DoesNotExist:
+        tier_mapping = {
+            'starter_3': 'starter',
+            'professional_7': 'premium',
+            'free': 'free',
+        }
+        tier = tier_mapping.get(plan_identifier, plan_identifier)
         try:
-            # Try by tier (e.g., 'starter', 'premium', 'free')
-            # Map frontend tier names to backend tier values
-            tier_mapping = {
-                'starter_3': 'starter',
-                'professional_7': 'premium',
-                'free': 'free',
-            }
-            tier = tier_mapping.get(plan_identifier, plan_identifier)
             plan = SubscriptionPlan.objects.get(tier=tier)
         except SubscriptionPlan.DoesNotExist:
             return Response(
-                {'error': f'Invalid plan: {plan_identifier}. Available plans: {list(SubscriptionPlan.objects.values_list("name", flat=True))}'},
+                {'error': f'Invalid plan: {plan_identifier}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
     
     user = request.user
-    stripe_key = os.environ.get('STRIPE_SECRET_KEY')
     
-    # If mock upgrade or Stripe not configured, upgrade directly
-    if mock_upgrade or not stripe_key:
-        try:
-            with transaction.atomic():
-                # Get or create subscription
-                subscription, created = UserSubscription.objects.get_or_create(
-                    user=user,
-                    defaults={
-                        'plan': plan,
-                        'status': 'active',
-                        'current_period_start': timezone.now(),
-                        'current_period_end': timezone.now() + timezone.timedelta(days=30),
-                    }
-                )
-                
-                # Update subscription if it already exists
-                if not created:
-                    subscription.plan = plan
-                    subscription.status = 'active'
-                    subscription.current_period_start = timezone.now()
-                    subscription.current_period_end = timezone.now() + timezone.timedelta(days=30)
-                
-                # Set enhanced access for starter_3 (180 days) for both new and existing subscriptions
-                if plan.tier == 'starter' or 'starter' in plan.tier.lower():
-                    subscription.enhanced_access_expires_at = timezone.now() + timezone.timedelta(days=180)
-                else:
-                    subscription.enhanced_access_expires_at = None
-                
-                subscription.save()
-                
-                # Create a payment transaction record for the upgrade (mock payment for development)
-                if mock_upgrade or not stripe_key:
-                    PaymentTransaction.objects.create(
-                        user=user,
-                        subscription=subscription,
-                        amount=plan.price_monthly or 0,
-                        currency='KES',
-                        status='completed',
-                        gateway_transaction_id=f'mock_upgrade_{subscription.id}',
-                        processed_at=timezone.now(),
-                    )
-                    logger.info(f"Created mock payment transaction for upgrade: User {user.email} to {plan.name}")
-                
-                # Update marketplace profile tier if exists
-                try:
-                    marketplace_profile = user.marketplace_profile
-                    # Map subscription plan tier to marketplace tier
-                    tier_mapping = {
-                        'free': 'free',
-                        'starter': 'starter',
-                        'starter_3': 'starter',
-                        'premium': 'professional',
-                        'professional_7': 'professional',
-                        'professional': 'professional',
-                    }
-                    marketplace_tier = tier_mapping.get(plan.tier, tier_mapping.get(plan.name, 'free'))
-                    marketplace_profile.tier = marketplace_tier
-                    marketplace_profile.last_updated_at = timezone.now()
-                    marketplace_profile.save()
-                    logger.info(f"Updated marketplace profile tier to {marketplace_tier} for user {user.email}")
-                except Exception as marketplace_error:
-                    # Marketplace profile doesn't exist or error updating - that's ok
-                    logger.debug(f"Marketplace profile update skipped: {marketplace_error}")
-                
-                logger.info(f"Mock upgrade successful: User {user.email} upgraded to {plan.name} ({plan.tier})")
-                
-                return Response({
-                    'success': True,
-                    'plan': plan.name,
-                    'tier': plan.tier,
-                    'message': 'Subscription upgraded successfully',
-                }, status=status.HTTP_200_OK)
-        except Exception as e:
-            logger.error(f"Mock upgrade error: {e}")
-            return Response(
-                {'error': f'Failed to upgrade subscription: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
-    # Otherwise, use Stripe checkout
-    stripe_session_id = None
-    if stripe_key:
-        try:
-            import stripe
-            stripe.api_key = stripe_key
-            
-            # Get or create customer
-            customer_id = None
-            if hasattr(user, 'subscription') and user.subscription.stripe_subscription_id:
-                # Get customer from existing subscription
-                subscription = stripe.Subscription.retrieve(user.subscription.stripe_subscription_id)
-                customer_id = subscription.customer
-            else:
-                # Create new customer
-                customer = stripe.Customer.create(
-                    email=user.email,
-                    name=user.get_full_name() or user.email,
-                )
-                customer_id = customer.id
-            
-            # Create checkout session
-            session = stripe.checkout.Session.create(
-                customer=customer_id,
-                payment_method_types=['card'],
-                line_items=[{
-                    'price_data': {
-                        'currency': 'usd',
-                        'product_data': {
-                            'name': plan.name.replace('_', ' ').title(),
-                        },
-                        'unit_amount': int(plan.price_monthly * 100) if plan.price_monthly else 0,
-                        'recurring': {
-                            'interval': 'month',
-                        },
-                    },
-                    'quantity': 1,
-                }],
-                mode='subscription',
-                success_url=f"{os.environ.get('FRONTEND_URL', 'http://localhost:3000')}/subscription/success?session_id={{CHECKOUT_SESSION_ID}}",
-                cancel_url=f"{os.environ.get('FRONTEND_URL', 'http://localhost:3000')}/subscription/cancel",
-            )
-            stripe_session_id = session.id
-        except Exception as e:
-            logger.error(f"Stripe error: {e}")
-            # Fallback to mock upgrade if Stripe fails
-            # Try mock upgrade instead
+    try:
+        with transaction.atomic():
+            # Get current subscription
             try:
-                with transaction.atomic():
-                    subscription, created = UserSubscription.objects.get_or_create(
-                        user=user,
-                        defaults={
-                            'plan': plan,
-                            'status': 'active',
-                            'current_period_start': timezone.now(),
-                            'current_period_end': timezone.now() + timezone.timedelta(days=30),
-                        }
-                    )
-                    if not created:
-                        subscription.plan = plan
-                        subscription.status = 'active'
-                        subscription.current_period_start = timezone.now()
-                        subscription.current_period_end = timezone.now() + timezone.timedelta(days=30)
-                        if plan.tier == 'starter' or 'starter' in plan.tier.lower():
-                            subscription.enhanced_access_expires_at = timezone.now() + timezone.timedelta(days=180)
-                        subscription.save()
-                    
-                    return Response({
-                        'success': True,
-                        'plan': plan.name,
-                        'tier': plan.tier,
-                        'message': 'Subscription upgraded successfully (mock upgrade due to Stripe error)',
-                    }, status=status.HTTP_200_OK)
-            except Exception as upgrade_error:
-                logger.error(f"Mock upgrade error after Stripe failure: {upgrade_error}")
-                return Response(
-                    {'error': 'Payment processing failed and mock upgrade also failed'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                current_subscription = user.subscription
+                old_plan = current_subscription.plan
+            except UserSubscription.DoesNotExist:
+                # Create new subscription
+                current_subscription = None
+                old_plan = None
+            
+            # Calculate base amount
+            base_amount = plan.price_monthly or 0
+            
+            # Apply academic discount if active
+            try:
+                if hasattr(user, 'academic_discount') and user.academic_discount.is_active():
+                    base_amount = user.academic_discount.calculate_discounted_price(base_amount)
+                    logger.info(f'Academic discount applied: {base_amount} KES')
+            except Exception:
+                pass
+            
+            # Apply promo code if provided
+            promo_discount = Decimal('0')
+            promo_code_obj = None
+            if promo_code:
+                success, discount_amount, error = apply_promo_code(promo_code, user, plan)
+                if success:
+                    promo_discount = discount_amount
+                    from .models import PromotionalCode
+                    promo_code_obj = PromotionalCode.objects.get(code=promo_code.upper())
+                else:
+                    return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Calculate proration if upgrading existing subscription
+            proration_amount = Decimal('0')
+            if current_subscription and old_plan and old_plan != plan:
+                proration_data = calculate_proration(
+                    old_plan, plan,
+                    current_subscription.current_period_start,
+                    current_subscription.current_period_end
                 )
-    
-    return Response({
-        'stripe_session_id': stripe_session_id,
-        'plan': plan.name,
-        'message': 'Redirect to Stripe checkout' if stripe_session_id else 'Upgrade pending',
-    }, status=status.HTTP_200_OK)
+                proration_amount = proration_data['proration_amount']
+                logger.info(f'Proration calculated: {proration_amount} KES')
+            
+            # Calculate final amount
+            final_amount = max(Decimal('0'), Decimal(str(base_amount)) - promo_discount + proration_amount)
+            
+            # Process payment if not mock and amount > 0
+            if not mock_upgrade and final_amount > 0:
+                success, transaction_id, error = attempt_payment_charge(
+                    user=user,
+                    amount=float(final_amount),
+                    currency='KES',
+                    description=f'Subscription upgrade to {plan.name}'
+                )
+                
+                if not success:
+                    return Response(
+                        {'error': f'Payment failed: {error}'},
+                        status=status.HTTP_402_PAYMENT_REQUIRED
+                    )
+            else:
+                transaction_id = f'mock_upgrade_{timezone.now().timestamp()}'
+            
+            # Create or update subscription
+            if current_subscription:
+                current_subscription.plan = plan
+                current_subscription.status = 'active'
+                if not current_subscription.current_period_start:
+                    current_subscription.current_period_start = timezone.now()
+                if not current_subscription.current_period_end:
+                    current_subscription.current_period_end = timezone.now() + timedelta(days=30)
+            else:
+                current_subscription = UserSubscription.objects.create(
+                    user=user,
+                    plan=plan,
+                    status='active',
+                    current_period_start=timezone.now(),
+                    current_period_end=timezone.now() + timedelta(days=30),
+                )
+            
+            # Set enhanced access for starter tier
+            if plan.tier == 'starter':
+                if not current_subscription.enhanced_access_expires_at:
+                    current_subscription.enhanced_access_expires_at = timezone.now() + timedelta(days=180)
+            
+            current_subscription.save()
+            
+            # Create payment transaction
+            transaction = PaymentTransaction.objects.create(
+                user=user,
+                subscription=current_subscription,
+                amount=final_amount,
+                currency='KES',
+                status='completed',
+                gateway_transaction_id=transaction_id,
+                processed_at=timezone.now(),
+            )
+            
+            # Record promo code redemption
+            if promo_code_obj:
+                record_promo_redemption(
+                    promo_code_obj, user, current_subscription,
+                    Decimal(str(base_amount)), promo_discount
+                )
+            
+            # Generate invoice if payment was made
+            if final_amount > 0:
+                from .models import SubscriptionInvoice
+                invoice = SubscriptionInvoice.objects.create(
+                    invoice_number=SubscriptionInvoice.generate_invoice_number(),
+                    user=user,
+                    subscription=current_subscription,
+                    transaction=transaction,
+                    status='paid',
+                    subtotal=Decimal(str(plan.price_monthly or 0)),
+                    discount_amount=promo_discount,
+                    total_amount=final_amount,
+                    currency='KES',
+                    invoice_date=timezone.now(),
+                    due_date=timezone.now(),
+                    paid_at=timezone.now(),
+                    line_items=[{
+                        'description': f'{plan.name} subscription upgrade',
+                        'quantity': 1,
+                        'unit_price': float(plan.price_monthly or 0),
+                        'total': float(final_amount),
+                    }],
+                )
+            
+            logger.info(f'Upgrade successful: {user.email} → {plan.name} | Amount: {final_amount} KES')
+            
+            return Response({
+                'success': True,
+                'plan': plan.name,
+                'tier': plan.tier,
+                'amount_charged': float(final_amount),
+                'promo_discount': float(promo_discount),
+                'proration_amount': float(proration_amount),
+                'message': 'Subscription upgraded successfully',
+            }, status=status.HTTP_200_OK)
+            
+    except Exception as e:
+        logger.error(f'Upgrade error for {user.email}: {e}', exc_info=True)
+        return Response(
+            {'error': f'Failed to upgrade subscription: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(['POST'])
@@ -996,3 +985,354 @@ def paystack_webhook(request):
         return Response({'received': True}, status=status.HTTP_200_OK)
 
     return Response({'received': True}, status=status.HTTP_200_OK)
+
+# ── PROMOTIONAL CODES ────────────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def validate_promo_code(request):
+    """
+    POST /api/v1/subscription/promo-code/validate
+    Validate promotional code without applying it.
+    Body: {"code": "CYBER2026", "plan": "starter_3"}
+    """
+    from .utils import apply_promo_code
+    from .models import SubscriptionPlan
+    
+    code = request.data.get('code', '').strip()
+    plan_name = request.data.get('plan', '').strip()
+    
+    if not code:
+        return Response({'error': 'Code is required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    if not plan_name:
+        return Response({'error': 'Plan is required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        plan = SubscriptionPlan.objects.get(name=plan_name)
+    except SubscriptionPlan.DoesNotExist:
+        return Response({'error': 'Invalid plan'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    success, discount_amount, error = apply_promo_code(code, request.user, plan)
+    
+    if success:
+        base_amount = float(plan.price_monthly or 0)
+        final_amount = base_amount - float(discount_amount)
+        
+        return Response({
+            'valid': True,
+            'code': code.upper(),
+            'discount_amount': float(discount_amount),
+            'base_amount': base_amount,
+            'final_amount': max(0, final_amount),
+            'discount_type': 'percentage' if discount_amount < base_amount else 'fixed',
+        }, status=status.HTTP_200_OK)
+    else:
+        return Response({
+            'valid': False,
+            'error': error,
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def promo_code_history(request):
+    """
+    GET /api/v1/subscription/promo-code/history
+    Get user's promo code redemption history.
+    """
+    from .models import PromoCodeRedemption
+    
+    redemptions = PromoCodeRedemption.objects.filter(
+        user=request.user
+    ).select_related('code').order_by('-redeemed_at')[:10]
+    
+    data = []
+    for redemption in redemptions:
+        data.append({
+            'id': str(redemption.id),
+            'code': redemption.code.code,
+            'discount_applied': float(redemption.discount_applied),
+            'original_amount': float(redemption.original_amount),
+            'final_amount': float(redemption.final_amount),
+            'redeemed_at': redemption.redeemed_at.isoformat(),
+        })
+    
+    return Response(data, status=status.HTTP_200_OK)
+
+
+# ── ACADEMIC DISCOUNTS ───────────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def apply_academic_discount(request):
+    """
+    POST /api/v1/subscription/academic-discount/apply
+    Apply for academic discount verification.
+    Body: {
+        "method": "edu_email" | "document",
+        "edu_email": "student@university.edu" (if method=edu_email),
+        "institution_name": "University Name",
+        "document_url": "https://..." (if method=document)
+    }
+    """
+    from .models import AcademicDiscount
+    
+    method = request.data.get('method', '').strip()
+    edu_email = request.data.get('edu_email', '').strip()
+    institution_name = request.data.get('institution_name', '').strip()
+    document_url = request.data.get('document_url', '').strip()
+    
+    if method not in ['edu_email', 'document']:
+        return Response({'error': 'Invalid verification method'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    if method == 'edu_email' and not edu_email.endswith('.edu'):
+        return Response({'error': 'Please provide a valid .edu email address'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    if method == 'document' and not document_url:
+        return Response({'error': 'Document URL is required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        # Check if user already has academic discount
+        try:
+            existing = request.user.academic_discount
+            if existing.verification_status == 'verified':
+                return Response({'error': 'You already have a verified academic discount'}, status=status.HTTP_400_BAD_REQUEST)
+            elif existing.verification_status == 'pending':
+                return Response({'error': 'Your academic discount application is pending review'}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                # Update existing application
+                existing.verification_method = method
+                existing.verification_status = 'pending'
+                existing.edu_email = edu_email if method == 'edu_email' else None
+                existing.institution_name = institution_name
+                existing.document_url = document_url if method == 'document' else None
+                existing.save()
+                discount = existing
+        except AcademicDiscount.DoesNotExist:
+            # Create new application
+            discount = AcademicDiscount.objects.create(
+                user=request.user,
+                verification_method=method,
+                verification_status='pending',
+                edu_email=edu_email if method == 'edu_email' else None,
+                institution_name=institution_name,
+                document_url=document_url if method == 'document' else None,
+            )
+        
+        # Auto-verify .edu emails
+        if method == 'edu_email':
+            discount.verification_status = 'verified'
+            discount.verified_at = timezone.now()
+            discount.expires_at = timezone.now() + timezone.timedelta(days=365)  # 1 year
+            discount.save()
+            
+            return Response({
+                'success': True,
+                'status': 'verified',
+                'discount_percentage': 30,
+                'expires_at': discount.expires_at.isoformat(),
+                'message': 'Academic discount verified successfully!',
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'success': True,
+                'status': 'pending',
+                'message': 'Academic discount application submitted for review. You will be notified within 1-2 business days.',
+            }, status=status.HTTP_200_OK)
+            
+    except Exception as e:
+        logger.error(f'Academic discount application error: {e}')
+        return Response({'error': 'Failed to process application'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def academic_discount_status(request):
+    """
+    GET /api/v1/subscription/academic-discount/status
+    Get user's academic discount status.
+    """
+    try:
+        discount = request.user.academic_discount
+        return Response({
+            'has_discount': True,
+            'status': discount.verification_status,
+            'method': discount.verification_method,
+            'institution_name': discount.institution_name,
+            'verified_at': discount.verified_at.isoformat() if discount.verified_at else None,
+            'expires_at': discount.expires_at.isoformat() if discount.expires_at else None,
+            'is_active': discount.is_active(),
+            'discount_percentage': discount.get_discount_percentage(),
+            'rejection_reason': discount.rejection_reason if discount.verification_status == 'rejected' else None,
+        }, status=status.HTTP_200_OK)
+    except:
+        return Response({
+            'has_discount': False,
+            'status': None,
+        }, status=status.HTTP_200_OK)
+
+
+# ── ADVANCED ANALYTICS ───────────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def subscription_analytics(request):
+    """
+    GET /api/v1/subscription/analytics
+    Get advanced subscription analytics for finance dashboard.
+    """
+    from django.db.models import Count, Sum, Avg, Q
+    from django.db.models.functions import TruncMonth
+    from datetime import datetime, timedelta
+    
+    # Check if user has finance role
+    if not request.user.user_roles.filter(role__name='finance').exists():
+        return Response({'error': 'Finance role required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    now = timezone.now()
+    last_month = now - timedelta(days=30)
+    last_3_months = now - timedelta(days=90)
+    
+    # Basic metrics
+    total_subscriptions = UserSubscription.objects.filter(status='active').count()
+    total_revenue = PaymentTransaction.objects.filter(
+        status='completed',
+        created_at__gte=last_month
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    # MRR (Monthly Recurring Revenue)
+    mrr = UserSubscription.objects.filter(
+        status='active'
+    ).select_related('plan').aggregate(
+        mrr=Sum('plan__price_monthly')
+    )['mrr'] or 0
+    
+    # Churn rate (canceled in last 30 days / total active 30 days ago)
+    canceled_last_month = UserSubscription.objects.filter(
+        status='canceled',
+        updated_at__gte=last_month
+    ).count()
+    
+    active_last_month = UserSubscription.objects.filter(
+        Q(status='active') | Q(status='canceled', updated_at__gte=last_month)
+    ).count()
+    
+    churn_rate = (canceled_last_month / max(active_last_month, 1)) * 100
+    
+    # Plan breakdown
+    plan_breakdown = UserSubscription.objects.filter(
+        status='active'
+    ).values('plan__name', 'plan__tier').annotate(
+        count=Count('id'),
+        revenue=Sum('plan__price_monthly')
+    ).order_by('-count')
+    
+    # Monthly revenue trend (last 6 months)
+    revenue_trend = PaymentTransaction.objects.filter(
+        status='completed',
+        created_at__gte=now - timedelta(days=180)
+    ).annotate(
+        month=TruncMonth('created_at')
+    ).values('month').annotate(
+        revenue=Sum('amount'),
+        transactions=Count('id')
+    ).order_by('month')
+    
+    # Failed payments
+    failed_payments = PaymentRetryAttempt.objects.filter(
+        status='failed',
+        created_at__gte=last_month
+    ).count()
+    
+    # Grace period stats
+    past_due_count = UserSubscription.objects.filter(status='past_due').count()
+    
+    # Promo code usage
+    promo_usage = PromoCodeRedemption.objects.filter(
+        redeemed_at__gte=last_month
+    ).aggregate(
+        total_redemptions=Count('id'),
+        total_discount=Sum('discount_applied')
+    )
+    
+    # Academic discounts
+    academic_stats = AcademicDiscount.objects.aggregate(
+        total_applications=Count('id'),
+        verified=Count('id', filter=Q(verification_status='verified')),
+        pending=Count('id', filter=Q(verification_status='pending')),
+    )
+    
+    return Response({
+        'overview': {
+            'total_subscriptions': total_subscriptions,
+            'monthly_revenue': float(total_revenue),
+            'mrr': float(mrr),
+            'churn_rate': round(churn_rate, 2),
+        },
+        'plan_breakdown': [
+            {
+                'plan_name': item['plan__name'],
+                'plan_tier': item['plan__tier'],
+                'subscribers': item['count'],
+                'revenue': float(item['revenue'] or 0),
+            }
+            for item in plan_breakdown
+        ],
+        'revenue_trend': [
+            {
+                'month': item['month'].strftime('%Y-%m'),
+                'revenue': float(item['revenue']),
+                'transactions': item['transactions'],
+            }
+            for item in revenue_trend
+        ],
+        'payment_health': {
+            'failed_payments_last_month': failed_payments,
+            'past_due_subscriptions': past_due_count,
+        },
+        'promotions': {
+            'redemptions_last_month': promo_usage['total_redemptions'] or 0,
+            'discount_given_last_month': float(promo_usage['total_discount'] or 0),
+        },
+        'academic_discounts': {
+            'total_applications': academic_stats['total_applications'],
+            'verified': academic_stats['verified'],
+            'pending_review': academic_stats['pending'],
+        },
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def retry_attempts_status(request):
+    """
+    GET /api/v1/subscription/retry-attempts
+    Get payment retry attempts for finance dashboard.
+    """
+    if not request.user.user_roles.filter(role__name='finance').exists():
+        return Response({'error': 'Finance role required'}, status=status.HTTP_403_FORBIDDEN)
+    
+    from .models import PaymentRetryAttempt
+    
+    # Get pending and recent retry attempts
+    attempts = PaymentRetryAttempt.objects.filter(
+        scheduled_at__gte=timezone.now() - timedelta(days=7)
+    ).select_related('subscription', 'subscription__user', 'subscription__plan').order_by('-scheduled_at')[:50]
+    
+    data = []
+    for attempt in attempts:
+        data.append({
+            'id': str(attempt.id),
+            'user_email': attempt.subscription.user.email,
+            'plan_name': attempt.subscription.plan.name,
+            'attempt_number': attempt.attempt_number,
+            'status': attempt.status,
+            'amount': float(attempt.amount),
+            'currency': attempt.currency,
+            'scheduled_at': attempt.scheduled_at.isoformat(),
+            'attempted_at': attempt.attempted_at.isoformat() if attempt.attempted_at else None,
+            'error_message': attempt.error_message,
+        })
+    
+    return Response(data, status=status.HTTP_200_OK)

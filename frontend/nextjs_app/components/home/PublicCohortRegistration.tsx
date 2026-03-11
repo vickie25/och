@@ -45,9 +45,9 @@ export function PublicCohortRegistration() {
 
   const fetchCohorts = async () => {
     try {
-      const res = await apiGateway.get<{ cohorts: PublishedCohort[] }>('/public/cohorts/', { skipAuth: true })
+      const res = await apiGateway.get('/public/cohorts/', { skipAuth: true })
       const data = res as any
-      setCohorts(data?.cohorts || [])
+      setCohorts(data || [])
     } catch {
       setCohorts([])
     } finally {

@@ -46,6 +46,7 @@ import {
   AlertCircle,
   CheckCircle2,
   LifeBuoy,
+  GraduationCap,
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -181,6 +182,7 @@ export function EnhancedSidebar({ isCollapsed = false, onCollapsedChange }: Side
 
   const mainNav = [
     { label: 'Control Center', icon: LayoutDashboard, href: '/dashboard/student' },
+    { label: 'Cohorts', icon: GraduationCap, href: '/dashboard/student/cohorts' },
     { label: 'My Profile', icon: Activity, href: '/dashboard/student/profiling' },
     { label: 'Future You', icon: Sparkles, href: '/dashboard/student/future-you' },
     { label: 'Curriculum', icon: Compass, href: '/dashboard/student/curriculum' },

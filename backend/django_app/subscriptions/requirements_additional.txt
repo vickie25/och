@@ -1,0 +1,4 @@
+# Additional requirements for enhanced subscription system
+reportlab==4.0.7  # PDF generation for invoices
+celery==5.3.4     # Background task processing (optional, for better job scheduling)
+redis==5.0.1      # Redis for Celery broker (optional)

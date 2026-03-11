@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { apiGateway } from '@/services/apiGateway'
 import { CheckCircle2, ArrowLeft, Loader2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
+import { formatFromKES, getCurrencyCode } from '@/lib/currency'
 
 export default function UpgradePage() {
   const router = useRouter()
@@ -70,10 +71,20 @@ export default function UpgradePage() {
     professional_7: 'Professional 7',
   }
 
-  const planPrices: Record<string, number> = {
-    starter_3: 29,
-    professional_7: 99,
+  // Prices stored in KES (Kenyan Shilling) - system base currency
+  const planPricesKES: Record<string, number> = {
+    starter_3: 300,   // ~$3 USD equivalent
+    professional_7: 700, // ~$7 USD equivalent
   }
+
+  // Get formatted price in user's local currency
+  const getFormattedPrice = (planKey: string) => {
+    const kesAmount = planPricesKES[planKey] || 0
+    return formatFromKES(kesAmount, user?.country)
+  }
+
+  // Get currency code for display
+  const userCurrency = getCurrencyCode(user?.country)
 
   const planFeatures: Record<string, string[]> = {
     starter_3: [
@@ -156,9 +167,14 @@ export default function UpgradePage() {
                   </div>
                   <div className="text-right">
                     <div className="text-4xl font-bold text-och-mint">
-                      ${planPrices[plan] || 0}
+                      {getFormattedPrice(plan)}
                     </div>
                     <div className="text-och-steel">per month</div>
+                    {user?.country && user.country !== 'KE' && (
+                      <div className="text-xs text-och-steel/70 mt-1">
+                        (≈ {planPricesKES[plan]} KES)
+                      </div>
+                    )}
                   </div>
                 </div>
 

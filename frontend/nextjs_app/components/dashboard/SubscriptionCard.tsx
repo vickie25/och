@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useState, useEffect } from 'react'
 import type { Subscription, Usage } from '@/services/types/subscription'
 import { useRouter } from 'next/navigation'
+import { formatFromKES, getCurrencyCode } from '@/lib/currency'
 
 export function SubscriptionCard() {
   const { user } = useAuth()
@@ -17,6 +18,19 @@ export function SubscriptionCard() {
   const [usage, setUsage] = useState<Usage | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Subscription prices in KES
+  const tierPricesKES: Record<string, number> = {
+    starter: 300,
+    premium: 700,
+    enterprise: 1500,
+  }
+
+  const getMonthlyPrice = () => {
+    if (!subscription) return null
+    const kesAmount = tierPricesKES[subscription.tier] || 0
+    return formatFromKES(kesAmount, user?.country)
+  }
 
   useEffect(() => {
     if (!menteeId) return
@@ -119,6 +133,16 @@ export function SubscriptionCard() {
               </span>
             )}
           </div>
+          {getMonthlyPrice() && (
+            <div className="text-sm text-och-mint mt-1">
+              {getMonthlyPrice()}/month
+              {user?.country && user.country !== 'KE' && (
+                <span className="text-xs text-och-steel ml-2">
+                  (≈ {tierPricesKES[subscription.tier]} KES)
+                </span>
+              )}
+            </div>
+          )}
         </div>
       )}
 

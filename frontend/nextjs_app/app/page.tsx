@@ -627,10 +627,10 @@ export default function HomePage() {
     let mounted = true
     const loadCohorts = async () => {
       try {
-        const res = await apiGateway.get<{ cohorts: HeroCohort[] }>('/public/cohorts/', { skipAuth: true })
+        const res = await apiGateway.get('/public/cohorts/', { skipAuth: true })
         const data = res as any
         if (!mounted) return
-        const list: HeroCohort[] = (data?.cohorts || []).map((c: any) => ({
+        const list: HeroCohort[] = (data || []).map((c: any) => ({
           id: String(c.id),
           name: String(c.name),
           start_date: String(c.start_date),

@@ -829,10 +829,27 @@ def get_profiling_results(request):
             'message': 'Results are being generated',
         }, status=status.HTTP_200_OK)
     
+    # Primary recommended track (for Control Center / Progress tab)
+    recommended_track_slug = None
+    if session.recommended_track_id:
+        try:
+            from curriculum.models import CurriculumTrack
+            rec_track = CurriculumTrack.objects.filter(id=session.recommended_track_id).first()
+            if rec_track:
+                recommended_track_slug = rec_track.slug
+        except Exception:
+            pass
+    if not recommended_track_slug and result.recommended_tracks:
+        first = result.recommended_tracks[0]
+        if isinstance(first, dict):
+            recommended_track_slug = (first.get('track_key') or first.get('track') or '').strip().lower() or None
+
     return Response({
         'completed': True,
         'session_id': str(session.id),
         'completed_at': session.completed_at.isoformat() if session.completed_at else None,
+        'recommended_track': recommended_track_slug,
+        'track_alignment_percentages': session.track_alignment_percentages or {},
         'result': {
             'overall_score': float(result.overall_score),
             'aptitude_score': float(result.aptitude_score),
@@ -1078,8 +1095,21 @@ def sync_fastapi_profiling(request):
             profiler_session_obj.aptitude_score = aptitude_score
         if strengths:
             profiler_session_obj.strengths = strengths
-        # Track alignment percentages can be derived from recommendations in future;
-        # for now, leave as-is unless explicitly provided.
+        # Parse and store track alignment percentages from recommendations (score = alignment %)
+        if recommendations:
+            track_alignments = {}
+            for rec in recommendations:
+                key = (rec.get('track_key') or rec.get('track') or '').strip().lower()
+                if not key:
+                    continue
+                score = rec.get('score')
+                if score is not None:
+                    try:
+                        track_alignments[key] = float(score)
+                    except (TypeError, ValueError):
+                        pass
+            if track_alignments:
+                profiler_session_obj.track_alignment_percentages = track_alignments
         if completed_at:
             from datetime import datetime
             from django.utils import timezone as tz
@@ -1109,9 +1139,7 @@ def sync_fastapi_profiling(request):
         # Ensure the session is locked to mirror a completed one-time attempt.
         if not profiler_session_obj.is_locked:
             profiler_session_obj.lock()
-        else:
-            # If already locked, just save any updates we made above.
-            profiler_session_obj.save()
+        profiler_session_obj.save()
 
         # Create or update ProfilerResult tied to this session/user
         profiler_result_obj = None
@@ -1220,30 +1248,12 @@ def sync_fastapi_profiling(request):
             else:
                 logger.warning(f"No curriculum track found with slug '{track_slug}', skipping enrollment")
 
-        # Update profiler session with telemetry data if session exists
+        # Send telemetry to analytics (track_alignment_percentages already set on profiler_session_obj above)
         try:
-            if session_id:
-                import uuid
-                session_uuid = uuid.UUID(session_id)
-                profiler_session = ProfilerSession.objects.filter(id=session_uuid, user=user).first()
-                
-                if profiler_session:
-                    # Store track alignment percentages from recommendations
-                    if recommendations:
-                        track_alignments = {}
-                        for rec in recommendations:
-                            track_alignments[rec.get('track_key', '')] = float(rec.get('score', 0))
-                        profiler_session.track_alignment_percentages = track_alignments
-                    
-                    # Store difficulty selection if available
-                    # (This would come from FastAPI session if available)
-                    
-                    profiler_session.save()
-                    
-                    # Send telemetry to analytics engine
-                    send_profiler_telemetry_to_analytics(profiler_session)
+            if profiler_session_obj:
+                send_profiler_telemetry_to_analytics(profiler_session_obj)
         except Exception as e:
-            logger.warning(f"Failed to update profiler session telemetry: {e}")
+            logger.warning(f"Failed to send profiler telemetry: {e}")
         
         logger.info(f"Synced profiling completion from FastAPI for user {user.id}, session {session_id}")
 

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #28a745; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; background: #f9f9f9; }
+        .footer { padding: 20px; text-align: center; color: #666; font-size: 12px; }
+        .invoice-details { background: white; padding: 20px; border-radius: 4px; margin: 20px 0; }
+        .invoice-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .total-row { font-weight: bold; font-size: 1.2em; }
+        .btn { display: inline-block; padding: 12px 24px; background: #28a745; color: white; text-decoration: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Payment Successful</h1>
+        </div>
+        <div class="content">
+            <p>Hi {{ user.first_name }},</p>
+            
+            <p>Thank you for your payment! Your subscription has been renewed successfully.</p>
+            
+            <div class="invoice-details">
+                <h3>Invoice #{{ invoice.invoice_number }}</h3>
+                <p><strong>Date:</strong> {{ invoice.created_at|date:"F d, Y" }}</p>
+                <p><strong>Billing Period:</strong> {{ subscription.current_period_start|date:"M d, Y" }} - {{ subscription.current_period_end|date:"M d, Y" }}</p>
+                
+                <div class="invoice-row">
+                    <span>{{ subscription.plan_type|title }} Subscription</span>
+                    <span>${{ invoice.subtotal }}</span>
+                </div>
+                
+                {% if invoice.discount_amount > 0 %}
+                <div class="invoice-row">
+                    <span>Discount ({{ invoice.promo_code }})</span>
+                    <span>-${{ invoice.discount_amount }}</span>
+                </div>
+                {% endif %}
+                
+                <div class="invoice-row">
+                    <span>Tax</span>
+                    <span>${{ invoice.tax_amount }}</span>
+                </div>
+                
+                <div class="invoice-row total-row">
+                    <span>Total</span>
+                    <span>${{ invoice.total_amount }}</span>
+                </div>
+            </div>
+            
+            <p>Your next billing date is <strong>{{ subscription.next_billing_date|date:"F d, Y" }}</strong>.</p>
+            
+            <p style="text-align: center;">
+                <a href="{{ invoice_pdf_url }}" class="btn">Download PDF Invoice</a>
+            </p>
+            
+            <p>Best regards,<br>The OCH Team</p>
+        </div>
+        <div class="footer">
+            <p>© 2024 OCH. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -89,6 +89,8 @@ export default function CurriculumLearnPage() {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Active track filter: only this track's lessons show in Learning Path; default to user's track
+  const [activeTrackSlug, setActiveTrackSlug] = useState<string | null>(null);
   // Tracks whether the current iframe video has been marked watched
   const [iframeWatched, setIframeWatched] = useState(false);
 
@@ -196,6 +198,14 @@ export default function CurriculumLearnPage() {
       });
 
       setLessons(videoLessons);
+
+      // Default active track to user's track if they have one and it has content, else first track with content
+      const tracksWithContent = [...new Set((videoLessons as any[]).map((l: any) => l.trackSlug).filter(Boolean))];
+      setActiveTrackSlug((prev) => {
+        if (prev && tracksWithContent.includes(prev)) return prev;
+        if (myTrackSlug && tracksWithContent.includes(myTrackSlug)) return myTrackSlug;
+        return tracksWithContent[0] || null;
+      });
 
       const savedIndex = parseInt(localStorage.getItem(`all_tracks_${currentLevel}_index`) || '0');
       setCurrentVideoIndex(Math.min(savedIndex, Math.max(0, videoLessons.length - 1)));
@@ -308,10 +318,30 @@ export default function CurriculumLearnPage() {
     localStorage.setItem('all_tracks_current_level', level);
   };
 
-  // Unique track slugs present in current lesson list
-  const activeTrackSlugs = [...new Set(lessons.map(l => l.trackSlug).filter(Boolean))];
+  // Unique track slugs present in current lesson list (order: person's track first, then TRACK_ORDER)
+  const activeTrackSlugsSet = new Set(lessons.map(l => l.trackSlug).filter(Boolean));
+  const trackOrderForDisplay =
+    myTrackSlug && activeTrackSlugsSet.has(myTrackSlug)
+      ? [myTrackSlug, ...TRACK_ORDER.filter(s => s !== myTrackSlug && activeTrackSlugsSet.has(s))]
+      : TRACK_ORDER.filter(s => activeTrackSlugsSet.has(s));
+  const activeTrackSlugs = trackOrderForDisplay;
   const hasMyTrackContent = myTrackSlug != null && lessons.some(l => l.trackSlug === myTrackSlug);
   const myTrackDisplayName = myTrackSlug ? (trackInfoFromKey(myTrackSlug).name || myTrackSlug) : null;
+
+  // Learning Path: only show lessons for the currently selected track
+  const lessonsForActiveTrack =
+    activeTrackSlug != null
+      ? lessons.filter(l => l.trackSlug === activeTrackSlug)
+      : lessons;
+  // When user clicks a track pill: switch to that track and set video to first lesson of that track
+  const handleTrackPillClick = (slug: string) => {
+    setActiveTrackSlug(slug);
+    const firstIndex = lessons.findIndex(l => l.trackSlug === slug);
+    if (firstIndex >= 0) {
+      setCurrentVideoIndex(firstIndex);
+      localStorage.setItem(`all_tracks_${currentLevel}_index`, firstIndex.toString());
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 p-4 md:p-8">
@@ -375,44 +405,41 @@ export default function CurriculumLearnPage() {
             </div>
           )}
 
-          {/* Track pills — show which tracks have content at this level */}
+          {/* Track pills — person's track first; click to filter Learning Path and jump to that track */}
           <div className="mt-4">
             <p className="text-slate-400 text-sm mb-2">Tracks with content</p>
             <div className="flex flex-wrap gap-2">
-              {TRACK_ORDER.map(slug => {
+              {activeTrackSlugs.map(slug => {
                 const displayNames: Record<string, string> = {
                   defender: 'Defender', offensive: 'Offensive', grc: 'GRC',
                   innovation: 'Innovation', leadership: 'Leadership',
                 };
-                const hasContent = activeTrackSlugs.includes(slug);
-                const isCurrent = currentVideo?.trackSlug === slug;
+                const hasContent = true; // we only list tracks with content
+                const isActive = activeTrackSlug === slug;
                 const isMyTrack = slug === myTrackSlug;
-                const completionPct = hasContent ? getTrackCompletionPercentage(slug) : 0;
+                const completionPct = getTrackCompletionPercentage(slug);
                 return (
-                  <div
+                  <button
                     key={slug}
+                    type="button"
+                    onClick={() => hasContent && handleTrackPillClick(slug)}
                     className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
-                      isCurrent
+                      isActive
                         ? 'bg-och-orange border-och-orange text-white'
-                        : hasContent
-                        ? isMyTrack
-                          ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300'
-                          : 'bg-slate-700 border-slate-500 text-slate-300'
-                        : 'bg-slate-900 border-slate-700 text-slate-600'
+                        : isMyTrack
+                        ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/30'
+                        : 'bg-slate-700 border-slate-500 text-slate-300 hover:bg-slate-600'
                     }`}
                   >
                     {displayNames[slug] || slug}
                     {isMyTrack && <span className="ml-1.5 text-xs opacity-90">(your track)</span>}
-                    {!hasContent && !loading && (
-                      <span className="ml-1 text-xs opacity-60">— no content</span>
-                    )}
-                    {hasContent && isMyTrack && completionPct > 0 && (
+                    {completionPct > 0 && (
                       <span className="ml-2 text-xs opacity-75">({completionPct}%)</span>
                     )}
-                    {hasContent && !isMyTrack && (
+                    {!isMyTrack && (
                       <Lock className="w-3.5 h-3.5 ml-1.5 inline-block text-slate-400" aria-hidden />
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -522,22 +549,27 @@ export default function CurriculumLearnPage() {
                     <div key={i} className="h-16 bg-slate-800 rounded-lg animate-pulse" />
                   ))}
                 </div>
-              ) : lessons.length === 0 ? (
+              ) : lessonsForActiveTrack.length === 0 ? (
                 <div className="text-center py-8 text-slate-500 text-sm">
-                  No video lessons for this level
+                  {activeTrackSlug
+                    ? 'No video lessons for this track at this level'
+                    : 'No video lessons for this level'}
                 </div>
               ) : (
                 <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
-                  {lessons.map((lesson, index) => {
+                  {lessonsForActiveTrack.map((lesson, listIndex) => {
+                    const globalIndex = lessons.findIndex(l => l.id === lesson.id);
                     const isCompleted = lesson.status === 'completed';
-                    const isCurrent = index === currentVideoIndex;
-                    const isUnlockedMyTrack = index === 0 || lessons[index - 1]?.status === 'completed';
+                    const isCurrent = globalIndex === currentVideoIndex;
+                    const prevInFull = globalIndex > 0 ? lessons[globalIndex - 1] : null;
+                    const isUnlockedMyTrack =
+                      globalIndex === 0 || (prevInFull?.status === 'completed');
                     const canSelect = lesson.isLocked || isUnlockedMyTrack;
 
                     return (
                       <button
                         key={lesson.id}
-                        onClick={() => goToVideo(index)}
+                        onClick={() => goToVideo(globalIndex)}
                         disabled={!canSelect}
                         className={`w-full text-left p-3 rounded-lg transition-all ${
                           lesson.isLocked
@@ -570,7 +602,7 @@ export default function CurriculumLearnPage() {
                             ) : isCompleted ? (
                               <CheckCircle className="w-3 h-3" />
                             ) : isUnlockedMyTrack ? (
-                              index + 1
+                              listIndex + 1
                             ) : (
                               <Lock className="w-3 h-3" />
                             )}

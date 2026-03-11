@@ -1,0 +1,73 @@
+INVOICE {{ invoice.invoice_number }}
+{{ organization.name }}
+Status: {{ invoice.status|title }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BILL TO:
+{{ contract.billing_contact_name }}
+{{ organization.name }}
+{{ contract.billing_contact_email }}
+{% if contract.billing_contact_phone %}{{ contract.billing_contact_phone }}{% endif %}
+{% if contract.billing_address %}{{ contract.billing_address }}{% endif %}
+
+INVOICE DETAILS:
+Invoice Number: {{ invoice.invoice_number }}
+Contract: {{ contract.contract_number }}
+Invoice Date: {{ invoice.invoice_date|date:"F d, Y" }}
+Due Date: {{ invoice.due_date|date:"F d, Y" }}
+Billing Period: {{ invoice.billing_period_start|date:"M d, Y" }} - {{ invoice.billing_period_end|date:"M d, Y" }}
+{% if invoice.purchase_order_number %}PO Number: {{ invoice.purchase_order_number }}{% endif %}
+
+{% if invoice.is_overdue %}
+⚠️ OVERDUE NOTICE: This invoice is {{ invoice.days_overdue }} days past due.
+Please remit payment immediately to avoid service interruption.
+{% endif %}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LINE ITEMS:
+{% for item in line_items %}
+{{ item.description }}
+Quantity: {{ item.quantity }} | Unit Price: ${{ item.unit_price|floatformat:2 }} | Amount: ${{ item.amount|floatformat:2 }}
+{% endfor %}
+
+TOTAL AMOUNT: ${{ invoice.total_amount|floatformat:2 }} {{ invoice.currency }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PAYMENT INFORMATION:
+Amount Due: ${{ invoice.total_amount|floatformat:2 }} {{ invoice.currency }}
+Payment Terms: Net 30 days
+Payment Methods: Credit Card, Bank Transfer, Check
+{% if contract.purchase_order_required %}Note: Purchase order required for payment processing{% endif %}
+
+Pay Online: {{ payment_url }}
+Contract Portal: {{ portal_url }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CONTRACT SUMMARY:
+Licensed Seats: {{ invoice.active_seat_count }} students
+Per-Student Rate: ${{ contract.per_student_rate|floatformat:2 }}/month
+Billing Cycle: {{ contract.billing_cycle|title }}
+Contract Period: {{ contract.start_date|date:"M d, Y" }} - {{ contract.end_date|date:"M d, Y" }}
+Auto-Renewal: {% if contract.auto_renew %}Yes{% else %}No{% endif %}
+{% if contract.custom_discount > 0 %}Contract Discount: {{ contract.custom_discount }}%{% endif %}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+QUESTIONS OR NEED HELP?
+If you have any questions about this invoice or need assistance with payment:
+
+Email: billing@och.com
+Phone: +1 (555) 123-4567
+Support Portal: {{ portal_url }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OCH - Online Coding Hub
+Professional cybersecurity education for institutions worldwide
+
+This is an automated invoice. Please do not reply to this email.
+© {{ "now"|date:"Y" }} OCH. All rights reserved.

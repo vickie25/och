@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finance Dashboard - Advanced Analytics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+        .dashboard { max-width: 1400px; margin: 0 auto; }
+        .header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .metric-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .metric-value { font-size: 2em; font-weight: bold; color: #2563eb; }
+        .metric-label { color: #6b7280; margin-top: 5px; }
+        .metric-change { font-size: 0.9em; margin-top: 5px; }
+        .positive { color: #10b981; }
+        .negative { color: #ef4444; }
+        .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+        .chart-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .table-container { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background: #f9fafb; font-weight: 600; }
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-secondary { background: #6b7280; color: white; }
+        .filters { display: flex; gap: 15px; margin-bottom: 20px; align-items: center; }
+        .filter-group { display: flex; flex-direction: column; }
+        .filter-group label { font-size: 0.9em; color: #6b7280; margin-bottom: 5px; }
+        .filter-group select, .filter-group input { padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>Finance Dashboard - Advanced Analytics</h1>
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Date Range</label>
+                    <select id="dateRange">
+                        <option value="7">Last 7 days</option>
+                        <option value="30" selected>Last 30 days</option>
+                        <option value="90">Last 90 days</option>
+                        <option value="365">Last year</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Plan Type</label>
+                    <select id="planFilter">
+                        <option value="all">All Plans</option>
+                        <option value="basic">Basic</option>
+                        <option value="premium">Premium</option>
+                        <option value="enterprise">Enterprise</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="refreshData()">Refresh</button>
+                <a href="{% url 'export_advanced_analytics' %}" class="btn btn-secondary">Export CSV</a>
+            </div>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-value">${{ analytics.mrr|floatformat:0 }}</div>
+                <div class="metric-label">Monthly Recurring Revenue</div>
+                <div class="metric-change {% if analytics.mrr_change >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ analytics.mrr_change|floatformat:1 }}% vs last month
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">${{ analytics.arr|floatformat:0 }}</div>
+                <div class="metric-label">Annual Recurring Revenue</div>
+                <div class="metric-change {% if analytics.arr_change >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ analytics.arr_change|floatformat:1 }}% vs last year
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ analytics.churn_rate|floatformat:1 }}%</div>
+                <div class="metric-label">Monthly Churn Rate</div>
+                <div class="metric-change {% if analytics.churn_change <= 0 %}positive{% else %}negative{% endif %}">
+                    {{ analytics.churn_change|floatformat:1 }}% vs last month
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">${{ analytics.avg_ltv|floatformat:0 }}</div>
+                <div class="metric-label">Average Customer LTV</div>
+                <div class="metric-change {% if analytics.ltv_change >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ analytics.ltv_change|floatformat:1 }}% vs last month
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ analytics.conversion_rate|floatformat:1 }}%</div>
+                <div class="metric-label">Trial to Paid Conversion</div>
+                <div class="metric-change {% if analytics.conversion_change >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ analytics.conversion_change|floatformat:1 }}% vs last month
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ analytics.active_subscriptions }}</div>
+                <div class="metric-label">Active Subscriptions</div>
+                <div class="metric-change {% if analytics.active_change >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ analytics.active_change|floatformat:0 }} vs last month
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+            <div class="chart-container">
+                <h3>Revenue Trend</h3>
+                <canvas id="revenueChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Subscription Growth</h3>
+                <canvas id="growthChart"></canvas>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-container">
+                <h3>Plan Distribution</h3>
+                <canvas id="planChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Churn Analysis</h3>
+                <canvas id="churnChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="table-container">
+            <h3 style="padding: 20px; margin: 0; border-bottom: 1px solid #e5e7eb;">Recent Transactions</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>User</th>
+                        <th>Plan</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Gateway</th>
+                        <th>Promo Code</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transaction in recent_transactions %}
+                    <tr>
+                        <td>{{ transaction.created_at|date:"M d, Y" }}</td>
+                        <td>{{ transaction.user.email }}</td>
+                        <td>{{ transaction.plan_type|title }}</td>
+                        <td>${{ transaction.amount }}</td>
+                        <td>{{ transaction.status|title }}</td>
+                        <td>{{ transaction.gateway|title }}</td>
+                        <td>{{ transaction.promo_code|default:"-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Revenue Chart
+        const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+        new Chart(revenueCtx, {
+            type: 'line',
+            data: {
+                labels: {{ analytics.revenue_labels|safe }},
+                datasets: [{
+                    label: 'Revenue',
+                    data: {{ analytics.revenue_data|safe }},
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Growth Chart
+        const growthCtx = document.getElementById('growthChart').getContext('2d');
+        new Chart(growthCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ analytics.growth_labels|safe }},
+                datasets: [{
+                    label: 'New Subscriptions',
+                    data: {{ analytics.new_subs_data|safe }},
+                    backgroundColor: '#10b981'
+                }, {
+                    label: 'Cancellations',
+                    data: {{ analytics.cancellations_data|safe }},
+                    backgroundColor: '#ef4444'
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // Plan Distribution Chart
+        const planCtx = document.getElementById('planChart').getContext('2d');
+        new Chart(planCtx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ analytics.plan_labels|safe }},
+                datasets: [{
+                    data: {{ analytics.plan_data|safe }},
+                    backgroundColor: ['#2563eb', '#10b981', '#f59e0b', '#ef4444']
+                }]
+            },
+            options: {
+                responsive: true
+            }
+        });
+
+        // Churn Chart
+        const churnCtx = document.getElementById('churnChart').getContext('2d');
+        new Chart(churnCtx, {
+            type: 'line',
+            data: {
+                labels: {{ analytics.churn_labels|safe }},
+                datasets: [{
+                    label: 'Churn Rate %',
+                    data: {{ analytics.churn_data|safe }},
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        function refreshData() {
+            const dateRange = document.getElementById('dateRange').value;
+            const planFilter = document.getElementById('planFilter').value;
+            window.location.href = `?days=${dateRange}&plan=${planFilter}`;
+        }
+    </script>
+</body>
+</html>

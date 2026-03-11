@@ -7,6 +7,8 @@ from .views import (
     subscription_status, upgrade_subscription, stripe_webhook, billing_history,
     list_plans, list_plans_public, simulate_payment, cancel_subscription, list_user_subscriptions,
     paystack_config, paystack_initialize, paystack_verify, paystack_webhook,
+    validate_promo_code, promo_code_history, apply_academic_discount, academic_discount_status,
+    subscription_analytics, retry_attempts_status,
 )
 from .admin_views import (
     SubscriptionPlanViewSet, UserSubscriptionAdminViewSet,
@@ -53,6 +55,24 @@ urlpatterns = [
     path('subscription/paystack/initialize', paystack_initialize, name='paystack-initialize-no-slash'),
     path('subscription/paystack/verify/', paystack_verify, name='paystack-verify'),
     path('subscription/paystack/verify', paystack_verify, name='paystack-verify-no-slash'),
+    
+    # ── Promotional Codes ───────────────────────────────────────────────────
+    path('subscription/promo-code/validate/', validate_promo_code, name='validate-promo-code'),
+    path('subscription/promo-code/validate', validate_promo_code, name='validate-promo-code-no-slash'),
+    path('subscription/promo-code/history/', promo_code_history, name='promo-code-history'),
+    path('subscription/promo-code/history', promo_code_history, name='promo-code-history-no-slash'),
+    
+    # ── Academic Discounts ──────────────────────────────────────────────────
+    path('subscription/academic-discount/apply/', apply_academic_discount, name='apply-academic-discount'),
+    path('subscription/academic-discount/apply', apply_academic_discount, name='apply-academic-discount-no-slash'),
+    path('subscription/academic-discount/status/', academic_discount_status, name='academic-discount-status'),
+    path('subscription/academic-discount/status', academic_discount_status, name='academic-discount-status-no-slash'),
+    
+    # ── Analytics ────────────────────────────────────────────────────────────
+    path('subscription/analytics/', subscription_analytics, name='subscription-analytics'),
+    path('subscription/analytics', subscription_analytics, name='subscription-analytics-no-slash'),
+    path('subscription/retry-attempts/', retry_attempts_status, name='retry-attempts-status'),
+    path('subscription/retry-attempts', retry_attempts_status, name='retry-attempts-status-no-slash'),
     # ── Admin endpoints ──────────────────────────────────────────────────────
     path('', include(admin_router.urls)),
 ]

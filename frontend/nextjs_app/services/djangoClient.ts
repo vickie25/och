@@ -781,6 +781,8 @@ export const djangoClient = {
       completed: boolean;
       session_id?: string;
       completed_at?: string;
+      recommended_track?: string;
+      track_alignment_percentages?: Record<string, number>;
       result?: {
         overall_score: number;
         aptitude_score: number;

@@ -99,6 +99,41 @@ class CohortViewSet(viewsets.ModelViewSet):
             'count': len(data)
         })
     
+    @action(detail=False, methods=['get'], url_path='my-enrollment')
+    def my_enrollment(self, request):
+        """Get current user's cohort enrollment."""
+        try:
+            enrollment = Enrollment.objects.select_related('cohort', 'cohort__track').get(
+                user=request.user,
+                status__in=['active', 'pending_payment']
+            )
+            
+            return Response({
+                'success': True,
+                'enrollment': {
+                    'id': str(enrollment.id),
+                    'cohort': {
+                        'id': str(enrollment.cohort.id),
+                        'name': enrollment.cohort.name,
+                        'start_date': enrollment.cohort.start_date.isoformat(),
+                        'end_date': enrollment.cohort.end_date.isoformat(),
+                        'status': enrollment.cohort.status,
+                    },
+                    'status': enrollment.status,
+                    'payment_status': getattr(enrollment, 'payment_status', 'pending'),
+                }
+            })
+        except Enrollment.DoesNotExist:
+            return Response({
+                'success': True,
+                'enrollment': None
+            })
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     @action(detail=True, methods=['get'], url_path='enrollments')
     def enrollments(self, request, pk=None):
         """Get enrollments for this cohort."""

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OVERDUE: Invoice {{ invoice.invoice_number }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+        .container { max-width: 700px; margin: 0 auto; padding: 20px; }
+        .header { background: #dc2626; color: white; padding: 25px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #fef2f2; padding: 25px; border-radius: 0 0 8px 8px; border: 2px solid #dc2626; }
+        .urgent-notice { background: #fee2e2; border: 2px solid #dc2626; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .invoice-summary { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e7eb; }
+        .payment-buttons { text-align: center; margin: 25px 0; }
+        .btn { display: inline-block; padding: 15px 30px; background: #dc2626; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 0 10px; }
+        .btn:hover { background: #b91c1c; }
+        .btn-secondary { background: #374151; }
+        .btn-secondary:hover { background: #1f2937; }
+        .consequences { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 20px 0; }
+        .footer { text-align: center; color: #6b7280; font-size: 14px; margin-top: 25px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
+        .amount-due { font-size: 1.5em; font-weight: bold; color: #dc2626; text-align: center; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 OVERDUE PAYMENT NOTICE</h1>
+            <p>Invoice {{ invoice.invoice_number }}</p>
+            <p><strong>{{ days_overdue }} DAYS PAST DUE</strong></p>
+        </div>
+        
+        <div class="content">
+            <div class="urgent-notice">
+                <h2 style="margin-top: 0; color: #dc2626;">⚠️ IMMEDIATE ACTION REQUIRED</h2>
+                <p><strong>Dear {{ contract.billing_contact_name }},</strong></p>
+                <p>Your invoice <strong>{{ invoice.invoice_number }}</strong> for {{ organization.name }} is now <strong>{{ days_overdue }} days overdue</strong>. 
+                The payment was due on <strong>{{ invoice.due_date|date:"F d, Y" }}</strong>.</p>
+            </div>
+            
+            <div class="amount-due">
+                AMOUNT DUE: ${{ invoice.total_amount|floatformat:2 }} {{ invoice.currency }}
+            </div>
+            
+            <div class="invoice-summary">
+                <h3>Invoice Summary</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 10px 0;"><strong>Invoice Number:</strong></td>
+                        <td style="padding: 10px 0;">{{ invoice.invoice_number }}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 10px 0;"><strong>Contract:</strong></td>
+                        <td style="padding: 10px 0;">{{ contract.contract_number }}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 10px 0;"><strong>Original Due Date:</strong></td>
+                        <td style="padding: 10px 0;">{{ invoice.due_date|date:"F d, Y" }}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 10px 0;"><strong>Days Overdue:</strong></td>
+                        <td style="padding: 10px 0; color: #dc2626; font-weight: bold;">{{ days_overdue }} days</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                        <td style="padding: 10px 0;"><strong>Billing Period:</strong></td>
+                        <td style="padding: 10px 0;">{{ invoice.billing_period_start|date:"M d, Y" }} - {{ invoice.billing_period_end|date:"M d, Y" }}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0;"><strong>Amount Due:</strong></td>
+                        <td style="padding: 10px 0; font-weight: bold; color: #dc2626;">${{ invoice.total_amount|floatformat:2 }} {{ invoice.currency }}</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <div class="payment-buttons">
+                <a href="{{ payment_url }}" class="btn">PAY NOW</a>
+                <a href="{{ portal_url }}" class="btn btn-secondary">View Account</a>
+            </div>
+            
+            {% if days_overdue >= 30 %}
+            <div class="consequences">
+                <h3 style="margin-top: 0; color: #f59e0b;">⚠️ Service Interruption Warning</h3>
+                <p><strong>Your account is at risk of service suspension.</strong></p>
+                <p>Invoices that remain unpaid for more than 30 days may result in:</p>
+                <ul>
+                    <li>Suspension of student access to the platform</li>
+                    <li>Removal from active learning programs</li>
+                    <li>Additional late fees and collection costs</li>
+                    <li>Contract termination proceedings</li>
+                </ul>
+                <p><strong>Please remit payment immediately to avoid service interruption.</strong></p>
+            </div>
+            {% elif days_overdue >= 14 %}
+            <div class="consequences">
+                <h3 style="margin-top: 0; color: #f59e0b;">⚠️ Late Payment Notice</h3>
+                <p>This invoice has been overdue for {{ days_overdue }} days. To avoid service interruption and additional fees, 
+                please submit payment within the next 7 days.</p>
+                <p>If you're experiencing payment difficulties, please contact our billing team immediately to discuss payment arrangements.</p>
+            </div>
+            {% endif %}
+            
+            <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin-top: 0;">💳 Payment Options</h3>
+                <ul style="margin: 0; padding-left: 20px;">
+                    <li><strong>Online Payment:</strong> <a href="{{ payment_url }}">{{ payment_url }}</a></li>
+                    <li><strong>Bank Transfer:</strong> Contact billing@och.com for wire instructions</li>
+                    <li><strong>Check Payment:</strong> Mail to OCH Billing Department</li>
+                    <li><strong>Phone Payment:</strong> Call +1 (555) 123-4567</li>
+                </ul>
+            </div>
+            
+            <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin-top: 0;">📞 Need Assistance?</h3>
+                <p>If you have questions about this invoice or need to discuss payment arrangements:</p>
+                <ul style="margin: 0; padding-left: 20px;">
+                    <li><strong>Billing Team:</strong> billing@och.com</li>
+                    <li><strong>Phone:</strong> +1 (555) 123-4567</li>
+                    <li><strong>Account Manager:</strong> accounts@och.com</li>
+                </ul>
+                <p><strong>We're here to help resolve this matter quickly.</strong></p>
+            </div>
+            
+            <div style="text-align: center; margin: 25px 0; padding: 20px; background: #fee2e2; border-radius: 8px;">
+                <p style="margin: 0; font-weight: bold; color: #dc2626;">
+                    This is an automated reminder. Please remit payment immediately to avoid service interruption.
+                </p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>OCH - Online Coding Hub</strong></p>
+            <p>Professional cybersecurity education for institutions worldwide</p>
+            <p>© {{ "now"|date:"Y" }} OCH. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

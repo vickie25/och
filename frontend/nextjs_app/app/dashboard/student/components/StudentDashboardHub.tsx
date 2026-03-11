@@ -833,266 +833,32 @@ export function StudentDashboardHub() {
           </motion.div>
         )}
 
-        {/* Foundations section: flat lessons list + video preview (no module UI) */}
+        {/* When foundations incomplete: show only CTA to complete Foundations (no in-dashboard Foundation Modules) */}
         {foundationsIncomplete && (
           <motion.div
             id="student-tour-foundations"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <Card className={`p-4 bg-slate-900/50 border-slate-700 border ${getTrackColorClasses('border')}`}>
-              {foundationsStatus.modules && foundationsStatus.modules.length > 0 ? (
-                <>
-                  {(() => {
-                    const curriculumModules = foundationsStatus.modules.filter((m: FoundationsModule) => m.source === 'curriculum');
-                    const allLessons: Lesson[] = curriculumModules.flatMap((m: FoundationsModule) => foundationLessonsByModule[m.id] ?? []);
-                    if (allLessons.length === 0) return <p className="text-xs text-och-steel">No lessons yet.</p>;
-                    const lessonIdToIndex: Record<string, number> = {};
-                    allLessons.forEach((l, i) => { lessonIdToIndex[l.id] = i; });
-                    const modulesCompletedCount = curriculumModules.filter((m: FoundationsModule) => {
-                      const ids = (foundationLessonsByModule[m.id] ?? []).map((l: Lesson) => l.id);
-                      return ids.length > 0 && ids.every((id: string) => lessonIdToIndex[id] < foundationLessonsCompletedCount);
-                    }).length;
-                    const totalModules = curriculumModules.length;
-                    const currentIndex = Math.min(currentFoundationLessonIndex, allLessons.length - 1);
-                    const currentLesson = allLessons[currentIndex];
-                    const totalLessons = allLessons.length;
-                    const safeCompleted = Math.min(foundationLessonsCompletedCount, totalLessons);
-                    const safeWatchFraction = Math.min(Math.max(currentLessonWatchFraction, 0), 1);
-
-                    // If backend already marks current lesson completed, don't double-count its watch fraction
-                    const currentLessonCompletedFromApi =
-                      (currentLesson as any).is_completed ||
-                      ((currentLesson as any).user_progress &&
-                        (currentLesson as any).user_progress.status === 'completed');
-
-                    const effectiveWatchFraction =
-                      currentLessonCompletedFromApi || safeCompleted >= totalLessons
-                        ? 0
-                        : safeWatchFraction;
-
-                    const progressLessons = Math.min(
-                      safeCompleted + effectiveWatchFraction,
-                      totalLessons
-                    );
-                    const progressPercent = totalLessons
-                      ? (progressLessons / totalLessons) * 100
-                      : 0;
-                    const completedSegmentPercent = totalLessons
-                      ? (safeCompleted / totalLessons) * 100
-                      : 0;
-                    const inProgressSegmentPercent = totalLessons
-                      ? (effectiveWatchFraction / totalLessons) * 100
-                      : 0;
-                    const isLastLesson = currentIndex === allLessons.length - 1;
-                    const allPreviousCompleted = foundationLessonsCompletedCount >= allLessons.length - 1;
-                    const canComplete = isLastLesson && allPreviousCompleted && currentLessonWatchedEnough;
-                    const isYouTube = !!(currentLesson.content_url && (currentLesson.content_url.includes('youtube.com') || currentLesson.content_url.includes('youtu.be')));
-                    currentLessonIsYouTubeRef.current = currentLesson.lesson_type === 'video' && isYouTube;
-
-                    const handleNext = async () => {
-                      if (recordingProgress) return;
-                      setRecordingProgress(true);
-                      try {
-                        await curriculumClient.updateLessonProgress(currentLesson.id, {
-                          status: 'completed',
-                          progress_percentage: 100,
-                        });
-                        // Only count each lesson once and never exceed total lessons
-                        setFoundationLessonsCompletedCount((prev) => {
-                          const next = Math.max(prev, currentIndex + 1);
-                          return Math.min(next, totalLessons);
-                        });
-
-                        if (!isLastLesson) {
-                          // Move to next lesson locally
-                          setCurrentFoundationLessonIndex((prev) =>
-                            Math.min(prev + 1, allLessons.length - 1),
-                          );
-                        } else {
-                          // Last lesson: now that backend accepts completion unconditionally,
-                          // call completeFoundations so Foundations is marked done immediately.
-                          try {
-                            await foundationsClient.completeFoundations();
-                          } catch (completeError) {
-                            console.error('Failed to complete Foundations:', completeError);
-                          }
-                          try {
-                            const status = await foundationsClient.getStatus();
-                            setFoundationsStatus(status);
-                          } catch (statusError) {
-                            console.error('Failed to refresh Foundations status:', statusError);
-                          }
-                        }
-                      } catch (e) {
-                        console.error('Failed to update lesson progress:', e);
-                        if (!isLastLesson) {
-                          setCurrentFoundationLessonIndex((prev) =>
-                            Math.min(prev + 1, allLessons.length - 1),
-                          );
-                        }
-                      } finally {
-                        setRecordingProgress(false);
-                      }
-                    };
-
-                    return (
-                      <>
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <h2 className="text-base font-semibold text-white">Beginner Level – Foundations</h2>
-                          <span className="text-xs text-och-steel shrink-0">
-                            {Math.round(progressPercent)}% · {modulesCompletedCount}/{totalModules} modules
-                          </span>
-                        </div>
-                        <div className="space-y-2 flex flex-col min-h-0">
-                        {/* Progress bar with lesson markers */}
-                        <div className="space-y-1 flex-shrink-0">
-                          <div className="flex items-center justify-between text-[10px] sm:text-xs text-och-steel">
-                            <span>Lesson {currentIndex + 1} of {allLessons.length}</span>
-                            <span>{Math.round(progressPercent)}%</span>
-                          </div>
-                          <div className="relative h-2.5 rounded-full bg-white/10 overflow-visible">
-                            {/* Completed lessons: gold */}
-                            <motion.div
-                              className="absolute inset-y-0 left-0 rounded-l-full bg-och-gold"
-                              initial={false}
-                              animate={{ width: `${completedSegmentPercent}%` }}
-                              transition={{ duration: 0.25 }}
-                            />
-                            {/* Current lesson in progress: moves with video, different color */}
-                            <motion.div
-                              className="absolute inset-y-0 rounded-r-full bg-blue-500/80"
-                              style={{ left: `${completedSegmentPercent}%` }}
-                              initial={false}
-                              animate={{ width: `${inProgressSegmentPercent}%` }}
-                              transition={{ duration: 0.25 }}
-                            />
-                            {/* Dots at the START of each lesson (1 = start of lesson 1, 2 = start of lesson 2) with number inside */}
-                            {allLessons.map((lesson, i) => {
-                              const positionPercent = allLessons.length > 1 ? (i / allLessons.length) * 100 : 0;
-                              const isCompleted = (i + 1) <= foundationLessonsCompletedCount;
-                              const isFirst = i === 0;
-                              return (
-                                <button
-                                  key={lesson.id}
-                                  type="button"
-                                  onClick={() => setCurrentFoundationLessonIndex(i)}
-                                  className={clsx(
-                                    'absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full z-10 border-2 transition-colors cursor-pointer hover:scale-110 focus:outline-none focus:ring-2 focus:ring-och-gold focus:ring-offset-2 focus:ring-offset-slate-900 flex items-center justify-center text-[10px] font-bold',
-                                    isCompleted ? 'bg-och-gold border-och-gold text-slate-900' : 'bg-slate-800 border-white/60 text-och-steel'
-                                  )}
-                                  style={{ left: isFirst ? '0' : `calc(${positionPercent}% - 12px)` }}
-                                  title={`Lesson ${i + 1}: ${lesson.title}${isCompleted ? ' (completed)' : ''} — click to go`}
-                                >
-                                  {i + 1}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                        {/* Lesson row + video */}
-                        <div className="space-y-0 flex-1 min-h-0 flex flex-col">
-                          <div className="w-full text-left p-2 rounded-t-lg flex items-center gap-2 bg-white/5 border border-och-steel/20 border-b-0 flex-shrink-0">
-                            <span className="text-xs text-och-steel w-6 shrink-0">{currentIndex + 1}</span>
-                            <span className="text-sm text-white truncate flex-1">{currentLesson.title}</span>
-                          </div>
-                          <div className="rounded-b-lg overflow-hidden border border-och-steel/20 border-t-0 bg-black flex-1 min-h-[480px] flex flex-col">
-                            {currentLesson.content_url ? (
-                              currentLesson.lesson_type === 'video' ? (
-                                getEmbedUrl(currentLesson.content_url) ? (
-                                  <iframe
-                                    src={getEmbedUrl(currentLesson.content_url)!}
-                                    title={currentLesson.title}
-                                    className="w-full aspect-video min-h-[480px]"
-                                    allowFullScreen
-                                  />
-                                ) : (
-                                  <video
-                                    src={resolveContentUrl(currentLesson.content_url)}
-                                    controls
-                                    className="w-full aspect-video min-h-[480px]"
-                                    title={currentLesson.title}
-                                    onLoadedMetadata={(e) => {
-                                      const v = e.currentTarget;
-                                      if (lastLessonIdRef.current !== currentLesson.id) {
-                                        lastLessonIdRef.current = currentLesson.id;
-                                        maxWatchedTimeRef.current = 0;
-
-                                        // Restore approximate watch position from backend (resume)
-                                        const up: any = (currentLesson as any).user_progress;
-                                        let backendFrac = 0;
-                                        if (up && typeof up.progress_percentage === 'number') {
-                                          backendFrac = up.progress_percentage / 100;
-                                        } else if ((currentLesson as any).is_completed) {
-                                          backendFrac = 1;
-                                        }
-                                        const clampedFrac = Math.min(Math.max(backendFrac, 0), 1);
-                                        if (clampedFrac > 0 && v.duration > 0) {
-                                          const targetTime =
-                                            clampedFrac >= 1 ? v.duration * 0.98 : v.duration * clampedFrac;
-                                          v.currentTime = targetTime;
-                                          maxWatchedTimeRef.current = v.currentTime;
-                                          setCurrentLessonWatchFraction(clampedFrac);
-                                          if (clampedFrac >= 0.9) {
-                                            setCurrentLessonWatchedEnough(true);
-                                          }
-                                        }
-                                      }
-                                    }}
-                                    onTimeUpdate={(e) => {
-                                      const v = e.currentTarget;
-                                      const max = maxWatchedTimeRef.current;
-                                      if (v.currentTime > max + 1.5) {
-                                        v.currentTime = max;
-                                      } else {
-                                        maxWatchedTimeRef.current = v.currentTime;
-                                      }
-                                      if (v.duration > 0) {
-                                        const frac = v.currentTime / v.duration;
-                                        setCurrentLessonWatchFraction(frac);
-                                        if (frac >= 0.9) setCurrentLessonWatchedEnough(true);
-                                      }
-                                    }}
-                                    onEnded={() => { setCurrentLessonWatchedEnough(true); setCurrentLessonWatchFraction(1); }}
-                                  />
-                                )
-                              ) : (
-                                <iframe
-                                  src={resolveContentUrl(currentLesson.content_url)}
-                                  title={currentLesson.title}
-                                  className="w-full aspect-video min-h-[480px]"
-                                  allowFullScreen
-                                />
-                              )
-                            ) : (
-                              <div className="flex items-center justify-center aspect-video min-h-[480px] text-och-steel text-sm">No content URL</div>
-                            )}
-                          </div>
-                        </div>
-                        {/* Next / Complete — visible without scrolling */}
-                        <div className="flex justify-end items-center gap-3 pt-1 flex-shrink-0">
-                          {!currentLessonWatchedEnough && (
-                            <span className="text-xs text-och-steel">Watch the video to continue</span>
-                          )}
-                          {isLastLesson && !allPreviousCompleted && (
-                            <span className="text-xs text-och-steel">Complete all previous lessons first</span>
-                          )}
-                          <Button
-                            onClick={handleNext}
-                            disabled={recordingProgress || (isLastLesson ? !canComplete : !currentLessonWatchedEnough)}
-                            className={`${getTrackColorClasses('bg')} ${getTrackColorClasses('text')} border ${getTrackColorClasses('border')} text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none`}
-                          >
-                            {recordingProgress ? 'Saving…' : isLastLesson ? 'Complete' : 'Next'}
-                          </Button>
-                        </div>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </>
-              ) : (
-                <div className="py-8 text-center text-och-steel text-sm">No Foundation Module added yet.</div>
-              )}
+            <Card className={`p-6 bg-gradient-to-br ${getTrackColorClasses('gradient')} border ${getTrackColorClasses('border')}`}>
+              <div className="flex flex-col items-center text-center gap-4">
+                <Lock className={`w-10 h-10 ${getTrackColorClasses('text')}`} />
+                <div>
+                  <h3 className="text-base font-black text-white mb-1">Complete Foundations to unlock your Control Center</h3>
+                  <p className="text-sm text-och-steel">
+                    Finish Foundations in onboarding to access your Learning Path, Missions, Discussions, Mentors, and AI Coach.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`${getTrackColorClasses('border')} ${getTrackColorClasses('text')}`}
+                  onClick={() => router.push('/dashboard/student/foundations')}
+                >
+                  Go to Foundations
+                  <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                </Button>
+              </div>
             </Card>
           </motion.div>
         )}
@@ -1148,9 +914,37 @@ export function StudentDashboardHub() {
                   <div>
                     <h3 className="text-sm font-black text-white">Foundations complete</h3>
                     <p className="text-xs text-och-steel">
-                      {curriculumProgress
-                        ? 'Start your track modules next to continue your learning path.'
-                        : 'Your Foundations are done. Your track content will appear here once modules are added.'}
+                      {(() => {
+                        // Treat track as having content if we have curriculum progress,
+                        // or a current/next module/lesson from progress/nextActions.
+                        const hasTrackContent =
+                          !!curriculumProgress ||
+                          !!curriculumProgress?.current_module_title ||
+                          (nextActions && nextActions.length > 0);
+                        if (!hasTrackContent) {
+                          return 'Your Foundations are done. Your track content will appear here once modules are added.';
+                        }
+
+                        const primary = nextActions && nextActions.length > 0 ? nextActions[0] : null;
+                        const rawLabel = primary?.label
+                          ? String(primary.label)
+                          : curriculumProgress?.current_module_title || '';
+                        if (!rawLabel) {
+                          return 'Start your track modules next to continue your learning path.';
+                        }
+
+                        const materialName =
+                          rawLabel.replace(/^(Start|Continue|Next):?\s*/i, '').trim() || rawLabel;
+
+                        const hasStarted =
+                          primary?.type === 'continue_lesson' ||
+                          (curriculumProgress?.lessons_completed ?? 0) > 0 ||
+                          (curriculumProgress?.modules_completed ?? 0) > 0;
+
+                        return hasStarted
+                          ? `Continue with ${materialName}`
+                          : `Start ${materialName}`;
+                      })()}
                     </p>
                   </div>
                 </div>
@@ -1562,6 +1356,60 @@ export function StudentDashboardHub() {
               exit={{ opacity: 0, y: -10 }}
               className="space-y-3"
             >
+              {/* Profiling results: AI recommended track + track alignment percentages */}
+              {(() => {
+                const recTrack = initialProfiler?.recommended_track || profilingResults?.primary_track?.key || profilingResults?.primary_track?.track_key || profilingResults?.recommendations?.[0]?.track_key;
+                const alignmentPct = initialProfiler?.track_alignment_percentages && Object.keys(initialProfiler.track_alignment_percentages).length > 0
+                  ? initialProfiler.track_alignment_percentages
+                  : (profilingResults?.recommendations?.length
+                      ? (() => {
+                          const recs = profilingResults.recommendations;
+                          const total = recs.reduce((s: number, r: any) => s + (r.score || 0), 0);
+                          const out: Record<string, number> = {};
+                          recs.forEach((r: any) => {
+                            const key = (r.track_key || r.track || '').toString();
+                            if (key && total > 0) out[key] = Math.round(((r.score || 0) / total) * 100);
+                          });
+                          return out;
+                        })()
+                      : null);
+                const hasProfiling = recTrack || (alignmentPct && Object.keys(alignmentPct).length > 0);
+                if (!hasProfiling) return null;
+                return (
+                  <Card className="p-4 bg-och-midnight/60 border border-och-steel/20">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Brain className="w-4 h-4 text-och-gold" />
+                        <h3 className="text-sm font-black text-white">Profiling Results</h3>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      {recTrack && (
+                        <div>
+                          <p className="text-xs font-bold text-och-steel uppercase tracking-wide mb-1">AI Recommended Track</p>
+                          <p className="text-sm font-black text-white">
+                            {trackThemes[recTrack]?.name || String(recTrack).charAt(0).toUpperCase() + String(recTrack).slice(1)}
+                          </p>
+                        </div>
+                      )}
+                      {alignmentPct && Object.keys(alignmentPct).length > 0 && (
+                        <div>
+                          <p className="text-xs font-bold text-och-steel uppercase tracking-wide mb-2">Track alignment</p>
+                          <div className="space-y-1.5">
+                            {Object.entries(alignmentPct).map(([trackKey, pct]) => (
+                              <div key={trackKey} className="flex items-center justify-between text-xs">
+                                <span className="text-och-steel capitalize">{trackKey}</span>
+                                <span className="font-bold text-white">{typeof pct === 'number' ? Math.round(pct) : pct}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })()}
+
               {/* TalentScope Analytics */}
               <Card className="p-4 bg-och-midnight/60 border border-och-steel/20">
                 <div className="flex items-center justify-between mb-4">
