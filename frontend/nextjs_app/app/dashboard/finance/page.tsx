@@ -265,7 +265,7 @@ export default function FinancialDashboardPage() {
                           <p className={`font-medium text-sm ${
                             transaction.type === 'credit' ? 'text-och-savanna-green' : 'text-och-orange'
                           }`}>
-                            {transaction.type === 'credit' ? '+' : '-'}${transaction.amount.toFixed(2)}
+                            {transaction.type === 'credit' ? '+' : '-'}${Number(transaction.amount || 0).toFixed(2)}
                           </p>
                           <Badge variant={transaction.type === 'credit' ? 'mint' : 'orange'} className="text-xs">
                             {transaction.type}

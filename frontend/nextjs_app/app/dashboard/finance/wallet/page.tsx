@@ -135,6 +135,16 @@ export default function WalletPage() {
     }
   }
 
+  // Normalize wallet balance to a number to avoid `toFixed` on strings/null
+  const normalizedWalletBalance: number =
+    wallet && wallet.balance != null ? Number(wallet.balance) || 0 : 0
+
+  // Normalize transaction amounts as well
+  const getNormalizedAmount = (amount: number | string): number => {
+    const n = Number(amount)
+    return Number.isFinite(n) ? n : 0
+  }
+
   if (loading) {
     return (
       <RouteGuard>
@@ -184,7 +194,7 @@ export default function WalletPage() {
                 </div>
                 <div className="mb-2">
                   <p className="text-3xl font-bold text-white">
-                    ${wallet?.balance?.toFixed(2) || '0.00'}
+                    ${normalizedWalletBalance.toFixed(2)}
                   </p>
                   <p className="text-sm text-och-steel">{wallet?.currency || 'USD'}</p>
                 </div>
@@ -336,7 +346,7 @@ export default function WalletPage() {
                         <p className={`font-medium ${
                           transaction.type === 'credit' ? 'text-och-savanna-green' : 'text-och-orange'
                         }`}>
-                          {transaction.type === 'credit' ? '+' : '-'}${transaction.amount.toFixed(2)}
+                          {transaction.type === 'credit' ? '+' : '-'}${getNormalizedAmount(transaction.amount).toFixed(2)}
                         </p>
                         <Badge variant={transaction.type === 'credit' ? 'mint' : 'orange'}>
                           {transaction.type}

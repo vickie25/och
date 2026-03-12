@@ -26,7 +26,10 @@ import {
   Lock,
   Activity,
   Database,
-  Globe
+  Globe,
+  Plus,
+  Trash2,
+  DollarSign,
 } from 'lucide-react'
 
 type AuditLog = {

@@ -8,7 +8,7 @@ from .views import (
     ContractViewSet, TaxRateViewSet, MentorPayoutViewSet,
     InvoiceViewSet, PaymentViewSet, FinancialDashboardView
 )
-from .enhanced_views import AnalyticsViewSet
+from .enhanced_views import AnalyticsViewSet, ComplianceViewSet
 
 router = DefaultRouter()
 router.register(r'wallets', WalletViewSet, basename='wallet')
@@ -20,6 +20,7 @@ router.register(r'mentor-payouts', MentorPayoutViewSet, basename='mentorpayout')
 router.register(r'invoices', InvoiceViewSet, basename='invoice')
 router.register(r'payments', PaymentViewSet, basename='payment')
 router.register(r'analytics', AnalyticsViewSet, basename='finance-analytics')
+router.register(r'compliance', ComplianceViewSet, basename='finance-compliance')
 
 # NOTE:
 # These URLs are intentionally defined WITHOUT the /api/v1 prefix.

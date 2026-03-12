@@ -146,12 +146,21 @@ export default function TaxPage() {
     return matchesSearch && matchesType && matchesActive
   })
 
+  // Normalize rates to numbers to avoid NaN averages
+  const numericRates = taxRates
+    .map((t) => Number(t.rate))
+    .filter((r) => Number.isFinite(r))
+
+  const avgRateRaw =
+    numericRates.length > 0
+      ? numericRates.reduce((sum, r) => sum + r, 0) / numericRates.length
+      : 0
+
   const stats = {
     total: taxRates.length,
-    active: taxRates.filter(t => t.is_active).length,
-    countries: new Set(taxRates.map(t => t.country)).size,
-    avgRate: taxRates.length > 0 ? 
-      taxRates.reduce((sum, t) => sum + t.rate, 0) / taxRates.length : 0
+    active: taxRates.filter((t) => t.is_active).length,
+    countries: new Set(taxRates.map((t) => t.country)).size,
+    avgRate: Number.isFinite(avgRateRaw) ? avgRateRaw : 0,
   }
 
   if (loading) {
