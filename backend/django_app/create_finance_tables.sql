@@ -46,10 +46,9 @@ CREATE TABLE IF NOT EXISTS credits (
 CREATE INDEX IF NOT EXISTS credits_user_type_idx ON credits(user_id, type);
 CREATE INDEX IF NOT EXISTS credits_expires_at_idx ON credits(expires_at);
 
--- Contracts table
 CREATE TABLE IF NOT EXISTS contracts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    organization_id BIGINT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     type VARCHAR(20) NOT NULL CHECK (type IN ('institution', 'employer')),
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
@@ -104,7 +103,7 @@ CREATE INDEX IF NOT EXISTS mentor_payouts_status_idx ON mentor_payouts(status);
 CREATE TABLE IF NOT EXISTS finance_invoices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
-    organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+    organization_id BIGINT REFERENCES organizations(id) ON DELETE CASCADE,
     contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL,
     type VARCHAR(20) NOT NULL CHECK (type IN ('subscription', 'institution', 'employer', 'cohort', 'contract')),
     amount DECIMAL(15,2) NOT NULL CHECK (amount >= 0),

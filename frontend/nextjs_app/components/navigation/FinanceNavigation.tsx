@@ -12,7 +12,11 @@ import {
   Shield,
   Home,
   UserCircle,
-  Settings
+  Settings,
+  CreditCard,
+  Building2,
+  Calculator,
+  Users
 } from 'lucide-react'
 
 interface NavItem {
@@ -23,13 +27,15 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', href: '/finance/dashboard', icon: Home },
-  { label: 'Revenue', href: '/finance/revenue', icon: DollarSign },
-  { label: 'Invoices', href: '/finance/invoices', icon: FileText },
-  { label: 'Placements', href: '/finance/placements', icon: BarChart3 },
-  { label: 'Subscriptions', href: '/finance/subscriptions', icon: Wallet },
-  { label: 'Cash Flow', href: '/finance/cashflow', icon: Shield },
-  { label: 'Account', href: '/finance/account', icon: UserCircle },
+  { label: 'Dashboard', href: '/dashboard/finance', icon: Home },
+  { label: 'Analytics', href: '/dashboard/finance/analytics', icon: BarChart3 },
+  { label: 'Wallet & Credits', href: '/dashboard/finance/wallet', icon: Wallet },
+  { label: 'Billing & Invoices', href: '/dashboard/finance/billing', icon: FileText },
+  { label: 'Contracts', href: '/dashboard/finance/contracts', icon: Building2 },
+  { label: 'Tax Management', href: '/dashboard/finance/tax', icon: Calculator },
+  { label: 'Compliance', href: '/dashboard/finance/compliance', icon: Shield },
+  { label: 'Subscriptions', href: '/finance/subscriptions', icon: CreditCard },
+  { label: 'Mentor Payouts', href: '/finance/mentor-payouts', icon: Users },
   { label: 'Settings', href: '/finance/settings', icon: Settings },
 ]
 
@@ -38,6 +44,9 @@ export function FinanceNavigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const isActive = (href: string) => {
+    if (href === '/dashboard/finance' && pathname === '/dashboard/finance') {
+      return true
+    }
     if (href === '/finance/dashboard') {
       return pathname === '/finance/dashboard'
     }
@@ -82,9 +91,9 @@ export function FinanceNavigation() {
         <div className="flex flex-col h-full">
           {/* Logo/Brand */}
           <div className="p-6 border-b border-och-steel/20">
-            <Link href="/finance/dashboard" className="flex items-center gap-2">
+            <Link href="/dashboard/finance" className="flex items-center gap-2">
               <DollarSign className="h-8 w-8 text-och-defender" />
-              <span className="text-xl font-bold text-white">Finance</span>
+              <span className="text-xl font-bold text-white">OCH Finance</span>
             </Link>
           </div>
 

@@ -933,24 +933,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* TRUSTED BY */}
-        <section className="max-w-[1140px] mx-auto px-4 sm:px-6 pb-8 sm:pb-12 md:pb-16">
-          <Reveal>
-            <div className="text-center space-y-2">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-[#64748B] font-semibold">
-                Mentors from
-              </p>
-              <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-[12px] text-[#E5E7EB]">
-                <span className="opacity-70">Serianu</span>
-                <span className="opacity-70">Safaricom</span>
-                <span className="opacity-70">Deloitte</span>
-                <span className="opacity-70">KPMG</span>
-                <span className="opacity-70">Africa CERT</span>
-              </div>
-            </div>
-          </Reveal>
-        </section>
-
         {/* WHO IS THIS FOR */}
         <section id="who" className="max-w-[1140px] mx-auto px-4 sm:px-6 pb-8 sm:pb-12 md:pb-16">
           <Reveal>
