@@ -11,11 +11,17 @@ from django.utils import timezone
 from cryptography.fernet import Fernet
 from django.conf import settings
 
+from users.audit_models import AuditLog as CoreAuditLog
+
 User = get_user_model()
 
 
-class AuditLog(models.Model):
-    """Immutable audit log for all financial operations."""
+class FinancialAuditLog(models.Model):
+    """
+    Legacy/enhanced financial audit log definition.
+    Kept as an abstract base so it does not create its own DB table
+    or conflict with the core audit log model in users.audit_models.AuditLog.
+    """
     
     ACTION_TYPES = [
         ('create', 'Create'),
@@ -45,7 +51,7 @@ class AuditLog(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.PROTECT,  # Never delete audit logs
-        related_name='audit_logs',
+        related_name='finance_audit_logs',
         null=True,
         blank=True
     )
@@ -86,15 +92,7 @@ class AuditLog(models.Model):
     checksum = models.CharField(max_length=64, help_text='SHA-256 checksum for integrity')
     
     class Meta:
-        db_table = 'audit_logs'
-        ordering = ['-timestamp']
-        indexes = [
-            models.Index(fields=['timestamp', 'entity_type']),
-            models.Index(fields=['user', 'action']),
-            models.Index(fields=['entity_type', 'entity_id']),
-            models.Index(fields=['risk_level', 'timestamp']),
-            models.Index(fields=['retention_until']),
-        ]
+        abstract = True
     
     def __str__(self):
         return f"{self.user_email} {self.action} {self.entity_type} at {self.timestamp}"
@@ -259,6 +257,10 @@ class SecurityEvent(models.Model):
         return f"{self.get_event_type_display()} - {self.severity} - {self.detected_at}"
 
 
+# Re-export core AuditLog so other modules can import from finance.audit
+AuditLog = CoreAuditLog
+
+
 # Audit logging utility functions
 def log_financial_action(user, action, entity_type, entity_id, description, 
                         old_values=None, new_values=None, request=None, risk_level='low'):
@@ -277,21 +279,32 @@ def log_financial_action(user, action, entity_type, entity_id, description,
     is_pci_relevant = action in ['payment', 'refund'] or entity_type in ['payment', 'invoice']
     is_gdpr_relevant = entity_type in ['user', 'wallet'] or 'personal' in description.lower()
     
-    AuditLog.objects.create(
+    # Persist into the core system audit log model
+    CoreAuditLog.objects.create(
         user=user,
-        user_email=user.email if user else 'system@ongoza.com',
-        user_ip=user_ip,
-        user_agent=user_agent,
+        api_key=None,
+        actor_type='user' if user else 'system',
+        actor_identifier=user.email if user else 'system@ongoza.com',
         action=action,
-        entity_type=entity_type,
-        entity_id=entity_id,
-        session_id=session_id,
-        old_values=json.dumps(old_values) if old_values else '',
-        new_values=json.dumps(new_values) if new_values else '',
-        description=description,
-        risk_level=risk_level,
-        is_pci_relevant=is_pci_relevant,
-        is_gdpr_relevant=is_gdpr_relevant
+        resource_type=entity_type,
+        resource_id=str(entity_id),
+        content_type=None,
+        object_id=None,
+        ip_address=user_ip,
+        user_agent=user_agent,
+        request_id=session_id,
+        changes={
+            'old': old_values or {},
+            'new': new_values or {},
+        },
+        metadata={
+            'description': description,
+            'risk_level': risk_level,
+            'is_pci_relevant': is_pci_relevant,
+            'is_gdpr_relevant': is_gdpr_relevant,
+        },
+        result='success',
+        error_message=None,
     )
 
 

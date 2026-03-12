@@ -127,6 +127,9 @@ urlpatterns = [
     # Career / Marketplace module
     path('', include('marketplace.urls')),
     
+    # Finance module (wallets, tax rates, invoices, etc.)
+    path('finance/', include('finance.urls')),
+    
     # Community Module
     path('community/', include('community.urls')),
     

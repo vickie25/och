@@ -2,7 +2,8 @@
 Materials Service - Manage cohort learning materials.
 """
 from django.utils import timezone
-from django.db.models import Q, Count, Avg
+from django.db.models import Q, Count, Avg, Sum
+from django.db import models
 from cohorts.models import CohortDayMaterial, CohortMaterialProgress
 from programs.models import Enrollment
 
@@ -162,7 +163,7 @@ class MaterialsService:
         completion_percentage = (completed / total_materials * 100) if total_materials > 0 else 0
         
         # Time spent
-        total_time = progress.aggregate(total=models.Sum('time_spent_minutes'))['total'] or 0
+        total_time = progress.aggregate(total=Sum('time_spent_minutes'))['total'] or 0
         
         return {
             'total_materials': total_materials,

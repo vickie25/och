@@ -8,6 +8,7 @@ from .views import (
     ContractViewSet, TaxRateViewSet, MentorPayoutViewSet,
     InvoiceViewSet, PaymentViewSet, FinancialDashboardView
 )
+from .enhanced_views import AnalyticsViewSet
 
 router = DefaultRouter()
 router.register(r'wallets', WalletViewSet, basename='wallet')
@@ -18,8 +19,12 @@ router.register(r'tax-rates', TaxRateViewSet, basename='taxrate')
 router.register(r'mentor-payouts', MentorPayoutViewSet, basename='mentorpayout')
 router.register(r'invoices', InvoiceViewSet, basename='invoice')
 router.register(r'payments', PaymentViewSet, basename='payment')
+router.register(r'analytics', AnalyticsViewSet, basename='finance-analytics')
 
+# NOTE:
+# These URLs are intentionally defined WITHOUT the /api/v1 prefix.
+# They are included under /api/v1/finance/ from backend/django_app/api/urls.py.
 urlpatterns = [
-    path('api/finance/', include(router.urls)),
-    path('api/finance/dashboard/', FinancialDashboardView.as_view(), name='financial-dashboard'),
+    path('', include(router.urls)),
+    path('dashboard/', FinancialDashboardView.as_view(), name='financial-dashboard'),
 ]

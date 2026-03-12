@@ -61,6 +61,8 @@ class CohortMaterialProgress(models.Model):
     completed_at = models.DateTimeField(null=True, blank=True)
     time_spent_minutes = models.IntegerField(default=0)
     notes = models.TextField(blank=True, help_text='Student notes')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         db_table = 'cohort_material_progress'

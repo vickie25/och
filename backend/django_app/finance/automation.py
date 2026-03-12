@@ -10,8 +10,19 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
-from celery import shared_task
 import logging
+
+try:
+    from celery import shared_task
+except ImportError:  # pragma: no cover - fallback for dev environments without Celery
+    def shared_task(*args, **kwargs):
+        """
+        Fallback no-op decorator when Celery is not installed.
+        Allows importing this module without requiring Celery.
+        """
+        def decorator(func):
+            return func
+        return decorator
 
 from .models import Invoice, Payment, Wallet, Transaction
 from .audit import log_financial_action, log_security_event
@@ -152,7 +163,7 @@ class PaymentRetryAttempt(models.Model):
     error_message = models.TextField(blank=True)
     
     class Meta:
-        db_table = 'payment_retry_attempts'
+        db_table = 'finance_payment_retry_attempts'
         ordering = ['attempt_number']
         indexes = [
             models.Index(fields=['status', 'scheduled_at']),

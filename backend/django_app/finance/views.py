@@ -185,7 +185,17 @@ class ContractViewSet(viewsets.ModelViewSet):
 class TaxRateViewSet(viewsets.ModelViewSet):
     queryset = TaxRate.objects.all()
     serializer_class = TaxRateSerializer
+    # Default to admin-only; see get_permissions for read override
     permission_classes = [permissions.IsAdminUser]
+    
+    def get_permissions(self):
+        """
+        Allow any authenticated user to READ tax rates,
+        but restrict CREATE/UPDATE/DELETE to admins.
+        """
+        if self.request.method in permissions.SAFE_METHODS:
+            return [permissions.IsAuthenticated()]
+        return [permissions.IsAdminUser()]
     
     @action(detail=False, methods=['get'])
     def by_location(self, request):

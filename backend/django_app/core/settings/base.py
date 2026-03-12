@@ -75,6 +75,8 @@ INSTALLED_APPS = [
     'mentorship_coordination',
     'mentors',
     'programs',
+    'cohorts',                 # Cohort management system
+    'finance',                 # Financial management system
     'sponsor_dashboard',
     'sponsors',
     'director_dashboard',
@@ -277,13 +279,18 @@ else:
         }
     }
 
-# Celery Configuration (if using Celery)
+# Celery Configuration
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', f'redis://{REDIS_HOST}:{REDIS_PORT}/0')
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', f'redis://{REDIS_HOST}:{REDIS_PORT}/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
+CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
 
 # Celery Beat Schedule (periodic tasks)
 try:

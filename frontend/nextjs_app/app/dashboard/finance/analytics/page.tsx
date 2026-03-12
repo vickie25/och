@@ -441,7 +441,7 @@ export default function AnalyticsPage() {
                           {getStatusIcon(analyticsData.payment_success.success_rate, 95)}
                           <div>
                             <p className="text-white font-medium">Payment Success Rate</p>
-                            <p className="text-xs text-och-steel">Target: >95%</p>
+                            <p className="text-xs text-och-steel">Target: {'>'}95%</p>
                           </div>
                         </div>
                         <div className="text-right">
@@ -456,7 +456,7 @@ export default function AnalyticsPage() {
                           {getStatusIcon(analyticsData.dunning_recovery.recovery_rate, 80)}
                           <div>
                             <p className="text-white font-medium">Dunning Recovery Rate</p>
-                            <p className="text-xs text-och-steel">Target: >80%</p>
+                            <p className="text-xs text-och-steel">Target: {'>'}80%</p>
                           </div>
                         </div>
                         <div className="text-right">
@@ -471,7 +471,7 @@ export default function AnalyticsPage() {
                           {getStatusIcon(analyticsData.growth.churn_rate, 5, true)}
                           <div>
                             <p className="text-white font-medium">Churn Rate</p>
-                            <p className="text-xs text-och-steel">Target: <5%</p>
+                            <p className="text-xs text-och-steel">Target: {'<'}5%</p>
                           </div>
                         </div>
                         <div className="text-right">

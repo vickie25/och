@@ -4,7 +4,7 @@
 -- Audit logs table for immutable audit trail
 CREATE TABLE IF NOT EXISTS audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id BIGINT REFERENCES users(id) ON DELETE PROTECT,
+    user_id BIGINT REFERENCES users(id) ON DELETE RESTRICT,
     user_email VARCHAR(254) NOT NULL,
     user_ip INET,
     user_agent TEXT,
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS compliance_reports (
     compliance_score DECIMAL(5,2) NOT NULL DEFAULT 0,
     issues_found INTEGER NOT NULL DEFAULT 0,
     critical_issues INTEGER NOT NULL DEFAULT 0,
-    generated_by BIGINT NOT NULL REFERENCES users(id) ON DELETE PROTECT,
+    generated_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     generated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     file_path VARCHAR(500)
 );
