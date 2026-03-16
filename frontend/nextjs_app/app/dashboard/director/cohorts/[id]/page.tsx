@@ -14,7 +14,8 @@ import { missionsClient, type MissionTemplate } from '@/services/missionsClient'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
-import { Target, GraduationCap, Users, ExternalLink } from 'lucide-react'
+import { Target, GraduationCap, Users, ExternalLink, BookOpen } from 'lucide-react'
+import { ModuleManagement } from '@/components/director/ModuleManagement'
 
 export default function CohortDetailPage() {
   const params = useParams()
@@ -50,6 +51,18 @@ export default function CohortDetailPage() {
   const [publicApplications, setPublicApplications] = useState<{ id: string; applicant_type: string; name: string; email: string; status: string; created_at: string }[]>([])
   const [applicationsLoadError, setApplicationsLoadError] = useState<string | null>(null)
   const [curriculumTracks, setCurriculumTracks] = useState<{ id: string; slug: string; name: string; title: string; code: string }[]>([])
+  const [showModuleManagement, setShowModuleManagement] = useState(false)
+  const [cohortMaterials, setCohortMaterials] = useState<{
+    modules: {
+      id: string
+      day_number: number
+      title: string
+      material_type: string
+      estimated_minutes: number
+      is_required: boolean
+    }[]
+    total_modules: number
+  } | null>(null)
 
   // Calculate derived values - moved before early returns to satisfy Rules of Hooks
   const activeEnrollments = enrollments.filter(e => e.status === 'active')
@@ -138,7 +151,7 @@ export default function CohortDetailPage() {
       setIsLoading(true)
       try {
         setApplicationsLoadError(null)
-        const [events, enrolls, mentorAssignments, missions, applicationsRes, curriculumTracksRes] = await Promise.all([
+        const [events, enrolls, mentorAssignments, missions, applicationsRes, curriculumTracksRes, materialsRes] = await Promise.all([
           programsClient.getCohortCalendar(cohortId),
           programsClient.getCohortEnrollments(cohortId),
           programsClient.getCohortMentors(cohortId),
@@ -153,6 +166,9 @@ export default function CohortDetailPage() {
             return { applications: [] }
           }),
           apiGateway.get<any>('/curriculum/tracks/').catch(() => ({ results: [] })),
+          apiGateway
+            .get<any>(`/cohorts/${cohortId}/modules/`)
+            .catch(() => ({ modules: [], total_modules: 0 })),
         ])
         setCalendarEvents(events)
         setEnrollments(enrolls)
@@ -161,6 +177,22 @@ export default function CohortDetailPage() {
         setPublicApplications(applicationsRes?.applications ?? [])
         const trackList = curriculumTracksRes?.results || curriculumTracksRes?.data || curriculumTracksRes || []
         setCurriculumTracks(trackList)
+        if (materialsRes) {
+          const rawModules = materialsRes.modules || []
+          setCohortMaterials({
+            modules: rawModules.map((m: any) => ({
+              id: String(m.id),
+              day_number: Number(m.day_number),
+              title: String(m.title),
+              material_type: String(m.material_type),
+              estimated_minutes: Number(m.estimated_minutes || 0),
+              is_required: Boolean(m.is_required),
+            })),
+            total_modules: Number(materialsRes.total_modules || rawModules.length || 0),
+          })
+        } else {
+          setCohortMaterials(null)
+        }
       } catch (err) {
         console.error('Failed to load cohort data:', err)
       } finally {
@@ -322,6 +354,15 @@ export default function CohortDetailPage() {
                 </div>
               </div>
               <div className="flex gap-3">
+                <Button
+                  variant="defender"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => setShowModuleManagement(true)}
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  Manage Materials
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -490,6 +531,67 @@ export default function CohortDetailPage() {
                         </li>
                       ))}
                     </ul>
+                  )}
+                </div>
+              </Card>
+
+              {/* Cohort Materials (from Module Management) */}
+              <Card>
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-white">Cohort Materials</h2>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1"
+                      onClick={() => setShowModuleManagement(true)}
+                    >
+                      <BookOpen className="w-3.5 h-3.5" />
+                      Manage Materials
+                    </Button>
+                  </div>
+                  {!cohortMaterials || cohortMaterials.total_modules === 0 ? (
+                    <p className="text-sm text-och-steel">
+                      No materials have been added yet. Use &quot;Manage Materials&quot; to import from tracks or create day-by-day content.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-och-steel">
+                        Showing a snapshot of the first few materials. Total modules:{' '}
+                        <span className="text-white font-semibold">{cohortMaterials.total_modules}</span>
+                      </p>
+                      <div className="space-y-2">
+                        {cohortMaterials.modules
+                          .slice(0, 8)
+                          .sort((a, b) =>
+                            a.day_number === b.day_number
+                              ? a.title.localeCompare(b.title)
+                              : a.day_number - b.day_number,
+                          )
+                          .map((m) => (
+                            <div
+                              key={m.id}
+                              className="flex items-center justify-between rounded-lg bg-och-midnight/60 border border-och-steel/20 px-3 py-2 text-sm"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <span className="text-xs text-och-steel">Day {m.day_number}</span>
+                                <span className="truncate text-white font-medium">{m.title}</span>
+                              </div>
+                              <div className="flex items-center gap-3 text-xs text-och-steel">
+                                <span className="capitalize">{m.material_type}</span>
+                                {m.estimated_minutes > 0 && (
+                                  <span>{m.estimated_minutes} min</span>
+                                )}
+                                {m.is_required && (
+                                  <Badge variant="steel" className="text-[10px] px-2 py-0.5">
+                                    Required
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               </Card>
@@ -780,6 +882,14 @@ export default function CohortDetailPage() {
                         👥 Manage Enrollments
                       </Button>
                     </Link>
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start" 
+                      size="sm"
+                      onClick={() => setShowModuleManagement(true)}
+                    >
+                      📚 Manage Materials
+                    </Button>
                     <Button variant="outline" className="w-full justify-start" size="sm">
                       ⚙️ Program Rules
                     </Button>
@@ -912,6 +1022,15 @@ export default function CohortDetailPage() {
               </div>
             </Card>
           </div>
+        )}
+
+        {/* Module Management Modal */}
+        {showModuleManagement && (
+          <ModuleManagement
+            cohortId={cohortId}
+            cohortName={cohort.name}
+            onClose={() => setShowModuleManagement(false)}
+          />
         )}
 
         {/* Add Missions Modal */}

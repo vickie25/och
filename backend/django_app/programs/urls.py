@@ -160,6 +160,9 @@ urlpatterns = [
     # Enrollment update endpoint
     path('cohorts/<uuid:cohort_id>/enrollments/<uuid:enrollment_id>/', UpdateEnrollmentOrganizationView.as_view(), name='update-enrollment'),
     
+    # Enhanced cohorts endpoints (module management, materials, etc.)
+    path('cohorts/', include('cohorts.urls_enhanced')),
+    
     # All other routes (includes /programs/ and /programs/{id}/ for ProgramViewSet)
     path('', include(router.urls)),
     path('director/', include(director_router.urls)),

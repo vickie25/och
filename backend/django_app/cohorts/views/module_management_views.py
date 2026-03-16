@@ -6,16 +6,40 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
+from django.db import models
+from django.db.models import Max
+
 from programs.models import Cohort, Track, Module, Milestone
+from programs.permissions import _is_director_or_admin
 from cohorts.models import CohortDayMaterial
-from cohorts.services.materials_service import materials_service
+from curriculum.models import CurriculumTrack, CurriculumModule
+
 import logging
+import uuid
 
 logger = logging.getLogger(__name__)
 
 
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
+def cohort_modules_list(request, cohort_id):
+    """Handle GET and POST for cohort modules list."""
+    if request.method == 'GET':
+        return get_cohort_modules(request, cohort_id)
+    elif request.method == 'POST':
+        return add_cohort_module(request, cohort_id)
+
+
+@api_view(['PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def cohort_modules_detail(request, cohort_id, module_id):
+    """Handle PUT and DELETE for individual cohort modules."""
+    if request.method == 'PUT':
+        return update_cohort_module(request, cohort_id, module_id)
+    elif request.method == 'DELETE':
+        return delete_cohort_module(request, cohort_id, module_id)
+
+
 def get_cohort_modules(request, cohort_id):
     """
     GET /api/v1/cohorts/{cohort_id}/modules/
@@ -25,10 +49,12 @@ def get_cohort_modules(request, cohort_id):
     try:
         cohort = get_object_or_404(Cohort, id=cohort_id)
         
-        # Check permissions (director, coordinator, or mentor)
-        if not (request.user == cohort.coordinator or 
-                request.user in [ma.mentor for ma in cohort.mentor_assignments.filter(active=True)] or
-                request.user.role in ['admin', 'director']):
+        # Check permissions (program director/admin, coordinator, or assigned mentor)
+        if not (
+            _is_director_or_admin(request.user)
+            or request.user == cohort.coordinator
+            or request.user in [ma.mentor for ma in cohort.mentor_assignments.filter(active=True)]
+        ):
             return Response(
                 {'error': 'Permission denied'},
                 status=status.HTTP_403_FORBIDDEN
@@ -69,8 +95,6 @@ def get_cohort_modules(request, cohort_id):
         )
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
 def add_cohort_module(request, cohort_id):
     """
     POST /api/v1/cohorts/{cohort_id}/modules/
@@ -93,9 +117,11 @@ def add_cohort_module(request, cohort_id):
     try:
         cohort = get_object_or_404(Cohort, id=cohort_id)
         
-        # Check permissions
-        if not (request.user == cohort.coordinator or 
-                request.user.role in ['admin', 'director']):
+        # Check permissions (program director/admin or coordinator)
+        if not (
+            _is_director_or_admin(request.user)
+            or request.user == cohort.coordinator
+        ):
             return Response(
                 {'error': 'Permission denied'},
                 status=status.HTTP_403_FORBIDDEN
@@ -113,7 +139,6 @@ def add_cohort_module(request, cohort_id):
                 )
         
         # Get next order for the day
-        from django.db.models import Max
         max_order = CohortDayMaterial.objects.filter(
             cohort=cohort,
             day_number=data['day_number']
@@ -154,8 +179,6 @@ def add_cohort_module(request, cohort_id):
         )
 
 
-@api_view(['PUT'])
-@permission_classes([IsAuthenticated])
 def update_cohort_module(request, cohort_id, module_id):
     """
     PUT /api/v1/cohorts/{cohort_id}/modules/{module_id}/
@@ -166,9 +189,11 @@ def update_cohort_module(request, cohort_id, module_id):
         cohort = get_object_or_404(Cohort, id=cohort_id)
         module = get_object_or_404(CohortDayMaterial, id=module_id, cohort=cohort)
         
-        # Check permissions
-        if not (request.user == cohort.coordinator or 
-                request.user.role in ['admin', 'director']):
+        # Check permissions (program director/admin or coordinator)
+        if not (
+            _is_director_or_admin(request.user)
+            or request.user == cohort.coordinator
+        ):
             return Response(
                 {'error': 'Permission denied'},
                 status=status.HTTP_403_FORBIDDEN
@@ -206,8 +231,6 @@ def update_cohort_module(request, cohort_id, module_id):
         )
 
 
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
 def delete_cohort_module(request, cohort_id, module_id):
     """
     DELETE /api/v1/cohorts/{cohort_id}/modules/{module_id}/
@@ -218,9 +241,11 @@ def delete_cohort_module(request, cohort_id, module_id):
         cohort = get_object_or_404(Cohort, id=cohort_id)
         module = get_object_or_404(CohortDayMaterial, id=module_id, cohort=cohort)
         
-        # Check permissions
-        if not (request.user == cohort.coordinator or 
-                request.user.role in ['admin', 'director']):
+        # Check permissions (program director/admin or coordinator)
+        if not (
+            _is_director_or_admin(request.user)
+            or request.user == cohort.coordinator
+        ):
             return Response(
                 {'error': 'Permission denied'},
                 status=status.HTTP_403_FORBIDDEN
@@ -261,9 +286,11 @@ def reorder_cohort_modules(request, cohort_id):
     try:
         cohort = get_object_or_404(Cohort, id=cohort_id)
         
-        # Check permissions
-        if not (request.user == cohort.coordinator or 
-                request.user.role in ['admin', 'director']):
+        # Check permissions (program director/admin or coordinator)
+        if not (
+            _is_director_or_admin(request.user)
+            or request.user == cohort.coordinator
+        ):
             return Response(
                 {'error': 'Permission denied'},
                 status=status.HTTP_403_FORBIDDEN
@@ -321,40 +348,170 @@ def import_track_modules(request, cohort_id):
     try:
         cohort = get_object_or_404(Cohort, id=cohort_id)
         
-        # Check permissions
-        if not (request.user == cohort.coordinator or 
-                request.user.role in ['admin', 'director']):
+        # Check permissions (program director/admin or coordinator)
+        if not (
+            _is_director_or_admin(request.user)
+            or request.user == cohort.coordinator
+        ):
             return Response(
                 {'error': 'Permission denied'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
         data = request.data
-        track_id = data.get('track_id') or (cohort.track.id if cohort.track else None)
         start_day = data.get('start_day', 1)
         milestone_ids = data.get('milestone_ids', [])
-        
+
+        # ------------------------------------------------------------------
+        # 1) Prefer explicit programs.Track if provided (backwards compatible)
+        # ------------------------------------------------------------------
+        track_id = data.get('track_id') or (cohort.track.id if cohort.track else None)
+
+        # ------------------------------------------------------------------
+        # 2) Curriculum-based import when cohort has curriculum_tracks
+        #    Use the curriculum engine as the primary source of truth.
+        # ------------------------------------------------------------------
+        curriculum_slugs = []
+        if isinstance(cohort.curriculum_tracks, list):
+            curriculum_slugs = [s for s in cohort.curriculum_tracks if isinstance(s, str)]
+
+        if not track_id and curriculum_slugs:
+            # Resolve curriculum tracks from stored slugs
+            curriculum_tracks = list(
+                CurriculumTrack.objects.filter(
+                    slug__in=curriculum_slugs,
+                    is_active=True
+                )
+            )
+
+            if not curriculum_tracks:
+                return Response(
+                    {
+                        'message': 'Cohort has curriculum tracks assigned but none are active in curriculum engine.',
+                        'imported_count': 0,
+                        'days_created': 0,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+            # Build list of keys we should match on for modules
+            module_track_keys = []
+            for ct in curriculum_tracks:
+                if getattr(ct, 'slug', None):
+                    module_track_keys.append(ct.slug)
+                if getattr(ct, 'code', None):
+                    module_track_keys.append(ct.code)
+
+            # Fetch all active curriculum modules for these tracks.
+            # Prefer FK linkage via track; fall back to track_key-based linkage.
+            curriculum_modules = list(
+                CurriculumModule.objects.filter(is_active=True).filter(
+                    models.Q(track__in=curriculum_tracks) | models.Q(track_key__in=module_track_keys)
+                ).order_by('track_key', 'order_index')
+            )
+
+            if not curriculum_modules:
+                return Response(
+                    {
+                        'message': 'We have no modules on the assigned curriculum tracks to import.',
+                        'imported_count': 0,
+                        'days_created': 0,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+            imported_count = 0
+            current_day = start_day
+
+            # Start ordering after any existing materials for the starting day
+            current_order = (
+                CohortDayMaterial.objects.filter(
+                    cohort=cohort, day_number=current_day
+                ).aggregate(max_order=Max('order'))['max_order']
+                or 0
+            )
+
+            for cm in curriculum_modules:
+                # When we move to a new day, recompute starting order for that day
+                if imported_count > 0 and imported_count % 4 == 0:
+                    current_day += 1
+                    current_order = (
+                        CohortDayMaterial.objects.filter(
+                            cohort=cohort, day_number=current_day
+                        ).aggregate(max_order=Max('order'))['max_order']
+                        or 0
+                    )
+
+                current_order += 1
+
+                CohortDayMaterial.objects.create(
+                    cohort=cohort,
+                    day_number=current_day,
+                    title=cm.title,
+                    description=cm.description,
+                    # Curriculum modules are containers; map to a generic reading/article type
+                    material_type='reading',
+                    content_url='',
+                    content_text='',
+                    order=current_order,
+                    estimated_minutes=cm.estimated_duration_minutes or 30,
+                    is_required=cm.is_required,
+                )
+                imported_count += 1
+
+            return Response(
+                {
+                    'message': f'Successfully imported {imported_count} modules from assigned curriculum tracks.',
+                    'imported_count': imported_count,
+                    'days_created': max(0, current_day - start_day + 1),
+                }
+            )
+
+        # ------------------------------------------------------------------
+        # 3) Legacy programs.Track-based import (existing behavior)
+        # ------------------------------------------------------------------
         if not track_id:
             return Response(
-                {'error': 'track_id is required or cohort must have a track'},
-                status=status.HTTP_400_BAD_REQUEST
+                {
+                    'error': 'Cohort has no assigned curriculum tracks with modules and no primary track. '
+                             'Assign curriculum tracks or a primary track before importing.',
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         track = get_object_or_404(Track, id=track_id)
-        
+
         # Get milestones
         milestones_query = track.milestones.all().order_by('order')
         if milestone_ids:
             milestones_query = milestones_query.filter(id__in=milestone_ids)
-        
+
         imported_count = 0
         current_day = start_day
-        
+
+        # Start ordering after any existing materials for the starting day
+        current_order = (
+            CohortDayMaterial.objects.filter(
+                cohort=cohort, day_number=current_day
+            ).aggregate(max_order=Max('order'))['max_order']
+            or 0
+        )
+
         for milestone in milestones_query:
             modules = milestone.modules.all().order_by('order')
-            
+
             for module in modules:
-                # Create cohort day material
+                if imported_count > 0 and imported_count % 4 == 0:
+                    current_day += 1
+                    current_order = (
+                        CohortDayMaterial.objects.filter(
+                            cohort=cohort, day_number=current_day
+                        ).aggregate(max_order=Max('order'))['max_order']
+                        or 0
+                    )
+
+                current_order += 1
+
                 CohortDayMaterial.objects.create(
                     cohort=cohort,
                     day_number=current_day,
@@ -362,21 +519,19 @@ def import_track_modules(request, cohort_id):
                     description=module.description,
                     material_type=module.content_type,
                     content_url=module.content_url,
-                    order=imported_count % 10 + 1,  # Simple ordering
+                    order=current_order,
                     estimated_minutes=int((module.estimated_hours or 1) * 60),
-                    is_required=True
+                    is_required=True,
                 )
                 imported_count += 1
-                
-                # Move to next day every 3-5 modules
-                if imported_count % 4 == 0:
-                    current_day += 1
-        
-        return Response({
-            'message': f'Successfully imported {imported_count} modules from track',
-            'imported_count': imported_count,
-            'days_created': current_day - start_day + 1
-        })
+
+        return Response(
+            {
+                'message': f'Successfully imported {imported_count} modules from track.',
+                'imported_count': imported_count,
+                'days_created': max(0, current_day - start_day + 1),
+            }
+        )
     
     except Exception as e:
         logger.error(f"Import track modules error: {str(e)}")

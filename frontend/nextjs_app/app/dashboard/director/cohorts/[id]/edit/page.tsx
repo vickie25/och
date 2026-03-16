@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
-import { DirectorLayout } from '@/components/director/DirectorLayout'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -223,14 +222,12 @@ export default function EditCohortPage() {
   if (loadingCohort) {
     return (
       <RouteGuard>
-        <DirectorLayout>
-          <Card>
-            <div className="p-6 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-och-defender mx-auto mb-4"></div>
-              <p className="text-och-steel">Loading cohort details...</p>
-            </div>
-          </Card>
-        </DirectorLayout>
+      <Card>
+        <div className="p-6 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-och-defender mx-auto mb-4"></div>
+          <p className="text-och-steel">Loading cohort details...</p>
+        </div>
+      </Card>
       </RouteGuard>
     )
   }
@@ -238,50 +235,47 @@ export default function EditCohortPage() {
   if (!cohort) {
     return (
       <RouteGuard>
-        <DirectorLayout>
-          <Card className="border-och-orange/50">
-            <div className="p-6 text-center">
-              <p className="text-och-orange mb-4">Cohort not found</p>
-              <Link href="/dashboard/director/cohorts">
-                <Button variant="outline">Back to Cohorts</Button>
-              </Link>
-            </div>
-          </Card>
-        </DirectorLayout>
+      <Card className="border-och-orange/50">
+        <div className="p-6 text-center">
+          <p className="text-och-orange mb-4">Cohort not found</p>
+          <Link href="/dashboard/director/cohorts">
+            <Button variant="outline">Back to Cohorts</Button>
+          </Link>
+        </div>
+      </Card>
       </RouteGuard>
     )
   }
 
   return (
     <RouteGuard>
-      <DirectorLayout>
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h1 className="text-4xl font-bold mb-2 text-och-defender">Edit Cohort</h1>
-                <p className="text-och-steel">
-                  Update cohort details and configuration
-                </p>
-              </div>
-              <Link href={`/dashboard/director/cohorts/${cohortId}`}>
-                <Button variant="outline" size="sm">
-                  ← Back to Cohort
-                </Button>
-              </Link>
+      <div className="w-full max-w-7xl mx-auto space-y-6">
+          {/* Page header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-och-defender">Edit Cohort</h1>
+              <p className="mt-1 text-sm text-och-steel">
+                Update cohort details, capacity, and public registration.
+              </p>
             </div>
+            <Link href={`/dashboard/director/cohorts/${cohortId}`}>
+              <Button variant="outline" size="sm">
+                ← Back to Cohort
+              </Button>
+            </Link>
+          </div>
 
-            {/* Cohort Info Card */}
-            <Card className="mb-6 border-och-defender/30">
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-semibold text-white">{cohort.name}</h3>
-                  <Badge variant="defender">{cohort.status}</Badge>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                  <div>
-                    <span className="text-och-steel">Track:</span>
-                    <span className="ml-2 text-white">
+          {/* Cohort summary */}
+          <Card className="border-och-defender/30">
+            <div className="p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <h3 className="text-lg font-semibold text-white">{cohort.name}</h3>
+                <Badge variant="defender">{cohort.status}</Badge>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <div>
+                  <span className="text-och-steel">Track:</span>
+                  <span className="ml-2 text-white">
                     {cohort.track_name ||
                       (cohort.track && typeof cohort.track === 'object' && cohort.track !== null && 'name' in cohort.track
                         ? String((cohort.track as { name: string }).name)
@@ -289,28 +283,28 @@ export default function EditCohortPage() {
                       track?.name ||
                       'N/A'}
                   </span>
-                  </div>
-                  <div>
-                    <span className="text-och-steel">Mode:</span>
-                    <span className="ml-2 text-white capitalize">{cohort.mode}</span>
-                  </div>
-                  <div>
-                    <span className="text-och-steel">Seat Cap:</span>
-                    <span className="ml-2 text-white">{cohort.seat_cap}</span>
-                  </div>
-                  <div>
-                    <span className="text-och-steel">Mentor Ratio:</span>
-                    <span className="ml-2 text-white">1:{Math.round(1 / (cohort.mentor_ratio || 0.1))}</span>
-                  </div>
+                </div>
+                <div>
+                  <span className="text-och-steel">Mode:</span>
+                  <span className="ml-2 text-white capitalize">{cohort.mode}</span>
+                </div>
+                <div>
+                  <span className="text-och-steel">Seat Cap:</span>
+                  <span className="ml-2 text-white">{cohort.seat_cap}</span>
+                </div>
+                <div>
+                  <span className="text-och-steel">Mentor Ratio:</span>
+                  <span className="ml-2 text-white">1:{Math.round(1 / (cohort.mentor_ratio || 0.1))}</span>
                 </div>
               </div>
-            </Card>
-          </div>
+            </div>
+          </Card>
 
+          {/* Edit form */}
           <form onSubmit={handleSubmit}>
             <Card>
               <div className="p-6 space-y-6">
-                <h2 className="text-2xl font-bold text-white mb-4">Cohort Details</h2>
+                <h2 className="text-xl font-semibold text-white">Cohort Details</h2>
 
                 {(error || updateError) && (
                   <div className="p-4 bg-och-orange/20 border border-och-orange rounded-lg text-och-orange">
@@ -559,7 +553,6 @@ export default function EditCohortPage() {
             </Card>
           </form>
         </div>
-      </DirectorLayout>
     </RouteGuard>
   )
 }

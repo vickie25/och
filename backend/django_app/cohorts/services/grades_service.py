@@ -5,7 +5,7 @@ from django.db.models import Avg, Count, Q
 from decimal import Decimal
 from cohorts.models import CohortGrade, CohortExamSubmission
 from programs.models import Enrollment
-from missions.models import MissionProgress
+from missions.models_mxp import MissionProgress
 
 
 class GradesService:
@@ -81,10 +81,10 @@ class GradesService:
         Returns:
             Decimal score (0-100)
         """
-        # Get capstone missions (missions with is_capstone=True)
+        # Get capstone missions (missions with mission_type='capstone')
         capstones = MissionProgress.objects.filter(
             user=enrollment.user,
-            mission__is_capstone=True,
+            mission__mission_type='capstone',
             status__in=['completed', 'approved']
         )
         
@@ -272,7 +272,7 @@ class GradesService:
         
         capstones_count = MissionProgress.objects.filter(
             user=enrollment.user,
-            mission__is_capstone=True,
+            mission__mission_type='capstone',
             status__in=['completed', 'approved']
         ).count()
         

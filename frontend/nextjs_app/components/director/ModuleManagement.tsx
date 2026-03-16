@@ -16,7 +16,7 @@ import {
   Video,
   FileText,
   Target,
-  Lab,
+  Beaker,
   Award
 } from 'lucide-react';
 import { apiGateway } from '@/services/apiGateway';
@@ -60,7 +60,7 @@ const MATERIAL_TYPES = [
   { value: 'article', label: 'Article', icon: FileText },
   { value: 'quiz', label: 'Quiz', icon: Target },
   { value: 'assignment', label: 'Assignment', icon: BookOpen },
-  { value: 'lab', label: 'Lab', icon: Lab },
+  { value: 'lab', label: 'Lab', icon: Beaker },
   { value: 'workshop', label: 'Workshop', icon: Award }
 ];
 

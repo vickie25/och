@@ -24,10 +24,8 @@ urlpatterns = [
     path('<uuid:cohort_id>/pricing/', enhanced_cohort_views.update_cohort_pricing, name='update_cohort_pricing'),
     
     # Module management (Director/Coordinator)
-    path('<uuid:cohort_id>/modules/', module_management_views.get_cohort_modules, name='get_cohort_modules'),
-    path('<uuid:cohort_id>/modules/add/', module_management_views.add_cohort_module, name='add_cohort_module'),
-    path('<uuid:cohort_id>/modules/<uuid:module_id>/update/', module_management_views.update_cohort_module, name='update_cohort_module'),
-    path('<uuid:cohort_id>/modules/<uuid:module_id>/delete/', module_management_views.delete_cohort_module, name='delete_cohort_module'),
+    path('<uuid:cohort_id>/modules/', module_management_views.cohort_modules_list, name='cohort_modules_list'),
+    path('<uuid:cohort_id>/modules/<uuid:module_id>/', module_management_views.cohort_modules_detail, name='cohort_modules_detail'),
     path('<uuid:cohort_id>/modules/reorder/', module_management_views.reorder_cohort_modules, name='reorder_cohort_modules'),
     path('<uuid:cohort_id>/modules/import-track/', module_management_views.import_track_modules, name='import_track_modules'),
     
@@ -39,15 +37,15 @@ urlpatterns = [
     path('materials/progress/', materials_views.get_progress_summary, name='get_progress_summary'),
     
     # Grades and assessments
-    path('grades/', grades_views.get_cohort_grades, name='get_cohort_grades'),
-    path('grades/update/', grades_views.update_student_grade, name='update_student_grade'),
-    path('exams/', grades_views.get_cohort_exams, name='get_cohort_exams'),
-    path('exams/submit/', grades_views.submit_exam, name='submit_exam'),
+    # Student-facing grade endpoints implemented in grades_views
+    path('grades/', grades_views.get_student_grades, name='get_student_grades'),
+    path('grades/recalculate/', grades_views.recalculate_grades, name='recalculate_grades'),
+    path('grades/rankings/', grades_views.get_cohort_rankings, name='get_cohort_rankings'),
     
     # Collaboration and messaging
-    path('messages/peer/', collaboration_views.send_peer_message, name='send_peer_message'),
-    path('messages/mentor/', collaboration_views.send_mentor_message, name='send_mentor_message'),
-    path('messages/', collaboration_views.get_cohort_messages, name='get_cohort_messages'),
+    path('messages/peers/', collaboration_views.peer_messages, name='peer_messages'),
+    path('messages/mentors/', collaboration_views.mentor_messages, name='mentor_messages'),
+    path('peers/', collaboration_views.get_cohort_peers, name='get_cohort_peers'),
     
     # Payment processing
     path('payment/initiate/', payment_views.initiate_cohort_payment, name='initiate_cohort_payment'),

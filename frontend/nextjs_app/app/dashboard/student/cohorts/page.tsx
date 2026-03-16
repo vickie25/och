@@ -69,6 +69,7 @@ interface AvailableCohort {
   track_name: string;
   description?: string;
   profile_image?: string;
+  profile_image_url?: string | null;
 }
 
 export default function CohortsPage() {
@@ -187,10 +188,10 @@ export default function CohortsPage() {
                   className="bg-och-midnight/60 border border-och-steel/10 rounded-3xl p-6 hover:border-och-gold/30 transition-all group"
                 >
                   {/* Cohort Image */}
-                  {cohort.profile_image ? (
+                  {cohort.profile_image || cohort.profile_image_url ? (
                     <div className="w-full h-40 rounded-2xl overflow-hidden mb-4">
                       <img 
-                        src={cohort.profile_image} 
+                        src={cohort.profile_image || (cohort.profile_image_url as string)} 
                         alt={cohort.name}
                         className="w-full h-full object-cover"
                       />
@@ -226,17 +227,10 @@ export default function CohortsPage() {
                       <span className="capitalize">{cohort.mode}</span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-sm text-och-steel">
-                      <Users className="w-4 h-4" />
-                      <span>
-                        {cohort.enrolled_count || 0} / {cohort.seat_cap} enrolled
-                      </span>
-                    </div>
-
                     <div className="flex items-center gap-2 text-sm">
                       <DollarSign className="w-4 h-4 text-och-gold" />
                       <span className="text-och-gold font-bold">
-                        {cohort.currency} {cohort.enrollment_fee}
+                        {cohort.currency} {Number(cohort.enrollment_fee || 0).toLocaleString()}
                       </span>
                     </div>
                   </div>

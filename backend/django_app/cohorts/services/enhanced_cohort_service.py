@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.db.models import Q, Count, Sum, Avg
 from programs.models import Cohort, Enrollment, Track, Module
 from cohorts.models import CohortDayMaterial, CohortPayment
-from subscriptions.models import Subscription
+from subscriptions.models import UserSubscription, SubscriptionPlan, TIER_STARTER, TIER_PREMIUM
 from decimal import Decimal
 import logging
 
@@ -29,12 +29,17 @@ class EnhancedCohortService:
             dict: {eligible: bool, reason: str, discount: float}
         """
         try:
-            # Check active subscription
-            active_subscription = Subscription.objects.filter(
-                user=user,
-                status='active',
-                end_date__gte=timezone.now().date()
-            ).first()
+            # Check active user subscription (subscription engine)
+            active_subscription = (
+                UserSubscription.objects
+                .select_related('plan')
+                .filter(
+                    user=user,
+                    status='active',
+                    current_period_end__gte=timezone.now()
+                )
+                .first()
+            )
             
             if not active_subscription:
                 return {
@@ -44,22 +49,38 @@ class EnhancedCohortService:
                     'subscription_benefit': None
                 }
             
-            # Subscription holders get benefits
+            # Subscription holders get benefits based on tier
+            # Map our plan.tier values to benefit profiles
             subscription_benefits = {
-                'basic': {'discount': 0.10, 'priority_enrollment': False},
-                'premium': {'discount': 0.20, 'priority_enrollment': True},
-                'enterprise': {'discount': 0.30, 'priority_enrollment': True}
+                SubscriptionPlan.TIER_FREE if hasattr(SubscriptionPlan, 'TIER_FREE') else 'free': {
+                    'label': 'free',
+                    'discount': 0.0,
+                    'priority_enrollment': False,
+                },
+                TIER_STARTER: {
+                    'label': 'starter',
+                    'discount': 0.10,
+                    'priority_enrollment': False,
+                },
+                TIER_PREMIUM: {
+                    'label': 'premium',
+                    'discount': 0.20,
+                    'priority_enrollment': True,
+                },
             }
-            
-            plan_type = active_subscription.plan_type
-            benefits = subscription_benefits.get(plan_type, {'discount': 0.0, 'priority_enrollment': False})
+
+            plan_tier = getattr(active_subscription.plan, 'tier', None) or 'free'
+            benefits = subscription_benefits.get(
+                plan_tier,
+                {'label': str(plan_tier), 'discount': 0.0, 'priority_enrollment': False},
+            )
             
             return {
                 'eligible': True,
-                'reason': f'Active {plan_type} subscription - {int(benefits["discount"]*100)}% discount',
+                'reason': f'Active {benefits["label"]} subscription - {int(benefits["discount"]*100)}% discount',
                 'discount': benefits['discount'],
                 'subscription_benefit': {
-                    'plan_type': plan_type,
+                    'plan_type': benefits['label'],
                     'priority_enrollment': benefits['priority_enrollment'],
                     'subscription_id': str(active_subscription.id)
                 }

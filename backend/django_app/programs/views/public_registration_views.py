@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
 from programs.models import Cohort
+from curriculum.models import CurriculumTrack
 import logging
 
 logger = logging.getLogger(__name__)
@@ -62,7 +63,41 @@ def list_published_cohorts(request):
                 status__in=['active', 'pending_payment']
             ).count()
             
-            logger.info(f"Processing cohort: {cohort.name}, track: {cohort.track.name if cohort.track else 'No Track'}")
+            # Resolve a human-friendly track name
+            track_name = None
+            if cohort.track:
+                track_name = cohort.track.name
+            else:
+                # Fallback: use first curriculum track based on curriculum_tracks JSON
+                raw_curriculum = getattr(cohort, 'curriculum_tracks', []) or []
+                curriculum_slugs = []
+                if isinstance(raw_curriculum, (list, tuple)):
+                    for item in raw_curriculum:
+                        if isinstance(item, str):
+                            curriculum_slugs.append(item)
+                        elif isinstance(item, dict):
+                            # Support shapes like {"slug": "...", "code": "..."}
+                            slug_val = item.get('slug') or item.get('code')
+                            if isinstance(slug_val, str):
+                                curriculum_slugs.append(slug_val)
+                try:
+                    if curriculum_slugs:
+                        curriculum_tracks = list(
+                            CurriculumTrack.objects.filter(slug__in=curriculum_slugs)
+                        )
+                        if curriculum_tracks:
+                            ct = curriculum_tracks[0]
+                            track_name = getattr(ct, 'name', None) or getattr(ct, 'code', None) or curriculum_slugs[0]
+                        else:
+                            # No track objects found, fall back to first slug string
+                            track_name = curriculum_slugs[0]
+                except Exception as ct_err:
+                    logger.warning(f"Error resolving curriculum tracks for cohort {cohort.id}: {ct_err}")
+
+            if not track_name:
+                track_name = 'No Track'
+
+            logger.info(f"Processing cohort: {cohort.name}, track: {track_name}")
             
             cohorts_data.append({
                 'id': str(cohort.id),
@@ -74,7 +109,7 @@ def list_published_cohorts(request):
                 'enrolled_count': enrolled_count,
                 'enrollment_fee': float(getattr(cohort, 'enrollment_fee', 100.00)),
                 'currency': getattr(cohort, 'currency', 'USD'),
-                'track_name': cohort.track.name if cohort.track else 'No Track',
+                'track_name': track_name,
                 'description': getattr(cohort, 'description', ''),
                 'profile_image': cohort.profile_image.url if cohort.profile_image else None,
             })

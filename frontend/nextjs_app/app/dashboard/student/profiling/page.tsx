@@ -418,8 +418,25 @@ export default function ProfilingResultsPage() {
   const valueStatement = blueprint?.value_statement
   const nextSteps = blueprint?.next_steps || []
 
-  const trackKey = primaryTrack?.key || primaryTrack?.track_key || 'defender'
-  const trackTheme = trackThemes[trackKey.toLowerCase()] || trackThemes.defender
+  // Prefer the student's ACTIVE track over the original profiler recommendation
+  const activeTrackKeyRaw =
+    user?.track_key ||
+    primaryTrack?.key ||
+    primaryTrack?.track_key ||
+    results.recommended_track ||
+    'defender'
+  const activeTrackKey = String(activeTrackKeyRaw).toLowerCase()
+
+  const trackTheme =
+    trackThemes[activeTrackKey] ||
+    trackThemes[(primaryTrack?.key || primaryTrack?.track_key || 'defender').toLowerCase()] ||
+    trackThemes.defender
+
+  const displayTrackName =
+    allTracks?.[activeTrackKey]?.name ||
+    primaryTrack?.name ||
+    primaryTrack?.track_name ||
+    activeTrackKey.charAt(0).toUpperCase() + activeTrackKey.slice(1)
 
   // Build dynamic journey stages based on actual progress
   const journeyStages: JourneyStage[] = [
@@ -524,7 +541,7 @@ export default function ProfilingResultsPage() {
             Assessment Complete
           </Badge>
           <h1 className="text-2xl sm:text-3xl font-black text-white mb-2 leading-tight">
-            Your <span className={`${trackTheme.text}`}>{primaryTrack?.name || primaryTrack?.track_name || 'Career Journey'}</span>
+            Your <span className={trackTheme.text}>{displayTrackName || 'Career Journey'}</span>
           </h1>
           <p className="text-sm text-och-steel max-w-2xl mx-auto">
             Your personalized path to cybersecurity excellence{difficultyLevel?.selected ? ` at ${difficultyLevel.selected.toUpperCase()} level` : ''}
@@ -553,7 +570,7 @@ export default function ProfilingResultsPage() {
                     </Badge>
                   </div>
                   <h2 className="text-xl sm:text-2xl font-black text-white mb-2">
-                    {primaryTrack.name || primaryTrack.track_name}
+                    {displayTrackName}
                   </h2>
                   {primaryTrack.description && (
                     <p className="text-sm text-och-steel mb-3">
@@ -893,7 +910,7 @@ export default function ProfilingResultsPage() {
         </div>
 
         {/* Assessment Summary - Compact */}
-        {results.assessment_summary && (
+        {(results.assessment_summary || activeTrackKey) && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -905,7 +922,9 @@ export default function ProfilingResultsPage() {
                 <h3 className="text-sm font-black text-white uppercase tracking-wide">Assessment Summary</h3>
               </div>
               <p className="text-xs text-och-steel leading-relaxed mb-3">
-                {results.assessment_summary}
+                {user?.track_key
+                  ? `You are currently on the ${displayTrackName} track.`
+                  : results.assessment_summary}
               </p>
               {valueStatement && (
                 <div className="pt-3 border-t border-och-steel/20">

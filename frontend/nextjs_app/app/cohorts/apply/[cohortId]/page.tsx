@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { 
+import {
   GraduationCap, 
   ArrowLeft, 
   Users, 
@@ -14,6 +14,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { apiGateway } from '@/services/apiGateway';
+import { useAuth } from '@/hooks/useAuth';
 
 interface CohortDetails {
   id: string;
@@ -36,6 +37,7 @@ export default function CohortApplicationPage() {
   const router = useRouter();
   const params = useParams();
   const cohortId = params.cohortId as string;
+  const { user } = useAuth();
   
   const [cohort, setCohort] = useState<CohortDetails | null>(null);
   const [applicantType, setApplicantType] = useState<ApplicantType | null>(null);
@@ -50,6 +52,24 @@ export default function CohortApplicationPage() {
       fetchCohortDetails();
     }
   }, [cohortId]);
+
+  // When user is logged in, default to student application and prefill basics
+  useEffect(() => {
+    if (user && !applicantType) {
+      setApplicantType('student');
+      const fullNameFromUser = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
+      setFormData((prev) => ({
+        ...prev,
+        name:
+          prev.name ||
+          fullNameFromUser ||
+          (user as any).full_name ||
+          user.username ||
+          user.email,
+        email: prev.email || user.email || '',
+      }));
+    }
+  }, [user, applicantType]);
 
   const fetchCohortDetails = async () => {
     try {
@@ -81,8 +101,10 @@ export default function CohortApplicationPage() {
       const endpoint = applicantType === 'student'
         ? `/public/cohorts/${cohort.id}/apply/student/`
         : `/public/cohorts/${cohort.id}/apply/sponsor/`;
-      
-      const res = await apiGateway.post(endpoint, formData, { skipAuth: true });
+
+      // If user is authenticated, send authenticated request (no skipAuth)
+      const options = user ? {} : { skipAuth: true };
+      const res = await apiGateway.post(endpoint, formData, options);
       const data = res as any;
       setSuccess(data?.message || 'Application submitted successfully!');
       setFormData({});
@@ -143,9 +165,9 @@ export default function CohortApplicationPage() {
           <div className="flex flex-col lg:flex-row gap-8 items-start">
             {/* Cohort Image */}
             <div className="w-full lg:w-80 h-48 rounded-2xl overflow-hidden bg-och-gold/10 border border-och-gold/30 flex items-center justify-center">
-              {cohort.profile_image ? (
+              {cohort.profile_image || (cohort as any).profile_image_url ? (
                 <img 
-                  src={cohort.profile_image} 
+                  src={(cohort as any).profile_image || (cohort as any).profile_image_url} 
                   alt={cohort.name}
                   className="w-full h-full object-cover"
                 />
@@ -179,13 +201,6 @@ export default function CohortApplicationPage() {
                   <span className="capitalize">{cohort.mode}</span>
                 </div>
 
-                <div className="flex items-center gap-2 text-och-steel">
-                  <Users className="w-5 h-5" />
-                  <span>
-                    {cohort.enrolled_count || 0} / {cohort.seat_cap} enrolled
-                  </span>
-                </div>
-
                 <div className="flex items-center gap-2">
                   <DollarSign className="w-5 h-5 text-och-gold" />
                   <span className="text-och-gold font-bold">
@@ -207,42 +222,16 @@ export default function CohortApplicationPage() {
       {/* Application Section */}
       <div className="max-w-4xl mx-auto px-6 py-12">
         {!applicantType ? (
-          <div className="text-center">
-            <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-8">
-              How would you like to join?
+          // If unauthenticated user hits this page, keep simple student-only default
+          <div className="max-w-2xl mx-auto">
+            <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-6">
+              Student Application
             </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setApplicantType('student')}
-                className="p-8 bg-och-midnight/60 border border-och-steel/10 rounded-3xl hover:border-och-gold/30 transition-all group"
-              >
-                <GraduationCap className="w-12 h-12 text-och-gold mx-auto mb-4" />
-                <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2 group-hover:text-och-gold transition-colors">
-                  Apply as Student
-                </h3>
-                <p className="text-och-steel text-sm">
-                  Join the cohort as a learner and build your cybersecurity skills
-                </p>
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setApplicantType('sponsor')}
-                className="p-8 bg-och-midnight/60 border border-och-steel/10 rounded-3xl hover:border-och-gold/30 transition-all group"
-              >
-                <Users className="w-12 h-12 text-och-gold mx-auto mb-4" />
-                <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2 group-hover:text-och-gold transition-colors">
-                  Join as Sponsor
-                </h3>
-                <p className="text-och-steel text-sm">
-                  Support talent development and connect with emerging professionals
-                </p>
-              </motion.button>
-            </div>
+            <p className="text-sm text-och-steel mb-6">
+              Complete the form below to apply for this cohort.
+            </p>
+            {/* We will fall through to the same form UI by forcing applicantType */}
+            {setApplicantType('student')}
           </div>
         ) : (
           <div className="max-w-2xl mx-auto">
@@ -250,17 +239,19 @@ export default function CohortApplicationPage() {
               <h2 className="text-3xl font-black text-white uppercase tracking-tighter">
                 {applicantType === 'student' ? 'Student Application' : 'Sponsor Application'}
               </h2>
-              <button
-                onClick={() => {
-                  setApplicantType(null);
-                  setFormData({});
-                  setError(null);
-                  setSuccess(null);
-                }}
-                className="text-och-steel hover:text-och-gold transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              {!user && (
+                <button
+                  onClick={() => {
+                    setApplicantType(null);
+                    setFormData({});
+                    setError(null);
+                    setSuccess(null);
+                  }}
+                  className="text-och-steel hover:text-och-gold transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              )}
             </div>
 
             {success ? (
