@@ -2,6 +2,7 @@
 Finance serializers for API responses.
 """
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 from .models import (
     Wallet, Transaction, Credit, Contract, TaxRate, 
     MentorPayout, Invoice, Payment
@@ -35,11 +36,13 @@ class TransactionSerializer(serializers.ModelSerializer):
 class CreditSerializer(serializers.ModelSerializer):
     user_email = serializers.CharField(source='user.email', read_only=True)
     is_expired = serializers.SerializerMethodField()
-    
+    cohort = serializers.UUIDField(source='cohort_id', read_only=True, allow_null=True)
+
     class Meta:
         model = Credit
         fields = [
             'id', 'user_email', 'type', 'amount', 'remaining',
+            'cohort',
             'expires_at', 'is_expired', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
@@ -78,15 +81,62 @@ class TaxRateSerializer(serializers.ModelSerializer):
 class MentorPayoutSerializer(serializers.ModelSerializer):
     mentor_email = serializers.CharField(source='mentor.email', read_only=True)
     mentor_name = serializers.CharField(source='mentor.get_full_name', read_only=True)
-    
+    mentor_id = serializers.IntegerField(source='mentor.id', read_only=True)
+    mentor_user_id = serializers.IntegerField(write_only=True, required=False)
+    cohort_id = serializers.UUIDField(required=False, allow_null=True)
+    cohort_name = serializers.CharField(source='cohort.name', read_only=True, allow_null=True)
+
     class Meta:
         model = MentorPayout
         fields = [
-            'id', 'mentor_email', 'mentor_name', 'amount',
+            'id', 'mentor_id', 'mentor_user_id', 'mentor_email', 'mentor_name',
+            'cohort_id', 'cohort_name',
+            'compensation_mode', 'allocation_notes', 'cohort_budget_share_percent',
+            'amount',
             'period_start', 'period_end', 'status', 'payout_method',
             'paystack_transfer_id', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'mentor_email', 'mentor_name', 'cohort_name', 'mentor_id']
+
+    def validate(self, attrs):
+        mode = attrs.get('compensation_mode')
+        if mode is None and self.instance:
+            mode = self.instance.compensation_mode
+        if mode is None:
+            mode = 'paid'
+        amount = attrs.get('amount')
+        if amount is None and self.instance:
+            amount = self.instance.amount
+        if mode == 'volunteer' and amount is not None and amount > 0:
+            raise serializers.ValidationError('Volunteer payouts must have amount 0.')
+        if mode == 'volunteer':
+            attrs['amount'] = attrs.get('amount', 0) or 0
+            attrs['payout_method'] = attrs.get('payout_method') or 'not_applicable'
+        return attrs
+
+    def create(self, validated_data):
+        from programs.models import Cohort
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        mentor_id = validated_data.pop('mentor_user_id', None)
+        cohort_id = validated_data.pop('cohort_id', None)
+        request = self.context.get('request')
+        if not request or not request.user.is_staff:
+            raise PermissionDenied('Only staff can create mentor payout records.')
+        if mentor_id is None:
+            raise serializers.ValidationError({'mentor_user_id': 'Required for staff-created payouts.'})
+        validated_data['mentor'] = User.objects.get(pk=mentor_id)
+        if cohort_id:
+            validated_data['cohort'] = Cohort.objects.get(pk=cohort_id)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        from programs.models import Cohort
+        validated_data.pop('mentor_user_id', None)
+        cohort_id = validated_data.pop('cohort_id', None)
+        if cohort_id is not None:
+            validated_data['cohort'] = Cohort.objects.get(pk=cohort_id) if cohort_id else None
+        return super().update(instance, validated_data)
 
 
 class InvoiceSerializer(serializers.ModelSerializer):

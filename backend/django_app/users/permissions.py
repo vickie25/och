@@ -135,6 +135,20 @@ class IsFinance(BasePermission):
         ).exists()
 
 
+class IsStaffOrFinance(BasePermission):
+    """
+    Django staff/superuser OR active finance / finance_admin RBAC role.
+    Use for finance operations APIs (reconciliation, revenue recognition, etc.).
+    """
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if getattr(request.user, 'is_staff', False) or getattr(request.user, 'is_superuser', False):
+            return True
+        return IsFinance().has_permission(request, view)
+
+
 class IsAnalyst(BasePermission):
     """
     Permission class for analyst access.

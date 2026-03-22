@@ -2,11 +2,12 @@
 Public Registration Views - Handle public cohort browsing and applications.
 """
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
-from programs.models import Cohort
+from django.db.models import Q
+from programs.models import Cohort, CohortPublicApplication
 from curriculum.models import CurriculumTrack
 import logging
 
@@ -98,6 +99,15 @@ def list_published_cohorts(request):
                 track_name = 'No Track'
 
             logger.info(f"Processing cohort: {cohort.name}, track: {track_name}")
+
+            # Build profile image URLs (relative + absolute)
+            if cohort.profile_image:
+                if request:
+                    profile_image_url = request.build_absolute_uri(cohort.profile_image.url)
+                else:
+                    profile_image_url = cohort.profile_image.url
+            else:
+                profile_image_url = None
             
             cohorts_data.append({
                 'id': str(cohort.id),
@@ -111,7 +121,9 @@ def list_published_cohorts(request):
                 'currency': getattr(cohort, 'currency', 'USD'),
                 'track_name': track_name,
                 'description': getattr(cohort, 'description', ''),
+                # Keep backward-compatible key plus explicit URL key
                 'profile_image': cohort.profile_image.url if cohort.profile_image else None,
+                'profile_image_url': profile_image_url,
             })
         
         logger.info(f"Returning {len(cohorts_data)} cohorts")
@@ -186,6 +198,60 @@ def apply_as_student(request, cohort_id):
         )
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_my_cohort_applications(request):
+    """
+    GET /api/v1/programs/public/my-applications/
+
+    Return the current user's public cohort applications, matched by email.
+    Used by the student dashboard to show "Applied" status on cohorts.
+    """
+    try:
+        email = (request.user.email or '').strip().lower()
+        if not email:
+            return Response([], status=status.HTTP_200_OK)
+
+        # Match historical and current payload shapes:
+        # - {"email": "..."}
+        # - {"contact_email": "..."} (sponsors)
+        # - {"form_data": {"email": "..."}}
+        # - {"form_data": {"contact_email": "..."}}
+        email_filter = (
+            Q(form_data__email__iexact=email) |
+            Q(form_data__contact_email__iexact=email) |
+            Q(form_data__form_data__email__iexact=email) |
+            Q(form_data__form_data__contact_email__iexact=email)
+        )
+
+        applications = (
+            CohortPublicApplication.objects
+            .filter(email_filter)
+            .select_related('cohort')
+            .order_by('-created_at')
+        )
+
+        data = []
+        for app in applications:
+            data.append({
+                'id': str(app.id),
+                'cohort_id': str(app.cohort_id),
+                'cohort_name': app.cohort.name if app.cohort else None,
+                'applicant_type': app.applicant_type,
+                'status': app.status,
+                'created_at': app.created_at.isoformat() if app.created_at else None,
+            })
+
+        return Response(data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.error(f"Error listing my cohort applications: {str(e)}")
+        return Response(
+            {'error': 'Failed to load applications'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def join_as_sponsor(request, cohort_id):
@@ -237,10 +303,97 @@ def join_as_sponsor(request, cohort_id):
         )
 
 
-# Placeholder functions for other endpoints referenced in urls.py
+from users.models import User
+
+
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def list_public_applications(request):
-    return Response({'message': 'Not implemented'})
+    """
+    GET /api/v1/programs/director/public-applications/
+
+    Director/mentor view of public cohort applications.
+    Supports filtering via query params:
+      - cohort_id
+      - applicant_type
+      - status
+      - review_status
+      - enrollment_status
+      - reviewer_mentor_id
+
+    Response:
+      { "applications": [ ...Application ] }
+    """
+    if not (request.user.is_staff or request.user.is_superuser):
+        return Response(
+            {'detail': 'You do not have permission to view applications.'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    try:
+        qs = CohortPublicApplication.objects.select_related('cohort', 'reviewer_mentor', 'interview_mentor')
+
+        cohort_id = request.query_params.get('cohort_id')
+        applicant_type = request.query_params.get('applicant_type')
+        status_param = request.query_params.get('status')
+        review_status = request.query_params.get('review_status')
+        enrollment_status = request.query_params.get('enrollment_status')
+        reviewer_mentor_id = request.query_params.get('reviewer_mentor_id')
+
+        if cohort_id:
+            qs = qs.filter(cohort_id=cohort_id)
+        if applicant_type:
+            qs = qs.filter(applicant_type=applicant_type)
+        if status_param:
+            qs = qs.filter(status=status_param)
+        if review_status:
+            qs = qs.filter(review_status=review_status)
+        if enrollment_status:
+            qs = qs.filter(enrollment_status=enrollment_status)
+        if reviewer_mentor_id:
+            qs = qs.filter(reviewer_mentor_id=reviewer_mentor_id)
+
+        applications = []
+        for app in qs.order_by('-created_at'):
+            fd = app.form_data or {}
+            email = fd.get('email') or fd.get('contact_email') or ''
+            name = fd.get('name') or fd.get('full_name') or fd.get('contact_name') or ''
+
+            applications.append({
+                'id': str(app.id),
+                'cohort_id': str(app.cohort_id),
+                'cohort_name': app.cohort.name if app.cohort else '',
+                'applicant_type': app.applicant_type,
+                'status': app.status,
+                'form_data': fd,
+                'email': email,
+                'name': name,
+                'notes': app.notes or '',
+                'created_at': app.created_at.isoformat() if app.created_at else None,
+                'reviewer_mentor_id': app.reviewer_mentor_id,
+                'reviewer_mentor_name': (
+                    f"{app.reviewer_mentor.first_name} {app.reviewer_mentor.last_name}".strip()
+                    if app.reviewer_mentor else None
+                ),
+                'review_score': float(app.review_score) if app.review_score is not None else None,
+                'review_status': app.review_status,
+                'interview_mentor_name': (
+                    f"{app.interview_mentor.first_name} {app.interview_mentor.last_name}".strip()
+                    if app.interview_mentor else None
+                ),
+                'interview_score': float(app.interview_score) if app.interview_score is not None else None,
+                'interview_status': app.interview_status,
+                'enrollment_status': app.enrollment_status,
+            })
+
+        return Response({'applications': applications}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.error(f"Error listing public applications: {str(e)}")
+        return Response(
+            {'error': 'Failed to load applications'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 @api_view(['POST'])
 def assign_applications_to_mentor(request):

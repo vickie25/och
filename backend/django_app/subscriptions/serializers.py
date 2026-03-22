@@ -65,13 +65,22 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = SubscriptionPlan
         fields = [
-            'id', 'name', 'tier', 'price_monthly', 'price_monthly_local', 'currency_code',
+            'id', 'name', 'tier', 'stream', 'billing_interval', 'sort_order', 'is_listed',
+            'price_monthly', 'price_annual', 'price_monthly_local', 'currency_code',
+            'catalog',
             'features', 'ai_coach_daily_limit', 'portfolio_item_limit',
             'missions_access_type', 'mentorship_access',
             'talentscope_access', 'marketplace_contact',
-            'enhanced_access_days', 'created_at', 'updated_at'
+            'enhanced_access_days', 'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    price_annual = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        required=False,
+        allow_null=True,
+    )
 
     def get_price_monthly_local(self, obj):
         """Convert price to user's local currency."""
@@ -101,6 +110,11 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
         # Normalize to two decimal places using standard rounding.
         return value.quantize(Decimal('0.01'))
 
+    def validate_price_annual(self, value):
+        if value is None:
+            return None
+        return value.quantize(Decimal('0.01'))
+
 
 class UserSubscriptionSerializer(serializers.ModelSerializer):
     """Serializer for user subscriptions."""
@@ -118,6 +132,8 @@ class UserSubscriptionSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'user_id', 'plan', 'plan_id', 'status', 'current_period_start',
             'current_period_end', 'enhanced_access_expires_at',
+            'billing_interval', 'trial_end', 'cancel_at_period_end', 'grace_period_end',
+            'pending_downgrade_plan',
             'days_enhanced_left', 'stripe_subscription_id', 'price_monthly_local',
             'currency_code', 'created_at', 'updated_at'
         ]

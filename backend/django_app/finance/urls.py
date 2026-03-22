@@ -9,6 +9,13 @@ from .views import (
     InvoiceViewSet, PaymentViewSet, FinancialDashboardView
 )
 from .enhanced_views import AnalyticsViewSet, ComplianceViewSet
+from .operations_views import (
+    ReconciliationPreviewView,
+    ReconciliationRunCreateView,
+    ReconciliationRunListView,
+    RevenueRecognitionRunView,
+    CohortManagerFinanceView,
+)
 
 router = DefaultRouter()
 router.register(r'wallets', WalletViewSet, basename='wallet')
@@ -28,4 +35,9 @@ router.register(r'compliance', ComplianceViewSet, basename='finance-compliance')
 urlpatterns = [
     path('', include(router.urls)),
     path('dashboard/', FinancialDashboardView.as_view(), name='financial-dashboard'),
+    path('reconciliation/preview/', ReconciliationPreviewView.as_view(), name='finance-reconciliation-preview'),
+    path('reconciliation/run/', ReconciliationRunCreateView.as_view(), name='finance-reconciliation-run'),
+    path('reconciliation/history/', ReconciliationRunListView.as_view(), name='finance-reconciliation-history'),
+    path('revenue/recognize/', RevenueRecognitionRunView.as_view(), name='finance-revenue-recognize'),
+    path('cohort-manager/dashboard/', CohortManagerFinanceView.as_view(), name='finance-cohort-manager-dashboard'),
 ]

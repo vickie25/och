@@ -83,7 +83,11 @@ export async function GET(
       });
       if (plansResp.ok) {
         const plans = await plansResp.json();
-        const plansList = Array.isArray(plans) ? plans : [];
+        const plansList = Array.isArray(plans)
+          ? plans
+          : Array.isArray((plans as { plans?: unknown }).plans)
+            ? (plans as { plans: unknown[] }).plans
+            : [];
         const usdTotal = plansList.reduce((s: number, p: any) => s + Number(p.revenue || 0), 0);
         subscriptionTotal = Math.round(usdTotal * USD_TO_KES * 100) / 100;
         activeUsers = plansList.reduce((s: number, p: any) => s + Number(p.users || 0), 0);

@@ -10,7 +10,8 @@ import { getPrimaryRole, hasPermission } from '@/utils/rbac'
 import { 
   LayoutDashboard, Target, CheckCircle, Handshake, BookOpen, TrendingUp, 
   Calendar, Settings, Route, Plus, Users, Clock, RefreshCw, Ticket, 
-  Shuffle, Star, RotateCcw, Grid3X3, Rocket, BarChart3, FileText, GraduationCap, MessageSquare 
+  Shuffle, Star, RotateCcw, Grid3X3, Rocket, BarChart3, FileText, GraduationCap, MessageSquare,
+  DollarSign
 } from 'lucide-react'
 
 // Helper function to get role display name
@@ -80,6 +81,7 @@ const navItems: NavItem[] = [
       { label: 'Applications', href: '/dashboard/director/applications', icon: CheckCircle, permission: 'list_cohorts' },
       { label: 'Calendar & Events', href: '/dashboard/director/calendar', icon: Calendar, permission: 'list_cohorts' },
       { label: 'Sponsors', href: '/dashboard/director/cohorts/sponsors', icon: Star, permission: 'list_organizations' },
+      { label: 'Cohort finance', href: '/dashboard/director/cohort-finance', icon: DollarSign, permission: 'list_cohorts' },
       { label: 'Students', href: '/dashboard/director/students', icon: GraduationCap, permission: 'list_users' },
     ]
   },

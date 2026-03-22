@@ -1,4 +1,5 @@
 from django.urls import path
+from rest_framework.routers import DefaultRouter
 
 from .views import (
     MarketplaceTalentListView,
@@ -31,6 +32,11 @@ from .admin_views import (
     AdminMarketplaceSettingsView,
 )
 from .profiler_integration import get_talent_matches_by_profiler
+from .escrow_views import MarketplaceEscrowViewSet
+
+
+escrow_router = DefaultRouter()
+escrow_router.register(r'marketplace/escrow', MarketplaceEscrowViewSet, basename='marketplace-escrow')
 
 
 urlpatterns = [
@@ -211,5 +217,7 @@ urlpatterns = [
         name='profiler-talent-matches',
     ),
 ]
+
+urlpatterns += escrow_router.urls
 
 

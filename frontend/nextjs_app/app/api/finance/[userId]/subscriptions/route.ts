@@ -27,7 +27,11 @@ export async function GET(
     }
 
     const rawPlans = await resp.json();
-    const plansList = Array.isArray(rawPlans) ? rawPlans : [];
+    const plansList = Array.isArray(rawPlans)
+      ? rawPlans
+      : Array.isArray((rawPlans as { plans?: unknown }).plans)
+        ? (rawPlans as { plans: unknown[] }).plans
+        : [];
     // Backend amounts are read as KES (subscription currency). Pass through for display.
     const plans = plansList.map((p: { revenue?: number; price_monthly?: number; [k: string]: unknown }) => ({
       ...p,

@@ -6,7 +6,9 @@ talent is exposed to employers with strict consent and tier rules.
 """
 
 import uuid
+from decimal import Decimal
 from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 
@@ -320,3 +322,96 @@ class JobApplication(models.Model):
 
     def __str__(self) -> str:
         return f'{self.applicant.email} -> {self.job_posting.title} ({self.status})'
+
+
+class MarketplaceEscrow(models.Model):
+    """
+    Holds placement-related funds until release; platform commission is deducted on release.
+    """
+    STATUS_CHOICES = [
+        ('held', 'Held'),
+        ('released', 'Released'),
+        ('refunded', 'Refunded'),
+        ('disputed', 'Disputed'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    job_application = models.ForeignKey(
+        JobApplication,
+        on_delete=models.CASCADE,
+        related_name='escrows',
+    )
+    gross_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0'))],
+    )
+    currency = models.CharField(max_length=3, default='USD')
+    commission_rate_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('10.00'),
+        validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))],
+        help_text='Platform commission as percent of gross',
+    )
+    commission_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+    )
+    net_to_candidate = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text='Amount due to candidate after commission',
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='held', db_index=True)
+    paystack_reference = models.CharField(max_length=255, blank=True)
+    released_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'marketplace_escrows'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', 'created_at']),
+            models.Index(fields=['job_application', 'status']),
+        ]
+
+    def save(self, *args, **kwargs):
+        gross = self.gross_amount or Decimal('0')
+        rate = (self.commission_rate_percent or Decimal('0')) / Decimal('100')
+        self.commission_amount = (gross * rate).quantize(Decimal('0.01'))
+        self.net_to_candidate = (gross - self.commission_amount).quantize(Decimal('0.01'))
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return f'Escrow {self.gross_amount} {self.currency} ({self.status})'
+
+
+class MarketplaceCommissionLedger(models.Model):
+    """Immutable commission line when escrow is released (reporting)."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    escrow = models.OneToOneField(
+        MarketplaceEscrow,
+        on_delete=models.CASCADE,
+        related_name='ledger_entry',
+    )
+    job_application = models.ForeignKey(
+        JobApplication,
+        on_delete=models.CASCADE,
+        related_name='commission_ledger_entries',
+    )
+    gross_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    commission_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    net_to_candidate = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=3, default='USD')
+    recorded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'marketplace_commission_ledger'
+        ordering = ['-recorded_at']
+
+    def __str__(self) -> str:
+        return f'Commission {self.commission_amount} on {self.gross_amount}'

@@ -89,6 +89,7 @@ from .views.public_registration_views import (
     list_published_cohorts,
     apply_as_student,
     join_as_sponsor,
+    list_my_cohort_applications,
     list_public_applications,
     assign_applications_to_mentor,
     set_review_cutoff,
@@ -130,6 +131,8 @@ urlpatterns = [
     path('public/cohorts/', list_published_cohorts, name='public-cohorts-list'),
     path('public/cohorts/<uuid:cohort_id>/apply/student/', apply_as_student, name='public-apply-student'),
     path('public/cohorts/<uuid:cohort_id>/apply/sponsor/', join_as_sponsor, name='public-join-sponsor'),
+    # Authenticated student: view own public cohort applications
+    path('public/my-applications/', list_my_cohort_applications, name='public-my-applications'),
     # Profiler API - tracks for GPT analysis
     path('api/v1/programs/tracks/', get_tracks_for_profiler, name='profiler-tracks'),
     

@@ -91,7 +91,8 @@ export default function MentorPayoutsPage() {
     const matchesTab = activeTab === 'all' || payout.status === activeTab
     const matchesSearch = 
       payout.mentor_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payout.mentor_email.toLowerCase().includes(searchTerm.toLowerCase())
+      payout.mentor_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (payout.cohort_name || '').toLowerCase().includes(searchTerm.toLowerCase())
     
     return matchesTab && matchesSearch
   })
@@ -261,6 +262,12 @@ export default function MentorPayoutsPage() {
                         Mentor
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-och-steel uppercase tracking-wider">
+                        Cohort
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-och-steel uppercase tracking-wider">
+                        Mode
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-och-steel uppercase tracking-wider">
                         Period
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-och-steel uppercase tracking-wider">
@@ -295,6 +302,14 @@ export default function MentorPayoutsPage() {
                               </p>
                             </div>
                           </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-och-steel max-w-[160px] truncate">
+                          {payout.cohort_name || '—'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <Badge variant="steel" className="capitalize">
+                            {payout.compensation_mode || 'paid'}
+                          </Badge>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-och-steel">
                           <div className="flex items-center gap-1">

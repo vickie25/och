@@ -29,6 +29,8 @@ export interface Credit {
   type: 'purchased' | 'promotional' | 'referral' | 'scholarship'
   amount: number
   remaining: number
+  /** Cohort UUID when scholarship is tied to a cohort */
+  cohort?: string | null
   expires_at: string | null
   is_expired: boolean
   created_at: string
@@ -83,16 +85,45 @@ export interface Invoice {
 
 export interface MentorPayout {
   id: string
+  mentor_id?: number
   mentor_email: string
   mentor_name: string
+  cohort_id?: string | null
+  cohort_name?: string | null
+  compensation_mode?: 'paid' | 'volunteer'
+  allocation_notes?: string
+  cohort_budget_share_percent?: number | null
   amount: number
   period_start: string
   period_end: string
   status: 'pending' | 'approved' | 'paid' | 'rejected'
-  payout_method: 'bank_transfer' | 'mobile_money' | 'paypal'
+  payout_method: 'bank_transfer' | 'mobile_money' | 'paypal' | 'not_applicable'
   paystack_transfer_id?: string
   created_at: string
   updated_at: string
+}
+
+export interface CohortManagerFinanceSummary {
+  cohort_id: string
+  cohort_name: string
+  status: string
+  seat_cap: number
+  seat_pool_config: Record<string, unknown>
+  enrollment_total: number
+  enrollment_by_seat_type: Record<string, number>
+  cohort_payment_revenue: number
+  cohort_payment_currency: string
+  completed_payments_count: number
+}
+
+export interface ReconciliationRunResult {
+  id: string
+  book_total: string
+  bank_total: string
+  difference: string
+  currency: string
+  payment_count: number
+  created_at: string
 }
 
 export interface FinancialDashboard {
@@ -222,6 +253,54 @@ class FinanceService {
 
   async markPayoutPaid(id: string): Promise<{ message: string }> {
     return apiGateway.post(`/finance/mentor-payouts/${id}/mark_paid/`)
+  }
+
+  async getCohortManagerFinance(cohortId: string): Promise<CohortManagerFinanceSummary> {
+    return apiGateway.get(`/finance/cohort-manager/dashboard/?cohort_id=${encodeURIComponent(cohortId)}`)
+  }
+
+  async previewReconciliation(periodStart: string, periodEnd: string, currency = 'USD'): Promise<{
+    book_total: string
+    payment_records_count: number
+    currency: string
+  }> {
+    const q = new URLSearchParams({ period_start: periodStart, period_end: periodEnd, currency })
+    return apiGateway.get(`/finance/reconciliation/preview/?${q}`)
+  }
+
+  async runReconciliation(body: {
+    period_start: string
+    period_end: string
+    bank_total: number
+    currency?: string
+    notes?: string
+  }): Promise<ReconciliationRunResult> {
+    return apiGateway.post('/finance/reconciliation/run/', body)
+  }
+
+  async listReconciliationRuns(): Promise<{ results: ReconciliationRunResult[] }> {
+    return apiGateway.get('/finance/reconciliation/history/')
+  }
+
+  async runRevenueRecognition(periodStart: string, periodEnd: string, currency = 'USD'): Promise<{
+    created: number
+    skipped_existing: number
+  }> {
+    return apiGateway.post('/finance/revenue/recognize/', {
+      period_start: periodStart,
+      period_end: periodEnd,
+      currency,
+    })
+  }
+
+  /** Marketplace placement escrow (employer sees own; admin sees all). */
+  async listMarketplaceEscrows(): Promise<unknown[]> {
+    const response = await apiGateway.get('/marketplace/escrow/')
+    return Array.isArray(response) ? response : (response as { results?: unknown[] }).results || []
+  }
+
+  async releaseMarketplaceEscrow(id: string): Promise<unknown> {
+    return apiGateway.post(`/marketplace/escrow/${id}/release/`, {})
   }
 
   // Dashboard

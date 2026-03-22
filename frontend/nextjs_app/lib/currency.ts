@@ -106,6 +106,47 @@ export function convertKEStoLocal(kesAmount: number, countryCode?: string | null
  * Format a KES amount in the user's local currency (converts then formats).
  * Use this across the app for subscriptions, revenue, etc.
  */
+/** Format a USD list price (Stream A catalog / admin USD fields). */
+export function formatUsd(amount: number | null | undefined): string {
+  if (amount == null || Number.isNaN(amount)) return '—'
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount)
+}
+
+/** Convert USD list/catalog amounts to KES using admin policy rate (ledger is KES). */
+export function kesFromUsdAmount(usd: number, kesPerUsd: number): number {
+  if (usd == null || Number.isNaN(usd) || !kesPerUsd) return 0
+  return Math.round(usd * kesPerUsd * 100) / 100
+}
+
+/** English country name for ISO 3166-1 alpha-2 (e.g. UG → Uganda). */
+export function getCountryDisplayName(countryCode?: string | null): string {
+  const code = (countryCode || 'KE').toUpperCase()
+  try {
+    const dn = new Intl.DisplayNames(['en'], { type: 'region' })
+    return dn.of(code) || code
+  } catch {
+    return code
+  }
+}
+
+/**
+ * Approximate local currency for a USD list price: USD → KES (policy) → local display.
+ */
+export function formatUsdApproxLocal(
+  usd: number | null | undefined,
+  countryCode: string | null | undefined,
+  kesPerUsd: number,
+): string {
+  if (usd == null || Number.isNaN(usd)) return ''
+  const kes = kesFromUsdAmount(usd, kesPerUsd)
+  return formatFromKES(kes, countryCode)
+}
+
 export function formatFromKES(kesAmount: number, countryCode?: string | null): string {
   const local = convertKEStoLocal(kesAmount, countryCode)
   const currencyCode = getCurrencyCode(countryCode)

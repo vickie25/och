@@ -15,11 +15,25 @@ TIER_PREMIUM = 'premium'
 
 
 class SubscriptionPlan(models.Model):
-    """Subscription plan definition - Three-tier system: Free, Starter ($3), Premium ($7)."""
+    """Subscription plan definition. Student Stream A plans are driven by `catalog` + admin-editable fields."""
     TIER_CHOICES = [
         (TIER_FREE, 'Free Tier'),
-        (TIER_STARTER, 'Starter Tier ($3/month)'),
-        (TIER_PREMIUM, 'Premium Tier ($7/month)'),
+        (TIER_STARTER, 'Starter / Pro (monthly or annual SKUs)'),
+        (TIER_PREMIUM, 'Premium Tier'),
+    ]
+
+    STREAM_STUDENT = 'student'
+    STREAM_CHOICES = [
+        (STREAM_STUDENT, 'Student (Stream A)'),
+    ]
+
+    BILLING_NONE = 'none'
+    BILLING_MONTHLY = 'monthly'
+    BILLING_ANNUAL = 'annual'
+    BILLING_INTERVAL_CHOICES = [
+        (BILLING_NONE, 'No billing (free)'),
+        (BILLING_MONTHLY, 'Monthly'),
+        (BILLING_ANNUAL, 'Annual'),
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -96,6 +110,47 @@ class SubscriptionPlan(models.Model):
         validators=[MinValueValidator(0)],
         help_text='Enhanced access period in days (e.g., 180 for Starter tier)'
     )
+    stream = models.CharField(
+        max_length=32,
+        choices=STREAM_CHOICES,
+        default=STREAM_STUDENT,
+        db_index=True,
+        help_text='Revenue stream (e.g. student vs future B2B)',
+    )
+    billing_interval = models.CharField(
+        max_length=16,
+        choices=BILLING_INTERVAL_CHOICES,
+        default=BILLING_MONTHLY,
+        db_index=True,
+        help_text='How this SKU is billed (free tier = none)',
+    )
+    price_annual = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text='Annual price in primary ledger currency (KES) when billing_interval is annual',
+    )
+    sort_order = models.PositiveSmallIntegerField(
+        default=0,
+        help_text='Display order (lower first)',
+    )
+    is_listed = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text='Show on student pricing pages; admin can hide SKUs without deleting',
+    )
+    catalog = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            'Stream A metadata: tier_rank, usd_monthly, usd_annual, tier_range {min,max}, '
+            'mentorship_credits_per_month (null = unlimited), trial_days, '
+            'trial_requires_payment_method, features {tier_2_6_access, tier_7_9_access, '
+            'priority_support, certification_prep}, annual_savings_percent, display_name, marketing_notes'
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -124,9 +179,10 @@ class UserSubscription(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name='subscription',
-        to_field='id',
+        to_field='uuid_id',
         db_column='user_id',
-        db_index=True
+        db_index=True,
+        help_text='FK column stores users.uuid_id (see migrations_sql/FIX_USER_SUBSCRIPTIONS_USER_ID_UUID_PG.sql).',
     )
     plan = models.ForeignKey(
         SubscriptionPlan,
@@ -154,6 +210,37 @@ class UserSubscription(models.Model):
         null=True,
         blank=True,
         db_index=True
+    )
+    billing_interval = models.CharField(
+        max_length=16,
+        choices=SubscriptionPlan.BILLING_INTERVAL_CHOICES,
+        default=SubscriptionPlan.BILLING_MONTHLY,
+        db_index=True,
+        help_text='Active cycle for this subscription (monthly vs annual)',
+    )
+    trial_end = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='When trial ends (if applicable)',
+    )
+    cancel_at_period_end = models.BooleanField(
+        default=False,
+        help_text='Cancellation scheduled for end of current period',
+    )
+    grace_period_end = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='Access continues until this time after a failed renewal',
+    )
+    pending_downgrade_plan = models.ForeignKey(
+        SubscriptionPlan,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='pending_downgrades',
+        help_text='If set, user moves to this plan at current_period_end',
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

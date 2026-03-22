@@ -12,7 +12,12 @@ interface SubscriptionPlan {
   id: string
   name: string
   tier: 'free' | 'starter' | 'premium'
+  stream?: string
+  billing_interval?: 'none' | 'monthly' | 'annual'
+  sort_order?: number
+  is_listed?: boolean
   price_monthly: number | null
+  price_annual?: number | null
   ai_coach_daily_limit: number | null
   portfolio_item_limit: number | null
   missions_access_type: 'none' | 'ai_only' | 'full'
@@ -21,6 +26,7 @@ interface SubscriptionPlan {
   marketplace_contact: boolean
   enhanced_access_days: number | null
   features: string[]
+  catalog?: Record<string, unknown>
   created_at?: string
   updated_at?: string
 }
@@ -198,7 +204,12 @@ export default function PlansManagementClient() {
       alert('Plan deleted successfully!')
     } catch (error: any) {
       console.error('Failed to delete plan:', error)
-      const errorMessage = error?.response?.data?.detail || error?.message || 'Failed to delete plan'
+      const data = error?.response?.data
+      const errorMessage =
+        (typeof data?.error === 'string' ? data.error : null) ||
+        data?.detail ||
+        error?.message ||
+        'Failed to delete plan'
       alert(`Error: ${errorMessage}`)
     }
   }
@@ -235,9 +246,12 @@ export default function PlansManagementClient() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-bold mb-2 text-och-gold">Subscription Plans Management</h1>
-          <p className="text-och-steel">
-            Manage subscription plans: Free (14-day trial), Starter (monthly plan), Premium (annual plan).
-            All prices are stored in KSh by default and can be viewed in other currencies for reporting.
+          <p className="text-och-steel max-w-3xl">
+            Stream A (student): Free, Pro Monthly, Pro Annual, and Premium SKUs. USD list prices and feature matrix live in
+            each plan&apos;s <strong className="text-white">catalog</strong> JSON; KES amounts in{' '}
+            <strong className="text-white">price_monthly</strong> / <strong className="text-white">price_annual</strong>{' '}
+            drive checkout. Global grace periods, academic discount %, and renewal timing are in{' '}
+            <code className="text-och-mint">PaymentSettings.student_subscription_policy</code> (seeded by migration).
           </p>
         </div>
         <div className="flex gap-2">
@@ -902,7 +916,7 @@ function PlanDetailModal({
           </div>
           
           {/* Currency Selector */}
-          {pricing && (
+          {(
             <div className="mb-6">
               <label className="block text-sm font-medium text-white mb-2">Display Currency</label>
               <select
@@ -1065,10 +1079,16 @@ function PlanEditModal({
   onSave: (data: Partial<SubscriptionPlan>) => void
   onClose: () => void
 }) {
+  const [catalogJson, setCatalogJson] = useState('{}')
   const [formData, setFormData] = useState<Partial<SubscriptionPlan>>({
     name: plan?.name || '',
     tier: plan?.tier || 'free',
+    stream: plan?.stream || 'student',
+    billing_interval: plan?.billing_interval || 'monthly',
+    sort_order: plan?.sort_order ?? 0,
+    is_listed: plan?.is_listed !== false,
     price_monthly: plan?.price_monthly || null,
+    price_annual: plan?.price_annual ?? null,
     ai_coach_daily_limit: plan?.ai_coach_daily_limit || null,
     portfolio_item_limit: plan?.portfolio_item_limit || null,
     missions_access_type: plan?.missions_access_type || 'none',
@@ -1077,7 +1097,31 @@ function PlanEditModal({
     marketplace_contact: plan?.marketplace_contact || false,
     enhanced_access_days: plan?.enhanced_access_days || null,
     features: plan?.features || [],
+    catalog: plan?.catalog || {},
   })
+
+  useEffect(() => {
+    setFormData({
+      name: plan?.name || '',
+      tier: plan?.tier || 'free',
+      stream: plan?.stream || 'student',
+      billing_interval: plan?.billing_interval || 'monthly',
+      sort_order: plan?.sort_order ?? 0,
+      is_listed: plan?.is_listed !== false,
+      price_monthly: plan?.price_monthly || null,
+      price_annual: plan?.price_annual ?? null,
+      ai_coach_daily_limit: plan?.ai_coach_daily_limit || null,
+      portfolio_item_limit: plan?.portfolio_item_limit || null,
+      missions_access_type: plan?.missions_access_type || 'none',
+      mentorship_access: plan?.mentorship_access || false,
+      talentscope_access: plan?.talentscope_access || 'none',
+      marketplace_contact: plan?.marketplace_contact || false,
+      enhanced_access_days: plan?.enhanced_access_days || null,
+      features: plan?.features || [],
+      catalog: plan?.catalog || {},
+    })
+    setCatalogJson(JSON.stringify(plan?.catalog ?? {}, null, 2))
+  }, [plan])
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -1132,6 +1176,56 @@ function PlanEditModal({
               </p>
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Stream</label>
+                <select
+                  value={formData.stream || 'student'}
+                  onChange={(e) => setFormData({ ...formData, stream: e.target.value })}
+                  className="w-full px-4 py-2 bg-och-midnight/50 border border-och-steel/20 rounded-lg text-white"
+                >
+                  <option value="student">Student (Stream A)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Billing interval</label>
+                <select
+                  value={formData.billing_interval || 'monthly'}
+                  onChange={(e) =>
+                    setFormData({ ...formData, billing_interval: e.target.value as SubscriptionPlan['billing_interval'] })
+                  }
+                  className="w-full px-4 py-2 bg-och-midnight/50 border border-och-steel/20 rounded-lg text-white"
+                >
+                  <option value="none">None (free)</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="annual">Annual</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">Sort order</label>
+                <input
+                  type="number"
+                  value={formData.sort_order ?? 0}
+                  onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value, 10) || 0 })}
+                  className="w-full px-4 py-2 bg-och-midnight/50 border border-och-steel/20 rounded-lg text-white"
+                />
+              </div>
+              <div className="flex items-end pb-2">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_listed !== false}
+                    onChange={(e) => setFormData({ ...formData, is_listed: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-white text-sm">Listed on student pricing</span>
+                </label>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-white mb-2">
                 Monthly Price (KSh)
@@ -1158,6 +1252,37 @@ function PlanEditModal({
                   Premium tier: enter the effective monthly KSh price here; billing can still be handled annually.
                 </p>
               )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-white mb-2">Annual price (KSh)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.price_annual != null ? formData.price_annual : ''}
+                onChange={(e) =>
+                  setFormData({ ...formData, price_annual: e.target.value ? parseFloat(e.target.value) : null })
+                }
+                className="w-full px-4 py-2 bg-och-midnight/50 border border-och-steel/20 rounded-lg text-white"
+                placeholder="For annual SKUs or Premium annual option"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-white mb-2">
+                Catalog JSON (USD list prices, tier_range, trial, features, mentorship credits)
+              </label>
+              <textarea
+                value={catalogJson}
+                onChange={(e) => setCatalogJson(e.target.value)}
+                rows={12}
+                className="w-full px-4 py-2 bg-och-midnight/50 border border-och-steel/20 rounded-lg text-white font-mono text-xs"
+                spellCheck={false}
+              />
+              <p className="text-xs text-och-steel mt-1">
+                Example keys: display_name, usd_monthly, usd_annual, tier_range, mentorship_credits_per_month, trial_days,
+                trial_requires_payment_method, features.tier_2_6_access, annual_savings_percent.
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -1248,7 +1373,14 @@ function PlanEditModal({
             <div className="flex gap-4 pt-4">
               <Button
                 variant="defender"
-                onClick={() => onSave(formData)}
+                onClick={() => {
+                  try {
+                    const catalog = catalogJson.trim() ? JSON.parse(catalogJson) : {}
+                    onSave({ ...formData, catalog })
+                  } catch {
+                    alert('Invalid JSON in catalog field')
+                  }
+                }}
                 className="flex-1"
               >
                 Save

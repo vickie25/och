@@ -217,11 +217,25 @@ class TaxRateViewSet(viewsets.ModelViewSet):
 class MentorPayoutViewSet(viewsets.ModelViewSet):
     serializer_class = MentorPayoutSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx['request'] = self.request
+        return ctx
+
     def get_queryset(self):
+        qs = MentorPayout.objects.select_related('mentor', 'cohort')
         if self.request.user.is_staff:
-            return MentorPayout.objects.all()
-        return MentorPayout.objects.filter(mentor=self.request.user)
+            qs = qs.all()
+        else:
+            qs = qs.filter(mentor=self.request.user)
+        cohort_id = self.request.query_params.get('cohort_id')
+        if cohort_id:
+            qs = qs.filter(cohort_id=cohort_id)
+        mode = self.request.query_params.get('compensation_mode')
+        if mode in ('paid', 'volunteer'):
+            qs = qs.filter(compensation_mode=mode)
+        return qs
     
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):

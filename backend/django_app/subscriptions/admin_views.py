@@ -10,8 +10,13 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 
 from .models import (
-    SubscriptionPlan, UserSubscription, PaymentGateway,
-    PaymentTransaction, SubscriptionRule, PaymentSettings
+    SubscriptionPlan,
+    UserSubscription,
+    PaymentGateway,
+    PaymentTransaction,
+    SubscriptionRule,
+    PaymentSettings,
+    TIER_FREE,
 )
 from .serializers import SubscriptionPlanSerializer, UserSubscriptionSerializer
 from users.utils.audit_utils import log_audit_event
@@ -52,7 +57,107 @@ class SubscriptionPlanViewSet(viewsets.ModelViewSet):
     """Admin viewset for managing subscription plans."""
     queryset = SubscriptionPlan.objects.all()
     serializer_class = SubscriptionPlanSerializer
-    
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        Delete a plan. User subscriptions that reference it are reassigned first
+        (PROTECT on UserSubscription.plan would otherwise block deletion).
+
+        Optional query/body: reassign_to=<uuid> — target plan for subscribers.
+        If omitted, uses another free-tier plan in the same stream (prefers name `och_free`).
+        """
+        instance = self.get_object()
+        reassign_id = request.query_params.get('reassign_to') or request.data.get(
+            'reassign_to_plan_id'
+        )
+
+        subs = UserSubscription.objects.filter(plan=instance)
+        n = subs.count()
+        pending_downgrade = UserSubscription.objects.filter(pending_downgrade_plan=instance)
+
+        target = None
+        if reassign_id:
+            try:
+                target = SubscriptionPlan.objects.get(pk=reassign_id)
+            except SubscriptionPlan.DoesNotExist:
+                return Response(
+                    {'error': 'reassign_to plan not found', 'detail': 'reassign_to plan not found'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if target.pk == instance.pk:
+                return Response(
+                    {'error': 'Cannot reassign to the same plan', 'detail': 'Cannot reassign to the same plan'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        elif n > 0:
+            target = (
+                SubscriptionPlan.objects.filter(
+                    name='och_free',
+                    stream=instance.stream,
+                )
+                .exclude(pk=instance.pk)
+                .first()
+            )
+            if not target:
+                target = (
+                    SubscriptionPlan.objects.filter(
+                        tier=TIER_FREE,
+                        stream=instance.stream,
+                    )
+                    .exclude(pk=instance.pk)
+                    .order_by('sort_order', 'name')
+                    .first()
+                )
+            if not target:
+                target = (
+                    SubscriptionPlan.objects.filter(tier=TIER_FREE)
+                    .exclude(pk=instance.pk)
+                    .order_by('sort_order', 'name')
+                    .first()
+                )
+
+        if n > 0 and target is None:
+            return Response(
+                {
+                    'error': (
+                        'This plan has user subscriptions. Provide another plan to reassign them to: '
+                        'DELETE with query ?reassign_to=<plan_uuid> or body {"reassign_to_plan_id": "<uuid>"}, '
+                        'or create another free-tier plan first.'
+                    ),
+                    'detail': 'Subscriptions still reference this plan; no fallback plan available.',
+                    'user_subscription_count': n,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        plan_name = instance.name
+        plan_id_str = str(instance.id)
+        reassign_name = target.name if target else None
+
+        with transaction.atomic():
+            if n > 0:
+                subs.update(plan=target)
+            pending_downgrade.update(pending_downgrade_plan=None)
+            instance.delete()
+
+        log_audit_event(
+            request=request,
+            user=request.user,
+            action='delete',
+            resource_type='subscription_plan',
+            resource_id=plan_id_str,
+            result='success',
+            changes={
+                'deleted_plan': {'name': plan_name},
+                'reassigned_subscriptions': n,
+                'reassigned_to': reassign_name,
+            },
+            metadata={},
+        )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     def get_permissions(self):
         """
         Allow program_director to read plans (for enrollment).

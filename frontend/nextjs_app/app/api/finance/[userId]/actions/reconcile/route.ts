@@ -1,28 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
+/**
+ * POST /api/finance/[userId]/actions/reconcile
+ * Proxies to Django POST /api/v1/finance/reconciliation/run/ (replaces mock).
+ */
+export async function POST(request: NextRequest) {
+  const djangoUrl =
+    process.env.DJANGO_API_URL ||
+    process.env.NEXT_PUBLIC_DJANGO_API_URL;
+
+  if (!djangoUrl) {
+    return NextResponse.json(
+      { error: 'DJANGO_API_URL not configured' },
+      { status: 503 }
+    );
+  }
+
+  const cookie = request.headers.get('cookie') ?? '';
+  const accessToken = request.cookies.get('access_token')?.value ?? '';
+  const authHeaders: Record<string, string> = {
+    Cookie: cookie,
+    'Content-Type': 'application/json',
+  };
+  if (accessToken) authHeaders['Authorization'] = `Bearer ${accessToken}`;
+
+  let body: Record<string, unknown> = {};
   try {
-    // Mock reconciliation process - replace with real banking API integrations
-    const reconciliationResult = {
-      bankBalance: 2150000,
-      bookBalance: 2150000,
-      difference: 0,
-      transactionsReconciled: 47,
-      outstandingItems: [],
-      status: "completed",
-      reconciledAt: new Date().toISOString()
-    };
+    body = await request.json();
+  } catch {
+    body = {};
+  }
 
-    // Simulate processing time for reconciliation
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    return NextResponse.json({
-      success: true,
-      message: "Bank reconciliation completed successfully",
-      reconciliation: reconciliationResult
+  try {
+    const resp = await fetch(`${djangoUrl}/api/v1/finance/reconciliation/run/`, {
+      method: 'POST',
+      headers: authHeaders,
+      credentials: 'include',
+      body: JSON.stringify(body),
     });
+
+    const data = await resp.json().catch(() => ({}));
+    return NextResponse.json(data, { status: resp.status });
   } catch (error) {
-    console.error('Bank reconciliation error:', error);
-    return NextResponse.json({ error: 'Failed to reconcile accounts' }, { status: 500 });
+    console.error('Reconciliation proxy error:', error);
+    return NextResponse.json({ error: 'Reconciliation request failed' }, { status: 500 });
   }
 }

@@ -197,7 +197,7 @@ export function EnhancedSidebar({ isCollapsed = false, onCollapsedChange }: Side
 
   const settingsNav = [
     { label: 'Profile', icon: User, href: '/dashboard/student/settings/profile' },
-    { label: 'Subscription', icon: CreditCard, href: '/dashboard/student/settings/subscription' },
+    { label: 'Subscription', icon: CreditCard, href: '/dashboard/student/subscription' },
     { label: 'Security', icon: Shield, href: '/dashboard/student/settings/security' },
   ];
 

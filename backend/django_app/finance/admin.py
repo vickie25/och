@@ -4,7 +4,7 @@ Finance admin interface.
 from django.contrib import admin
 from .models import (
     Wallet, Transaction, Credit, Contract, TaxRate,
-    MentorPayout, Invoice, Payment
+    MentorPayout, Invoice, Payment, ReconciliationRun,
 )
 
 
@@ -51,11 +51,22 @@ class TaxRateAdmin(admin.ModelAdmin):
 
 @admin.register(MentorPayout)
 class MentorPayoutAdmin(admin.ModelAdmin):
-    list_display = ['mentor', 'amount', 'status', 'period_start', 'period_end', 'created_at']
-    list_filter = ['status', 'payout_method', 'created_at']
+    list_display = [
+        'mentor', 'cohort', 'compensation_mode', 'amount', 'status',
+        'period_start', 'period_end', 'created_at',
+    ]
+    list_filter = ['status', 'payout_method', 'compensation_mode', 'created_at']
     search_fields = ['mentor__email', 'mentor__first_name', 'mentor__last_name']
     readonly_fields = ['created_at', 'updated_at']
+    raw_id_fields = ['mentor', 'cohort']
     date_hierarchy = 'period_start'
+
+
+@admin.register(ReconciliationRun)
+class ReconciliationRunAdmin(admin.ModelAdmin):
+    list_display = ['period_start', 'period_end', 'book_total', 'bank_total', 'difference', 'currency', 'created_at']
+    list_filter = ['currency', 'created_at']
+    readonly_fields = ['created_at']
 
 
 @admin.register(Invoice)

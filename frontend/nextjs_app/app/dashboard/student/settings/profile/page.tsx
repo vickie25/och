@@ -922,7 +922,7 @@ export default function ProfileSettingsPage() {
               </p>
               <Button
                 variant="gold"
-                onClick={() => router.push('/dashboard/student/settings?tab=subscription')}
+                onClick={() => router.push('/dashboard/student/subscription')}
               >
                 Manage Subscription
               </Button>

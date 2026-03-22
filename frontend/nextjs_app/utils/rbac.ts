@@ -44,6 +44,7 @@ export const DIRECTOR_NAV_PERMISSIONS: Record<string, string> = {
   '/dashboard/director/modules': 'list_tracks',
   '/dashboard/director/specializations': 'list_tracks',
   '/dashboard/director/cohorts': 'list_cohorts',
+  '/dashboard/director/cohort-finance': 'list_cohorts',
   '/dashboard/director/applications': 'list_cohorts',
   '/dashboard/director/calendar': 'list_cohorts',
   '/dashboard/director/cohorts/sponsors': 'list_organizations',
@@ -134,6 +135,7 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   { path: '/dashboard/director/missions', roles: ['program_director', 'admin'] },
   { path: '/dashboard/director/programs', roles: ['program_director', 'admin'] },
   { path: '/dashboard/director/cohorts', roles: ['program_director', 'admin'] },
+  { path: '/dashboard/director/cohort-finance', roles: ['program_director', 'admin'] },
   { path: '/dashboard/director/calendar', roles: ['program_director', 'admin'] },
   { path: '/dashboard/director/certificates', roles: ['program_director', 'admin'] },
   { path: '/dashboard/director/curriculum', roles: ['program_director', 'admin'] },
@@ -204,6 +206,8 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   { path: '/finance/settings', roles: ['finance'] },
   { path: '/finance/subscriptions', roles: ['finance'] },
   { path: '/finance/account', roles: ['finance'] },
+  { path: '/finance/reconciliation', roles: ['finance', 'admin'] },
+  { path: '/finance/mentor-payouts', roles: ['finance', 'admin'] },
 
   // Support routes (internal role; added by director)
   { path: '/support', roles: ['support'] },

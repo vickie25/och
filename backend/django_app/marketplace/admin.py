@@ -3,7 +3,15 @@ Django admin configuration for marketplace models
 """
 
 from django.contrib import admin
-from .models import Employer, MarketplaceProfile, EmployerInterestLog, JobPosting
+from .models import (
+    Employer,
+    MarketplaceProfile,
+    EmployerInterestLog,
+    JobPosting,
+    JobApplication,
+    MarketplaceEscrow,
+    MarketplaceCommissionLedger,
+)
 
 
 @admin.register(Employer)
@@ -39,4 +47,27 @@ class JobPostingAdmin(admin.ModelAdmin):
     search_fields = ['title', 'description', 'employer__company_name']
     raw_id_fields = ['employer']
     readonly_fields = ['posted_at']
+
+
+@admin.register(JobApplication)
+class JobApplicationAdmin(admin.ModelAdmin):
+    list_display = ['applicant', 'job_posting', 'status', 'applied_at']
+    list_filter = ['status', 'applied_at']
+    search_fields = ['applicant__email', 'job_posting__title']
+    raw_id_fields = ['job_posting', 'applicant']
+
+
+@admin.register(MarketplaceEscrow)
+class MarketplaceEscrowAdmin(admin.ModelAdmin):
+    list_display = ['id', 'job_application', 'gross_amount', 'currency', 'status', 'created_at']
+    list_filter = ['status', 'currency', 'created_at']
+    raw_id_fields = ['job_application']
+    readonly_fields = ['commission_amount', 'net_to_candidate', 'released_at', 'created_at', 'updated_at']
+
+
+@admin.register(MarketplaceCommissionLedger)
+class MarketplaceCommissionLedgerAdmin(admin.ModelAdmin):
+    list_display = ['escrow', 'commission_amount', 'gross_amount', 'recorded_at']
+    raw_id_fields = ['escrow', 'job_application']
+    readonly_fields = ['recorded_at']
 

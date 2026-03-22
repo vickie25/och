@@ -20,6 +20,7 @@ class TestSubscriptionStatusEndpoint:
         # Create subscription plan and user subscription
         plan = SubscriptionPlan.objects.create(
             name='premium',
+            tier='premium',
             price_monthly=29.99,
             features=['feature1', 'feature2']
         )
@@ -55,6 +56,7 @@ class TestUpgradeSubscriptionEndpoint:
         # Create subscription plan
         plan = SubscriptionPlan.objects.create(
             name='premium',
+            tier='premium',
             price_monthly=29.99
         )
         data = {'plan': 'premium'}

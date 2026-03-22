@@ -656,9 +656,12 @@ export default function HomePage() {
     let mounted = true
     const loadPricing = async () => {
       try {
-        const res = await apiGateway.get('/subscription/plans/public', { skipAuth: true })
-        if (mounted && Array.isArray(res)) {
-          setPricingPlans(res)
+        const res = await apiGateway.get('/subscription/plans/public', { skipAuth: true }) as
+          | unknown[]
+          | { plans?: unknown[] }
+        if (mounted) {
+          const list = Array.isArray(res) ? res : (res?.plans ?? [])
+          setPricingPlans(list as any[])
         }
       } catch (error) {
         console.error('Failed to load pricing plans:', error)

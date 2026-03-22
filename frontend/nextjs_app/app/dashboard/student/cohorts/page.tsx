@@ -72,6 +72,15 @@ interface AvailableCohort {
   profile_image_url?: string | null;
 }
 
+interface MyCohortApplication {
+  id: string;
+  cohort_id: string;
+  cohort_name?: string | null;
+  applicant_type: string;
+  status: string;
+  created_at?: string | null;
+}
+
 export default function CohortsPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -79,6 +88,7 @@ export default function CohortsPage() {
   const [progress, setProgress] = useState<CohortProgress | null>(null);
   const [grade, setGrade] = useState<CohortGrade | null>(null);
   const [availableCohorts, setAvailableCohorts] = useState<AvailableCohort[]>([]);
+  const [applications, setApplications] = useState<MyCohortApplication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -106,16 +116,24 @@ export default function CohortsPage() {
         );
         setGrade(gradeRes);
       } else {
-        // If not enrolled, fetch available cohorts
-        const cohortsRes = await apiGateway.get('/public/cohorts/', { skipAuth: true });
+        // If not enrolled, fetch available cohorts and (if logged in) my applications
+        const [cohortsRes, appsRes] = await Promise.all([
+          apiGateway.get('/public/cohorts/', { skipAuth: true }),
+          user ? apiGateway.get<MyCohortApplication[]>('/public/my-applications/') : Promise.resolve([])
+        ]);
         setAvailableCohorts(cohortsRes || []);
+        setApplications((appsRes as any) || []);
       }
     } catch (error) {
       console.error('Failed to fetch cohort data:', error);
       // If enrollment fetch fails, try to fetch available cohorts
       try {
-        const cohortsRes = await apiGateway.get('/public/cohorts/', { skipAuth: true });
+        const [cohortsRes, appsRes] = await Promise.all([
+          apiGateway.get('/public/cohorts/', { skipAuth: true }),
+          user ? apiGateway.get<MyCohortApplication[]>('/public/my-applications/') : Promise.resolve([])
+        ]);
         setAvailableCohorts(cohortsRes || []);
+        setApplications((appsRes as any) || []);
       } catch (cohortError) {
         console.error('Failed to fetch available cohorts:', cohortError);
       }
@@ -140,6 +158,14 @@ export default function CohortsPage() {
   }
 
   if (!enrollment) {
+    // Build a quick lookup map of applications by cohort_id
+    const applicationsByCohortId: Record<string, MyCohortApplication> = {};
+    for (const app of applications) {
+      if (app.cohort_id) {
+        applicationsByCohortId[app.cohort_id] = app;
+      }
+    }
+
     return (
       <div className="min-h-screen bg-och-midnight text-slate-200 p-8">
         <div className="max-w-7xl mx-auto">
@@ -235,14 +261,23 @@ export default function CohortsPage() {
                     </div>
                   </div>
 
-                  {/* Apply Button */}
-                  <button
-                    onClick={() => handleApply(cohort.id)}
-                    className="w-full bg-och-gold text-black font-black uppercase tracking-widest rounded-xl py-3 hover:bg-och-gold/90 transition-all flex items-center justify-center gap-2 group-hover:gap-3"
-                  >
-                    Apply Now
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
+                  {/* Apply / Applied Button */}
+                  {applicationsByCohortId[cohort.id] ? (
+                    <button
+                      onClick={() => router.push(`/dashboard/student/cohorts/applications?cohortId=${cohort.id}`)}
+                      className="w-full bg-och-midnight border border-och-gold/40 text-och-gold font-black uppercase tracking-widest rounded-xl py-3 hover:bg-och-midnight/80 transition-all flex items-center justify-center gap-2"
+                    >
+                      Applied ({applicationsByCohortId[cohort.id].status || 'pending'}) – View
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleApply(cohort.id)}
+                      className="w-full bg-och-gold text-black font-black uppercase tracking-widest rounded-xl py-3 hover:bg-och-gold/90 transition-all flex items-center justify-center gap-2 group-hover:gap-3"
+                    >
+                      Apply Now
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  )}
                 </motion.div>
               ))}
             </div>

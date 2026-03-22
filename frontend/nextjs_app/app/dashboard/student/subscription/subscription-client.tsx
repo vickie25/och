@@ -1,29 +1,80 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { useAuth } from '@/hooks/useAuth'
 import { apiGateway } from '@/services/apiGateway'
-import { CheckCircle2, CreditCard, Calendar, AlertCircle } from 'lucide-react'
-import { formatFromKES } from '@/lib/currency'
+import { CheckCircle2, CreditCard, AlertCircle, Info } from 'lucide-react'
+import {
+  formatFromKES,
+  formatUsd,
+  formatUsdApproxLocal,
+  getCountryDisplayName,
+  getCurrencyCode,
+} from '@/lib/currency'
+
+type StreamPolicy = {
+  grace_period_days_monthly?: number
+  grace_period_days_annual?: number
+  renewal_attempt_days_before?: number
+  academic_discount_percent?: number
+  promo_single_code_per_checkout?: boolean
+  auto_renewal_default?: boolean
+  downgrade_effective?: string
+  upgrade_effective?: string
+  usd_to_kes_rate?: number
+}
+
+type PlanFeatures = {
+  tier_2_6_access?: boolean
+  tier_7_9_access?: boolean
+  priority_support?: boolean
+  certification_prep?: boolean
+  enterprise_dashboard_trial?: boolean
+}
+
+type PlanCatalog = {
+  display_name?: string
+  tier_rank?: number
+  usd_monthly?: number | null
+  usd_annual?: number | null
+  tier_range?: { min?: number; max?: number }
+  mentorship_credits_per_month?: number | null
+  trial_days?: number
+  trial_requires_payment_method?: boolean
+  features?: PlanFeatures
+  annual_savings_percent?: number | null
+}
 
 interface SubscriptionStatus {
   tier: string
   plan_tier?: string
-  plan_name: string
+  plan_name?: string
+  plan_catalog?: PlanCatalog
   status: string
   days_enhanced_left: number | null
   next_payment: string | null
   current_period_end: string | null
+  billing_interval?: string
+  trial_end?: string | null
+  cancel_at_period_end?: boolean
+  grace_period_end?: string | null
+  policy?: StreamPolicy
 }
 
 interface Plan {
   id: string
   name: string
   tier: string
+  stream?: string
+  billing_interval?: string
+  sort_order?: number
+  is_listed?: boolean
   price_monthly: number | null
+  price_annual?: number | null
+  catalog?: PlanCatalog
   mentorship_access: boolean
   missions_access_type: string
   talentscope_access: string
@@ -33,17 +84,31 @@ interface Plan {
   enhanced_access_days: number | null
 }
 
-const TIER_LEVEL: Record<string, number> = { free: 0, starter: 1, professional: 2, premium: 2 }
+function normalizePlansResponse(res: unknown): { plans: Plan[]; policy: StreamPolicy } {
+  if (Array.isArray(res)) {
+    return { plans: res as Plan[], policy: {} }
+  }
+  const o = res as { plans?: Plan[]; policy?: StreamPolicy }
+  return {
+    plans: Array.isArray(o.plans) ? o.plans : [],
+    policy: o.policy || {},
+  }
+}
 
 export default function SubscriptionClient() {
   const { user } = useAuth()
   const [subStatus, setSubStatus] = useState<SubscriptionStatus | null>(null)
   const [plans, setPlans] = useState<Plan[]>([])
+  const [policy, setPolicy] = useState<StreamPolicy>({})
   const [billing, setBilling] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const selectedCountry = user?.country?.toUpperCase() || 'KE'
+  const kesRate =
+    policy.usd_to_kes_rate ?? subStatus?.policy?.usd_to_kes_rate ?? 130
+  const countryLabel = getCountryDisplayName(selectedCountry)
+  const currencyCode = getCurrencyCode(selectedCountry)
 
   const paystackPublicKey = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '') : ''
 
@@ -56,12 +121,14 @@ export default function SubscriptionClient() {
     setError(null)
     try {
       const [statusRes, plansRes, billingRes] = await Promise.all([
-        apiGateway.get('/subscription/status'),
+        apiGateway.get('/subscription/status') as Promise<SubscriptionStatus>,
         apiGateway.get('/subscription/plans'),
         apiGateway.get('/subscription/billing-history').catch(() => ({ billing_history: [] })),
       ])
-      setSubStatus(statusRes as SubscriptionStatus)
-      setPlans(Array.isArray(plansRes) ? plansRes : [])
+      setSubStatus(statusRes)
+      const { plans: p, policy: pol } = normalizePlansResponse(plansRes)
+      setPlans(p)
+      setPolicy(pol || (statusRes as SubscriptionStatus).policy || {})
       const billingList = Array.isArray(billingRes) ? billingRes : (billingRes as { billing_history?: unknown[] })?.billing_history ?? []
       setBilling(billingList)
     } catch (err: any) {
@@ -71,24 +138,40 @@ export default function SubscriptionClient() {
     }
   }
 
-  const handleUpgrade = async (planName: string, interval?: 'yearly') => {
+  const sortedPlans = useMemo(
+    () => [...plans].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
+    [plans]
+  )
+
+  const currentRank = (): number => {
+    const cat = subStatus?.plan_catalog
+    if (cat?.tier_rank != null) return cat.tier_rank
+    const match = sortedPlans.find((p) => p.name === subStatus?.plan_name)
+    return match?.catalog?.tier_rank ?? (subStatus?.tier === 'free' ? 0 : 1)
+  }
+
+  const handleUpgrade = async (planName: string, billingInterval?: 'monthly' | 'annual') => {
     setActionLoading(true)
     setError(null)
     let paystackOpened = false
     try {
-      const plan = plans.find(p => p.name === planName)
-      const isPaidPlan = plan && Number(plan.price_monthly) > 0
+      const plan = plans.find((p) => p.name === planName)
+      const kes = billingInterval === 'annual' ? plan?.price_annual : plan?.price_monthly
+      const isPaidPlan = plan && Number(kes || 0) > 0
       const usePaystack = Boolean(paystackPublicKey && isPaidPlan && user?.email)
 
       if (usePaystack) {
-        const body: { plan: string; callback_url: string; interval?: string } = {
+        const body: { plan: string; callback_url: string; interval?: string; billing_interval?: string } = {
           plan: planName,
           callback_url:
             typeof window !== 'undefined'
               ? `${window.location.origin}/dashboard/student/subscription/return`
               : '',
         }
-        if (interval === 'yearly') body.interval = 'yearly'
+        if (billingInterval === 'annual' || plan?.billing_interval === 'annual') {
+          body.interval = 'yearly'
+          body.billing_interval = 'annual'
+        }
 
         const initRes = await apiGateway.post<{ authorization_url: string; reference: string }>(
           '/subscription/paystack/initialize',
@@ -124,7 +207,9 @@ export default function SubscriptionClient() {
           }
         }, 500)
       } else {
-        await apiGateway.post('/subscription/simulate-payment', { plan: planName })
+        const body: { plan: string; billing_interval?: string } = { plan: planName }
+        if (billingInterval) body.billing_interval = billingInterval
+        await apiGateway.post('/subscription/simulate-payment', body)
         await loadAll()
       }
     } catch (err: unknown) {
@@ -147,6 +232,85 @@ export default function SubscriptionClient() {
     }
   }
 
+  const displayLabel = (plan: Plan) => plan.catalog?.display_name || plan.name
+
+  /** USD catalog → KES (policy rate) → user’s local currency for display. */
+  const renderPlanPrice = (plan: Plan) => {
+    const c = plan.catalog || {}
+    const period = plan.billing_interval === 'annual' ? '/year' : '/month'
+
+    if (plan.billing_interval === 'annual') {
+      if (c.usd_annual != null) {
+        return (
+          <>
+            <p className="text-och-mint text-xl font-semibold">
+              {formatUsd(c.usd_annual)}
+              {period}
+            </p>
+            <p className="text-xs text-och-steel mt-1">
+              ≈ {formatUsdApproxLocal(c.usd_annual, selectedCountry, kesRate)}
+              {period}
+            </p>
+          </>
+        )
+      }
+      if (plan.price_annual) {
+        return (
+          <>
+            <p className="text-och-mint text-xl font-semibold">
+              {formatFromKES(plan.price_annual, selectedCountry)}
+              {period}
+            </p>
+            <p className="text-xs text-och-steel mt-1">KES {Number(plan.price_annual).toLocaleString()}</p>
+          </>
+        )
+      }
+      return <p className="text-och-mint text-xl font-semibold">—</p>
+    }
+
+    if (plan.billing_interval === 'none' || (plan.price_monthly ?? 0) === 0) {
+      return <p className="text-och-mint text-xl font-semibold">Free</p>
+    }
+
+    if (c.usd_monthly != null) {
+      return (
+        <>
+          <p className="text-och-mint text-xl font-semibold">
+            {formatUsd(c.usd_monthly)}
+            {period}
+          </p>
+          <p className="text-xs text-och-steel mt-1">
+            ≈ {formatUsdApproxLocal(c.usd_monthly, selectedCountry, kesRate)}
+            {period}
+          </p>
+          {plan.price_monthly && selectedCountry !== 'KE' ? (
+            <p className="text-xs text-och-steel/80 mt-0.5">
+              Charged KSh {Number(plan.price_monthly).toLocaleString()}
+            </p>
+          ) : null}
+        </>
+      )
+    }
+
+    return (
+      <>
+        <p className="text-och-mint text-xl font-semibold">
+          {formatFromKES(plan.price_monthly || 0, selectedCountry)}
+          {period}
+        </p>
+        <p className="text-xs text-och-steel mt-1">
+          KES {Number(plan.price_monthly || 0).toLocaleString()}
+        </p>
+      </>
+    )
+  }
+
+  const mentorshipLabel = (plan: Plan) => {
+    const n = plan.catalog?.mentorship_credits_per_month
+    if (n === null || n === undefined) return 'Unlimited'
+    return `${n}/month`
+  }
+
   if (isLoading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
@@ -158,13 +322,23 @@ export default function SubscriptionClient() {
     )
   }
 
-  const currentTierLevel = TIER_LEVEL[subStatus?.tier || 'free'] ?? 0
+  const rank = currentRank()
 
   return (
     <div className="w-full py-6 px-4 sm:px-6 lg:px-8 space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold mb-2 text-och-mint">Subscription Plans</h1>
-        <p className="text-och-steel">Choose the plan that fits your goals</p>
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold text-och-mint">Subscription</h1>
+        <p className="text-sm text-och-steel">
+          <span className="text-white/90">{countryLabel}</span>
+          {' · '}
+          <span className="font-medium tabular-nums">{currencyCode}</span>
+          {' · '}
+          <span className="text-och-steel/90">
+            {selectedCountry === 'KE'
+              ? `USD list × ${kesRate} → KES (ledger)`
+              : `USD × ${kesRate} KES → ${currencyCode}`}
+          </span>
+        </p>
       </div>
 
       {error && (
@@ -176,18 +350,57 @@ export default function SubscriptionClient() {
         </Card>
       )}
 
-      {/* Current Plan Status */}
+      {(policy.grace_period_days_monthly != null ||
+        policy.academic_discount_percent != null ||
+        policy.renewal_attempt_days_before != null) && (
+        <Card className="p-3 border border-och-steel/20 bg-och-midnight/40">
+          <div className="flex gap-2 items-center text-xs text-och-steel">
+            <Info className="w-4 h-4 text-och-mint shrink-0" />
+            <p className="leading-snug">
+              {policy.auto_renewal_default !== false && <span>Paid plans auto-renew until cancelled. </span>}
+              {policy.grace_period_days_monthly != null && (
+                <span>Grace (monthly): {policy.grace_period_days_monthly}d. </span>
+              )}
+              {policy.grace_period_days_annual != null && (
+                <span>Grace (annual): {policy.grace_period_days_annual}d. </span>
+              )}
+              {policy.renewal_attempt_days_before != null && (
+                <span>Renewal charge {policy.renewal_attempt_days_before}d before period end. </span>
+              )}
+              {policy.academic_discount_percent != null && (
+                <span>Academic −{policy.academic_discount_percent}%. </span>
+              )}
+              {policy.promo_single_code_per_checkout && <span>One promo code per checkout.</span>}
+            </p>
+          </div>
+        </Card>
+      )}
+
       {subStatus && (
         <Card className="p-6 border border-och-steel/20">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <p className="text-sm text-och-steel mb-1">Current Plan</p>
-              <p className="text-2xl font-bold text-white capitalize">{subStatus.plan_name}</p>
-              <Badge variant="mint" className="mt-2">{subStatus.status}</Badge>
+              <p className="text-sm text-och-steel mb-1">Current plan</p>
+              <p className="text-2xl font-bold text-white">
+                {subStatus.plan_catalog?.display_name || subStatus.plan_name || subStatus.tier}
+              </p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Badge variant="mint">{subStatus.status}</Badge>
+                {subStatus.billing_interval && (
+                  <Badge variant="steel">{subStatus.billing_interval}</Badge>
+                )}
+                {subStatus.trial_end && (
+                  <Badge variant="steel">Trial ends {new Date(subStatus.trial_end).toLocaleDateString()}</Badge>
+                )}
+                {subStatus.grace_period_end && (
+                  <Badge variant="orange">Grace until {new Date(subStatus.grace_period_end).toLocaleString()}</Badge>
+                )}
+                {subStatus.cancel_at_period_end && <Badge variant="steel">Cancels at period end</Badge>}
+              </div>
             </div>
             {subStatus.next_payment && (
               <div className="text-right">
-                <p className="text-sm text-och-steel mb-1">Next Renewal</p>
+                <p className="text-sm text-och-steel mb-1">Next renewal</p>
                 <p className="text-white">{new Date(subStatus.next_payment).toLocaleDateString()}</p>
               </div>
             )}
@@ -195,201 +408,218 @@ export default function SubscriptionClient() {
           {subStatus.status === 'active' && subStatus.tier !== 'free' && (
             <div className="mt-4 pt-4 border-t border-och-steel/10">
               <Button variant="outline" size="sm" disabled={actionLoading} onClick={handleCancel}>
-                Cancel Subscription
+                Cancel subscription
               </Button>
             </div>
           )}
         </Card>
       )}
 
-      {/* Plans */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {plans.map(plan => {
-          const planLevel = TIER_LEVEL[plan.tier] ?? 0
-          const isCurrent =
-            plan.name === subStatus?.plan_name ||
-            plan.tier === (subStatus?.plan_tier ?? subStatus?.tier)
-          const isUpgrade = planLevel > currentTierLevel
-          const isStarter = plan.tier === 'starter'
-          const isPremium = plan.tier === 'premium'
-          
-          // Subscription prices are in KES (primary system currency)
-          let monthlyKes = plan.price_monthly || 0
-          let annualKes: number | null = null
-
-          if (isStarter) {
-            monthlyKes = plan.price_monthly || 650
-            annualKes = monthlyKes * 12
-          } else if (isPremium) {
-            annualKes = 7020
-            monthlyKes = annualKes / 12
-          }
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        {sortedPlans.map((plan) => {
+          const cat = plan.catalog || {}
+          const feat = cat.features || {}
+          const pr = cat.tier_rank ?? 0
+          const isCurrent = plan.name === subStatus?.plan_name
+          const isUpgrade = pr > rank
+          const isPremiumSku = plan.name === 'och_premium'
 
           return (
             <div
               key={plan.id}
               className={`relative p-6 rounded-lg border-2 transition-all ${
-                isPremium
+                feat.tier_7_9_access
                   ? 'bg-gradient-to-br from-och-mint/20 to-och-mint/5 border-och-mint/40'
-                  : isStarter
+                  : plan.tier === 'starter'
                   ? 'bg-gradient-to-br from-och-defender/20 to-och-defender/5 border-och-defender/40'
                   : 'bg-gradient-to-br from-och-steel/20 to-och-steel/5 border-och-steel/30'
               } ${isCurrent ? 'ring-2 ring-och-mint' : ''}`}
             >
-              {isPremium && (
+              {feat.tier_7_9_access && (
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <Badge variant="gold" className="text-xs font-bold px-3 py-1">BEST VALUE</Badge>
+                  <Badge variant="gold" className="text-xs font-bold px-3 py-1">
+                    PREMIUM
+                  </Badge>
                 </div>
               )}
               {isCurrent && (
                 <div className="absolute -top-3 right-4">
-                  <Badge variant="mint" className="text-xs font-bold">Current Plan</Badge>
+                  <Badge variant="mint" className="text-xs font-bold">
+                    Current
+                  </Badge>
                 </div>
               )}
 
               <div className="mt-8">
-                <h3 className="text-2xl font-bold text-white mb-4">{plan.name}</h3>
-
-                {!plan.price_monthly || plan.price_monthly === 0 ? (
-                  <div className="mb-4">
-                    <p className="text-4xl font-bold text-white">Free</p>
-                    <p className="text-sm text-och-steel">14-day trial</p>
-                  </div>
-                ) : isStarter ? (
-                  <div className="mb-4">
-                    <div className="flex items-baseline gap-2">
-                      <p className="text-3xl font-bold text-white">
-                        {formatFromKES(monthlyKes, selectedCountry)}
-                      </p>
-                      <span className="text-sm text-och-steel">/month</span>
-                    </div>
-                    {selectedCountry !== 'KE' && (
-                      <p className="text-xs text-och-steel mt-1">
-                        KSh {monthlyKes.toLocaleString()}/month
-                      </p>
-                    )}
-                  </div>
-                ) : isPremium ? (
-                  <div className="mb-4">
-                    <div className="flex items-baseline gap-2 mb-1">
-                      <p className="text-3xl font-bold text-och-mint">
-                        {formatFromKES(annualKes!, selectedCountry)}
-                      </p>
-                      <span className="text-sm text-och-steel">/year</span>
-                    </div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <p className="text-xs text-och-steel line-through">
-                        {formatFromKES(60, selectedCountry)}
-                      </p>
-                      <Badge variant="mint" className="text-xs">10% OFF</Badge>
-                    </div>
-                    <p className="text-xs text-och-mint">
-                      💰 {formatFromKES(monthlyKes, selectedCountry)}/month
-                    </p>
-                  </div>
-                ) : null}
-
-                <div className="space-y-2 mb-6 min-h-[120px]">
-                  {plan.mentorship_access && (
-                    <p className="text-xs text-white flex items-center gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-och-mint" />
-                      Human Mentorship
-                    </p>
-                  )}
-                  {plan.missions_access_type === 'full' && (
-                    <p className="text-xs text-white flex items-center gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-och-mint" />
-                      Full Mission Access
-                    </p>
-                  )}
-                  {plan.talentscope_access === 'full' && (
-                    <p className="text-xs text-white flex items-center gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-och-mint" />
-                      Full TalentScope
-                    </p>
-                  )}
-                  {plan.marketplace_contact && (
-                    <p className="text-xs text-white flex items-center gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-och-mint" />
-                      Employer Contact
-                    </p>
-                  )}
-                  {plan.ai_coach_daily_limit === null && (
-                    <p className="text-xs text-white flex items-center gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-och-mint" />
-                      Unlimited AI Coach
-                    </p>
-                  )}
-                  {plan.portfolio_item_limit === null && (
-                    <p className="text-xs text-white flex items-center gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-och-mint" />
-                      Unlimited Portfolio
+                <h3 className="text-2xl font-bold text-white mb-2">{displayLabel(plan)}</h3>
+                <div className="mb-4">
+                  {renderPlanPrice(plan)}
+                  {cat.annual_savings_percent != null && (
+                    <p className="text-xs text-och-mint mt-1">
+                      Annual savings vs monthly: ~{cat.annual_savings_percent}%
                     </p>
                   )}
                 </div>
 
-                <Button
-                  variant={isCurrent ? 'outline' : isUpgrade ? (isPremium ? 'gold' : 'mint') : 'outline'}
-                  className="w-full"
-                  disabled={isCurrent || actionLoading}
-                  onClick={() => !isCurrent && handleUpgrade(plan.name, isPremium ? 'yearly' : undefined)}
-                >
-                  {isCurrent ? 'Current Plan' : isUpgrade ? 'Upgrade' : 'Downgrade'}
-                </Button>
+                {cat.trial_days ? (
+                  <p className="text-xs text-och-steel mb-2">
+                    Trial: {cat.trial_days} days
+                    {cat.trial_requires_payment_method ? ' (card on file)' : ' (no card required)'}
+                  </p>
+                ) : null}
+
+                <div className="space-y-2 mb-6 min-h-[120px] text-xs">
+                  {cat.tier_range && (
+                    <p className="text-white flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-och-mint shrink-0" />
+                      Tiers {cat.tier_range.min ?? '—'}–{cat.tier_range.max ?? '—'}
+                    </p>
+                  )}
+                  <p className="text-white flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-och-mint shrink-0" />
+                    Mentorship credits: {mentorshipLabel(plan)}
+                  </p>
+                  {feat.tier_2_6_access && (
+                    <p className="text-white flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-och-mint shrink-0" />
+                      Tier 2–6 access
+                    </p>
+                  )}
+                  {feat.tier_7_9_access && (
+                    <p className="text-white flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-och-mint shrink-0" />
+                      Tier 7–9 access
+                    </p>
+                  )}
+                  {feat.certification_prep && (
+                    <p className="text-white flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-och-mint shrink-0" />
+                      Certification prep
+                    </p>
+                  )}
+                  {feat.priority_support && (
+                    <p className="text-white flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-och-mint shrink-0" />
+                      Priority support
+                    </p>
+                  )}
+                </div>
+
+                {isPremiumSku ? (
+                  <div className="space-y-2">
+                    <Button
+                      variant="mint"
+                      className="w-full"
+                      disabled={
+                        actionLoading ||
+                        (isCurrent && subStatus?.billing_interval === 'monthly')
+                      }
+                      onClick={() => handleUpgrade(plan.name, 'monthly')}
+                    >
+                      {isCurrent && subStatus?.billing_interval === 'monthly' ? 'Current' : 'Monthly'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      disabled={
+                        actionLoading ||
+                        (isCurrent && subStatus?.billing_interval === 'annual')
+                      }
+                      onClick={() => handleUpgrade(plan.name, 'annual')}
+                    >
+                      {isCurrent && subStatus?.billing_interval === 'annual' ? 'Current' : 'Annual (save)'}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant={isUpgrade ? (feat.tier_7_9_access ? 'gold' : 'mint') : 'outline'}
+                    className="w-full"
+                    disabled={isCurrent || actionLoading}
+                    onClick={() =>
+                      handleUpgrade(
+                        plan.name,
+                      plan.billing_interval === 'annual' ? 'annual' : 'monthly'
+                      )
+                    }
+                  >
+                    {isCurrent ? 'Current plan' : isUpgrade ? 'Choose plan' : 'Downgrade at period end'}
+                  </Button>
+                )}
               </div>
             </div>
           )
         })}
       </div>
 
-      {/* Feature Comparison */}
-      {plans.length > 0 && (
+      {sortedPlans.length > 0 && (
         <Card className="p-6">
-          <h2 className="text-2xl font-bold text-white mb-4">Feature Comparison</h2>
+          <h2 className="text-xl font-bold text-white mb-4">Compare features</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-och-steel/20">
                   <th className="text-left p-3 text-white">Feature</th>
-                  {plans.map(p => (
-                    <th key={p.id} className="text-left p-3 text-white">{p.name}</th>
+                  {sortedPlans.map((p) => (
+                    <th key={p.id} className="text-left p-3 text-white min-w-[120px]">
+                      {displayLabel(p)}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 <tr className="border-b border-och-steel/10">
-                  <td className="p-3 text-white">Missions</td>
-                  {plans.map(p => (
+                  <td className="p-3 text-och-steel">Tier 2–6 access</td>
+                  {sortedPlans.map((p) => (
                     <td key={p.id} className="p-3">
-                      <Badge variant={p.missions_access_type === 'full' ? 'mint' : 'steel'}>
-                        {p.missions_access_type.replace('_', ' ')}
-                      </Badge>
+                      {p.catalog?.features?.tier_2_6_access ? (
+                        <CheckCircle2 className="w-4 h-4 text-och-mint" />
+                      ) : (
+                        <span className="text-och-steel">—</span>
+                      )}
                     </td>
                   ))}
                 </tr>
                 <tr className="border-b border-och-steel/10">
-                  <td className="p-3 text-white">Mentorship</td>
-                  {plans.map(p => (
+                  <td className="p-3 text-och-steel">Tier 7–9 access</td>
+                  {sortedPlans.map((p) => (
                     <td key={p.id} className="p-3">
-                      <Badge variant={p.mentorship_access ? 'mint' : 'steel'}>
-                        {p.mentorship_access ? 'Yes' : 'No'}
-                      </Badge>
+                      {p.catalog?.features?.tier_7_9_access ? (
+                        <CheckCircle2 className="w-4 h-4 text-och-mint" />
+                      ) : (
+                        <span className="text-och-steel">—</span>
+                      )}
                     </td>
                   ))}
                 </tr>
                 <tr className="border-b border-och-steel/10">
-                  <td className="p-3 text-white">AI Coach</td>
-                  {plans.map(p => (
-                    <td key={p.id} className="p-3 text-och-steel">
-                      {p.ai_coach_daily_limit ? `${p.ai_coach_daily_limit}/day` : 'Unlimited'}
+                  <td className="p-3 text-och-steel">Mentorship credits / mo</td>
+                  {sortedPlans.map((p) => (
+                    <td key={p.id} className="p-3 text-white">
+                      {mentorshipLabel(p)}
                     </td>
                   ))}
                 </tr>
                 <tr className="border-b border-och-steel/10">
-                  <td className="p-3 text-white">Portfolio</td>
-                  {plans.map(p => (
-                    <td key={p.id} className="p-3 text-och-steel">
-                      {p.portfolio_item_limit ? `${p.portfolio_item_limit} items` : 'Unlimited'}
+                  <td className="p-3 text-och-steel">Priority support</td>
+                  {sortedPlans.map((p) => (
+                    <td key={p.id} className="p-3">
+                      {p.catalog?.features?.priority_support ? (
+                        <CheckCircle2 className="w-4 h-4 text-och-mint" />
+                      ) : (
+                        <span className="text-och-steel">—</span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+                <tr className="border-b border-och-steel/10">
+                  <td className="p-3 text-och-steel">Certification prep</td>
+                  {sortedPlans.map((p) => (
+                    <td key={p.id} className="p-3">
+                      {p.catalog?.features?.certification_prep ? (
+                        <CheckCircle2 className="w-4 h-4 text-och-mint" />
+                      ) : (
+                        <span className="text-och-steel">—</span>
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -399,10 +629,12 @@ export default function SubscriptionClient() {
         </Card>
       )}
 
-      {/* Billing History */}
       {billing.length > 0 && (
         <Card className="p-6">
-          <h2 className="text-xl font-bold text-white mb-4">Billing History</h2>
+          <h2 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+            <CreditCard className="w-5 h-5" /> Billing history
+          </h2>
+          <p className="text-xs text-och-steel mb-4">Stored in KES · shown as {currencyCode}</p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -421,15 +653,10 @@ export default function SubscriptionClient() {
                     </td>
                     <td className="py-2 px-3 text-white">{b.plan_name}</td>
                     <td className="py-2 px-3 text-white">
-                      {formatFromKES(
-                        b.amount,
-                        selectedCountry
-                      )}
+                      {formatFromKES(b.amount, selectedCountry)}
                     </td>
                     <td className="py-2 px-3">
-                      <Badge variant={b.status === 'completed' ? 'mint' : 'steel'}>
-                        {b.status}
-                      </Badge>
+                      <Badge variant={b.status === 'completed' ? 'mint' : 'steel'}>{b.status}</Badge>
                     </td>
                   </tr>
                 ))}

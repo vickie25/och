@@ -138,6 +138,14 @@ class Credit(models.Model):
         related_name='credits',
         db_index=True
     )
+    cohort = models.ForeignKey(
+        'programs.Cohort',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='scholarship_credits',
+        help_text='When type is scholarship, optional cohort this credit applies to',
+    )
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     amount = models.DecimalField(
         max_digits=12,
@@ -161,6 +169,7 @@ class Credit(models.Model):
         indexes = [
             models.Index(fields=['user', 'type']),
             models.Index(fields=['expires_at']),
+            models.Index(fields=['cohort', 'type']),
         ]
 
     def __str__(self):
@@ -325,6 +334,12 @@ class MentorPayout(models.Model):
         ('bank_transfer', 'Bank Transfer'),
         ('mobile_money', 'Mobile Money'),
         ('paypal', 'PayPal'),
+        ('not_applicable', 'Not applicable (volunteer)'),
+    ]
+
+    COMPENSATION_MODE_CHOICES = [
+        ('paid', 'Paid'),
+        ('volunteer', 'Volunteer'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -334,6 +349,32 @@ class MentorPayout(models.Model):
         related_name='mentor_payouts',
         limit_choices_to={'is_mentor': True},
         db_index=True
+    )
+    cohort = models.ForeignKey(
+        'programs.Cohort',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='mentor_payouts',
+        help_text='Cohort this payout allocation relates to (optional)',
+    )
+    compensation_mode = models.CharField(
+        max_length=20,
+        choices=COMPENSATION_MODE_CHOICES,
+        default='paid',
+        db_index=True,
+    )
+    allocation_notes = models.TextField(
+        blank=True,
+        help_text='Cohort-specific allocation notes (hours, stipend rules, etc.)',
+    )
+    cohort_budget_share_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text='Share of cohort mentor budget allocated to this line (0–100)',
     )
     amount = models.DecimalField(
         max_digits=12,
@@ -359,10 +400,42 @@ class MentorPayout(models.Model):
             models.Index(fields=['mentor', 'status']),
             models.Index(fields=['period_start', 'period_end']),
             models.Index(fields=['status']),
+            models.Index(fields=['cohort', 'compensation_mode']),
         ]
 
     def __str__(self):
         return f"{self.mentor.email} - {self.amount} ({self.status})"
+
+
+class ReconciliationRun(models.Model):
+    """Snapshot of a book vs bank reconciliation for a period."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    period_start = models.DateField()
+    period_end = models.DateField()
+    book_total = models.DecimalField(max_digits=15, decimal_places=2)
+    bank_total = models.DecimalField(max_digits=15, decimal_places=2)
+    difference = models.DecimalField(max_digits=15, decimal_places=2)
+    currency = models.CharField(max_length=3, default='USD')
+    payment_count = models.IntegerField(default=0)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reconciliation_runs',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'reconciliation_runs'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['period_start', 'period_end']),
+        ]
+
+    def __str__(self):
+        return f"Reconciliation {self.period_start}–{self.period_end} (Δ {self.difference})"
 
 
 class Invoice(models.Model):

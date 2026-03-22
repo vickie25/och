@@ -1,22 +1,6 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { RouteGuard } from '@/components/auth/RouteGuard';
-import { OCHSettingsSubscription } from '@/components/ui/settings/sections/OCHSettingsSubscription';
-
-export default function SettingsSubscriptionPage() {
-  return (
-    <RouteGuard>
-      <OCHSettingsSubscription />
-    </RouteGuard>
-  );
+/** Single source of truth: full subscription UI lives under /dashboard/student/subscription */
+export default function SettingsSubscriptionRedirect() {
+  redirect('/dashboard/student/subscription');
 }
-
-
-
-
-
-
-
-
-
-

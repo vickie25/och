@@ -36,6 +36,7 @@ const navItems: NavItem[] = [
   { label: 'Compliance', href: '/dashboard/finance/compliance', icon: Shield },
   { label: 'Subscriptions', href: '/finance/subscriptions', icon: CreditCard },
   { label: 'Mentor Payouts', href: '/finance/mentor-payouts', icon: Users },
+  { label: 'Reconciliation', href: '/finance/reconciliation', icon: Calculator },
   { label: 'Settings', href: '/finance/settings', icon: Settings },
 ]
 

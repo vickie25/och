@@ -10,7 +10,7 @@ from django.utils import timezone
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('subscriptions', '0003_fix_user_subscriptions_user_id_uuid'),
+        ('subscriptions', '0002_initial'),
         ('users', '0001_initial'),
     ]
 

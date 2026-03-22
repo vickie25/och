@@ -17,7 +17,14 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from .models import SubscriptionPlan, UserSubscription, PaymentTransaction, PaymentGateway
+from .models import (
+    TIER_FREE,
+    SubscriptionPlan,
+    UserSubscription,
+    PaymentTransaction,
+    PaymentGateway,
+    PaymentSettings,
+)
 from .serializers import (
     SubscriptionPlanSerializer,
     UserSubscriptionSerializer,
@@ -30,6 +37,64 @@ import logging
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
+
+
+def get_stream_policy():
+    """Admin-managed Stream A policy (PaymentSettings.student_subscription_policy)."""
+    try:
+        row = PaymentSettings.objects.get(setting_key='student_subscription_policy')
+        return row.setting_value or {}
+    except PaymentSettings.DoesNotExist:
+        return {
+            'grace_period_days_monthly': 3,
+            'grace_period_days_annual': 7,
+            'renewal_attempt_days_before': 1,
+            'academic_discount_percent': 30,
+            'promo_single_code_per_checkout': True,
+            'auto_renewal_default': True,
+            'downgrade_effective': 'end_of_period',
+            'upgrade_effective': 'immediate',
+            'usd_to_kes_rate': 130,
+        }
+
+
+def _serialize_plan_for_api(plan, include_counts=False):
+    """Student / finance plan row with Stream A catalog."""
+    catalog = plan.catalog or {}
+    user_count = 0
+    revenue = 0.0
+    if include_counts:
+        user_count = UserSubscription.objects.filter(plan=plan, status='active').count()
+        pm = float(plan.price_monthly or 0)
+        pa = float(plan.price_annual or 0)
+        revenue = user_count * (pa if plan.billing_interval == SubscriptionPlan.BILLING_ANNUAL else pm)
+    mode_note = catalog.get('mode_note', '')
+    if not mode_note and plan.tier == 'starter':
+        mode_note = 'Pro: Tier 2–6 access; mentorship credits per catalog.'
+    return {
+        'id': str(plan.id),
+        'name': plan.name,
+        'tier': plan.tier,
+        'stream': getattr(plan, 'stream', SubscriptionPlan.STREAM_STUDENT),
+        'billing_interval': getattr(plan, 'billing_interval', 'monthly'),
+        'sort_order': getattr(plan, 'sort_order', 0),
+        'is_listed': getattr(plan, 'is_listed', True),
+        'price_monthly': float(plan.price_monthly or 0),
+        'price_annual': float(plan.price_annual) if plan.price_annual is not None else None,
+        'catalog': catalog,
+        'features': plan.features or [],
+        'ai_coach_daily_limit': plan.ai_coach_daily_limit,
+        'portfolio_item_limit': plan.portfolio_item_limit,
+        'missions_access_type': plan.missions_access_type,
+        'mentorship_access': plan.mentorship_access,
+        'talentscope_access': plan.talentscope_access,
+        'marketplace_contact': plan.marketplace_contact,
+        'enhanced_access_days': plan.enhanced_access_days,
+        'mode_note': mode_note,
+        'users': user_count,
+        'revenue': revenue,
+    }
+
 
 PAYSTACK_VERIFY_URL = "https://api.paystack.co/transaction/verify/{}"
 PAYSTACK_INITIALIZE_URL = "https://api.paystack.co/transaction/initialize"
@@ -57,6 +122,7 @@ def subscription_status(request):
             'next_payment': None,
             'status': 'active',
             'ai_coach_daily_limit': 0,
+            'policy': get_stream_policy(),
         })
     
     # Map DB tier to frontend tier name
@@ -71,6 +137,11 @@ def subscription_status(request):
         'tier': tier,
         'plan_name': plan.name,
         'plan_tier': plan.tier,
+        'plan_catalog': getattr(plan, 'catalog', None) or {},
+        'billing_interval': getattr(subscription, 'billing_interval', 'monthly'),
+        'trial_end': subscription.trial_end.isoformat() if getattr(subscription, 'trial_end', None) else None,
+        'cancel_at_period_end': getattr(subscription, 'cancel_at_period_end', False),
+        'grace_period_end': subscription.grace_period_end.isoformat() if getattr(subscription, 'grace_period_end', None) else None,
         'days_enhanced_left': subscription.days_enhanced_left,
         'enhanced_access_until': subscription.enhanced_access_expires_at,
         'can_upgrade': can_upgrade,
@@ -81,6 +152,7 @@ def subscription_status(request):
         'current_period_start': subscription.current_period_start,
         'current_period_end': subscription.current_period_end,
         'ai_coach_daily_limit': plan.ai_coach_daily_limit,
+        'policy': get_stream_policy(),
     }, status=status.HTTP_200_OK)
 
 
@@ -414,35 +486,16 @@ def list_user_subscriptions(request):
 def list_plans(request):
     """
     GET /api/v1/subscription/plans
-    Return all active subscription plans with user counts for finance dashboard.
+    Stream A student-listed plans + policy. Legacy: falls back to all plans if none match stream filter.
     """
-    from django.db.models import Count, Q
-    
-    plans = SubscriptionPlan.objects.all().order_by('price_monthly')
-    data = []
-    for p in plans:
-        user_count = UserSubscription.objects.filter(plan=p, status='active').count()
-        mode_note = ''
-        if p.tier == 'starter':
-            mode_note = 'First 6 months: Enhanced Access (full features). After: Normal Mode (limited).'
-        data.append({
-            'id': str(p.id),
-            'name': p.name,
-            'tier': p.tier,
-            'price_monthly': float(p.price_monthly or 0),
-            'features': p.features or [],
-            'ai_coach_daily_limit': p.ai_coach_daily_limit,
-            'portfolio_item_limit': p.portfolio_item_limit,
-            'missions_access_type': p.missions_access_type,
-            'mentorship_access': p.mentorship_access,
-            'talentscope_access': p.talentscope_access,
-            'marketplace_contact': p.marketplace_contact,
-            'enhanced_access_days': p.enhanced_access_days,
-            'mode_note': mode_note,
-            'users': user_count,
-            'revenue': float(p.price_monthly or 0) * user_count,
-        })
-    return Response(data, status=status.HTTP_200_OK)
+    qs = SubscriptionPlan.objects.filter(
+        stream=SubscriptionPlan.STREAM_STUDENT,
+        is_listed=True,
+    ).order_by('sort_order', 'name')
+    if not qs.exists():
+        qs = SubscriptionPlan.objects.all().order_by('sort_order', 'name', 'price_monthly')
+    data = [_serialize_plan_for_api(p, include_counts=True) for p in qs]
+    return Response({'plans': data, 'policy': get_stream_policy()}, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
@@ -450,26 +503,16 @@ def list_plans(request):
 def list_plans_public(request):
     """
     GET /api/v1/subscription/plans/public
-    Return all active subscription plans for public homepage (no authentication required).
+    Student Stream A listed plans for marketing (no auth).
     """
-    plans = SubscriptionPlan.objects.all().order_by('price_monthly')
-    data = []
-    for p in plans:
-        data.append({
-            'id': str(p.id),
-            'name': p.name,
-            'tier': p.tier,
-            'price_monthly': float(p.price_monthly or 0),
-            'features': p.features or [],
-            'ai_coach_daily_limit': p.ai_coach_daily_limit,
-            'portfolio_item_limit': p.portfolio_item_limit,
-            'missions_access_type': p.missions_access_type,
-            'mentorship_access': p.mentorship_access,
-            'talentscope_access': p.talentscope_access,
-            'marketplace_contact': p.marketplace_contact,
-            'enhanced_access_days': p.enhanced_access_days,
-        })
-    return Response(data, status=status.HTTP_200_OK)
+    qs = SubscriptionPlan.objects.filter(
+        stream=SubscriptionPlan.STREAM_STUDENT,
+        is_listed=True,
+    ).order_by('sort_order', 'name')
+    if not qs.exists():
+        qs = SubscriptionPlan.objects.all().order_by('sort_order', 'name', 'price_monthly')
+    data = [_serialize_plan_for_api(p, include_counts=False) for p in qs]
+    return Response({'plans': data, 'policy': get_stream_policy()}, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
@@ -506,6 +549,27 @@ def simulate_payment(request):
 
     user = request.user
     now = timezone.now()
+    catalog = plan.catalog or {}
+
+    # Billing interval: explicit body override (e.g. Premium monthly vs annual SKU on one plan row)
+    billing_interval = request.data.get('billing_interval') or plan.billing_interval
+    if plan.name == 'och_premium' and request.data.get('billing_interval') == 'annual':
+        billing_interval = SubscriptionPlan.BILLING_ANNUAL
+    elif plan.name == 'och_premium' and request.data.get('billing_interval') == 'monthly':
+        billing_interval = SubscriptionPlan.BILLING_MONTHLY
+
+    if billing_interval == SubscriptionPlan.BILLING_ANNUAL:
+        period_days = 365
+        charge_amount = plan.price_annual or 0
+    else:
+        period_days = 30
+        charge_amount = plan.price_monthly or 0
+
+    trial_days = int(catalog.get('trial_days') or 0)
+    if plan.tier == TIER_FREE or plan.billing_interval == SubscriptionPlan.BILLING_NONE:
+        trial_days = 0
+    sub_status = 'trial' if trial_days > 0 else 'active'
+    trial_end = (now + timezone.timedelta(days=trial_days)) if trial_days > 0 else None
 
     try:
         with transaction.atomic():
@@ -523,9 +587,11 @@ def simulate_payment(request):
                 user=user,
                 defaults={
                     'plan': plan,
-                    'status': 'active',
+                    'status': sub_status,
+                    'billing_interval': billing_interval,
+                    'trial_end': trial_end,
                     'current_period_start': now,
-                    'current_period_end': now + timezone.timedelta(days=30),
+                    'current_period_end': now + timezone.timedelta(days=period_days),
                     'enhanced_access_expires_at': enhanced_until,
                 }
             )
@@ -536,11 +602,15 @@ def simulate_payment(request):
             PaymentTransaction.objects.create(
                 user=user,
                 subscription=subscription,
-                amount=plan.price_monthly or 0,
-                currency='USD',
+                amount=charge_amount,
+                currency='KES',
                 status='completed',
                 gateway_transaction_id=sim_tx_id,
-                gateway_response={'simulated': True, 'plan': plan.name},
+                gateway_response={
+                    'simulated': True,
+                    'plan': plan.name,
+                    'billing_interval': billing_interval,
+                },
                 processed_at=now,
             )
 
@@ -636,13 +706,17 @@ def paystack_config(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+    default_currency = (os.environ.get('PAYSTACK_DEFAULT_CURRENCY') or 'KES').upper()
     if not plan.price_monthly or float(plan.price_monthly) <= 0:
         return Response({
             'amount_in_kobo': 0,
-            'currency': 'KES',
+            'currency': default_currency,
             'plan': plan.name,
             'tier': plan.tier,
             'message': 'Free plan — no payment required',
+            'default_currency': default_currency,
+            'supported_channels': ['card', 'bank', 'mobile_money', 'ussd', 'bank_transfer'],
+            'billing_intervals': ['monthly', 'yearly'],
         }, status=status.HTTP_200_OK)
 
     # KES: amount in cents (smallest unit; 100 KES = 10000 cents). Merchant uses KES.
@@ -653,9 +727,12 @@ def paystack_config(request):
         amount_in_cents = 10000  # Paystack min e.g. 100 KES
     return Response({
         'amount_in_kobo': amount_in_cents,
-        'currency': 'KES',
+        'currency': default_currency,
         'plan': plan.name,
         'tier': plan.tier,
+        'default_currency': default_currency,
+        'supported_channels': ['card', 'bank', 'mobile_money', 'ussd', 'bank_transfer'],
+        'billing_intervals': ['monthly', 'yearly'],
     }, status=status.HTTP_200_OK)
 
 
@@ -721,15 +798,27 @@ def paystack_initialize(request):
     metadata = {'plan': plan.name}
     if interval == 'yearly':
         metadata['interval'] = 'yearly'
+    default_currency = (os.environ.get('PAYSTACK_DEFAULT_CURRENCY') or 'KES').upper()
+    currency = (request.data.get('currency') or default_currency).upper()
     payload = {
         'email': email,
         'amount': amount_in_cents,
-        'currency': 'KES',
+        'currency': currency,
         'reference': reference,
         'metadata': metadata,
     }
     if callback_url:
         payload['callback_url'] = callback_url
+
+    channels = request.data.get('channels')
+    if channels:
+        if isinstance(channels, str):
+            try:
+                channels = json.loads(channels)
+            except json.JSONDecodeError:
+                channels = [c.strip() for c in channels.split(',') if c.strip()]
+        if isinstance(channels, list) and channels:
+            payload['channels'] = channels
 
     try:
         resp = requests.post(
@@ -758,6 +847,8 @@ def paystack_initialize(request):
     return Response({
         'authorization_url': authorization_url,
         'reference': reference,
+        'currency': currency,
+        'channels': payload.get('channels'),
     }, status=status.HTTP_200_OK)
 
 
