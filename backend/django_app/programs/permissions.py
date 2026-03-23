@@ -53,6 +53,28 @@ class IsDirectorOrAdmin(permissions.BasePermission):
         return IsProgramDirector().has_permission(request, view)
 
 
+class IsFinanceUser(permissions.BasePermission):
+    """RBAC: finance role (or staff) for billing/analytics endpoints."""
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if request.user.is_staff or request.user.is_superuser:
+            return True
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT 1 FROM user_roles ur
+                JOIN roles r ON ur.role_id = r.id
+                WHERE ur.user_id = %s AND r.name = 'finance' AND ur.is_active = true
+                LIMIT 1
+                """,
+                [request.user.id],
+            )
+            return cursor.fetchone() is not None
+
+
 class CanManageProgram(permissions.BasePermission):
     """Permission check for program management."""
     

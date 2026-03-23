@@ -131,3 +131,25 @@ class OrganizationEnrollmentInvoice(models.Model):
     def __str__(self):
         return f"Org invoice {self.organization.name} - {self.total_amount_kes} {self.currency}"
 
+
+# Stream B: institutional contracts / billing — keep models discoverable for migrations
+from .institutional_models import (  # noqa: E402, F401
+    InstitutionalBilling,
+    InstitutionalBillingSchedule,
+    InstitutionalContract,
+    InstitutionalSeatAdjustment,
+    InstitutionalStudent,
+)
+
+# Stream B: seat pools, portal access, bulk import (management layer)
+from .institutional_management_models import (  # noqa: E402, F401
+    InstitutionalAcademicCalendar,
+    InstitutionalBulkImport,
+    InstitutionalDashboardMetrics,
+    InstitutionalPortalAccess,
+    InstitutionalSeatPool,
+    InstitutionalSSO,
+    InstitutionalStudentAllocation,
+    InstitutionalTrackAssignment,
+)
+

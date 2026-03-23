@@ -303,7 +303,129 @@ class FinancialAnalytics:
             'completion_rate': 0,  # Would get from curriculum system
             'placement_rate': 0,  # Would get from marketplace system
         }
-    
+
+    @staticmethod
+    def calculate_subscription_analytics(start_date, end_date):
+        """
+        OCH student subscription metrics aligned with FinancialDashboardView / list_user_subscriptions.
+        Amounts are in KES (plan prices and Paystack ledger).
+        """
+        from collections import defaultdict
+
+        from subscriptions.models import (
+            PaymentTransaction,
+            SubscriptionPlan,
+            UserSubscription,
+        )
+
+        paying_statuses = ['active', 'trial']
+
+        def mrr_for_row(us):
+            p = us.plan
+            if (
+                us.billing_interval == SubscriptionPlan.BILLING_ANNUAL
+                and p.price_annual is not None
+                and p.price_annual > 0
+            ):
+                return p.price_annual / Decimal('12')
+            return p.price_monthly or Decimal('0')
+
+        paying_qs = UserSubscription.objects.filter(status__in=paying_statuses).select_related(
+            'plan'
+        )
+        mrr_total = Decimal('0')
+        plan_stats = defaultdict(
+            lambda: {
+                'count': 0,
+                'mrr_kes': Decimal('0'),
+                'plan_name': '',
+                'plan_display_name': '',
+                'tier': '',
+            }
+        )
+        for us in paying_qs.iterator():
+            m = mrr_for_row(us)
+            mrr_total += m
+            pid = str(us.plan_id)
+            p = us.plan
+            cat = p.catalog or {}
+            disp = (cat.get('display_name') or '').strip() or p.name.replace('_', ' ').title()
+            plan_stats[pid]['count'] += 1
+            plan_stats[pid]['mrr_kes'] += m
+            plan_stats[pid]['plan_name'] = p.name
+            plan_stats[pid]['plan_display_name'] = disp
+            plan_stats[pid]['tier'] = p.tier
+
+        plan_distribution = sorted(
+            [
+                {
+                    'plan_id': pid,
+                    'plan_name': v['plan_name'],
+                    'plan_display_name': v['plan_display_name'],
+                    'tier': v['tier'],
+                    'paying_subscribers': v['count'],
+                    'mrr_kes': float(v['mrr_kes']),
+                }
+                for pid, v in plan_stats.items()
+            ],
+            key=lambda x: -x['mrr_kes'],
+        )
+
+        active_count = UserSubscription.objects.filter(status='active').count()
+        trial_count = UserSubscription.objects.filter(status='trial').count()
+        past_due_count = UserSubscription.objects.filter(status='past_due').count()
+        canceled_total = UserSubscription.objects.filter(status='canceled').count()
+
+        new_in_period = UserSubscription.objects.filter(
+            created_at__range=[start_date, end_date]
+        ).count()
+        canceled_in_period = UserSubscription.objects.filter(
+            status='canceled',
+            updated_at__range=[start_date, end_date],
+        ).count()
+
+        paying_base = max(active_count + trial_count, 1)
+        churn_rate_period = (Decimal(canceled_in_period) / Decimal(paying_base)) * Decimal('100')
+
+        tx_completed = PaymentTransaction.objects.filter(
+            status='completed',
+            created_at__range=[start_date, end_date],
+        )
+        paystack_revenue_kes = tx_completed.aggregate(t=Sum('amount'))['t'] or Decimal('0')
+        paystack_tx_count = tx_completed.count()
+
+        paystack_completed_payments = []
+        for tx in tx_completed.select_related('user').order_by('-created_at')[:200]:
+            paystack_completed_payments.append(
+                {
+                    'id': str(tx.id),
+                    'amount': float(tx.amount),
+                    'currency': tx.currency or 'KES',
+                    'created_at': tx.created_at.isoformat(),
+                    'processed_at': tx.processed_at.isoformat() if tx.processed_at else None,
+                    'user_email': getattr(tx.user, 'email', None) or '',
+                    'gateway_transaction_id': (tx.gateway_transaction_id or '')[:120],
+                }
+            )
+
+        return {
+            'currency': 'KES',
+            'active_subscribers': active_count,
+            'trial_subscribers': trial_count,
+            'paying_subscribers': active_count + trial_count,
+            'past_due_subscribers': past_due_count,
+            'canceled_total': canceled_total,
+            'mrr_kes': float(mrr_total),
+            'arr_kes_approx': float(mrr_total * Decimal('12')),
+            'new_subscriptions_in_period': new_in_period,
+            'canceled_subscriptions_in_period': canceled_in_period,
+            'subscription_churn_rate_period_pct': float(churn_rate_period),
+            'paystack_completed_revenue_kes_period': float(paystack_revenue_kes),
+            'paystack_completed_transactions_period': paystack_tx_count,
+            'paystack_completed_payments': paystack_completed_payments,
+            'plan_distribution': plan_distribution,
+        }
+
     @staticmethod
     def update_financial_metrics():
         """Update all financial metrics (run daily via cron)."""

@@ -13,6 +13,8 @@ from django.utils import timezone
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -64,7 +66,7 @@ def _serialize_plan_for_api(plan, include_counts=False):
     user_count = 0
     revenue = 0.0
     if include_counts:
-        user_count = UserSubscription.objects.filter(plan=plan, status='active').count()
+        user_count = UserSubscription.objects.filter(plan=plan, status__in=['active', 'trial']).count()
         pm = float(plan.price_monthly or 0)
         pa = float(plan.price_annual or 0)
         revenue = user_count * (pa if plan.billing_interval == SubscriptionPlan.BILLING_ANNUAL else pm)
@@ -454,13 +456,17 @@ def list_user_subscriptions(request):
     """
     plan_id = request.query_params.get('plan')
     
-    subscriptions = UserSubscription.objects.select_related('user', 'plan').filter(status='active')
+    subscriptions = UserSubscription.objects.select_related('user', 'plan').filter(
+        status__in=['active', 'trial']
+    )
     
     if plan_id:
         subscriptions = subscriptions.filter(plan_id=plan_id)
     
     data = []
     for sub in subscriptions:
+        cat = sub.plan.catalog or {}
+        display = (cat.get('display_name') or '').strip() or sub.plan.name.replace('_', ' ').title()
         data.append({
             'id': str(sub.id),
             'user_id': str(sub.user.id),
@@ -468,7 +474,9 @@ def list_user_subscriptions(request):
             'user_name': sub.user.get_full_name() or sub.user.email,
             'plan_id': str(sub.plan.id),
             'plan_name': sub.plan.name,
+            'plan_display_name': display,
             'plan_tier': sub.plan.tier,
+            'billing_interval': getattr(sub, 'billing_interval', None) or sub.plan.billing_interval,
             'price_monthly': float(sub.plan.price_monthly or 0),
             'status': sub.status,
             'current_period_start': sub.current_period_start.isoformat() if sub.current_period_start else None,
@@ -994,50 +1002,74 @@ def _apply_paystack_payment(user, plan, payload, reference, is_yearly=False):
             pass
 
 
+def _paystack_webhook_signature_valid(raw_body: bytes, signature: str, secret: str) -> bool:
+    """HMAC SHA512 hex of raw body must match X-Paystack-Signature (Paystack docs)."""
+    if not secret:
+        return True
+    sig = (signature or '').strip()
+    if not sig:
+        return False
+    computed = hmac.new(secret.encode('utf-8'), raw_body, hashlib.sha512).hexdigest()
+    if len(sig) != len(computed):
+        return False
+    return hmac.compare_digest(computed, sig)
+
+
 @csrf_exempt
-@api_view(['POST'])
-@permission_classes([AllowAny])
+@require_POST
 def paystack_webhook(request):
     """
-    POST /api/v1/subscription/webhooks/paystack
-    Paystack sends events here (charge.success etc.). No auth; verify X-Paystack-Signature.
-    Configure in Paystack Dashboard: https://dashboard.paystack.com/#/settings/developers
-    Webhook URL: https://your-domain.com/api/v1/subscription/webhooks/paystack
+    POST /paystack/webhook/ or /api/v1/subscription/webhooks/paystack/
+    Paystack sends events (charge.success). No auth; verify X-Paystack-Signature over raw body.
+
+    Implemented as a plain Django view (not DRF) so the raw body is untouched, JSON errors
+    return small JSON (not DRF browsable HTML), and HMAC length mismatches cannot 500.
+
+    Dashboard: https://dashboard.paystack.com/#/settings/developers
     """
-    raw_body = request.body
-    signature = request.META.get('HTTP_X_PAYSTACK_SIGNATURE') or request.META.get('X-Paystack-Signature') or ''
+    raw_body = request.body or b''
+    signature = request.META.get('HTTP_X_PAYSTACK_SIGNATURE', '') or ''
     secret = os.environ.get('PAYSTACK_SECRET_KEY') or os.environ.get('PAYSTACK_SECRET')
 
     if not secret:
         logger.warning('Paystack webhook: PAYSTACK_SECRET_KEY not set, accepting without verification')
-    else:
-        computed = hmac.new(secret.encode('utf-8'), raw_body, hashlib.sha512).hexdigest()
-        if not hmac.compare_digest(computed, signature):
-            logger.warning('Paystack webhook: invalid signature')
-            return Response({'received': True}, status=status.HTTP_200_OK)
+    elif not _paystack_webhook_signature_valid(raw_body, signature, secret):
+        logger.warning('Paystack webhook: invalid signature')
+        return JsonResponse({'received': True, 'ignored': 'invalid_signature'}, status=200)
 
     try:
-        data = json.loads(raw_body.decode('utf-8'))
-    except (ValueError, TypeError) as e:
-        logger.warning('Paystack webhook: invalid JSON %s', e)
-        return Response({'error': 'Invalid JSON'}, status=status.HTTP_400_BAD_REQUEST)
+        text = raw_body.decode('utf-8')
+    except UnicodeDecodeError as e:
+        logger.warning('Paystack webhook: body not utf-8: %s', e)
+        return JsonResponse({'error': 'Invalid encoding'}, status=400)
+
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as e:
+        logger.warning('Paystack webhook: invalid JSON %s body_prefix=%r', e, raw_body[:500])
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
     event = data.get('event')
     if event != 'charge.success':
-        return Response({'received': True}, status=status.HTTP_200_OK)
+        return JsonResponse({'received': True}, status=200)
 
     payload = data.get('data') or {}
     reference = (payload.get('reference') or '').strip()
     if not reference:
-        return Response({'received': True}, status=status.HTTP_200_OK)
+        return JsonResponse({'received': True}, status=200)
 
     if PaymentTransaction.objects.filter(gateway_transaction_id=reference, status='completed').exists():
-        return Response({'received': True}, status=status.HTTP_200_OK)
+        return JsonResponse({'received': True, 'duplicate': True}, status=200)
 
     metadata = payload.get('metadata') or {}
     plan_name = metadata.get('plan')
     if not plan_name:
-        return Response({'received': True}, status=status.HTTP_200_OK)
+        for cf in metadata.get('custom_fields') or []:
+            if cf.get('display_name') == 'Plan' or cf.get('variable_name') == 'plan':
+                plan_name = (cf.get('value') or '').strip()
+                break
+    if not plan_name:
+        return JsonResponse({'received': True, 'ignored': 'no_plan_in_metadata'}, status=200)
 
     is_yearly = (metadata.get('interval') or '').lower() == 'yearly'
 
@@ -1048,7 +1080,7 @@ def paystack_webhook(request):
         plan = SubscriptionPlan.objects.filter(tier=tier_map.get(plan_name, plan_name)).first()
         if not plan:
             logger.warning('Paystack webhook: plan not found %s', plan_name)
-            return Response({'received': True}, status=status.HTTP_200_OK)
+            return JsonResponse({'received': True, 'ignored': 'plan_not_found'}, status=200)
 
     user = None
     match = re.match(r'^och_(\d+)_(\d+)_([a-z0-9]+)$', reference)
@@ -1066,16 +1098,16 @@ def paystack_webhook(request):
 
     if not user:
         logger.warning('Paystack webhook: could not resolve user for reference=%s', reference)
-        return Response({'received': True}, status=status.HTTP_200_OK)
+        return JsonResponse({'received': True, 'ignored': 'user_not_found'}, status=200)
 
     try:
         _apply_paystack_payment(user=user, plan=plan, payload=payload, reference=reference, is_yearly=is_yearly)
         logger.info('[paystack_webhook] charge.success ref=%s user=%s plan=%s', reference, user.email, plan.name)
     except Exception as e:
         logger.exception('Paystack webhook apply payment failed: %s', e)
-        return Response({'received': True}, status=status.HTTP_200_OK)
+        return JsonResponse({'received': False, 'error': 'apply_failed'}, status=500)
 
-    return Response({'received': True}, status=status.HTTP_200_OK)
+    return JsonResponse({'received': True}, status=200)
 
 # ── PROMOTIONAL CODES ────────────────────────────────────────────────────────
 

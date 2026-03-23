@@ -213,6 +213,27 @@ class AnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
                 'period_end': end_date,
             }
 
+        try:
+            subscriptions = FinancialAnalytics.calculate_subscription_analytics(start_date, end_date)
+        except Exception:
+            subscriptions = {
+                'currency': 'KES',
+                'active_subscribers': 0,
+                'trial_subscribers': 0,
+                'paying_subscribers': 0,
+                'past_due_subscribers': 0,
+                'canceled_total': 0,
+                'mrr_kes': 0.0,
+                'arr_kes_approx': 0.0,
+                'new_subscriptions_in_period': 0,
+                'canceled_subscriptions_in_period': 0,
+                'subscription_churn_rate_period_pct': 0.0,
+                'paystack_completed_revenue_kes_period': 0.0,
+                'paystack_completed_transactions_period': 0,
+                'paystack_completed_payments': [],
+                'plan_distribution': [],
+            }
+
         return Response({
             'period': {
                 'start_date': start_date.date(),
@@ -223,7 +244,8 @@ class AnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
             'growth': growth_metrics,
             'revenue_streams': revenue_streams,
             'payment_success': payment_success,
-            'dunning_recovery': dunning_recovery
+            'dunning_recovery': dunning_recovery,
+            'subscriptions': subscriptions,
         })
     
     @action(detail=False, methods=['get'])
@@ -264,12 +286,38 @@ class AnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
             churned_customers = 0
             cohort_data = []
 
+        subscription_payment_leaders = []
+        try:
+            from subscriptions.models import PaymentTransaction
+
+            payer_rows = (
+                PaymentTransaction.objects.filter(status='completed')
+                .values('user__email')
+                .annotate(
+                    total_revenue_kes=Sum('amount'),
+                    payment_count=Count('id'),
+                )
+                .order_by('-total_revenue_kes')[:15]
+            )
+            subscription_payment_leaders = [
+                {
+                    'email': row['user__email'] or '',
+                    'total_revenue_kes': float(row['total_revenue_kes'] or 0),
+                    'payments': row['payment_count'],
+                }
+                for row in payer_rows
+            ]
+        except Exception:
+            subscription_payment_leaders = []
+
         return Response({
             'top_customers': top_customers_payload,
             'churn_analysis': {
                 'churned_last_30_days': churned_customers,
                 'cohort_data': cohort_data
-            }
+            },
+            'subscription_payment_leaders': subscription_payment_leaders,
+            'subscription_payment_currency': 'KES',
         })
     
     @action(detail=False, methods=['get'])

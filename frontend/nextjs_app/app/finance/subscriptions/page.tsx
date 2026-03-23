@@ -36,9 +36,11 @@ function buildRows(
   users: Array<{
     id?: string;
     plan_name?: string;
+    plan_display_name?: string;
     user_name?: string;
     user_email?: string;
     price_monthly?: number;
+    billing_interval?: string;
     current_period_start?: string | null;
     current_period_end?: string | null;
   }>,
@@ -53,7 +55,9 @@ function buildRows(
   const planRows: SubscriptionRow[] = (users || []).map((sub) => ({
     id: `sub-${sub.id}`,
     type: "plan",
-    planName: sub.plan_name || "Plan",
+    planName:
+      sub.plan_display_name ||
+      (sub.plan_name ? sub.plan_name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Plan"),
     ownerName: sub.user_name || sub.user_email || "—",
     invoiceCount: 1,
     totalRevenueKes: Number(sub.price_monthly ?? 0),
@@ -252,7 +256,8 @@ function SubscriptionsContent() {
 
   return (
     <div className="w-full max-w-7xl py-4 px-4 sm:px-6 lg:px-8 mx-auto">
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
+      <div className="mb-4">
+        <div className="flex items-center justify-between flex-wrap gap-4">
         <h1 className="text-2xl font-bold text-white">Subscriptions</h1>
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -294,8 +299,10 @@ function SubscriptionsContent() {
                   className="w-full bg-slate-900 text-white text-sm rounded border border-slate-600 px-2 py-1.5"
                 >
                   <option value="all">All plans</option>
-                  {plans.map((p: { id: string; name: string }) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
+                  {plans.map((p: { id: string; name: string; catalog?: { display_name?: string } }) => (
+                    <option key={p.id} value={p.id}>
+                      {p.catalog?.display_name || p.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -310,6 +317,11 @@ function SubscriptionsContent() {
             Export
           </Button>
         </div>
+        </div>
+        <p className="text-sm text-slate-400 mt-2 max-w-3xl">
+          Lists active and trial OCH student subscriptions from the same billing records as the student subscription page.
+          Plan names show catalog labels when available; monthly amounts are in KES.
+        </p>
       </div>
 
       <Suspense fallback={<FinanceDashboardSkeleton />}>

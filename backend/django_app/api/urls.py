@@ -76,6 +76,8 @@ urlpatterns = [
     
     # Other endpoints
     path('', include('organizations.urls')),
+    # Stream B: institutional billing (director UI + contracts)
+    path('institutional/', include('organizations.institutional_urls')),
     path('', include('progress.urls')),
     
     # Student Dashboard endpoints

@@ -581,6 +581,107 @@ class InstitutionalBillingViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
 
+class InstitutionalStudentViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Institutional students for director UI (camelCase payload).
+    GET /api/v1/institutional/students/
+    POST .../students/{id}/deactivate/ | reactivate/
+    """
+
+    permission_classes = [IsAuthenticated, IsProgramDirector]
+
+    def get_queryset(self):
+        return InstitutionalStudent.objects.select_related(
+            'user', 'contract__organization'
+        ).order_by('-enrolled_at')
+
+    def list(self, request):
+        try:
+            qs = self.get_queryset()
+            contract_id = request.query_params.get('contract_id')
+            if contract_id:
+                qs = qs.filter(contract_id=contract_id)
+            status_filter = request.query_params.get('status')
+            if status_filter == 'active':
+                qs = qs.filter(is_active=True)
+            elif status_filter == 'inactive':
+                qs = qs.filter(is_active=False)
+            search = (request.query_params.get('search') or '').strip()
+            if search:
+                qs = qs.filter(
+                    Q(user__email__icontains=search)
+                    | Q(user__first_name__icontains=search)
+                    | Q(user__last_name__icontains=search)
+                )
+            page_size = int(request.query_params.get('page_size', 20))
+            page = int(request.query_params.get('page', 1))
+            offset = (page - 1) * page_size
+            total_count = qs.count()
+            rows = qs[offset : offset + page_size]
+
+            students_data = []
+            for enr in rows:
+                u = enr.user
+                students_data.append(
+                    {
+                        'id': str(enr.id),
+                        'user': {
+                            'id': str(u.id),
+                            'email': u.email,
+                            'firstName': u.first_name or '',
+                            'lastName': u.last_name or '',
+                        },
+                        'contract': {
+                            'id': str(enr.contract.id),
+                            'contractNumber': enr.contract.contract_number,
+                            'organizationName': enr.contract.organization.name,
+                        },
+                        'enrolledAt': enr.enrolled_at.isoformat(),
+                        'enrollmentType': enr.enrollment_type,
+                        'isActive': enr.is_active,
+                        'trackAssignments': [],
+                    }
+                )
+
+            return Response(
+                {
+                    'students': students_data,
+                    'pagination': {
+                        'total': total_count,
+                        'page': page,
+                        'page_size': page_size,
+                        'total_pages': (total_count + page_size - 1) // page_size
+                        if page_size
+                        else 1,
+                    },
+                }
+            )
+        except Exception as e:
+            logger.error('Error listing institutional students: %s', e)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'], url_path='deactivate')
+    def deactivate(self, request, pk=None):
+        reason = (request.data.get('reason') or '').strip() or 'Deactivated by administrator'
+        try:
+            enr = get_object_or_404(InstitutionalStudent, id=pk)
+            enr.deactivate(reason=reason)
+            return Response({'message': 'Student deactivated', 'isActive': False})
+        except Exception as e:
+            logger.error('Deactivate institutional student %s: %s', pk, e)
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], url_path='reactivate')
+    def reactivate(self, request, pk=None):
+        try:
+            enr = get_object_or_404(InstitutionalStudent, id=pk)
+            enr.reactivate()
+            return Response({'message': 'Student reactivated', 'isActive': True})
+        except Exception as e:
+            logger.error('Reactivate institutional student %s: %s', pk, e)
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsFinanceUser])
 def institutional_analytics(request):

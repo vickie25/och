@@ -19,6 +19,7 @@ from .serializers import (
     InvoiceSerializer, PaymentSerializer, WalletTopUpSerializer,
     CreditPurchaseSerializer
 )
+from subscriptions.models import UserSubscription
 
 
 class WalletViewSet(viewsets.ModelViewSet):
@@ -343,7 +344,26 @@ class FinancialDashboardView(APIView):
         recent_transactions = Transaction.objects.filter(
             wallet=wallet
         )[:10]
-        
+
+        subscription_payload = None
+        try:
+            us = UserSubscription.objects.select_related('plan').get(user=user)
+            plan = us.plan
+            cat = plan.catalog or {}
+            display = (cat.get('display_name') or '').strip() or plan.name.replace('_', ' ').title()
+            subscription_payload = {
+                'plan_name': plan.name,
+                'plan_display_name': display,
+                'tier': plan.tier,
+                'status': us.status,
+                'billing_interval': getattr(us, 'billing_interval', None) or plan.billing_interval,
+                'current_period_start': us.current_period_start.isoformat() if us.current_period_start else None,
+                'current_period_end': us.current_period_end.isoformat() if us.current_period_end else None,
+                'price_monthly_kes': float(plan.price_monthly or 0),
+            }
+        except UserSubscription.DoesNotExist:
+            pass
+
         return Response({
             'wallet': {
                 'balance': wallet.balance,
@@ -361,5 +381,6 @@ class FinancialDashboardView(APIView):
             },
             'recent_transactions': TransactionSerializer(
                 recent_transactions, many=True
-            ).data
+            ).data,
+            'subscription': subscription_payload,
         })

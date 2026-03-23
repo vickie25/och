@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-/** Subscription prices from Django are in USD; finance dashboard displays KES. Same rate as subscriptions route. */
-const USD_TO_KES = Number(process.env.USD_TO_KES_RATE || process.env.NEXT_PUBLIC_USD_TO_KES || 130);
+/** Backend `/api/v1/subscription/users` returns `price_monthly` in KES (ledger). Do not multiply by USD rate. */
 
 export async function GET(
   request: NextRequest,
@@ -37,10 +36,9 @@ export async function GET(
 
     const data = await resp.json();
     const list = Array.isArray(data) ? data : [];
-    // Convert price_monthly from USD to KES for finance display
     const users = list.map((sub: { price_monthly?: number; [k: string]: unknown }) => ({
       ...sub,
-      price_monthly: Math.round((Number(sub.price_monthly ?? 0) * USD_TO_KES) * 100) / 100,
+      price_monthly: Number(sub.price_monthly ?? 0),
     }));
     return NextResponse.json(users);
   } catch (error) {

@@ -6,12 +6,25 @@ from .base import *
 DEBUG = True
 
 # Allow override via environment; fall back to dev defaults
+# Leading-dot entries match any subdomain (Django docs): .ngrok-free.dev → *.ngrok-free.dev
+_TUNNEL_HOST_SUFFIXES = (
+    '.ngrok-free.dev',
+    '.ngrok.io',
+    '.ngrok.app',
+)
+
 if os.environ.get('ALLOWED_HOSTS'):
     ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()]
 else:
     ALLOWED_HOSTS = [
         'localhost', '127.0.0.1', '0.0.0.0', 'testserver', 'nginx', 'django'
     ]
+
+# Paystack/callback webhooks hit the public tunnel URL — must allow Host header (set ALLOW_TUNNEL_HOSTS=false to skip)
+if os.environ.get('ALLOW_TUNNEL_HOSTS', 'true').lower() == 'true':
+    for _sfx in _TUNNEL_HOST_SUFFIXES:
+        if _sfx not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(_sfx)
 
 # Frontend URL for development
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')

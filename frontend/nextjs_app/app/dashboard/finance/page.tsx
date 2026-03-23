@@ -1,6 +1,6 @@
 /**
  * Financial Dashboard
- * Comprehensive overview of all financial operations
+ * Personal wallet, invoices, and student subscription for the logged-in user.
  */
 
 'use client'
@@ -51,6 +51,17 @@ type DashboardData = {
     description: string
     created_at: string
   }>
+  /** OCH student subscription (same source as /dashboard/student/subscription) */
+  subscription: {
+    plan_name: string
+    plan_display_name: string
+    tier: string
+    status: string
+    billing_interval: string
+    current_period_start: string | null
+    current_period_end: string | null
+    price_monthly_kes: number
+  } | null
 }
 
 export default function FinancialDashboardPage() {
@@ -108,7 +119,14 @@ export default function FinancialDashboardPage() {
                 <div>
                   <h1 className="text-h1 font-bold text-white">Financial Dashboard</h1>
                   <p className="mt-1 body-m text-och-steel">
-                    Comprehensive overview of all financial operations
+                    Your wallet, credits, invoices, and student subscription for this account.
+                  </p>
+                  <p className="mt-2 text-sm text-och-steel/90 max-w-2xl">
+                    Platform-wide Paystack totals and subscriber metrics are on{' '}
+                    <Link href="/dashboard/finance/analytics" className="text-och-mint hover:underline">
+                      Analytics
+                    </Link>
+                    . If you use a staff login without a student plan, the OCH subscription card will stay empty.
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -191,6 +209,68 @@ export default function FinancialDashboardPage() {
                 </div>
               </Card>
             </div>
+
+            {/* OCH subscription — same plan/renewal as student subscription page */}
+            <Card className="p-6 mb-8 bg-gradient-to-br from-och-mint/15 to-transparent border border-och-mint/30">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-lg bg-och-mint/20">
+                    <CreditCard className="h-8 w-8 text-och-mint" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-och-steel mb-1">OCH subscription</p>
+                    {dashboardData?.subscription ? (
+                      <>
+                        <p className="text-2xl font-bold text-white">
+                          {dashboardData.subscription.plan_display_name}
+                        </p>
+                        <p className="text-xs text-och-steel mt-1 font-mono">{dashboardData.subscription.plan_name}</p>
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          <Badge variant="mint">{dashboardData.subscription.status}</Badge>
+                          <Badge variant="steel">{dashboardData.subscription.billing_interval}</Badge>
+                          <Badge variant="outline" className="border-och-steel/40 text-och-steel">
+                            {dashboardData.subscription.tier}
+                          </Badge>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-och-steel">
+                        No student subscription on this login. Subscriptions are per user; use Analytics for platform
+                        revenue.
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 lg:text-right">
+                  {dashboardData?.subscription ? (
+                    <>
+                      <div>
+                        <p className="text-sm text-och-steel">Next renewal</p>
+                        <p className="text-lg font-semibold text-white">
+                          {dashboardData.subscription.current_period_end
+                            ? new Date(dashboardData.subscription.current_period_end).toLocaleDateString()
+                            : '—'}
+                        </p>
+                        <p className="text-xs text-och-steel mt-1">
+                          KSh {Number(dashboardData.subscription.price_monthly_kes || 0).toLocaleString()} / month
+                        </p>
+                      </div>
+                      <Link href="/dashboard/student/subscription">
+                        <Button variant="mint" size="sm">
+                          Manage subscription
+                        </Button>
+                      </Link>
+                    </>
+                  ) : (
+                    <Link href="/dashboard/student/subscription">
+                      <Button variant="outline" size="sm">
+                        View plans
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </Card>
 
             {/* Quick Actions */}
             <Card className="p-6 mb-8 bg-och-midnight border border-och-steel/20">

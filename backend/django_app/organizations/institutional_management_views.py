@@ -27,34 +27,52 @@ from .institutional_management_models import (
 from .institutional_management_service import InstitutionalManagementService
 from .institutional_models import InstitutionalContract
 from programs.models import Cohort, Track
+from programs.permissions import IsProgramDirector
 from users.models import User
 
 logger = logging.getLogger(__name__)
 
 
+def _can_access_institutional_contract(request, contract_id):
+    """Program directors / staff may access any contract; others need portal_access row."""
+    if not request.user.is_authenticated or not contract_id:
+        return False
+    if not InstitutionalContract.objects.filter(id=contract_id).exists():
+        return False
+    if IsProgramDirector().has_permission(request, None):
+        return True
+    return InstitutionalPortalAccess.objects.filter(
+        user=request.user,
+        contract_id=contract_id,
+        is_active=True,
+    ).exists()
+
+
 class InstitutionalPortalPermission(permissions.BasePermission):
-    """Custom permission for institutional portal access"""
-    
+    """Portal users with contract access, or program directors (full institutional API)."""
+
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
-        
-        # Check if user has portal access for any contract
+        if IsProgramDirector().has_permission(request, view):
+            return True
         return InstitutionalPortalAccess.objects.filter(
             user=request.user,
-            is_active=True
+            is_active=True,
         ).exists()
-    
+
     def has_object_permission(self, request, view, obj):
-        # Check if user has access to the specific contract
-        contract_id = getattr(obj, 'contract_id', None) or getattr(obj, 'id', None)
+        if IsProgramDirector().has_permission(request, view):
+            return True
+        contract_id = getattr(obj, 'contract_id', None)
+        if contract_id is None and hasattr(obj, 'contract'):
+            contract_id = getattr(obj.contract, 'id', None)
         if not contract_id:
             return False
-        
         return InstitutionalPortalAccess.objects.filter(
             user=request.user,
             contract_id=contract_id,
-            is_active=True
+            is_active=True,
         ).exists()
 
 
@@ -444,20 +462,13 @@ def institutional_dashboard(request):
                 {'error': 'contract_id is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Verify user has access to this contract
-        access = InstitutionalPortalAccess.objects.filter(
-            user=request.user,
-            contract_id=contract_id,
-            is_active=True
-        ).first()
-        
-        if not access:
+
+        if not _can_access_institutional_contract(request, contract_id):
             return Response(
                 {'error': 'Access denied to this contract'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         # Get comprehensive analytics
         analytics = InstitutionalManagementService.get_institutional_analytics(contract_id)
         
@@ -485,7 +496,13 @@ def student_progress_report(request):
                 {'error': 'contract_id is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
+        if not _can_access_institutional_contract(request, contract_id):
+            return Response(
+                {'error': 'Access denied to this contract'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         # Get student allocations with progress
         allocations = InstitutionalStudentAllocation.objects.filter(
             seat_pool__contract_id=contract_id,
@@ -569,7 +586,13 @@ def recycle_seats(request):
                 {'error': 'contract_id is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
+        if not _can_access_institutional_contract(request, contract_id):
+            return Response(
+                {'error': 'Access denied to this contract'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         # Recycle seats
         results = InstitutionalManagementService.recycle_inactive_seats(
             contract_id=contract_id,
@@ -605,7 +628,13 @@ def export_student_data(request):
                 {'error': 'contract_id is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
+        if not _can_access_institutional_contract(request, contract_id):
+            return Response(
+                {'error': 'Access denied to this contract'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         # Get student allocations
         allocations = InstitutionalStudentAllocation.objects.filter(
             seat_pool__contract_id=contract_id
