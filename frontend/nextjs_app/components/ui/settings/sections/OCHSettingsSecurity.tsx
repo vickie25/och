@@ -423,7 +423,7 @@ export function OCHSettingsSecurity() {
             if (isAdmin) target = '/dashboard/admin';
             else if (isDirector) target = '/dashboard/director';
             else if (isMentor) target = '/dashboard/mentor';
-            else if (isFinance) target = '/finance/dashboard';
+            else if (isFinance) target = '/dashboard/finance';
             else if (isAnalyst) target = '/dashboard/analyst';
             else if (isSupport) target = '/support/dashboard';
             else if (isSponsor) target = '/dashboard/sponsor';

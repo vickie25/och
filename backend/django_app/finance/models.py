@@ -200,6 +200,7 @@ class Contract(models.Model):
         ('proposal', 'Proposal'),
         ('negotiation', 'Negotiation'),
         ('signed', 'Signed'),
+        ('pending_payments', 'Pending payments'),
         ('active', 'Active'),
         ('renewal', 'Renewal'),
         ('terminated', 'Terminated'),
@@ -215,7 +216,12 @@ class Contract(models.Model):
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     start_date = models.DateField()
     end_date = models.DateField()
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='proposal')
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='proposal',
+        help_text='Current contract lifecycle status.',
+    )
     total_value = models.DecimalField(
         max_digits=15,
         decimal_places=2,
@@ -250,12 +256,18 @@ class Contract(models.Model):
 
     @property
     def is_active(self):
-        """Check if contract is currently active."""
+        """True when within date range, not terminated, and paid (or legacy active with no invoices)."""
         now = timezone.now().date()
-        return (
-            self.status == 'active' and
-            self.start_date <= now <= self.end_date
-        )
+        if self.status == 'terminated':
+            return False
+        if not (self.start_date <= now <= self.end_date):
+            return False
+        if self.invoices.filter(status='paid').exists():
+            return True
+        # Legacy rows marked active before invoice workflow
+        if self.status == 'active' and not self.invoices.exists():
+            return True
+        return False
 
     @property
     def days_until_expiry(self):
@@ -532,11 +544,28 @@ class Invoice(models.Model):
         return f"{self.invoice_number} - {client} - {self.total}"
 
     def save(self, *args, **kwargs):
+        old_status = None
+        if self.pk:
+            try:
+                old_status = (
+                    Invoice.objects.filter(pk=self.pk).values_list('status', flat=True).first()
+                )
+            except Exception:
+                old_status = None
         if not self.invoice_number:
             self.invoice_number = self.generate_invoice_number()
         if not self.total:
             self.total = self.amount + self.tax
         super().save(*args, **kwargs)
+        if (
+            self.status == 'paid'
+            and old_status != 'paid'
+            and self.contract_id
+        ):
+            Contract.objects.filter(
+                pk=self.contract_id,
+                status__in=['pending_payments', 'proposal', 'negotiation', 'signed'],
+            ).update(status='active', updated_at=timezone.now())
 
     @staticmethod
     def generate_invoice_number():

@@ -87,6 +87,10 @@ def _assign_user_role(user, role_name='student'):
         'director': 'program_director',  # director maps to program_director
         'sponsor': 'sponsor_admin',
         'sponsor_admin': 'sponsor_admin',
+        'institution_admin': 'institution_admin',
+        'institution admin': 'institution_admin',
+        'organization_admin': 'organization_admin',
+        'organization admin': 'organization_admin',
         'employer': 'employer',
         'analyst': 'analyst',
         'finance': 'finance',

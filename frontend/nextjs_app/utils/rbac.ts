@@ -5,7 +5,7 @@
 
 import { User, UserRole } from '@/services/types/user'
 
-export type Role = 'mentee' | 'student' | 'mentor' | 'admin' | 'program_director' | 'sponsor_admin' | 'analyst' | 'employer' | 'finance' | 'support'
+export type Role = 'mentee' | 'student' | 'mentor' | 'admin' | 'program_director' | 'sponsor_admin' | 'institution_admin' | 'organization_admin' | 'analyst' | 'employer' | 'finance' | 'support'
 
 /**
  * Check if user has a given permission (by name).
@@ -97,7 +97,7 @@ export interface RoutePermission {
 // Route permissions mapping
 export const ROUTE_PERMISSIONS: RoutePermission[] = [
   // Dashboard root (redirect page) - allow any authenticated role
-  { path: '/dashboard', roles: ['mentee', 'student', 'mentor', 'admin', 'program_director', 'sponsor_admin', 'analyst', 'employer', 'finance', 'support'] },
+  { path: '/dashboard', roles: ['mentee', 'student', 'mentor', 'admin', 'program_director', 'sponsor_admin', 'institution_admin', 'organization_admin', 'analyst', 'employer', 'finance', 'support'] },
 
   // Student/Mentee routes
   { path: '/dashboard/student', roles: ['mentee', 'student'] },
@@ -161,6 +161,8 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   { path: '/dashboard/sponsor/marketplace', roles: ['sponsor_admin'] },
   { path: '/dashboard/sponsor/marketplace/talent', roles: ['sponsor_admin'] },
   { path: '/dashboard/sponsor/marketplace/jobs', roles: ['sponsor_admin'] },
+  // Institution admin portal route (mapped to sponsor_admin role family)
+  { path: '/dashboard/institution', roles: ['institution_admin', 'organization_admin', 'sponsor_admin', 'admin'] },
   
   // Admin routes
   { path: '/dashboard/admin', roles: ['admin'] },
@@ -189,7 +191,10 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   { path: '/dashboard/analyst', roles: ['analyst'] },
   { path: '/dashboard/analytics', roles: ['analyst', 'admin', 'program_director'] },
   
-  // Finance routes
+  // Finance dashboard (Next.js app under /dashboard/finance)
+  { path: '/dashboard/finance', roles: ['finance', 'admin'] },
+
+  // Finance routes (legacy /finance/*)
   { path: '/finance', roles: ['finance'] },
   { path: '/finance/dashboard', roles: ['finance'] },
   { path: '/finance/catalog', roles: ['finance'] },
@@ -280,7 +285,17 @@ export function getUserRoles(user: User | null): Role[] {
     if (normalized === 'student') return 'student'
     if (normalized === 'mentor') return 'mentor'
     if (normalized === 'admin') return 'admin'
-    if (normalized === 'sponsor_admin' || normalized === 'sponsor' || normalized === 'sponsor/employer admin' || normalized === 'sponsoremployer admin') return 'sponsor_admin'
+    if (
+      normalized === 'sponsor_admin' ||
+      normalized === 'sponsor' ||
+      normalized === 'sponsor/employer admin' ||
+      normalized === 'sponsoremployer admin' ||
+      normalized === 'institution_admin' ||
+      normalized === 'institution admin' ||
+      normalized === 'institutional_admin' ||
+      normalized === 'institutional admin'
+    ) return 'institution_admin'
+    if (normalized === 'organization_admin' || normalized === 'organization admin') return 'organization_admin'
     if (normalized === 'analyst') return 'analyst'
     if (normalized === 'employer') return 'employer'
     if (normalized === 'finance' || normalized === 'finance_admin') return 'finance'
@@ -390,7 +405,7 @@ export function getPrimaryRole(user: User | null): Role | null {
   
   // Priority order (higher priority roles first)
   // This ensures users with multiple roles get redirected to the most appropriate dashboard
-  const priority: Role[] = ['program_director', 'finance', 'support', 'mentor', 'analyst', 'sponsor_admin', 'employer', 'mentee', 'student']
+  const priority: Role[] = ['program_director', 'finance', 'support', 'mentor', 'analyst', 'institution_admin', 'organization_admin', 'sponsor_admin', 'employer', 'mentee', 'student']
   
   console.log('getPrimaryRole: Checking priority order for roles:', roles)
   console.log('getPrimaryRole: Priority order:', priority)
@@ -427,9 +442,11 @@ export function getDashboardRoute(role: Role | null): string {
     'admin': '/dashboard/admin',               // Admin role → Admin Dashboard
     'program_director': '/dashboard/director', // Program Director role → Director Dashboard
     'sponsor_admin': '/dashboard/sponsor',     // Sponsor/Employer Admin → Sponsor Dashboard
+    'institution_admin': '/dashboard/institution', // Institution Admin → Institution Dashboard
+    'organization_admin': '/dashboard/institution', // Organization Admin → Institution Dashboard
     'analyst': '/dashboard/analyst',           // Analyst role → Analyst Dashboard
     'employer': '/dashboard/employer',         // Employer role → Employer Dashboard
-    'finance': '/finance/dashboard',           // Finance role → Finance Dashboard
+    'finance': '/dashboard/finance',           // Finance role → Finance Dashboard
     'support': '/support/dashboard',           // Support role → Support Dashboard
   }
   

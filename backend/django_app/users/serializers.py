@@ -224,7 +224,7 @@ class SignupSerializer(serializers.Serializer):
     org_id = serializers.IntegerField(required=False, allow_null=True)  # Organization ID
     # Role assignment for signup
     role = serializers.ChoiceField(
-        choices=['student', 'mentor', 'admin', 'program_director', 'sponsor_admin', 'employer', 'analyst', 'finance', 'support'],
+        choices=['student', 'mentor', 'admin', 'program_director', 'sponsor_admin', 'institution_admin', 'organization_admin', 'employer', 'analyst', 'finance', 'support'],
         default='student',
         required=False
     )

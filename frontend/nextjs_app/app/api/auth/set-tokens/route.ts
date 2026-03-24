@@ -8,6 +8,8 @@ function normalizeRoleName(roleName: string): string {
   const normalized = (roleName || '').toLowerCase().trim()
   if (normalized === 'program_director' || normalized === 'director') return 'program_director'
   if (normalized === 'sponsor_admin' || normalized === 'sponsor') return 'sponsor_admin'
+  if (normalized === 'institution_admin' || normalized === 'institution admin' || normalized === 'institutional_admin' || normalized === 'institutional admin') return 'institution_admin'
+  if (normalized === 'organization_admin' || normalized === 'organization admin') return 'organization_admin'
   if (normalized === 'finance' || normalized === 'finance_admin') return 'finance'
   return normalized
 }
@@ -37,7 +39,7 @@ function extractNormalizedRoles(user: any): string[] {
 
 function getPrimaryRole(roles: string[]): string | null {
   if (roles.includes('admin')) return 'admin'
-  const priority = ['program_director', 'finance', 'support', 'mentor', 'analyst', 'sponsor_admin', 'employer', 'mentee', 'student']
+  const priority = ['program_director', 'finance', 'support', 'mentor', 'analyst', 'institution_admin', 'organization_admin', 'sponsor_admin', 'employer', 'mentee', 'student']
   for (const r of priority) {
     if (roles.includes(r)) return r
   }
@@ -50,9 +52,11 @@ function getDashboardForRole(role: string | null): string {
     case 'program_director': return '/dashboard/director'
     case 'mentor': return '/dashboard/mentor'
     case 'analyst': return '/dashboard/analyst'
+    case 'institution_admin': return '/dashboard/institution'
+    case 'organization_admin': return '/dashboard/institution'
     case 'sponsor_admin': return '/dashboard/sponsor'
     case 'employer': return '/dashboard/employer'
-    case 'finance': return '/finance/dashboard'
+    case 'finance': return '/dashboard/finance'
     case 'support': return '/support/dashboard'
     case 'mentee':
     case 'student': return '/dashboard/student'

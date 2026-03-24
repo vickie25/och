@@ -71,12 +71,12 @@ export default function FinancialDashboardPage() {
 
   useEffect(() => {
     loadDashboardData()
-  }, [])
+  }, [timeRange])
 
   const loadDashboardData = async () => {
     try {
       setLoading(true)
-      const response = await apiGateway.get('/finance/dashboard/')
+      const response = await apiGateway.get(`/finance/dashboard/?range=${encodeURIComponent(timeRange)}`)
       setDashboardData(response)
     } catch (error) {
       console.error('Failed to load dashboard data:', error)
@@ -90,6 +90,18 @@ export default function FinancialDashboardPage() {
       <ArrowUpRight className="h-4 w-4 text-och-savanna-green" /> :
       <ArrowDownLeft className="h-4 w-4 text-och-orange" />
   }
+
+  const formatKes = (amount: number | undefined | null) =>
+    `KSh ${Number(amount || 0).toLocaleString()}`
+
+  const invoiceHealth = (dashboardData?.invoices.overdue || 0) > 0 ? 'Attention' : 'Good'
+  const walletHealth = (dashboardData?.wallet.balance || 0) > 0 ? 'Funded' : 'Low'
+  const creditHealth = (dashboardData?.credits.active_balance || 0) > 0 ? 'Available' : 'Empty'
+  const cashFlowHealth =
+    (dashboardData?.recent_transactions || []).filter((t) => t.type === 'credit').length >=
+    (dashboardData?.recent_transactions || []).filter((t) => t.type === 'debit').length
+      ? 'Positive'
+      : 'Negative'
 
   if (loading) {
     return (
@@ -108,7 +120,7 @@ export default function FinancialDashboardPage() {
   }
 
   return (
-    <RouteGuard>
+    <RouteGuard requiredRoles={['finance', 'admin']}>
       <div className="min-h-screen bg-och-midnight flex">
         <FinanceNavigation />
         <div className="flex-1 lg:ml-64">
@@ -117,17 +129,7 @@ export default function FinancialDashboardPage() {
             <div className="mb-8">
               <div className="flex justify-between items-center">
                 <div>
-                  <h1 className="text-h1 font-bold text-white">Financial Dashboard</h1>
-                  <p className="mt-1 body-m text-och-steel">
-                    Your wallet, credits, invoices, and student subscription for this account.
-                  </p>
-                  <p className="mt-2 text-sm text-och-steel/90 max-w-2xl">
-                    Platform-wide Paystack totals and subscriber metrics are on{' '}
-                    <Link href="/dashboard/finance/analytics" className="text-och-mint hover:underline">
-                      Analytics
-                    </Link>
-                    . If you use a staff login without a student plan, the OCH subscription card will stay empty.
-                  </p>
+                  <h1 className="text-h1 font-bold text-white">Finance Dashboard</h1>
                 </div>
                 <div className="flex gap-2">
                   <select
@@ -135,10 +137,10 @@ export default function FinancialDashboardPage() {
                     onChange={(e) => setTimeRange(e.target.value)}
                     className="px-3 py-2 bg-och-steel/10 border border-och-steel/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-och-mint"
                   >
-                    <option value="7d">Last 7 days</option>
-                    <option value="30d">Last 30 days</option>
-                    <option value="90d">Last 90 days</option>
-                    <option value="1y">Last year</option>
+                    <option value="7d">7 days</option>
+                    <option value="30d">30 days</option>
+                    <option value="90d">90 days</option>
+                    <option value="1y">1 year</option>
                   </select>
                   <Button onClick={loadDashboardData}>
                     Refresh
@@ -152,13 +154,11 @@ export default function FinancialDashboardPage() {
               <Card className="p-6 bg-gradient-to-br from-och-mint/20 to-och-mint/5 border-och-mint/40">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-och-steel mb-1">Wallet Balance</p>
+                    <p className="text-sm font-medium text-och-steel mb-1">Wallet</p>
                     <p className="text-2xl font-bold text-white">
-                      ${dashboardData?.wallet.balance?.toFixed(2) || '0.00'}
+                      {formatKes(dashboardData?.wallet.balance)}
                     </p>
-                    <p className="text-xs text-och-steel mt-1">
-                      {dashboardData?.wallet.currency || 'USD'}
-                    </p>
+                    <p className="text-xs text-och-steel mt-1">KES</p>
                   </div>
                   <Wallet className="h-8 w-8 text-och-mint" />
                 </div>
@@ -167,9 +167,9 @@ export default function FinancialDashboardPage() {
               <Card className="p-6 bg-gradient-to-br from-och-defender/20 to-och-defender/5 border-och-defender/40">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-och-steel mb-1">Active Credits</p>
+                    <p className="text-sm font-medium text-och-steel mb-1">Credits</p>
                     <p className="text-2xl font-bold text-white">
-                      ${dashboardData?.credits.active_balance?.toFixed(2) || '0.00'}
+                      {formatKes(dashboardData?.credits.active_balance)}
                     </p>
                     <p className="text-xs text-och-steel mt-1">
                       {dashboardData?.credits.total_credits || 0} credits
@@ -201,9 +201,7 @@ export default function FinancialDashboardPage() {
                     <p className="text-2xl font-bold text-white">
                       {dashboardData?.invoices.overdue || 0}
                     </p>
-                    <p className="text-xs text-och-steel mt-1">
-                      Requires attention
-                    </p>
+                    <p className="text-xs text-och-steel mt-1">{invoiceHealth}</p>
                   </div>
                   <AlertTriangle className="h-8 w-8 text-och-orange" />
                 </div>
@@ -218,7 +216,7 @@ export default function FinancialDashboardPage() {
                     <CreditCard className="h-8 w-8 text-och-mint" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-och-steel mb-1">OCH subscription</p>
+                    <p className="text-sm font-medium text-och-steel mb-1">Subscription</p>
                     {dashboardData?.subscription ? (
                       <>
                         <p className="text-2xl font-bold text-white">
@@ -234,10 +232,7 @@ export default function FinancialDashboardPage() {
                         </div>
                       </>
                     ) : (
-                      <p className="text-och-steel">
-                        No student subscription on this login. Subscriptions are per user; use Analytics for platform
-                        revenue.
-                      </p>
+                      <p className="text-och-steel">No active subscription for this login.</p>
                     )}
                   </div>
                 </div>
@@ -252,7 +247,7 @@ export default function FinancialDashboardPage() {
                             : '—'}
                         </p>
                         <p className="text-xs text-och-steel mt-1">
-                          KSh {Number(dashboardData.subscription.price_monthly_kes || 0).toLocaleString()} / month
+                          {formatKes(dashboardData.subscription.price_monthly_kes)} / month
                         </p>
                       </div>
                       <Link href="/dashboard/student/subscription">
@@ -274,19 +269,19 @@ export default function FinancialDashboardPage() {
 
             {/* Quick Actions */}
             <Card className="p-6 mb-8 bg-och-midnight border border-och-steel/20">
-              <h2 className="text-h2 font-semibold text-white mb-4">Quick Actions</h2>
+              <h2 className="text-h2 font-semibold text-white mb-4">Actions</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Link href="/dashboard/finance/wallet">
                   <Button variant="outline" className="w-full h-20 flex flex-col gap-2">
                     <Wallet className="h-6 w-6" />
-                    <span className="text-sm">Manage Wallet</span>
+                    <span className="text-sm">Wallet</span>
                   </Button>
                 </Link>
                 
                 <Link href="/dashboard/finance/billing">
                   <Button variant="outline" className="w-full h-20 flex flex-col gap-2">
                     <FileText className="h-6 w-6" />
-                    <span className="text-sm">View Invoices</span>
+                    <span className="text-sm">Invoices</span>
                   </Button>
                 </Link>
                 
@@ -300,7 +295,7 @@ export default function FinancialDashboardPage() {
                 <Link href="/dashboard/finance/tax">
                   <Button variant="outline" className="w-full h-20 flex flex-col gap-2">
                     <DollarSign className="h-6 w-6" />
-                    <span className="text-sm">Tax Rates</span>
+                    <span className="text-sm">Tax</span>
                   </Button>
                 </Link>
               </div>
@@ -345,7 +340,7 @@ export default function FinancialDashboardPage() {
                           <p className={`font-medium text-sm ${
                             transaction.type === 'credit' ? 'text-och-savanna-green' : 'text-och-orange'
                           }`}>
-                            {transaction.type === 'credit' ? '+' : '-'}${Number(transaction.amount || 0).toFixed(2)}
+                            {transaction.type === 'credit' ? '+' : '-'}{formatKes(transaction.amount)}
                           </p>
                           <Badge variant={transaction.type === 'credit' ? 'mint' : 'orange'} className="text-xs">
                             {transaction.type}
@@ -357,9 +352,9 @@ export default function FinancialDashboardPage() {
                 )}
               </Card>
 
-              {/* Financial Health */}
+              {/* Health */}
               <Card className="p-6 bg-och-midnight border border-och-steel/20">
-                <h2 className="text-h2 font-semibold text-white mb-4">Financial Health</h2>
+                <h2 className="text-h2 font-semibold text-white mb-4">Health</h2>
                 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-3 bg-och-steel/10 rounded-lg">
@@ -367,7 +362,7 @@ export default function FinancialDashboardPage() {
                       <CheckCircle className="h-5 w-5 text-och-savanna-green" />
                       <span className="text-white">Wallet Status</span>
                     </div>
-                    <Badge variant="mint">Healthy</Badge>
+                    <Badge variant={walletHealth === 'Funded' ? 'mint' : 'gold'}>{walletHealth}</Badge>
                   </div>
 
                   <div className="flex items-center justify-between p-3 bg-och-steel/10 rounded-lg">
@@ -375,9 +370,7 @@ export default function FinancialDashboardPage() {
                       <FileText className="h-5 w-5 text-och-defender" />
                       <span className="text-white">Invoice Status</span>
                     </div>
-                    <Badge variant={dashboardData?.invoices.overdue ? 'orange' : 'mint'}>
-                      {dashboardData?.invoices.overdue ? 'Attention Needed' : 'Good'}
-                    </Badge>
+                    <Badge variant={dashboardData?.invoices.overdue ? 'orange' : 'mint'}>{invoiceHealth}</Badge>
                   </div>
 
                   <div className="flex items-center justify-between p-3 bg-och-steel/10 rounded-lg">
@@ -385,7 +378,7 @@ export default function FinancialDashboardPage() {
                       <CreditCard className="h-5 w-5 text-och-gold" />
                       <span className="text-white">Credit Utilization</span>
                     </div>
-                    <Badge variant="gold">Optimal</Badge>
+                    <Badge variant={creditHealth === 'Available' ? 'gold' : 'steel'}>{creditHealth}</Badge>
                   </div>
 
                   <div className="flex items-center justify-between p-3 bg-och-steel/10 rounded-lg">
@@ -393,41 +386,11 @@ export default function FinancialDashboardPage() {
                       <TrendingUp className="h-5 w-5 text-och-mint" />
                       <span className="text-white">Cash Flow</span>
                     </div>
-                    <Badge variant="mint">Positive</Badge>
+                    <Badge variant={cashFlowHealth === 'Positive' ? 'mint' : 'orange'}>{cashFlowHealth}</Badge>
                   </div>
                 </div>
               </Card>
             </div>
-
-            {/* System Status */}
-            <Card className="p-6 mt-8 bg-och-midnight border border-och-steel/20">
-              <h2 className="text-h2 font-semibold text-white mb-4">System Status</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex items-center gap-3 p-3 bg-och-savanna-green/10 rounded-lg border border-och-savanna-green/30">
-                  <CheckCircle className="h-5 w-5 text-och-savanna-green" />
-                  <div>
-                    <p className="text-white font-medium">Payment Gateway</p>
-                    <p className="text-xs text-och-steel">All systems operational</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 bg-och-savanna-green/10 rounded-lg border border-och-savanna-green/30">
-                  <CheckCircle className="h-5 w-5 text-och-savanna-green" />
-                  <div>
-                    <p className="text-white font-medium">Billing Engine</p>
-                    <p className="text-xs text-och-steel">Processing normally</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 bg-och-savanna-green/10 rounded-lg border border-och-savanna-green/30">
-                  <CheckCircle className="h-5 w-5 text-och-savanna-green" />
-                  <div>
-                    <p className="text-white font-medium">Tax Calculation</p>
-                    <p className="text-xs text-och-steel">Up to date</p>
-                  </div>
-                </div>
-              </div>
-            </Card>
           </div>
         </div>
       </div>

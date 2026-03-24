@@ -46,6 +46,13 @@ const PERSONAS = {
     description: 'Support talent development',
     gradient: 'from-yellow-500/20 via-yellow-600/10 to-slate-900/30'
   },
+  institution: {
+    name: 'Institution',
+    icon: '🏫',
+    color: 'sahara-gold',
+    description: 'Institution onboarding and management',
+    gradient: 'from-yellow-500/20 via-yellow-600/10 to-slate-900/30'
+  },
   analyst: {
     name: 'Analyst',
     icon: '📊',
@@ -447,7 +454,7 @@ export function LoginForm() {
           return roleName === 'finance' || roleName === 'finance_admin';
         });
         if (hasFinanceRole) {
-          route = '/finance/dashboard';
+          route = '/dashboard/finance';
         }
         // Check for support role — must go to support dashboard, never student
         const hasSupportRole = updatedUser.roles.some((r: any) => {
@@ -508,7 +515,7 @@ export function LoginForm() {
           return roleName === 'finance' || roleName === 'finance_admin';
         });
         if (finalFinanceCheck && route === '/dashboard/student') {
-          route = '/finance/dashboard';
+          route = '/dashboard/finance';
         }
         // CRITICAL: Force support route if support detected — support must NEVER land on student dashboard
         const finalSupportCheck = updatedUser.roles.some((r: any) => {
@@ -835,7 +842,7 @@ export function LoginForm() {
                     const roleNames = roles.map((r: any) => typeof r === 'string' ? r : (r?.role || r?.name || ''));
                     const needsProfiling = (u as any)?.profiling_complete === false && roleNames.some((name: string) => ['student', 'mentee'].includes(name));
                     const redirectTo = (searchParams.get('redirect') ?? '').replace(/\/$/, '') || '';
-                    const useRedirectParam = redirectTo && (redirectTo.startsWith('/dashboard') || redirectTo.startsWith('/onboarding/') || redirectTo.startsWith('/students/')) && (isValidDashboardRoute(redirectTo) || ['/dashboard/director', '/dashboard/admin', '/dashboard/mentor', '/dashboard/sponsor', '/dashboard/analyst', '/dashboard/employer', '/finance/dashboard', '/support/dashboard'].some(r => redirectTo === r || redirectTo.startsWith(r + '/')));
+                    const useRedirectParam = redirectTo && (redirectTo.startsWith('/dashboard') || redirectTo.startsWith('/onboarding/') || redirectTo.startsWith('/students/')) && (isValidDashboardRoute(redirectTo) || ['/dashboard/director', '/dashboard/admin', '/dashboard/mentor', '/dashboard/sponsor', '/dashboard/institution', '/dashboard/analyst', '/dashboard/employer', '/dashboard/finance', '/finance/dashboard', '/support/dashboard'].some(r => redirectTo === r || redirectTo.startsWith(r + '/') || redirectTo.startsWith(r + '?')));
                     let redirectRoute = needsProfiling
                       ? '/profiling'
                       : (useRedirectParam ? redirectTo : (u ? getRedirectRoute(u) : '/dashboard/student'));
@@ -847,7 +854,7 @@ export function LoginForm() {
                         return roleName === 'finance' || roleName === 'finance_admin';
                       });
                       if (hasFinanceRole && redirectRoute === '/dashboard/student') {
-                        redirectRoute = '/finance/dashboard';
+                        redirectRoute = '/dashboard/finance';
                       }
                     }
 

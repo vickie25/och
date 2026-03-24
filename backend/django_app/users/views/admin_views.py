@@ -12,6 +12,8 @@ from users.models import Role, UserRole, Permission
 from users.api_models import APIKey
 from users.permissions import CanManageRoles
 from django.utils import timezone
+from django.db.models import Exists, OuterRef
+from programs.permissions import user_has_finance_role
 from users.serializers import UserSerializer, RoleSerializer, PermissionSerializer
 
 User = get_user_model()
@@ -287,6 +289,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.is_staff or user.is_superuser:
             return Organization.objects.all()
+        if user_has_finance_role(user):
+            return Organization.objects.all()
         
         # Check if user is admin or program director
         user_roles = getattr(user, 'user_roles', None)
@@ -304,6 +308,64 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Set owner when creating organization."""
         serializer.save(owner=self.request.user)
+    
+    @action(detail=False, methods=['get'], url_path='enrollment-eligible-institutions')
+    def enrollment_eligible_institutions(self, request):
+        """
+        Organizations eligible for director enrollment:
+        - finance institution contracts with at least one paid invoice, or
+        - institutional contracts with at least one paid institutional billing record.
+        Used by program directors when enrolling students from an organization.
+        """
+        user = request.user
+        if not (user.is_staff or user.is_superuser):
+            user_roles = getattr(user, 'user_roles', None)
+            allowed = False
+            if user_roles:
+                allowed = user_roles.filter(
+                    role__name__in=['admin', 'program_director', 'director'],
+                    is_active=True,
+                ).exists()
+            if not allowed:
+                return Response(
+                    {'detail': 'Permission denied'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        from finance.models import Contract, Invoice
+        from organizations.institutional_models import InstitutionalContract, InstitutionalBilling
+        
+        today = timezone.now().date()
+        paid_finance_contracts = Contract.objects.filter(
+            type='institution',
+            start_date__lte=today,
+            end_date__gte=today,
+        ).exclude(status='terminated').filter(
+            Exists(
+                Invoice.objects.filter(
+                    contract_id=OuterRef('pk'),
+                    status='paid',
+                )
+            )
+        )
+
+        paid_institutional_contracts = InstitutionalContract.objects.filter(
+            start_date__lte=today,
+            end_date__gte=today,
+        ).exclude(status='terminated').filter(
+            Exists(
+                InstitutionalBilling.objects.filter(
+                    contract_id=OuterRef('pk'),
+                    status='paid',
+                )
+            )
+        )
+
+        finance_org_ids = paid_finance_contracts.values_list('organization_id', flat=True)
+        institutional_org_ids = paid_institutional_contracts.values_list('organization_id', flat=True)
+        org_ids = list(finance_org_ids) + list(institutional_org_ids)
+        orgs = Organization.objects.filter(id__in=org_ids).order_by('name')
+        serializer = self.get_serializer(orgs, many=True)
+        return Response(serializer.data)
     
     @action(detail=True, methods=['post'])
     def members(self, request, slug=None):

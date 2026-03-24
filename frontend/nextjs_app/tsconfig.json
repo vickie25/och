@@ -24,6 +24,42 @@
       }
     ],
     "paths": {
+      "@/components/ui/button": [
+        "./components/ui/Button"
+      ],
+      "@/components/ui/input": [
+        "./components/ui/Input"
+      ],
+      "@/components/ui/label": [
+        "./components/ui/Label"
+      ],
+      "@/components/ui/card": [
+        "./components/ui/Card"
+      ],
+      "@/components/ui/select": [
+        "./components/ui/Select"
+      ],
+      "@/components/ui/badge": [
+        "./components/ui/Badge"
+      ],
+      "@/components/ui/dropdown-menu": [
+        "./components/ui/dropdown-menu"
+      ],
+      "@/components/ui/progress": [
+        "./components/ui/Progress"
+      ],
+      "@/components/ui/tabs": [
+        "./components/ui/tabs"
+      ],
+      "@/components/ui/textarea": [
+        "./components/ui/Textarea"
+      ],
+      "@/components/ui/switch": [
+        "./components/ui/Switch"
+      ],
+      "@/components/ui/dialog": [
+        "./components/ui/dialog"
+      ],
       "@/*": [
         "./*"
       ]

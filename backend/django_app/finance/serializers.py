@@ -3,6 +3,7 @@ Finance serializers for API responses.
 """
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
+from organizations.models import Organization
 from .models import (
     Wallet, Transaction, Credit, Contract, TaxRate, 
     MentorPayout, Invoice, Payment
@@ -54,18 +55,39 @@ class CreditSerializer(serializers.ModelSerializer):
 
 class ContractSerializer(serializers.ModelSerializer):
     organization_name = serializers.CharField(source='organization.name', read_only=True)
+    organization = serializers.PrimaryKeyRelatedField(
+        queryset=Organization.objects.all(),
+        required=False,
+        allow_null=True,
+    )
     is_active = serializers.ReadOnlyField()
     days_until_expiry = serializers.ReadOnlyField()
+    email_sent = serializers.SerializerMethodField()
     
     class Meta:
         model = Contract
         fields = [
-            'id', 'organization_name', 'type', 'start_date', 'end_date',
+            'id', 'organization', 'organization_name', 'type', 'start_date', 'end_date',
             'status', 'total_value', 'payment_terms', 'auto_renew',
-            'renewal_notice_days', 'is_active', 'days_until_expiry',
+            'renewal_notice_days', 'is_active', 'days_until_expiry', 'email_sent',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'total_value': {'required': False},
+            'payment_terms': {'required': False},
+        }
+
+    def validate(self, attrs):
+        if self.instance is None and not attrs.get('organization'):
+            raise serializers.ValidationError(
+                {'organization': 'This field is required when creating a contract.'}
+            )
+        return attrs
+
+    def get_email_sent(self, obj):
+        # Contract creation requires org contact email for both employer/institution flows.
+        return bool(getattr(obj.organization, 'contact_email', None))
 
 
 class TaxRateSerializer(serializers.ModelSerializer):

@@ -72,8 +72,8 @@ export function getRedirectRoute(user: User | null): string {
       return n === 'finance' || n === 'finance_admin'
     })
     if (hasFinanceRole) {
-      console.log('✅ getRedirectRoute: Finance role detected - redirecting to /finance/dashboard')
-      return '/finance/dashboard'
+      console.log('✅ getRedirectRoute: Finance role detected - redirecting to /dashboard/finance')
+      return '/dashboard/finance'
     }
 
     // CRITICAL: Check for mentor role - mentors should NEVER go to student dashboard
@@ -131,9 +131,11 @@ export const ROLE_DASHBOARD_MAP = {
   'admin': '/dashboard/admin',
   'program_director': '/dashboard/director',
   'sponsor_admin': '/dashboard/sponsor',
+  'institution_admin': '/dashboard/institution',
+  'organization_admin': '/dashboard/institution',
   'analyst': '/dashboard/analyst',
   'employer': '/dashboard/employer',
-  'finance': '/finance/dashboard',
+  'finance': '/dashboard/finance',
   'support': '/support/dashboard',
 } as const
 
@@ -182,10 +184,11 @@ export function getFallbackRoute(user: User | null): string {
 
   // Check for other roles
   if (roles.includes('program_director')) return '/dashboard/director'
+  if (roles.includes('institution_admin') || roles.includes('organization_admin')) return '/dashboard/institution'
   if (roles.includes('sponsor_admin') || roles.includes('sponsor')) return '/dashboard/sponsor'
   if (roles.includes('analyst')) return '/dashboard/analyst'
   if (roles.includes('employer')) return '/dashboard/employer'
-  if (roles.includes('finance') || roles.includes('finance_admin')) return '/finance/dashboard'
+  if (roles.includes('finance') || roles.includes('finance_admin')) return '/dashboard/finance'
   if (roles.includes('support')) return '/support/dashboard'
 
   // For students/mentees, fallback to student dashboard

@@ -23,7 +23,7 @@ const generateBreadcrumbs = (pathname: string): BreadcrumbItem[] => {
   
   // Handle finance dashboard separately
   if (pathname.startsWith('/finance')) {
-    return [{ label: 'Finance', href: '/finance/dashboard' }]
+    return [{ label: 'Finance', href: '/dashboard/finance' }]
   }
 
   // Handle support dashboard
@@ -47,6 +47,7 @@ const generateBreadcrumbs = (pathname: string): BreadcrumbItem[] => {
     '/dashboard/sponsor': 'Sponsor Dashboard',
     '/dashboard/analyst': 'Analyst Dashboard',
     '/dashboard/employer': 'Employer Dashboard',
+    '/dashboard/finance': 'Finance',
     '/finance/dashboard': 'Finance',
   }
 

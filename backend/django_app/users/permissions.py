@@ -111,7 +111,7 @@ class IsSponsorAdmin(BasePermission):
             return False
 
         return user_roles.filter(
-            role__name='sponsor_admin',
+            role__name__in=['sponsor_admin', 'institution_admin', 'organization_admin'],
             is_active=True
         ).exists()
 

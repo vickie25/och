@@ -49,6 +49,22 @@ def send_sms_otp(phone_number: str, code: str) -> bool:
     return False
 
 
+def send_sms_message(phone_number: str, message: str) -> bool:
+    """
+    Send a plain SMS message using configured provider.
+    Returns True when provider accepts request.
+    """
+    provider = getattr(settings, 'SMS_PROVIDER', 'textsms').lower()
+    if provider == 'textsms':
+        return _send_via_textsms(phone_number, message)
+    if provider == 'textbelt':
+        return _send_via_textbelt(phone_number, message)
+    if provider == 'twilio':
+        return _send_via_twilio(phone_number, message)
+    logger.warning('Unknown SMS_PROVIDER=%s, skipping send', provider)
+    return False
+
+
 def _send_via_textsms(phone_number: str, message: str) -> bool:
     """
     Send via TextSMS (https://sms.textsms.co.ke).

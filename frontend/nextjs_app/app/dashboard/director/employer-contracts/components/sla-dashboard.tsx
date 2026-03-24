@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Clock, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';

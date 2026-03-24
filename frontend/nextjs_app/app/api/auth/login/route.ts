@@ -15,10 +15,23 @@ function normalizeRoleName(roleName: string): string {
   if (normalized === 'student') return 'student'
   if (normalized === 'mentor') return 'mentor'
   if (normalized === 'admin') return 'admin'
-  if (normalized === 'sponsor_admin' || normalized === 'sponsor' || normalized === 'sponsor/employer admin' || normalized === 'sponsoremployer admin') {
-    console.log('[Role Normalization] Converting sponsor to sponsor_admin')
+  if (
+    normalized === 'sponsor_admin' ||
+    normalized === 'sponsor' ||
+    normalized === 'sponsor/employer admin' ||
+    normalized === 'sponsoremployer admin'
+  ) {
     return 'sponsor_admin'
   }
+  if (
+    normalized === 'institution_admin' ||
+    normalized === 'institution admin' ||
+    normalized === 'institutional_admin' ||
+    normalized === 'institutional admin'
+  ) {
+    return 'institution_admin'
+  }
+  if (normalized === 'organization_admin' || normalized === 'organization admin') return 'organization_admin'
   if (normalized === 'analyst') return 'analyst'
   if (normalized === 'employer') return 'employer'
   if (normalized === 'finance' || normalized === 'finance_admin') return 'finance'
@@ -67,7 +80,7 @@ function getPrimaryRole(roles: string[]): string | null {
     console.log('[Primary Role] Selected: admin')
     return 'admin'
   }
-  const priority = ['program_director', 'finance', 'support', 'mentor', 'analyst', 'sponsor_admin', 'employer', 'mentee', 'student']
+  const priority = ['program_director', 'finance', 'support', 'mentor', 'analyst', 'institution_admin', 'organization_admin', 'sponsor_admin', 'employer', 'mentee', 'student']
   for (const r of priority) {
     if (roles.includes(r)) {
       console.log('[Primary Role] Selected:', r)
@@ -87,9 +100,11 @@ function getDashboardForRole(role: string | null): string {
     case 'program_director': dashboard = '/dashboard/director'; break
     case 'mentor': dashboard = '/dashboard/mentor'; break
     case 'analyst': dashboard = '/dashboard/analyst'; break
+    case 'institution_admin': dashboard = '/dashboard/institution'; break
+    case 'organization_admin': dashboard = '/dashboard/institution'; break
     case 'sponsor_admin': dashboard = '/dashboard/sponsor'; break
     case 'employer': dashboard = '/dashboard/employer'; break
-    case 'finance': dashboard = '/finance/dashboard'; break
+    case 'finance': dashboard = '/dashboard/finance'; break
     case 'support': dashboard = '/support/dashboard'; break
     case 'mentee':
     case 'student': dashboard = '/dashboard/student'; break

@@ -23,9 +23,9 @@ const protectedRoutes = [
   '/mentor/dashboard',
 ];
 
-// No dashboard routes are open anymore; everything under
-// protectedRoutes requires a valid access token.
-const openRoutes: string[] = [];
+// Public routes that are allowed without login.
+// Institution onboarding must be reachable from invite links.
+const openRoutes: string[] = ['/onboarding/institution'];
 const authRoutes = ['/login', '/register'];
 
 function getLoginRouteForPath(pathname: string) {
@@ -33,6 +33,7 @@ function getLoginRouteForPath(pathname: string) {
   if (pathname.startsWith('/dashboard/admin')) return '/login/admin'
   if (pathname.startsWith('/dashboard/mentor')) return '/login/mentor'
   if (pathname.startsWith('/dashboard/sponsor')) return '/login/sponsor'
+  if (pathname.startsWith('/dashboard/institution')) return '/login/institution'
   if (pathname.startsWith('/dashboard/analyst') || pathname.startsWith('/dashboard/analytics')) return '/login/analyst'
   if (pathname.startsWith('/dashboard/employer') || pathname.startsWith('/dashboard/marketplace')) return '/login/employer'
   if (pathname.startsWith('/dashboard/finance')) return '/login/finance'
@@ -67,6 +68,9 @@ function dashboardForRole(role: string | null): string {
     case 'mentor': return '/dashboard/mentor'
     case 'analyst': return '/dashboard/analyst'
     case 'sponsor_admin': return '/dashboard/sponsor'
+    case 'institution_admin':
+    case 'organization_admin':
+      return '/dashboard/institution'
     case 'employer': return '/dashboard/employer'
     case 'finance':
     case 'finance_admin':
@@ -87,7 +91,7 @@ function canAccess(pathname: string, roles: string[]): boolean {
   }
 
   if (pathname.startsWith('/sponsor/')) {
-    return roles.includes('sponsor') || roles.includes('sponsor_admin')
+    return roles.includes('sponsor') || roles.includes('sponsor_admin') || roles.includes('institution_admin') || roles.includes('organization_admin')
   }
 
   if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
@@ -95,6 +99,9 @@ function canAccess(pathname: string, roles: string[]): boolean {
     if (pathname.startsWith('/dashboard/admin')) return roles.includes('admin')
     if (pathname.startsWith('/dashboard/mentor')) return roles.includes('mentor')
     if (pathname.startsWith('/dashboard/sponsor')) return roles.includes('sponsor_admin')
+    if (pathname.startsWith('/dashboard/institution')) {
+      return roles.includes('institution_admin') || roles.includes('organization_admin') || roles.includes('sponsor_admin')
+    }
     if (pathname.startsWith('/dashboard/analyst')) return roles.includes('analyst')
     if (pathname.startsWith('/dashboard/analytics')) return roles.includes('analyst') || roles.includes('program_director')
     if (pathname.startsWith('/dashboard/employer') || pathname.startsWith('/dashboard/marketplace')) return roles.includes('employer')
@@ -125,11 +132,11 @@ export function middleware(request: NextRequest) {
   const isOpenRoute = openRoutes.some(route => pathname.startsWith(route));
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
   const loginPath = getLoginRouteForPath(pathname);
-  const isSpecificLoginRoute = pathname.match(/^\/login\/(mentor|director|admin|student|sponsor|analyst|employer|finance)$/);
+  const isSpecificLoginRoute = pathname.match(/^\/login\/(mentor|director|admin|student|sponsor|institution|analyst|employer|finance)$/);
 
   if (isProtectedRoute && !isOpenRoute && !hasToken) {
     const loginUrl = new URL(loginPath, request.url);
-    loginUrl.searchParams.set('redirect', pathname);
+    loginUrl.searchParams.set('redirect', `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(loginUrl);
   }
 
@@ -137,7 +144,7 @@ export function middleware(request: NextRequest) {
     if (isSpecificLoginRoute) {
       return NextResponse.next();
     }
-    const isRoleLoginPath = pathname.match(/^\/login\/(support|mentor|director|admin|student|sponsor|analyst|employer|finance)(\/)?$/);
+    const isRoleLoginPath = pathname.match(/^\/login\/(support|mentor|director|admin|student|sponsor|institution|analyst|employer|finance)(\/)?$/);
     if (hasToken && home && (pathname === '/login' || pathname === '/login/' || isRoleLoginPath)) {
       return NextResponse.redirect(new URL(home, request.url));
     }

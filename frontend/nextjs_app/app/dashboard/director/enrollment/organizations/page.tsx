@@ -15,6 +15,8 @@ interface Organization {
   contact_email?: string
   contact_phone?: string
   member_count?: number
+  enrollment_status?: 'active' | 'pending_contract_creation' | 'pending_invoice_payment'
+  enrollment_status_label?: string
 }
 
 export default function OrganizationsPage() {
@@ -33,6 +35,18 @@ export default function OrganizationsPage() {
     contact_email: '',
     contact_phone: '',
   })
+
+  const getStatusClasses = (status?: Organization['enrollment_status']) => {
+    switch (status) {
+      case 'active':
+        return 'bg-och-mint/20 text-och-mint border border-och-mint/40'
+      case 'pending_invoice_payment':
+        return 'bg-och-gold/20 text-och-gold border border-och-gold/40'
+      case 'pending_contract_creation':
+      default:
+        return 'bg-och-orange/20 text-och-orange border border-och-orange/40'
+    }
+  }
 
   const loadOrganizations = async () => {
     setIsLoading(true)
@@ -168,6 +182,7 @@ export default function OrganizationsPage() {
                   <thead>
                     <tr className="border-b border-och-steel/20">
                       <th className="text-left py-3 px-4 text-sm font-medium text-och-steel">Name</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-och-steel">Enrollment Status</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-och-steel">Contact Person</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-och-steel">Contact Email</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-och-steel">Contact Phone</th>
@@ -179,6 +194,11 @@ export default function OrganizationsPage() {
                     {organizations.map((org) => (
                       <tr key={org.id} className="border-b border-och-steel/10 hover:bg-och-midnight/30">
                         <td className="py-3 px-4 text-white">{org.name}</td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClasses(org.enrollment_status)}`}>
+                            {org.enrollment_status_label || 'Pending contract creation'}
+                          </span>
+                        </td>
                         <td className="py-3 px-4 text-och-steel">{org.contact_person_name || 'N/A'}</td>
                         <td className="py-3 px-4 text-och-steel">{org.contact_email || 'N/A'}</td>
                         <td className="py-3 px-4 text-och-steel">{org.contact_phone || 'N/A'}</td>

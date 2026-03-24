@@ -56,6 +56,11 @@ urlpatterns = [
     }), name='roles-detail'),
     path('users/<int:id>/roles', UserRoleAssignmentView.as_view({'post': 'create'}), name='user-role-assign'),
     path('users/<int:id>/roles/<int:role_id>', UserRoleAssignmentView.as_view({'delete': 'destroy'}), name='user-role-revoke'),
+    path(
+        'orgs/enrollment-eligible-institutions/',
+        OrganizationViewSet.as_view({'get': 'enrollment_eligible_institutions'}),
+        name='orgs-enrollment-eligible-institutions',
+    ),
     path('orgs/', OrganizationViewSet.as_view({'get': 'list', 'post': 'create'}), name='orgs-list'),
     path('orgs/<int:pk>/', OrganizationViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update', 'put': 'update', 'delete': 'destroy'}), name='orgs-detail-id'),
     path('orgs/<slug:slug>/', OrganizationViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update', 'put': 'update', 'delete': 'destroy'}), name='orgs-detail-slug'),

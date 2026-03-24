@@ -207,8 +207,10 @@ export default function EnrollmentPage() {
   // Load organizations for enrollment form
   const loadOrganizationsForEnrollment = useCallback(async () => {
     try {
-      const orgsData = await apiGateway.get('/orgs/') as any
-      const orgsList = orgsData?.results || orgsData?.data || orgsData || []
+      const orgsData = await apiGateway.get('/orgs/enrollment-eligible-institutions/') as any
+      const orgsList = Array.isArray(orgsData)
+        ? orgsData
+        : (orgsData?.results || orgsData?.data || [])
       setEnrollmentForm(prev => ({ ...prev, availableOrganizations: orgsList }))
     } catch (err: any) {
       setEnrollmentForm(prev => ({ ...prev, availableOrganizations: [] }))
