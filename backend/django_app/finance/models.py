@@ -239,6 +239,53 @@ class Contract(models.Model):
         validators=[MinValueValidator(1)],
         help_text='Days notice required for renewal'
     )
+    seat_cap = models.PositiveIntegerField(
+        default=0,
+        help_text='Allocated seat cap: max students (institution) or placements/pipeline slots (employer) under this contract.',
+    )
+    EMPLOYER_PLAN_CHOICES = [
+        ('starter', 'Starter'),
+        ('growth', 'Growth'),
+        ('enterprise', 'Enterprise'),
+        ('custom', 'Custom'),
+    ]
+    employer_plan = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        choices=EMPLOYER_PLAN_CHOICES,
+        help_text='Employer-selected commercial tier during proposal/negotiation.',
+    )
+    INSTITUTION_PRICING_TIER_CHOICES = [
+        ('tier_1_50', '1–50 students ($15/student/mo)'),
+        ('tier_51_200', '51–200 students ($12/student/mo)'),
+        ('tier_201_500', '201–500 students ($9/student/mo)'),
+        ('tier_500_plus', '500+ students ($7/student/mo)'),
+    ]
+    institution_pricing_tier = models.CharField(
+        max_length=30,
+        blank=True,
+        null=True,
+        choices=INSTITUTION_PRICING_TIER_CHOICES,
+        help_text='Volume tier for per-student licensing (institution contracts).',
+    )
+    BILLING_CYCLE_CHOICES = [
+        ('monthly', 'Monthly'),
+        ('quarterly', 'Quarterly'),
+        ('annual', 'Annual'),
+    ]
+    billing_cycle = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        choices=BILLING_CYCLE_CHOICES,
+        help_text='Institution billing cadence.',
+    )
+    institution_curriculum = models.JSONField(
+        blank=True,
+        null=True,
+        help_text='Blueprint: mandated tracks, modules, cohort label — visible to director.',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

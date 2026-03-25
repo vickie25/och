@@ -3,18 +3,32 @@ import path from 'path'
 
 export async function GET() {
   const htmlPath = path.resolve(process.cwd(), '../../OCH-CCF_Interactive_Platform_Revised.html')
-  const html = await fs.readFile(htmlPath, 'utf8')
+  let html = await fs.readFile(htmlPath, 'utf8')
+
+  // Remove JS that overrides "Join Pioneer Cohort" to open auth; keep inline waitlist handler.
+  html = html.replace(
+    /\r?\n\s*\/\/ Wire CTA buttons[^\r\n]*\r?\n\s*const mainCta = document\.getElementById\('join-cta'\);\r?\n\s*if \(mainCta\) \{\r?\n\s*mainCta\.addEventListener\('click', \(\) => \{ showAuth\('register'\); \}\);\r?\n\s*\}\r?\n/,
+    '\n'
+  )
 
   const authBridgeScript = `
 <script>
   (function () {
-    // Force all homepage auth actions to use app-native auth routes.
-    window.showAuth = function (mode) {
-      if (mode === 'login') {
-        window.location.href = '/login';
-        return;
+    function goApp(path) {
+      var w = window.top || window;
+      w.location.assign(path);
+    }
+    function goGetStarted(e) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
       }
-      window.location.href = '/register';
+      goApp('/register');
+    }
+
+    window.showAuth = function (mode) {
+      if (mode === 'login') goApp('/login');
+      else goApp('/register');
     };
 
     window.closeAuth = function () {
@@ -23,19 +37,63 @@ export async function GET() {
     };
 
     document.addEventListener('DOMContentLoaded', function () {
+      var style = document.createElement('style');
+      style.textContent =
+        '.och-nav-signin{display:inline-flex;align-items:center;margin-right:14px;font-size:12px;font-weight:600;color:#94a3b8;text-decoration:none;white-space:nowrap}' +
+        '.och-nav-signin:hover{color:#f1f5f9}';
+      document.head.appendChild(style);
+
       var authBtn = document.getElementById('auth-btn');
       if (authBtn) {
         authBtn.onclick = function () {
-          var text = (authBtn.textContent || '').toLowerCase();
-          if (text.indexOf('sign in') !== -1) {
-            window.location.href = '/login';
-            return false;
-          }
-          window.location.href = '/register';
+          goApp('/register');
           return false;
         };
       }
+
+      // Single navbar primary CTA + text Sign in (no duplicate orange buttons from React shell)
+      var joinCta = document.getElementById('join-cta');
+      if (joinCta && joinCta.parentNode) {
+        var signIn = document.createElement('a');
+        signIn.className = 'och-nav-signin';
+        signIn.href = '/login';
+        signIn.textContent = 'Sign in';
+        joinCta.parentNode.insertBefore(signIn, joinCta);
+        joinCta.removeAttribute('onclick');
+        joinCta.onclick = goGetStarted;
+        joinCta.textContent = 'Get started';
+      }
+
+      document.querySelectorAll('.ov-pioneer-btn').forEach(function (btn) {
+        btn.removeAttribute('onclick');
+        btn.onclick = goGetStarted;
+        btn.textContent = 'Join cohort →';
+      });
+
+      var acDeploy = document.getElementById('ac-deploy-cta');
+      if (acDeploy) {
+        acDeploy.removeAttribute('onclick');
+        acDeploy.onclick = goGetStarted;
+      }
+
+      var resultJoin = document.getElementById('result-join-cta');
+      if (resultJoin) {
+        resultJoin.onclick = function (e) {
+          goGetStarted(e);
+        };
+      }
     });
+
+    // When embedded in an iframe on "/", navigate the top window for real app routes (URL bar updates).
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a[href]');
+      if (!a) return;
+      var href = a.getAttribute('href');
+      if (!href || href.charAt(0) !== '/' || href.indexOf('//') === 0) return;
+      if (!/^\\/(login|register|dashboard|cohorts|onboarding|api|auth|support|finance|student|director|admin|terms|privacy|about|pricing)(\\/|$)/.test(href)) return;
+      e.preventDefault();
+      goApp(href);
+    }, true);
   })();
 </script>`
 

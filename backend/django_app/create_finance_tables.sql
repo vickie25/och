@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS contracts (
     type VARCHAR(20) NOT NULL CHECK (type IN ('institution', 'employer')),
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'proposal' CHECK (status IN ('proposal', 'negotiation', 'signed', 'active', 'renewal', 'terminated')),
+    status VARCHAR(20) NOT NULL DEFAULT 'proposal' CHECK (status IN ('proposal', 'negotiation', 'signed', 'pending_payments', 'active', 'renewal', 'terminated')),
     total_value DECIMAL(15,2) NOT NULL CHECK (total_value >= 0),
     payment_terms VARCHAR(100) NOT NULL DEFAULT 'Net 30',
     auto_renew BOOLEAN NOT NULL DEFAULT FALSE,
@@ -64,6 +64,13 @@ CREATE TABLE IF NOT EXISTS contracts (
 CREATE INDEX IF NOT EXISTS contracts_organization_status_idx ON contracts(organization_id, status);
 CREATE INDEX IF NOT EXISTS contracts_type_status_idx ON contracts(type, status);
 CREATE INDEX IF NOT EXISTS contracts_dates_idx ON contracts(start_date, end_date);
+
+-- Contract columns (align with Django finance.Contract; add if missing on existing DBs)
+ALTER TABLE contracts ADD COLUMN IF NOT EXISTS seat_cap INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE contracts ADD COLUMN IF NOT EXISTS employer_plan VARCHAR(20);
+ALTER TABLE contracts ADD COLUMN IF NOT EXISTS institution_pricing_tier VARCHAR(30);
+ALTER TABLE contracts ADD COLUMN IF NOT EXISTS billing_cycle VARCHAR(20);
+ALTER TABLE contracts ADD COLUMN IF NOT EXISTS institution_curriculum JSONB;
 
 -- Tax rates table
 CREATE TABLE IF NOT EXISTS tax_rates (
@@ -145,20 +152,31 @@ CREATE INDEX IF NOT EXISTS finance_payments_status_idx ON finance_payments(statu
 -- Add wallet_id foreign key to users table (optional, for specification compliance)
 -- ALTER TABLE users ADD COLUMN wallet_id UUID REFERENCES wallets(id) ON DELETE SET NULL;
 
--- Create triggers for updated_at timestamps
+-- Triggers for updated_at (idempotent: safe to re-run when tables already exist)
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_wallets_updated_at ON wallets;
 CREATE TRIGGER update_wallets_updated_at BEFORE UPDATE ON wallets FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_credits_updated_at ON credits;
 CREATE TRIGGER update_credits_updated_at BEFORE UPDATE ON credits FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_contracts_updated_at ON contracts;
 CREATE TRIGGER update_contracts_updated_at BEFORE UPDATE ON contracts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_mentor_payouts_updated_at ON mentor_payouts;
 CREATE TRIGGER update_mentor_payouts_updated_at BEFORE UPDATE ON mentor_payouts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_finance_invoices_updated_at ON finance_invoices;
 CREATE TRIGGER update_finance_invoices_updated_at BEFORE UPDATE ON finance_invoices FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_finance_payments_updated_at ON finance_payments;
 CREATE TRIGGER update_finance_payments_updated_at BEFORE UPDATE ON finance_payments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Insert default tax rates for common regions

@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import generics, permissions, status
@@ -45,28 +46,26 @@ __all__ = [
 
 class IsEmployer(permissions.BasePermission):
     """
-    Only users with an Employer profile or employer role can access these endpoints.
-    Checks for:
-    1. Direct employer_profile relationship
-    2. UserRole with 'sponsor_admin' or legacy 'sponsor' role (employer roles)
+    Users who can browse employer marketplace APIs: marketplace Employer profile,
+    finance/onboarding `employer` role, or sponsor-style roles that use the same APIs.
     """
 
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
-        
-        # Check if user has employer_profile
-        if hasattr(request.user, 'employer_profile'):
+
+        user = request.user
+
+        try:
+            user.employer_profile
             return True
-        
-        # Check if user has sponsor_admin (or legacy sponsor) role
-        if request.user.user_roles.filter(
-            role__name__in=['sponsor_admin', 'sponsor'],
-            is_active=True
-        ).exists():
-            return True
-        
-        return False
+        except ObjectDoesNotExist:
+            pass
+
+        return user.user_roles.filter(
+            role__name__in=['employer', 'sponsor_admin', 'sponsor'],
+            is_active=True,
+        ).exists()
 
 
 from .utils import get_employer_for_user

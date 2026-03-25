@@ -1,176 +1,405 @@
 'use client'
 
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
+import { apiGateway } from '@/services/apiGateway'
+import { marketplaceClient } from '@/services/marketplaceClient'
+import {
+  FileSignature,
+  ArrowRight,
+  Loader2,
+  CheckCircle2,
+  Users,
+  Briefcase,
+  X,
+} from 'lucide-react'
 
-const mockKPIs = [
-  { label: 'Talent Profiles', value: '1,234', change: '+89' },
-  { label: 'Active Listings', value: '24', change: '+3' },
-  { label: 'Matches Found', value: '156', change: '+12' },
-  { label: 'Response Rate', value: '78%', change: '+5%' },
-]
+type ContractRow = {
+  id: string
+  organization: number
+  organization_name: string
+  type: string
+  start_date: string
+  end_date: string
+  status: string
+  total_value: string | number
+  payment_terms: string
+  auto_renew: boolean
+  renewal_notice_days: number
+  seat_cap?: number
+  seats_used?: number
+}
 
-const mockActions = [
-  { label: 'Browse Talent', href: '/dashboard/employer/talent', icon: '🔍' },
-  { label: 'Filter Talent', href: '/dashboard/employer/talent', icon: '👥' },
-  { label: 'Post Role', href: '/dashboard/employer/jobs', icon: '📝' },
-  { label: 'My Contacts', href: '/dashboard/employer/contacts', icon: '💼' },
-]
+function parseContractList(data: unknown): ContractRow[] {
+  if (Array.isArray(data)) return data as ContractRow[]
+  if (data && typeof data === 'object' && 'results' in data && Array.isArray((data as { results: unknown }).results)) {
+    return (data as { results: ContractRow[] }).results
+  }
+  return []
+}
 
-const mockTalent = [
-  { name: 'Alex Johnson', skills: ['Python', 'Security'], readiness: 'High', tier: 'Professional' },
-  { name: 'Sam Williams', skills: ['Cloud', 'DevOps'], readiness: 'Medium', tier: 'Professional' },
-  { name: 'Jordan Lee', skills: ['ML', 'AI'], readiness: 'High', tier: 'Starter' },
-]
+const STATUS_LABEL: Record<string, string> = {
+  proposal: 'Proposal',
+  negotiation: 'Negotiation',
+  signed: 'Signed',
+  pending_payments: 'Pending payments',
+  active: 'Active',
+  renewal: 'Renewal',
+  terminated: 'Terminated',
+}
+
+function needsEmployerAction(status: string) {
+  return status === 'proposal' || status === 'negotiation'
+}
+
+function formatMoney(v: string | number) {
+  const n = typeof v === 'string' ? parseFloat(v) : v
+  if (Number.isNaN(n)) return '—'
+  return new Intl.NumberFormat('en-KE', {
+    style: 'currency',
+    currency: 'KES',
+    maximumFractionDigits: 0,
+  }).format(n)
+}
 
 export default function EmployerClient() {
-  return (
-    <div className="min-h-screen bg-och-midnight p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2 text-och-gold">Employer Dashboard</h1>
-          <p className="text-och-steel">Discover and connect with top cybersecurity talent.</p>
-        </div>
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const urlCleaned = useRef(false)
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {mockKPIs.map((kpi) => (
-            <Card key={kpi.label} gradient="leadership">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-och-steel text-sm mb-1">{kpi.label}</p>
-                  <p className="text-3xl font-bold text-white">{kpi.value}</p>
+  const [contracts, setContracts] = useState<ContractRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [welcomeBanner, setWelcomeBanner] = useState(false)
+  const [talentCount, setTalentCount] = useState<number | null>(null)
+  const [jobsCount, setJobsCount] = useState<number | null>(null)
+  const [acceptingId, setAcceptingId] = useState<string | null>(null)
+  const [termsChecked, setTermsChecked] = useState(false)
+
+  const loadContracts = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await apiGateway.get<unknown>('/finance/contracts/')
+      const list = parseContractList(data).map((c) => ({
+        ...c,
+        seat_cap: typeof c.seat_cap === 'number' ? c.seat_cap : 0,
+        seats_used: typeof c.seats_used === 'number' ? c.seats_used : 0,
+      }))
+      setContracts(list.filter((c) => c.type === 'employer'))
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Failed to load contracts'
+      setError(msg)
+      setContracts([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadContracts()
+  }, [loadContracts])
+
+  useEffect(() => {
+    if (urlCleaned.current) return
+    if (!searchParams.toString()) return
+    const contract = searchParams.get('contract')
+    const created = searchParams.get('created')
+    if (contract) {
+      try {
+        sessionStorage.setItem('och_employer_focus_contract', contract)
+      } catch {
+        /* ignore */
+      }
+    }
+    if (created === '1') setWelcomeBanner(true)
+    urlCleaned.current = true
+    router.replace('/dashboard/employer', { scroll: false })
+  }, [searchParams, router])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const talentRes = await marketplaceClient.browseTalent({ page_size: 1 })
+        if (cancelled) return
+        setTalentCount(typeof talentRes.count === 'number' ? talentRes.count : null)
+      } catch {
+        if (!cancelled) setTalentCount(null)
+      }
+      try {
+        const jobsRes = await marketplaceClient.getJobPostings()
+        if (cancelled) return
+        const jobs = Array.isArray(jobsRes) ? jobsRes : (jobsRes as { results?: unknown[] })?.results ?? []
+        setJobsCount(Array.isArray(jobs) ? jobs.length : null)
+      } catch {
+        if (!cancelled) setJobsCount(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const focusId =
+    typeof window !== 'undefined' ? sessionStorage.getItem('och_employer_focus_contract') : null
+
+  const primaryContract = (() => {
+    if (focusId) {
+      const hit = contracts.find((c) => c.id === focusId)
+      if (hit) return hit
+    }
+    const actionNeeded = contracts.find((c) => needsEmployerAction(c.status))
+    return actionNeeded ?? contracts[0] ?? null
+  })()
+
+  const showContractGate =
+    primaryContract && needsEmployerAction(primaryContract.status)
+
+  const handleAcceptContract = async (id: string) => {
+    if (!termsChecked) return
+    setAcceptingId(id)
+    setError(null)
+    try {
+      await apiGateway.patch(`/finance/contracts/${id}/`, { status: 'signed' })
+      try {
+        sessionStorage.removeItem('och_employer_focus_contract')
+      } catch {
+        /* ignore */
+      }
+      setTermsChecked(false)
+      await loadContracts()
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Could not update contract'
+      setError(msg)
+    } finally {
+      setAcceptingId(null)
+    }
+  }
+
+  return (
+    <div className="w-full max-w-7xl py-8 px-4 sm:px-6 lg:pl-0 lg:pr-6 xl:pr-8 space-y-8">
+      {welcomeBanner && (
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+          <p>
+            <span className="font-medium text-emerald-50">Welcome.</span> Your account is ready. Complete your
+            contract steps below, then explore talent and job tools from the sidebar.
+          </p>
+          <button
+            type="button"
+            onClick={() => setWelcomeBanner(false)}
+            className="shrink-0 rounded p-1 text-emerald-200 hover:bg-emerald-500/20"
+            aria-label="Dismiss"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      <div className="mb-2">
+        <h1 className="text-3xl sm:text-4xl font-bold mb-2 text-white tracking-tight">Employer Dashboard</h1>
+        <p className="text-och-steel text-base max-w-2xl">
+          Review your contract and seat allocation, then use talent search and job postings within your cap.
+        </p>
+      </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex flex-col items-center gap-4 min-h-[40vh] justify-center">
+          <div className="w-10 h-10 border-2 border-och-mint/40 border-t-och-mint rounded-full animate-spin" aria-hidden />
+          <p className="text-och-steel text-sm font-medium">Loading dashboard…</p>
+        </div>
+      ) : (
+        <>
+          {showContractGate && primaryContract && (
+            <Card className="border-2 border-och-gold/40 bg-och-midnight/80 p-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-och-gold">
+                    <FileSignature className="h-5 w-5" />
+                    <span className="font-semibold text-lg text-white">Complete your contract</span>
+                  </div>
+                  <p className="text-sm text-och-steel max-w-xl">
+                    Review the proposal from OCH Finance. When you accept, your organization moves to{' '}
+                    <strong className="text-white">Signed</strong> pending activation and billing by the finance
+                    team.
+                  </p>
+                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm mt-4">
+                    <div>
+                      <dt className="text-och-steel">Organization</dt>
+                      <dd className="text-white font-medium">{primaryContract.organization_name}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-och-steel">Status</dt>
+                      <dd>
+                        <Badge variant="gold">{STATUS_LABEL[primaryContract.status] ?? primaryContract.status}</Badge>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-och-steel">Term</dt>
+                      <dd className="text-white">
+                        {primaryContract.start_date} → {primaryContract.end_date}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-och-steel">Value / terms</dt>
+                      <dd className="text-white">
+                        {formatMoney(primaryContract.total_value)} · {primaryContract.payment_terms}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-och-steel">Seat allocation</dt>
+                      <dd className="text-white">
+                        {primaryContract.seats_used ?? 0} / {primaryContract.seat_cap ?? 0} used
+                        <span className="block text-xs text-och-steel mt-0.5">
+                          Finance sets this cap; operations must stay within it.
+                        </span>
+                      </dd>
+                    </div>
+                  </dl>
+                  <label className="flex items-start gap-3 text-sm text-och-steel mt-4 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-1 rounded border-och-steel/40"
+                      checked={termsChecked}
+                      onChange={(e) => setTermsChecked(e.target.checked)}
+                    />
+                    <span>
+                      I confirm our organization has reviewed this employer contract proposal and authorizes OCH to
+                      proceed on the terms shown (subject to final invoicing by Finance).
+                    </span>
+                  </label>
                 </div>
-                <Badge variant="gold">{kpi.change}</Badge>
+                <div className="flex flex-col gap-2 shrink-0">
+                  <Button
+                    variant="gold"
+                    className="whitespace-nowrap"
+                    disabled={!termsChecked || acceptingId === primaryContract.id}
+                    onClick={() => void handleAcceptContract(primaryContract.id)}
+                  >
+                    {acceptingId === primaryContract.id ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Saving…
+                      </>
+                    ) : (
+                      <>
+                        Accept contract
+                        <CheckCircle2 className="h-4 w-4 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-xs text-och-steel text-center max-w-[200px]">
+                    You can still coordinate changes with Finance after signing.
+                  </p>
+                </div>
               </div>
             </Card>
-          ))}
-        </div>
+          )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <Card className="lg:col-span-2">
-            <h2 className="text-2xl font-bold mb-4 text-white">Quick Actions</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {mockActions.map((action) => (
-                <Link key={action.label} href={action.href}>
-                  <Button
-                    variant="outline"
-                    className="flex flex-col items-center justify-center gap-2 h-24 w-full"
-                  >
-                    <span className="text-2xl">{action.icon}</span>
-                    <span className="text-xs text-center">{action.label}</span>
-                  </Button>
-                </Link>
-              ))}
-            </div>
-          </Card>
-
-          <Card>
-            <h2 className="text-2xl font-bold mb-4 text-white">Featured Talent</h2>
-            <div className="space-y-4">
-              {mockTalent.map((talent) => (
-                <div key={talent.name} className="p-3 bg-och-midnight/50 rounded-lg">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-sm font-semibold text-white">{talent.name}</span>
-                    <Badge variant={talent.tier === 'Professional' ? 'mint' : 'steel'}>
-                      {talent.tier}
-                    </Badge>
-                  </div>
-                  <div className="flex flex-wrap gap-1 mb-2">
-                    {talent.skills.map((skill) => (
-                      <Badge key={skill} variant="defender" className="text-xs">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-och-steel">Readiness: {talent.readiness}</span>
-                    {talent.tier === 'Professional' && (
-                      <Link href={`/dashboard/employer/talent/${talent.name.toLowerCase().replace(' ', '-')}`}>
-                        <Button variant="outline" className="text-xs h-6 px-2">
-                          Contact
-                        </Button>
-                      </Link>
+          {!showContractGate && primaryContract && !needsEmployerAction(primaryContract.status) && (
+            <Card className="p-5 border border-och-steel/20">
+              <div className="flex items-center gap-3 text-emerald-200">
+                <CheckCircle2 className="h-6 w-6 shrink-0" />
+                <div>
+                  <p className="font-medium text-white">Contract on file</p>
+                  <p className="text-sm text-och-steel">
+                    {primaryContract.organization_name} —{' '}
+                    <Badge variant="mint">{STATUS_LABEL[primaryContract.status] ?? primaryContract.status}</Badge>
+                    {' '}
+                    · Seats {primaryContract.seats_used ?? 0}/{primaryContract.seat_cap ?? 0}
+                    {primaryContract.status === 'signed' && (
+                      <span className="text-och-steel"> · Awaiting finance activation where applicable.</span>
                     )}
-                  </div>
+                  </p>
                 </div>
-              ))}
-            </div>
-            <div className="mt-4 pt-4 border-t border-och-defender/20">
-              <Link href="/dashboard/employer/talent">
-                <Button variant="outline" className="w-full text-sm">
-                  Browse All Talent →
-                </Button>
+              </div>
+            </Card>
+          )}
+
+          {contracts.length === 0 && (
+            <Card className="p-6 border border-dashed border-och-steel/30">
+              <p className="text-och-steel text-sm mb-2">No employer contracts are linked to your account yet.</p>
+              <p className="text-xs text-och-steel/80">
+                If you just finished onboarding, ask your finance contact to confirm the contract is created for the
+                correct organization.
+              </p>
+            </Card>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card className="p-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-och-steel">Talent directory</span>
+                <Users className="h-4 w-4 text-och-gold" />
+              </div>
+              <p className="text-2xl font-bold text-white">
+                {talentCount === null ? '—' : talentCount.toLocaleString()}
+              </p>
+              <p className="text-xs text-och-steel mt-1">Profiles visible to your searches</p>
+              <Link href="/dashboard/employer/marketplace/talent" className="inline-flex items-center gap-1 text-sm text-och-mint mt-3 hover:underline">
+                Browse talent <ArrowRight className="h-3 w-3" />
               </Link>
-            </div>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <h2 className="text-2xl font-bold mb-4 text-white">Active Job Postings</h2>
-            <div className="space-y-3">
-              {['Senior Security Engineer', 'Cloud Security Architect', 'Penetration Tester'].map((job) => (
-                <div key={job} className="flex items-center justify-between p-3 bg-och-midnight/50 rounded-lg">
-                  <span className="text-och-steel">{job}</span>
-                  <Badge variant="mint">Active</Badge>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 pt-4 border-t border-och-defender/20">
-              <Link href="/dashboard/employer/jobs">
-                <Button variant="outline" className="w-full text-sm">
-                  Manage Postings →
-                </Button>
+            </Card>
+            <Card className="p-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-och-steel">Your job postings</span>
+                <Briefcase className="h-4 w-4 text-och-gold" />
+              </div>
+              <p className="text-2xl font-bold text-white">{jobsCount === null ? '—' : jobsCount}</p>
+              <p className="text-xs text-och-steel mt-1">Active listings you manage</p>
+              <Link href="/dashboard/employer/jobs" className="inline-flex items-center gap-1 text-sm text-och-mint mt-3 hover:underline">
+                Manage jobs <ArrowRight className="h-3 w-3" />
               </Link>
-            </div>
-          </Card>
+            </Card>
+            <Card className="p-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-och-steel">Seat cap (primary contract)</span>
+                <FileSignature className="h-4 w-4 text-och-gold" />
+              </div>
+              <p className="text-2xl font-bold text-white">
+                {primaryContract
+                  ? `${primaryContract.seats_used ?? 0} / ${primaryContract.seat_cap ?? 0}`
+                  : '—'}
+              </p>
+              <p className="text-xs text-och-steel mt-1">Used vs allocated · {contracts.length} contract(s)</p>
+            </Card>
+          </div>
 
-          <Card>
-            <h2 className="text-2xl font-bold mb-4 text-white">Search Filters</h2>
-            <div className="space-y-3">
-              <div className="p-3 bg-och-midnight/50 rounded-lg">
-                <p className="text-sm text-och-steel mb-2">Filter by Skill</p>
-                <div className="flex flex-wrap gap-2">
-                  {['Python', 'Security', 'Cloud', 'DevOps'].map((skill) => (
-                    <Badge key={skill} variant="defender" className="text-xs cursor-pointer">
-                      {skill}
-                    </Badge>
-                  ))}
-                </div>
+          {contracts.length > 0 && (
+            <Card className="p-0 overflow-hidden border border-och-steel/20">
+              <div className="px-5 py-3 border-b border-och-steel/15 bg-och-steel/5">
+                <h2 className="text-sm font-semibold text-white">Your contracts</h2>
               </div>
-              <div className="p-3 bg-och-midnight/50 rounded-lg">
-                <p className="text-sm text-och-steel mb-2">Filter by Readiness</p>
-                <div className="flex flex-wrap gap-2">
-                  {['High', 'Medium', 'Low'].map((level) => (
-                    <Badge key={level} variant="steel" className="text-xs cursor-pointer">
-                      {level}
+              <ul className="divide-y divide-och-steel/10">
+                {contracts.map((c) => (
+                  <li key={c.id} className="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                      <p className="text-white font-medium">{c.organization_name}</p>
+                      <p className="text-xs text-och-steel">
+                        {c.start_date} — {c.end_date} · {formatMoney(c.total_value)} · {c.payment_terms} · Seats{' '}
+                        {c.seats_used ?? 0}/{c.seat_cap ?? 0}
+                      </p>
+                    </div>
+                    <Badge variant={needsEmployerAction(c.status) ? 'gold' : 'mint'}>
+                      {STATUS_LABEL[c.status] ?? c.status}
                     </Badge>
-                  ))}
-                </div>
-              </div>
-              <div className="p-3 bg-och-midnight/50 rounded-lg">
-                <p className="text-sm text-och-steel mb-2">Filter by Portfolio Depth</p>
-                <div className="flex flex-wrap gap-2">
-                  {['Deep', 'Moderate', 'Basic'].map((depth) => (
-                    <Badge key={depth} variant="gold" className="text-xs cursor-pointer">
-                      {depth}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        <div className="mt-8 flex justify-end">
-          <Link href="/dashboard/employer/talent">
-            <Button variant="gold">Explore Talent</Button>
-          </Link>
-        </div>
-      </div>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+        </>
+      )}
     </div>
   )
 }
-

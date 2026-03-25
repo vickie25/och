@@ -7,22 +7,37 @@ from .models import Employer
 
 def get_employer_for_user(user):
     """
-    Helper to get Employer instance for a user.
-    Returns employer_profile if exists, or creates one if user has sponsor_admin role.
+    Return marketplace Employer for this user, creating one when allowed (sponsor or employer role).
     """
-    if hasattr(user, 'employer_profile'):
-        return user.employer_profile
-    
-    # If user has sponsor_admin (or legacy sponsor) role but no employer_profile, auto-create one
+    try:
+        if getattr(user, 'employer_profile', None):
+            return user.employer_profile
+    except Employer.DoesNotExist:
+        pass
+
     from users.models import UserRole
-    if user.user_roles.filter(role__name__in=['sponsor_admin', 'sponsor'], is_active=True).exists():
-        # Auto-create employer profile for sponsor_admin users
-        employer = Employer.objects.create(
-            user=user,
-            company_name=user.get_full_name() or user.email.split('@')[0] or 'Company',
-            description='Auto-created employer profile for sponsor admin',
-        )
-        return employer
-    
-    return None
+
+    has_marketplace_role = user.user_roles.filter(
+        role__name__in=['employer', 'sponsor_admin', 'sponsor'],
+        is_active=True,
+    ).exists()
+    if not has_marketplace_role:
+        return None
+
+    company_name = user.get_full_name() or (user.email.split('@')[0] if user.email else 'Company')
+    org = getattr(user, 'org_id', None)
+    if org is not None:
+        try:
+            company_name = org.name or company_name
+        except Exception:
+            pass
+
+    employer, _created = Employer.objects.get_or_create(
+        user=user,
+        defaults={
+            'company_name': company_name[:255],
+            'description': 'Employer marketplace profile (auto-created)',
+        },
+    )
+    return employer
 

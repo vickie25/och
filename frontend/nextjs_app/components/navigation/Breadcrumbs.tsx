@@ -47,6 +47,7 @@ const generateBreadcrumbs = (pathname: string): BreadcrumbItem[] => {
     '/dashboard/sponsor': 'Sponsor Dashboard',
     '/dashboard/analyst': 'Analyst Dashboard',
     '/dashboard/employer': 'Employer Dashboard',
+    '/dashboard/institution': 'Institution Dashboard',
     '/dashboard/finance': 'Finance',
     '/finance/dashboard': 'Finance',
   }
@@ -63,6 +64,8 @@ const generateBreadcrumbs = (pathname: string): BreadcrumbItem[] => {
     sponsor: 'Sponsor',
     analyst: 'Analyst',
     employer: 'Employer',
+    institution: 'Institution',
+    students: 'Students',
     missions: 'Missions',
     coaching: 'Coaching',
     curriculum: 'Curriculum',
@@ -76,6 +79,14 @@ const generateBreadcrumbs = (pathname: string): BreadcrumbItem[] => {
     analytics: 'Analytics',
     cohorts: 'Cohorts',
     tracks: 'Tracks',
+    marketplace: 'Marketplace',
+    contracts: 'Contracts',
+    invoices: 'Invoices',
+    payments: 'Payments',
+    'outsourced-students': 'Shortlisted students',
+    'shortlisted-students': 'Shortlisted students',
+    'commercial-terms': 'Commercial terms',
+    complete: 'Plan',
   }
 
   let currentPath = dashboardBase
@@ -87,7 +98,10 @@ const generateBreadcrumbs = (pathname: string): BreadcrumbItem[] => {
     }
 
     // Skip role segment (student, mentor, etc.) if it's the first segment after dashboard
-    if (index === 1 && ['student', 'mentor', 'admin', 'director', 'sponsor', 'analyst', 'employer'].includes(segment)) {
+    if (
+      index === 1 &&
+      ['student', 'mentor', 'admin', 'director', 'sponsor', 'analyst', 'employer', 'institution'].includes(segment)
+    ) {
       return
     }
 

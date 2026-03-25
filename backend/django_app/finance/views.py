@@ -181,10 +181,93 @@ class ContractViewSet(viewsets.ModelViewSet):
             return [permissions.AllowAny()]
         return [permission() for permission in self.permission_classes]
 
+    def update(self, request, *args, **kwargs):
+        """
+        PUT and PATCH both call this. DRF partial_update() delegates to update(partial=True).
+        Non-finance users may only PATCH employer_plan (partial).
+        """
+        partial = kwargs.get('partial', False)
+        if not partial:
+            if not (request.user.is_staff or user_has_finance_role(request.user)):
+                return Response(
+                    {'detail': 'Use PATCH to update employer_plan only.'},
+                    status=status.HTTP_405_METHOD_NOT_ALLOWED,
+                )
+            return super().update(request, *args, **kwargs)
+
+        instance = self.get_object()
+        if not (request.user.is_staff or user_has_finance_role(request.user)):
+            keys = set(request.data.keys())
+            if instance.type == 'employer':
+                allowed = {'employer_plan', 'status'}
+                if not keys.issubset(allowed):
+                    return Response(
+                        {
+                            'detail': 'Employer users may only PATCH employer_plan or sign the proposal (status).',
+                            'allowed': sorted(allowed),
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if 'status' in keys:
+                    if request.data.get('status') != 'signed':
+                        return Response(
+                            {'detail': 'Employer users may only set status to signed when accepting a proposal.'},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                    if instance.status not in ('proposal', 'negotiation'):
+                        return Response(
+                            {'detail': 'Contract is not in a state that can be signed from the employer portal.'},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+            elif instance.type == 'institution':
+                allowed = {
+                    'institution_pricing_tier',
+                    'billing_cycle',
+                    'institution_curriculum',
+                    'seat_cap',
+                    'status',
+                }
+                if not keys.issubset(allowed):
+                    return Response(
+                        {
+                            'detail': 'Institution users may only PATCH tier, billing, curriculum, seat_cap, or sign (status).',
+                            'allowed': sorted(allowed),
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if 'status' in keys:
+                    if request.data.get('status') != 'signed':
+                        return Response(
+                            {'detail': 'Institution users may only set status to signed when accepting a proposal.'},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                    if instance.status not in ('proposal', 'negotiation'):
+                        return Response(
+                            {'detail': 'Contract is not in a state that can be signed from the institution portal.'},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+            else:
+                return Response(
+                    {'detail': 'PATCH is not supported for this contract type.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        return super().update(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        if instance.type == 'employer' and instance.employer_plan:
+            from .employer_invoicing import ensure_employer_plan_retainer_invoice
+
+            ensure_employer_plan_retainer_invoice(instance)
+        if instance.type == 'institution':
+            from .institution_invoicing import ensure_institution_contract_invoice
+
+            ensure_institution_contract_invoice(instance)
+
     def perform_create(self, serializer):
         """
         Create contracts with temporary backend defaults for value/terms and
-        notify institutions by email with onboarding steps.
+        notify the org contact by email with onboarding steps (institution vs employer link).
         """
         with transaction.atomic():
             contract = serializer.save(
@@ -207,7 +290,12 @@ class ContractViewSet(viewsets.ModelViewSet):
             app_base = getattr(settings, 'FRONTEND_URL', None) or getattr(
                 settings, 'NEXT_PUBLIC_APP_URL', None
             ) or 'http://localhost:3000'
-            onboarding_target = f"/onboarding/institution?organization={org.id}&contract={contract.id}"
+            onboarding_path = (
+                '/onboarding/employer'
+                if contract.type == 'employer'
+                else '/onboarding/institution'
+            )
+            onboarding_target = f"{onboarding_path}?organization={org.id}&contract={contract.id}"
             onboarding_link = f"{app_base}{onboarding_target}"
             if contract.type == 'institution':
                 subject = f"OCH Institutional Contract Pack - {org.name}"
@@ -408,7 +496,7 @@ class ContractViewSet(viewsets.ModelViewSet):
             contract = Contract.objects.select_related('organization').get(
                 id=contract_id,
                 organization_id=org_id,
-                type='institution',
+                type__in=('institution', 'employer'),
             )
         except Contract.DoesNotExist:
             return Response({'detail': 'Contract not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -466,7 +554,7 @@ class ContractViewSet(viewsets.ModelViewSet):
             contract = Contract.objects.select_related('organization').get(
                 id=contract_id,
                 organization_id=org_id,
-                type='institution',
+                type__in=('institution', 'employer'),
             )
         except Contract.DoesNotExist:
             return Response({'detail': 'Contract not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -502,16 +590,32 @@ class ContractViewSet(viewsets.ModelViewSet):
                 user=user,
                 defaults={'role': 'admin'},
             )
-            role = (
-                Role.objects.filter(name='institution_admin').first()
-                or Role.objects.filter(name='organization_admin').first()
-            )
-            if role is None:
-                role = Role.objects.create(
-                    name='institution_admin',
-                    display_name='Institution Admin',
-                    description='Admin access for institution/organization portal users',
-                    is_system_role=True,
+            if contract.type == 'employer':
+                role = Role.objects.filter(name='employer').first()
+                if role is None:
+                    role = Role.objects.create(
+                        name='employer',
+                        display_name='Employer',
+                        description='Employer portal: talent pipeline and marketplace',
+                        is_system_role=True,
+                    )
+                next_path = (
+                    f"/dashboard/employer?organization={org.id}&contract={contract.id}"
+                )
+            else:
+                role = (
+                    Role.objects.filter(name='institution_admin').first()
+                    or Role.objects.filter(name='organization_admin').first()
+                )
+                if role is None:
+                    role = Role.objects.create(
+                        name='institution_admin',
+                        display_name='Institution Admin',
+                        description='Admin access for institution/organization portal users',
+                        is_system_role=True,
+                    )
+                next_path = (
+                    f"/dashboard/institution?organization={org.id}&contract={contract.id}"
                 )
 
             UserRole.objects.get_or_create(
@@ -529,7 +633,7 @@ class ContractViewSet(viewsets.ModelViewSet):
                 'email': email,
                 'organization': org.id,
                 'contract': str(contract.id),
-                'next': f"/dashboard/institution?organization={org.id}&contract={contract.id}",
+                'next': next_path,
             }
         )
     

@@ -149,6 +149,8 @@ export function isRoleDashboardPath(path: string, role: string): boolean {
     'sponsor': '/dashboard/sponsor',
     'analyst': '/dashboard/analyst',
     'employer': '/dashboard/employer',
+    'institution_admin': '/dashboard/institution',
+    'organization_admin': '/dashboard/institution',
   }
   
   const dashboardPath = roleMap[role.toLowerCase()]
@@ -168,6 +170,7 @@ export function getDashboardContextFromPath(pathname: string): string | null {
     '/dashboard/sponsor',
     '/dashboard/analyst',
     '/dashboard/employer',
+    '/dashboard/institution',
   ]
   
   for (const pattern of dashboardPatterns) {

@@ -63,13 +63,16 @@ class ContractSerializer(serializers.ModelSerializer):
     is_active = serializers.ReadOnlyField()
     days_until_expiry = serializers.ReadOnlyField()
     email_sent = serializers.SerializerMethodField()
+    seats_used = serializers.SerializerMethodField()
     
     class Meta:
         model = Contract
         fields = [
             'id', 'organization', 'organization_name', 'type', 'start_date', 'end_date',
             'status', 'total_value', 'payment_terms', 'auto_renew',
-            'renewal_notice_days', 'is_active', 'days_until_expiry', 'email_sent',
+            'renewal_notice_days', 'seat_cap', 'seats_used', 'employer_plan',
+            'institution_pricing_tier', 'billing_cycle', 'institution_curriculum',
+            'is_active', 'days_until_expiry', 'email_sent',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
@@ -83,7 +86,17 @@ class ContractSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {'organization': 'This field is required when creating a contract.'}
             )
+        if self.instance is None:
+            cap = attrs.get('seat_cap', 0)
+            if not cap or int(cap) < 1:
+                raise serializers.ValidationError(
+                    {'seat_cap': 'Allocate at least one seat for this contract (institution students or employer placements).'}
+                )
         return attrs
+
+    def get_seats_used(self, obj):
+        """Reserved for future enrollment/placement rollups; returns 0 until wired."""
+        return 0
 
     def get_email_sent(self, obj):
         # Contract creation requires org contact email for both employer/institution flows.
@@ -165,15 +178,81 @@ class InvoiceSerializer(serializers.ModelSerializer):
     user_email = serializers.CharField(source='user.email', read_only=True)
     organization_name = serializers.CharField(source='organization.name', read_only=True)
     contract_id = serializers.CharField(source='contract.id', read_only=True)
+    amount_paid = serializers.SerializerMethodField()
+    amount_remaining = serializers.SerializerMethodField()
+    payment_status = serializers.SerializerMethodField()
+    payments_mapped = serializers.SerializerMethodField()
     
     class Meta:
         model = Invoice
         fields = [
             'id', 'user_email', 'organization_name', 'contract_id',
             'type', 'amount', 'tax', 'total', 'status', 'due_date',
-            'paid_date', 'invoice_number', 'pdf_url', 'created_at', 'updated_at'
+            'paid_date', 'invoice_number', 'pdf_url',
+            'amount_paid', 'amount_remaining', 'payment_status', 'payments_mapped',
+            'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'invoice_number', 'created_at', 'updated_at']
+
+    def _success_payments(self, obj):
+        return obj.payments.filter(status='success').order_by('created_at', 'id')
+
+    def get_amount_paid(self, obj):
+        from decimal import Decimal
+        total = Decimal('0')
+        for payment in self._success_payments(obj):
+            total += payment.amount
+        return total
+
+    def get_amount_remaining(self, obj):
+        from decimal import Decimal
+        paid = self.get_amount_paid(obj)
+        remaining = obj.total - paid
+        return remaining if remaining > 0 else Decimal('0')
+
+    def get_payment_status(self, obj):
+        paid = self.get_amount_paid(obj)
+        if paid <= 0:
+            return 'unpaid'
+        if paid >= obj.total:
+            return 'fully_paid'
+        return 'partially_paid'
+
+    def get_payments_mapped(self, obj):
+        """
+        Allocation view of invoice-linked transactions:
+        - fully_allocated: entire payment amount consumed by this invoice
+        - partially_allocated: part of payment consumed (invoice completed mid-payment)
+        - not_allocated: failed/pending or nothing left to allocate
+        """
+        from decimal import Decimal
+        outstanding = obj.total
+        rows = []
+        all_payments = obj.payments.order_by('created_at', 'id')
+        for payment in all_payments:
+            allocated = Decimal('0')
+            allocation_status = 'not_allocated'
+            if payment.status == 'success' and outstanding > 0:
+                allocated = payment.amount if payment.amount <= outstanding else outstanding
+                outstanding -= allocated
+                if allocated == payment.amount and allocated > 0:
+                    allocation_status = 'fully_allocated'
+                elif allocated > 0:
+                    allocation_status = 'partially_allocated'
+            rows.append(
+                {
+                    'id': str(payment.id),
+                    'amount': payment.amount,
+                    'currency': payment.currency,
+                    'status': payment.status,
+                    'payment_method': payment.payment_method,
+                    'paystack_reference': payment.paystack_reference,
+                    'created_at': payment.created_at,
+                    'allocated_amount': allocated,
+                    'allocation_status': allocation_status,
+                }
+            )
+        return rows
 
 
 class PaymentSerializer(serializers.ModelSerializer):

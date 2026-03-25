@@ -1,13 +1,16 @@
-'use client'
-
-import { RouteGuard } from '@/components/auth/RouteGuard'
+import { Suspense } from 'react'
 import EmployerClient from './employer-client'
 
-export default function EmployerDashboard() {
+export default function EmployerDashboardPage() {
   return (
-    <RouteGuard>
+    <Suspense
+      fallback={
+        <div className="flex min-h-[40vh] items-center justify-center p-8 text-och-steel">
+          Loading dashboard…
+        </div>
+      }
+    >
       <EmployerClient />
-    </RouteGuard>
+    </Suspense>
   )
 }
-

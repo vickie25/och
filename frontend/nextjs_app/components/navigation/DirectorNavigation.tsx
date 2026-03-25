@@ -80,7 +80,6 @@ const navItems: NavItem[] = [
       { label: 'All Cohorts', href: '/dashboard/director/cohorts', icon: Users, permission: 'list_cohorts' },
       { label: 'Applications', href: '/dashboard/director/applications', icon: CheckCircle, permission: 'list_cohorts' },
       { label: 'Calendar & Events', href: '/dashboard/director/calendar', icon: Calendar, permission: 'list_cohorts' },
-      { label: 'Sponsors', href: '/dashboard/director/cohorts/sponsors', icon: Star, permission: 'list_organizations' },
       { label: 'Cohort finance', href: '/dashboard/director/cohort-finance', icon: DollarSign, permission: 'list_cohorts' },
       { label: 'Students', href: '/dashboard/director/students', icon: GraduationCap, permission: 'list_users' },
     ]

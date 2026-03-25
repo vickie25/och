@@ -37,6 +37,10 @@ export default function InstitutionOnboardingPage() {
           `/finance/contracts/institution-onboarding-preview/?organization=${encodeURIComponent(organization)}&contract=${encodeURIComponent(contract)}`
         )
         setPreview(data)
+        if (data?.contract?.type === 'employer') {
+          setError('This link is for an employer contract. Use the employer onboarding URL from your invitation email.')
+          return
+        }
         const contactName = String(data?.organization?.contact_person_name || '').trim()
         const contactEmail = String(data?.organization?.contact_email || '').trim()
         const [first = '', ...rest] = contactName.split(/\s+/)

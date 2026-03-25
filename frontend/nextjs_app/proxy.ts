@@ -25,7 +25,7 @@ const protectedRoutes = [
 
 // Public routes that are allowed without login.
 // Institution onboarding must be reachable from invite links.
-const openRoutes: string[] = ['/onboarding/institution'];
+const openRoutes: string[] = ['/onboarding/institution', '/onboarding/employer'];
 const authRoutes = ['/login', '/register'];
 
 function getLoginRouteForPath(pathname: string) {

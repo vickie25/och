@@ -14,8 +14,9 @@ class Organization(models.Model):
     Supports Sponsors, Employers, and Partners.
     """
     ORG_TYPES = [
-        ('sponsor', 'Sponsor'),
+        ('institution', 'Institution'),
         ('employer', 'Employer'),
+        ('sponsor', 'Sponsor'),
         ('partner', 'Partner'),
     ]
     

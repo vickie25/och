@@ -5,7 +5,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { RouteGuard } from '@/components/auth/RouteGuard'
 import { FinanceNavigation } from '@/components/navigation/FinanceNavigation'
 import { Card } from '@/components/ui/Card'
@@ -47,6 +47,8 @@ type Contract = {
   payment_terms: string
   auto_renew: boolean
   renewal_notice_days: number
+  seat_cap: number
+  seats_used?: number
   is_active: boolean
   email_sent?: boolean
   days_until_expiry: number
@@ -57,6 +59,7 @@ type Contract = {
 type OrgOption = {
   id: number
   name: string
+  org_type?: string
   enrollment_status?: 'active' | 'pending_contract_creation' | 'pending_invoice_payment'
   enrollment_status_label?: string
 }
@@ -76,6 +79,7 @@ export default function ContractsPage() {
     type: 'institution' as 'institution' | 'employer',
     start_date: '',
     end_date: '',
+    seat_cap: 50,
     auto_renew: false,
     renewal_notice_days: 60,
   })
@@ -94,6 +98,7 @@ export default function ContractsPage() {
     type: 'institution' as 'institution' | 'employer',
     start_date: '',
     end_date: '',
+    seat_cap: 50,
     auto_renew: false,
     renewal_notice_days: 60,
   })
@@ -112,11 +117,13 @@ export default function ContractsPage() {
           list.map((o: {
             id: number
             name: string
+            org_type?: string
             enrollment_status?: OrgOption['enrollment_status']
             enrollment_status_label?: string
           }) => ({
             id: o.id,
             name: o.name,
+            org_type: o.org_type,
             enrollment_status: o.enrollment_status,
             enrollment_status_label: o.enrollment_status_label,
           }))
@@ -145,7 +152,14 @@ export default function ContractsPage() {
     try {
       setLoading(true)
       const response = await apiGateway.get('/finance/contracts/')
-      setContracts(Array.isArray(response) ? response : response.results || [])
+      const raw = Array.isArray(response) ? response : response.results || []
+      setContracts(
+        (raw as Contract[]).map((c) => ({
+          ...c,
+          seat_cap: typeof c.seat_cap === 'number' ? c.seat_cap : 0,
+          seats_used: typeof c.seats_used === 'number' ? c.seats_used : 0,
+        }))
+      )
     } catch (error) {
       console.error('Failed to load contracts:', error)
       setContracts([])
@@ -203,20 +217,37 @@ export default function ContractsPage() {
     totalValue: contracts.reduce((sum, c) => sum + c.total_value, 0)
   }
 
-  const selectableOrganizations =
-    createForm.type === 'institution'
-      ? organizations.filter((org) => org.enrollment_status === 'pending_contract_creation')
-      : organizations
+  const selectableOrganizations = useMemo(() => {
+    if (createForm.type === 'institution') {
+      return organizations.filter(
+        (org) =>
+          org.org_type === 'institution' &&
+          org.enrollment_status === 'pending_contract_creation'
+      )
+    }
+    // Employer contracts: org rows typed as employer or legacy sponsor (not generic institution rows)
+    return organizations.filter(
+      (org) => org.org_type === 'employer' || org.org_type === 'sponsor'
+    )
+  }, [organizations, createForm.type])
 
   const handleCreateContract = async () => {
     setCreateError(null)
     const orgId = parseInt(createForm.organizationId, 10)
     if (!orgId) {
-      setCreateError('Please select an organization.')
+      setCreateError(
+        createForm.type === 'institution'
+          ? 'Please select an organization.'
+          : 'Please select an employer or sponsor organization.'
+      )
       return
     }
     if (!createForm.start_date || !createForm.end_date) {
       setCreateError('Start and end dates are required.')
+      return
+    }
+    if (!createForm.seat_cap || createForm.seat_cap < 1) {
+      setCreateError('Allocate at least one seat (seat cap) for this contract.')
       return
     }
     setCreateSubmitting(true)
@@ -226,6 +257,7 @@ export default function ContractsPage() {
         type: createForm.type,
         start_date: createForm.start_date,
         end_date: createForm.end_date,
+        seat_cap: createForm.seat_cap,
         auto_renew: createForm.auto_renew,
         renewal_notice_days: createForm.renewal_notice_days || 60,
       })
@@ -252,6 +284,7 @@ export default function ContractsPage() {
         type: 'institution',
         start_date: '',
         end_date: '',
+        seat_cap: 50,
         auto_renew: false,
         renewal_notice_days: 60,
       })
@@ -307,6 +340,7 @@ export default function ContractsPage() {
       type: selectedContract.type,
       start_date: selectedContract.start_date,
       end_date: selectedContract.end_date,
+      seat_cap: selectedContract.seat_cap ?? 50,
       auto_renew: selectedContract.auto_renew,
       renewal_notice_days: selectedContract.renewal_notice_days,
     })
@@ -328,6 +362,12 @@ export default function ContractsPage() {
   }
 
   const buildInviteTemplate = (contract: Contract): string => {
+    const origin =
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
+    const onboardingPath =
+      contract.type === 'employer' ? '/onboarding/employer' : '/onboarding/institution'
     const header = `Hello ${contract.organization_name},\n\n`
     const contractInfo =
       `A ${contract.type} contract has been created for your organization in OCH.\n\n` +
@@ -336,9 +376,10 @@ export default function ContractsPage() {
       `- Contract type: ${contract.type}\n` +
       `- Start date: ${new Date(contract.start_date).toLocaleDateString()}\n` +
       `- End date: ${new Date(contract.end_date).toLocaleDateString()}\n` +
+      `- Seat allocation (cap): ${contract.seat_cap ?? '—'}\n` +
       `- Minimum commitment: 12 months\n\n` +
       `Onboarding link:\n` +
-      `http://localhost:3000/onboarding/institution?organization=${contract.organization ?? ''}&contract=${contract.id}\n\n` +
+      `${origin}${onboardingPath}?organization=${contract.organization ?? ''}&contract=${contract.id}\n\n` +
       `From this onboarding flow you can:\n` +
       `1) Accept terms and conditions\n` +
       `2) Choose preferred tier and billing cycle\n` +
@@ -376,6 +417,10 @@ export default function ContractsPage() {
       setEditError('Start and end dates are required.')
       return
     }
+    if (!editForm.seat_cap || editForm.seat_cap < 1) {
+      setEditError('Seat cap must be at least 1.')
+      return
+    }
     setEditSubmitting(true)
     setEditError(null)
     try {
@@ -383,6 +428,7 @@ export default function ContractsPage() {
         type: editForm.type,
         start_date: editForm.start_date,
         end_date: editForm.end_date,
+        seat_cap: editForm.seat_cap,
         auto_renew: editForm.auto_renew,
         renewal_notice_days: editForm.renewal_notice_days || 60,
       })
@@ -560,6 +606,9 @@ export default function ContractsPage() {
                           Type
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-och-steel uppercase tracking-wider">
+                          Seats
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-och-steel uppercase tracking-wider">
                           Value
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-och-steel uppercase tracking-wider">
@@ -599,6 +648,11 @@ export default function ContractsPage() {
                             <Badge variant={contract.type === 'institution' ? 'defender' : 'mint'}>
                               {contract.type}
                             </Badge>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                            <span className="text-och-steel">{contract.seats_used ?? 0}</span>
+                            <span className="text-och-steel"> / </span>
+                            {contract.seat_cap ?? 0}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
                             KSh {contract.total_value.toLocaleString()}
@@ -682,6 +736,7 @@ export default function ContractsPage() {
             <h3 className="text-h3 font-semibold text-white mb-5">Contract Details</h3>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between"><span className="text-och-steel">Organization</span><span className="text-white">{selectedContract.organization_name}</span></div>
+              <div className="flex justify-between"><span className="text-och-steel">Seat cap</span><span className="text-white">{selectedContract.seat_cap ?? '—'} ({selectedContract.seats_used ?? 0} used)</span></div>
               <div className="flex justify-between"><span className="text-och-steel">Type</span><span className="text-white">{selectedContract.type}</span></div>
               <div className="flex justify-between"><span className="text-och-steel">Status</span><span className="text-white">{selectedContract.status}</span></div>
               <div className="flex justify-between"><span className="text-och-steel">Start</span><span className="text-white">{new Date(selectedContract.start_date).toLocaleDateString()}</span></div>
@@ -738,6 +793,19 @@ export default function ContractsPage() {
                   />
                   Auto-renew
                 </label>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-och-steel mb-2">Seat cap</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={editForm.seat_cap}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({ ...prev, seat_cap: Math.max(1, parseInt(e.target.value, 10) || 1) }))
+                  }
+                  className="w-full max-w-xs px-3 py-2 bg-och-steel/10 border border-och-steel/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-och-mint"
+                />
+                <p className="text-xs text-och-steel mt-1">Institution: enrolled students cap. Employer: placements/pipeline cap.</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-och-steel mb-2">Start Date</label>
@@ -808,7 +876,7 @@ export default function ContractsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-och-steel mb-2">
-                    Organization
+                    {createForm.type === 'institution' ? 'Organization' : 'Employer / sponsor'}
                   </label>
                   <select
                     value={createForm.organizationId}
@@ -817,17 +885,29 @@ export default function ContractsPage() {
                     }
                     className="w-full px-3 py-2 bg-och-steel/10 border border-och-steel/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-och-mint"
                   >
-                    <option value="" className="bg-white text-och-midnight">Select organization...</option>
+                    <option value="" className="bg-white text-och-midnight">
+                      {createForm.type === 'institution'
+                        ? 'Select organization...'
+                        : 'Select employer or sponsor...'}
+                    </option>
                     {selectableOrganizations.map((org) => (
                       <option key={org.id} value={String(org.id)} className="bg-white text-och-midnight">
                         {org.name}
-                        {org.enrollment_status_label ? ` - ${org.enrollment_status_label}` : ''}
+                        {org.org_type ? ` (${org.org_type})` : ''}
+                        {createForm.type === 'institution' && org.enrollment_status_label
+                          ? ` - ${org.enrollment_status_label}`
+                          : ''}
                       </option>
                     ))}
                   </select>
                   {createForm.type === 'institution' && selectableOrganizations.length === 0 && (
                     <p className="mt-2 text-xs text-och-steel">
                       No organizations are currently in pending contract creation.
+                    </p>
+                  )}
+                  {createForm.type === 'employer' && selectableOrganizations.length === 0 && (
+                    <p className="mt-2 text-xs text-och-steel">
+                      No organizations with type Employer or Sponsor found. Add them under Organizations first.
                     </p>
                   )}
                 </div>
@@ -841,6 +921,7 @@ export default function ContractsPage() {
                       setCreateForm((prev) => ({
                         ...prev,
                         type: e.target.value as 'institution' | 'employer',
+                        organizationId: '',
                       }))
                     }
                     className="w-full px-3 py-2 bg-och-steel/10 border border-och-steel/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-och-mint"
@@ -884,8 +965,33 @@ export default function ContractsPage() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-och-steel mb-2">
+                  Seat cap (allocation)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={createForm.seat_cap}
+                  onChange={(e) =>
+                    setCreateForm((prev) => ({
+                      ...prev,
+                      seat_cap: Math.max(1, parseInt(e.target.value, 10) || 1),
+                    }))
+                  }
+                  className="w-full max-w-xs px-3 py-2 bg-och-steel/10 border border-och-steel/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-och-mint"
+                />
+                <p className="mt-2 text-xs text-och-steel">
+                  {createForm.type === 'institution'
+                    ? 'Maximum concurrent students this institution may enroll under the contract.'
+                    : 'Maximum placements or pipeline actions the employer may use under this contract.'}
+                </p>
+              </div>
+
               <div className="rounded-lg border border-och-steel/20 bg-och-steel/10 p-3 text-sm text-och-steel">
-                Contract details and onboarding instructions will be emailed to the organization contact.
+                {createForm.type === 'institution'
+                  ? 'Contract details and onboarding instructions will be emailed to the organization contact.'
+                  : 'Contract details will be emailed to the employer or sponsor contact on file.'}
               </div>
 
               <div className="flex items-center gap-2">
