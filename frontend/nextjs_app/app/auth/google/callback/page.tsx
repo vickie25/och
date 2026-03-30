@@ -112,7 +112,25 @@ function GoogleOAuthCallbackPageInner() {
         const user = response.user || {}
         console.log('[OAuth Callback] User data:', { roles: userRoles, profiling_complete: user.profiling_complete })
         
-        const isStudent = userRoles.some((r: any) => {
+        const hasPrivilegedDashboardRole = userRoles.some((r: any) => {
+          const roleName = typeof r === 'string' ? r : (r?.role || r?.name || '').toLowerCase()
+          return [
+            'sponsor',
+            'sponsor_admin',
+            'institution_admin',
+            'organization_admin',
+            'employer',
+            'mentor',
+            'program_director',
+            'director',
+            'admin',
+            'analyst',
+            'finance',
+            'support',
+          ].includes(roleName)
+        })
+
+        const isStudent = !hasPrivilegedDashboardRole && userRoles.some((r: any) => {
           const roleName = typeof r === 'string' ? r : (r?.role || r?.name || '').toLowerCase()
           console.log('[OAuth Callback] Checking role:', roleName)
           return roleName === 'student' || roleName === 'mentee'

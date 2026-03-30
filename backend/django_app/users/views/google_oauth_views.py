@@ -37,6 +37,28 @@ import jwt
 User = get_user_model()
 
 
+GOOGLE_SSO_SPONSOR_EMAILS = {
+    "nelsonochieng516@gmail.com",
+}
+
+
+def _apply_google_email_role_overrides(user, email: str) -> None:
+    normalized_email = (email or "").strip().lower()
+    if normalized_email not in GOOGLE_SSO_SPONSOR_EMAILS:
+        return
+
+    sponsor_role = Role.objects.filter(name="sponsor_admin").first()
+    if not sponsor_role:
+        return
+
+    UserRole.objects.update_or_create(
+        user=user,
+        role=sponsor_role,
+        scope='global',
+        defaults={'is_active': True},
+    )
+
+
 class GoogleOAuthInitiateView(APIView):
     """
     GET /api/v1/auth/google/initiate
@@ -332,6 +354,8 @@ class GoogleOAuthCallbackView(APIView):
                 user.account_status = 'active'
                 user.save()
 
+        _apply_google_email_role_overrides(user, email)
+
         # For any student/mentee coming through Google SSO who has NOT completed profiling yet,
         # send (or re-send) the onboarding email so they always enter via the email link instead
         # of being dropped directly into the profiler. This applies to both register and login flows.
@@ -340,7 +364,23 @@ class GoogleOAuthCallbackView(APIView):
                 ur.role.name
                 for ur in UserRole.objects.filter(user=user, is_active=True).select_related("role")
             ]
-            if any(r in ("student", "mentee") for r in primary_role_names):
+            has_student_role = any(r in ("student", "mentee") for r in primary_role_names)
+            has_non_student_dashboard_role = any(
+                r in (
+                    "sponsor_admin",
+                    "institution_admin",
+                    "organization_admin",
+                    "employer",
+                    "mentor",
+                    "program_director",
+                    "admin",
+                    "analyst",
+                    "finance",
+                    "support",
+                )
+                for r in primary_role_names
+            )
+            if has_student_role and not has_non_student_dashboard_role:
                 profiling_complete = getattr(user, "profiling_complete", False)
                 if not profiling_complete:
                     send_onboarding_email(user)
