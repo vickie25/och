@@ -6,7 +6,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { AlertTriangle, Upload, Linkedin, FileText, Globe, CheckCircle, User, Zap, ChevronRight, Target } from 'lucide-react';
+import { AlertTriangle, Upload, Link2, FileText, Globe, CheckCircle, User, Zap, ChevronRight, Target } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -90,7 +90,7 @@ export function MissingFieldsNudges({ settings, hasPortfolioItems, onUpdate }: M
     headline: Zap,
     location: Globe,
     track: Target,
-    linkedinLinked: Linkedin,
+    linkedinLinked: Link2,
     bioCompleted: FileText,
     timezoneSet: Globe,
     portfolioVisibility: Globe,

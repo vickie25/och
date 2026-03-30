@@ -6,7 +6,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Github, Shield, Loader2, CheckCircle } from 'lucide-react';
+import { ExternalLink, Shield, Loader2, CheckCircle } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { connectGitHub, importGitHubRepositories, connectTryHackMe, importTryHackMeProfile } from '@/lib/portfolio/oauth';
@@ -99,7 +99,7 @@ export function ExternalImport() {
           {/* GitHub */}
           <div className="border border-slate-700 rounded-lg p-4">
             <div className="flex items-center gap-3 mb-4">
-              <Github className="w-6 h-6 text-slate-300" />
+              <ExternalLink className="w-6 h-6 text-slate-300" />
               <h4 className="font-semibold text-slate-100">GitHub</h4>
             </div>
             <p className="text-sm text-slate-400 mb-4">
@@ -118,7 +118,7 @@ export function ExternalImport() {
                 </>
               ) : (
                 <>
-                  <Github className="w-4 h-4 mr-2" />
+                  <ExternalLink className="w-4 h-4 mr-2" />
                   Connect GitHub
                 </>
               )}

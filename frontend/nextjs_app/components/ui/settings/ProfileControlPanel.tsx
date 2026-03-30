@@ -6,7 +6,7 @@
 'use client';
 
 import { useState } from 'react';
-import { User, Upload, Linkedin, FileText, Globe, CheckCircle } from 'lucide-react';
+import { User, Upload, Link2, FileText, Globe, CheckCircle } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { ProgressBar } from '@/components/ui/ProgressBar';

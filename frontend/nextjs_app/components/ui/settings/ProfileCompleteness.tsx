@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, Upload, Sparkles, AlertTriangle, Linkedin, Globe, FileText, Rocket, Target } from 'lucide-react';
+import { User, Upload, Sparkles, AlertTriangle, Link2, Globe, FileText, Rocket, Target } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';

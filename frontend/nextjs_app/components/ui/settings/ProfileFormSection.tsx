@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, MapPin, FileText, Globe, Languages, Linkedin, Shield, Target, Zap } from 'lucide-react';
+import { User, MapPin, FileText, Globe, Languages, Link2, Shield, Target, Zap } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -184,7 +184,7 @@ export function ProfileFormSection({ settings, updateSettings }: ProfileFormSect
           {/* Social Links */}
           <div className="space-y-3">
             <label className="text-[10px] font-black text-och-steel uppercase tracking-widest flex items-center gap-2">
-              <Linkedin className="w-3 h-3 text-och-gold" />
+              <Link2 className="w-3 h-3 text-och-gold" />
               Professional Verification (LinkedIn)
             </label>
             <div className="flex items-center gap-4">

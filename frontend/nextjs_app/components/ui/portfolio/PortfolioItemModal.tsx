@@ -12,7 +12,6 @@ import {
   Eye,
   Star,
   Target,
-  Github,
   Award,
   FileText,
   ExternalLink,
@@ -61,7 +60,7 @@ export function PortfolioItemModal({
     mission: Target,
     reflection: BookOpen,
     certification: Award,
-    github: Github,
+    github: ExternalLink,
     lab_report: FileCode,
     external: ExternalLink,
   };

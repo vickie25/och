@@ -8,7 +8,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Github, ExternalLink, BookOpen, Link2, CheckCircle, XCircle, RefreshCw, Clock, Settings, ChevronDown, ChevronUp, Zap, Database, AlertCircle, TrendingUp } from 'lucide-react';
+import { ExternalLink, BookOpen, Link2, CheckCircle, XCircle, RefreshCw, Clock, Settings, ChevronDown, ChevronUp, Zap, Database, AlertCircle, TrendingUp } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -65,7 +65,7 @@ export function IntegrationHub({ settings, updateSettings, userId }: Integration
     {
       id: 'github',
       name: 'GitHub',
-      icon: Github,
+      icon: ExternalLink,
       description: 'Auto-import repositories as portfolio items',
       status: settings.integrations?.github || 'disconnected',
       connectUrl: '/api/auth/github',
