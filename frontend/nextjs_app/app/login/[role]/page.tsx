@@ -1085,19 +1085,51 @@ export function LoginForm() {
                 className="w-full py-3 text-base rounded-xl border-[rgba(255,255,255,0.15)] text-[#E2E8F0] hover:border-[rgba(245,158,11,0.6)] hover:text-[#F59E0B] transition-colors duration-200 flex items-center justify-center gap-3"
                   onClick={async () => {
                   try {
-                      const response = await fetch(
-                        `/api/v1/auth/google/initiate?role=${encodeURIComponent(currentRole)}&mode=login`,
-                        { credentials: 'include' }
-                      );
-                      const data = await response.json().catch(() => ({}));
-                      if (!response.ok) {
-                        throw new Error(data?.detail || 'Failed to initiate Google sign-in');
+                      const query = `role=${encodeURIComponent(currentRole)}&mode=login`;
+                      const relativePath = `/api/v1/auth/google/initiate?${query}`;
+                      const configuredApiBase = process.env.NEXT_PUBLIC_DJANGO_API_URL;
+
+                      const buildInitiateUrl = (base: string) => {
+                        const normalized = base.replace(/\/$/, '');
+                        if (normalized.endsWith('/api/v1')) {
+                          return `${normalized}/auth/google/initiate?${query}`;
+                        }
+                        if (normalized.endsWith('/api')) {
+                          return `${normalized}/v1/auth/google/initiate?${query}`;
+                        }
+                        return `${normalized}/api/v1/auth/google/initiate?${query}`;
+                      };
+
+                      const localDirectBase =
+                        typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+                          ? `${window.location.protocol}//${window.location.hostname}:8000`
+                          : null;
+
+                      const absoluteUrl = configuredApiBase ? buildInitiateUrl(configuredApiBase) : null;
+                      const localDirectUrl = localDirectBase ? buildInitiateUrl(localDirectBase) : null;
+
+                      const endpoints = [relativePath, localDirectUrl, absoluteUrl].filter(Boolean) as string[];
+                      let lastError = 'Failed to initiate Google sign-in';
+
+                      for (const endpoint of endpoints) {
+                        try {
+                          const response = await fetch(endpoint, { credentials: 'include' });
+                          const data = await response.json().catch(() => ({}));
+                          if (response.ok && data?.auth_url) {
+                            window.location.replace(data.auth_url);
+                            return;
+                          }
+
+                          lastError = data?.detail || data?.error || lastError;
+                          if (![404, 502, 503, 504].includes(response.status)) {
+                            break;
+                          }
+                        } catch {
+                          lastError = 'Failed to initiate Google sign-in';
+                        }
                       }
-                      if (data.auth_url) {
-                        window.location.replace(data.auth_url);
-                        return;
-                      }
-                      throw new Error('No authorization URL received from server');
+
+                      throw new Error(lastError || 'No authorization URL received from server');
                     } catch (err: any) {
                       setError(err?.message || 'Failed to initiate Google sign-in');
                     }

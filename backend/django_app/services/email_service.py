@@ -88,6 +88,20 @@ class EmailService:
                 logger.info(f"Attempting to send email via Resend to {to_email} (type: {email_type})")
                 result = self.emails_client.send(params)
 
+                if isinstance(result, dict):
+                    message_id = result.get('id') or result.get('data', {}).get('id')
+                    error_info = result.get('error') or result.get('message')
+                    if message_id:
+                        logger.info(
+                            f"Email sent successfully via Resend (type: {email_type}, id: {message_id}, to: {to_email})"
+                        )
+                        return True
+                    if error_info:
+                        logger.error(f"Resend API error: {error_info} (type: {email_type}, to: {to_email})")
+                        return False
+                    logger.error(f"Resend API returned unexpected response: {result} (type: {email_type}, to: {to_email})")
+                    return False
+
                 if result and hasattr(result, 'id'):
                     logger.info(f"Email sent successfully via Resend (type: {email_type}, id: {result.id}, to: {to_email})")
                     return True

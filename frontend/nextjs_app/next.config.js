@@ -5,6 +5,10 @@ const path = require('path');
 module.exports = (phase) => {
   const djangoBase =
     process.env.NEXT_PUBLIC_DJANGO_API_URL || 'http://localhost:8000';
+  const normalizedDjangoBase = djangoBase
+    .replace(/\/$/, '')
+    .replace(/\/api\/v1$/, '')
+    .replace(/\/api$/, '');
 
   /** @type {import('next').NextConfig} */
   const nextConfig = {
@@ -18,11 +22,11 @@ module.exports = (phase) => {
       return [
         {
           source: '/api/profiling/:path*',
-          destination: `${djangoBase}/api/v1/profiling/:path*`,
+          destination: `${normalizedDjangoBase}/api/v1/profiling/:path*`,
         },
         {
           source: '/api/v1/:path*',
-          destination: `${djangoBase}/api/v1/:path*`,
+          destination: `${normalizedDjangoBase}/api/v1/:path*`,
         },
       ];
     },
