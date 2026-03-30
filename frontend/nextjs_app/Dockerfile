@@ -161,13 +161,10 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Copy necessary files from builder
 # Copy public directory
 COPY --from=builder /app/public ./public
-
-# Copy standalone build output (includes server and most files)
-# This will fail if the build didn't complete - that's intentional
 COPY --from=builder /app/.next/standalone ./
-
-# Copy static files (directory is guaranteed to exist from builder stage)
 COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./app/public
+COPY --from=builder /app/.next/static ./app/.next/static
 
 # Set correct permissions
 RUN chown -R nextjs:nodejs /app
