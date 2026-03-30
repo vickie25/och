@@ -46,6 +46,34 @@ export function UserManagementModal({ user, onClose, onUpdate }: UserManagementM
     }
   }
 
+  const handleHardDelete = async () => {
+    if (!user) return
+
+    const confirmation = prompt(
+      `Type DELETE to permanently remove ${user.email} and all related data.`
+    )
+    if (confirmation !== 'DELETE') {
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      await apiGateway.delete(`/users/${user.id}/`, { params: { permanent: true } })
+      alert('User permanently deleted.')
+      await onUpdate()
+      onClose()
+    } catch (error: any) {
+      console.error('Hard delete failed:', error)
+      const message =
+        error?.response?.data?.detail ||
+        error?.message ||
+        'Failed to permanently delete user'
+      alert(message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const loadRoles = async () => {
     try {
       const data = await apiGateway.get<Role[] | { results: Role[] }>('/roles/')
@@ -322,7 +350,7 @@ export function UserManagementModal({ user, onClose, onUpdate }: UserManagementM
             <Button variant="orange" className="flex-1">
               Reset Onboarding
             </Button>
-            <Button variant="orange" className="flex-1">
+            <Button variant="orange" className="flex-1" onClick={handleHardDelete} disabled={isLoading}>
               Hard Delete
             </Button>
           </div>

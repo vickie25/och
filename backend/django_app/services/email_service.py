@@ -131,7 +131,27 @@ class EmailService:
             import traceback
             logger.error(f"Failed to send email (type: {email_type}, to: {to_email}): {str(e)}")
             logger.error(f"Error traceback: {traceback.format_exc()}")
-            return False
+            try:
+                from django.core.mail import send_mail
+                plain_message = strip_tags(html_content)
+                send_mail(
+                    subject=subject,
+                    message=plain_message,
+                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', self.from_email),
+                    recipient_list=[to_email],
+                    html_message=html_content,
+                    fail_silently=False,
+                )
+                logger.info(
+                    f"Email sent successfully via Django send_mail fallback after provider error "
+                    f"(type: {email_type}, to: {to_email})"
+                )
+                return True
+            except Exception as fallback_error:
+                logger.error(
+                    f"Fallback send_mail also failed (type: {email_type}, to: {to_email}): {fallback_error}"
+                )
+                return False
     
     def send_activation_email(self, user, raw_token: str = None) -> bool:
         """

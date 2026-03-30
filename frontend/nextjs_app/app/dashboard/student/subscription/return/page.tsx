@@ -3,22 +3,50 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { apiGateway } from '@/services/apiGateway'
 
 export default function PaystackReturnPage() {
   const searchParams = useSearchParams()
-  const [done, setDone] = useState(false)
+  const [status, setStatus] = useState<'loading' | 'success' | 'failed'>('loading')
+  const [message, setMessage] = useState('Completing payment...')
+  const [hasOpener, setHasOpener] = useState(false)
   const reference = searchParams.get('reference')
 
   useEffect(() => {
-    if (!reference) return
-    if (typeof window === 'undefined') return
-    if (window.opener) {
-      window.opener.postMessage({ type: 'paystack_success', reference }, window.location.origin)
-      setDone(true)
-      window.close()
-    } else {
-      setDone(true)
+    if (!reference) {
+      setStatus('failed')
+      setMessage('No payment reference found.')
+      return
     }
+
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const openerWindow = window.opener
+    const openerExists = Boolean(openerWindow)
+    setHasOpener(openerExists)
+
+    const verifyPayment = async () => {
+      try {
+        await apiGateway.post('/subscription/paystack/verify', { reference })
+        setStatus('success')
+        setMessage('Payment successful. Your subscription has been activated.')
+
+        if (openerWindow) {
+          openerWindow.postMessage({ type: 'paystack_success', reference }, window.location.origin)
+          setTimeout(() => {
+            window.close()
+          }, 700)
+        }
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Payment verification failed'
+        setStatus('failed')
+        setMessage(errorMessage)
+      }
+    }
+
+    void verifyPayment()
   }, [reference])
 
   if (!reference) {
@@ -34,12 +62,29 @@ export default function PaystackReturnPage() {
     )
   }
 
-  if (done && !window.opener) {
+  if (status === 'success' && !hasOpener) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-background">
         <div className="text-center">
           <p className="text-foreground font-medium">Payment completed.</p>
-          <p className="text-muted-foreground text-sm mt-1">You can close this window.</p>
+          <p className="text-muted-foreground text-sm mt-1">{message}</p>
+          <Link
+            href="/dashboard/student/subscription"
+            className="mt-4 inline-block text-primary underline"
+          >
+            Back to subscription
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  if (status === 'failed') {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+        <div className="text-center">
+          <p className="text-red-400 font-medium">Payment verification failed.</p>
+          <p className="text-muted-foreground text-sm mt-1">{message}</p>
           <Link
             href="/dashboard/student/subscription"
             className="mt-4 inline-block text-primary underline"
@@ -54,7 +99,7 @@ export default function PaystackReturnPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <div className="text-center">
-        <p className="text-muted-foreground">Completing payment...</p>
+        <p className="text-muted-foreground">{message}</p>
       </div>
     </div>
   )
