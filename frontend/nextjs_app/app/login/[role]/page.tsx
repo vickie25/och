@@ -282,10 +282,10 @@ export function LoginForm() {
       // In production, cookies take time to be written
       let cookiesSet = false;
       let attempts = 0;
-      const maxAttempts = 10;
+      const maxAttempts = 3;
       
       while (!cookiesSet && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 100));
         attempts++;
         
         // Check if access_token cookie exists
@@ -302,8 +302,8 @@ export function LoginForm() {
       let updatedUser = result?.user || user;
 
       let retries = 0;
-      while ((!updatedUser || !updatedUser.roles || updatedUser.roles.length === 0) && retries < 5) {
-        await new Promise(resolve => setTimeout(resolve, 200));
+      while ((!updatedUser || !updatedUser.roles || updatedUser.roles.length === 0) && retries < 2) {
+        await new Promise(resolve => setTimeout(resolve, 100));
         updatedUser = user || result?.user;
         retries++;
       }
@@ -346,7 +346,10 @@ export function LoginForm() {
         // Don't block redirect if FastAPI check fails - Django is source of truth
         try {
           const { fastapiClient } = await import('@/services/fastapiClient');
-          const fastapiStatus = await fastapiClient.profiling.checkStatus();
+          const fastapiStatus = await Promise.race([
+            fastapiClient.profiling.checkStatus(),
+            new Promise<{ completed: boolean }>((resolve) => setTimeout(() => resolve({ completed: true }), 1500)),
+          ]);
           if (!fastapiStatus.completed) {
             setIsRedirecting(true);
             hasRedirectedRef.current = true;
@@ -533,7 +536,10 @@ export function LoginForm() {
       if (needsMfaCheck) {
         try {
           const { djangoClient } = await import('@/services/djangoClient');
-          const res = await djangoClient.auth.getMFAMethods();
+          const res = await Promise.race([
+            djangoClient.auth.getMFAMethods(),
+            new Promise<{ methods: any[] }>((resolve) => setTimeout(() => resolve({ methods: [] }), 1500)),
+          ]);
           const count = (res.methods || []).length;
           if (count < 2) {
             route = '/dashboard/mfa-required';

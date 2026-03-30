@@ -147,29 +147,18 @@ function useProvideAuth(): AuthContextValue {
         localStorage.setItem('refresh_token', refresh_token);
       }
       
-      // Fetch full user profile with roles from /auth/me
-      // Retry logic to ensure we get the full user profile
+      // Fetch full user profile with a short timeout so login UX stays responsive.
       let fullUser = user;
-      let profileRetries = 0;
-      const maxRetries = 3;
-      
-      while (profileRetries < maxRetries) {
-        try {
-          // Small delay to ensure token is available
-          if (profileRetries > 0) {
-            await new Promise(resolve => setTimeout(resolve, 200 * profileRetries));
-          }
-
-          fullUser = await djangoClient.auth.getCurrentUser();
-
-          // If we got a user with roles, break out of retry loop
-          if (fullUser && fullUser.roles && fullUser.roles.length > 0) {
-            break;
-          }
-        } catch {
-          profileRetries++;
-          if (profileRetries >= maxRetries) break;
+      try {
+        const timedProfile = await Promise.race([
+          djangoClient.auth.getCurrentUser(),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
+        ]);
+        if (timedProfile && timedProfile.roles && timedProfile.roles.length > 0) {
+          fullUser = timedProfile;
         }
+      } catch {
+        // Keep login responsive; fallback to user payload from login response.
       }
       
       // Update state with authenticated user immediately
