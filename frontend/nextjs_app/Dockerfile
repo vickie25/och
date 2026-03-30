@@ -185,7 +185,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})" || exit 1
 
 # Start Next.js server
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "if [ -f /app/server.js ]; then node /app/server.js; elif [ -f /app/app/server.js ]; then node /app/app/server.js; elif [ -f /app/.next/standalone/server.js ]; then node /app/.next/standalone/server.js; else echo 'ERROR: No Next.js server entrypoint found'; ls -la /app; ls -la /app/app 2>/dev/null || true; ls -la /app/.next/standalone 2>/dev/null || true; exit 1; fi"]
 
 
 
