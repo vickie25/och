@@ -6,6 +6,7 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from django.db.models import Q, Count, F, Case, When, Value, IntegerField, DecimalField
 from django.utils import timezone
@@ -19,7 +20,10 @@ from .models import (
     # Advanced features
     Channel, ChannelMembership, StudySquad, SquadMembership,
     CommunityReputation, AISummary, CollabRoom, CollabRoomParticipant,
-    CommunityContribution, EnterpriseCohort
+    CommunityContribution, EnterpriseCohort,
+    # Discord-style community
+    CommunitySpace, CommunityChannel, CommunityThread, CommunityMessage,
+    CommunityMessageReaction, CommunitySpaceMember, CommunityRole
 )
 from .serializers import (
     UniversitySerializer, UniversityListSerializer, UniversityMembershipSerializer,
@@ -35,7 +39,11 @@ from .serializers import (
     CommunityReputationSerializer, CommunityReputationPublicSerializer,
     AISummarySerializer, AISummaryRequestSerializer,
     CollabRoomSerializer, CollabRoomListSerializer, CollabRoomCreateSerializer, CollabRoomParticipantSerializer,
-    CommunityContributionSerializer, EnterpriseCohortSerializer, AwardPointsSerializer
+    CommunityContributionSerializer, EnterpriseCohortSerializer, AwardPointsSerializer,
+    # Discord-style community
+    CommunitySpaceSerializer, CommunityChannelSerializer, CommunityThreadSerializer,
+    CommunityMessageSerializer, CommunityMessageCreateSerializer,
+    CommunitySpaceMemberSerializer
 )
 
 
@@ -149,17 +157,67 @@ class UniversityMembershipViewSet(viewsets.ModelViewSet):
         return UniversityMembership.objects.filter(
             user=self.request.user
         ).select_related('university')
+
+    def create(self, request, *args, **kwargs):
+        # Option 1: Users may only belong to exactly one university.
+        if UniversityMembership.objects.filter(user=request.user).exists():
+            raise ValidationError({'detail': 'You already have a university. You cannot choose more than one.'})
+        return super().create(request, *args, **kwargs)
     
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-        # Update university member count
-        university = serializer.instance.university
-        university.member_count = university.memberships.filter(status='active').count()
-        university.save(update_fields=['member_count'])
+        with transaction.atomic():
+            serializer.save(user=self.request.user)
+
+            # Ensure only one primary membership per user
+            if serializer.instance.is_primary:
+                UniversityMembership.objects.filter(
+                    user=self.request.user,
+                    is_primary=True
+                ).exclude(id=serializer.instance.id).update(is_primary=False)
+
+            # Update university member count
+            university = serializer.instance.university
+            university.member_count = university.memberships.filter(status='active').count()
+            university.save(update_fields=['member_count'])
+
+    @action(detail=False, methods=['post'])
+    def set_primary(self, request):
+        """Set a user's primary university membership."""
+        university_id = request.data.get('university_id')
+        membership_id = request.data.get('membership_id')
+
+        if not university_id and not membership_id:
+            return Response(
+                {'error': 'university_id or membership_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        membership_qs = UniversityMembership.objects.filter(user=request.user)
+        if membership_id:
+            membership = get_object_or_404(membership_qs, id=membership_id)
+        else:
+            membership = get_object_or_404(membership_qs, university_id=university_id)
+
+        with transaction.atomic():
+            UniversityMembership.objects.filter(user=request.user, is_primary=True).exclude(
+                id=membership.id
+            ).update(is_primary=False)
+
+            if not membership.is_primary:
+                membership.is_primary = True
+                membership.save(update_fields=['is_primary'])
+
+        serializer = UniversityMembershipSerializer(membership)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['post'])
     def auto_join(self, request):
         """Auto-join university based on email domain."""
+        existing = UniversityMembership.objects.filter(user=request.user).select_related('university').first()
+        if existing:
+            serializer = UniversityMembershipSerializer(existing)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
         email_domain = request.user.email.split('@')[-1]
         
         university = University.objects.filter(
@@ -300,10 +358,10 @@ class FeedView(APIView):
             # No university - show global feed instead
             return self._get_global_feed(posts)
         
-        # Filter to university posts + cross-university highlights
+        # Filter to university posts + all global posts
         posts = posts.filter(
             Q(university=membership.university) |
-            Q(visibility='global', is_featured=True)
+            Q(visibility='global')
         )
         
         # Calculate time decay factor (posts older than 7 days get lower priority)
@@ -1896,6 +1954,156 @@ class EnterpriseCohortViewSet(viewsets.ModelViewSet):
         
         serializer = PostListSerializer(posts, many=True, context={'request': request})
         return Response(serializer.data)
+
+
+class CommunitySpaceViewSet(viewsets.ModelViewSet):
+    """
+    Discord-style Community Spaces.
+    """
+    serializer_class = CommunitySpaceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = 'slug'
+
+    def get_queryset(self):
+        queryset = CommunitySpace.objects.filter(is_active=True)
+
+        # Filter by track/level for contextual spaces
+        track = self.request.query_params.get('track')
+        if track:
+            queryset = queryset.filter(track_code=track)
+
+        level = self.request.query_params.get('level')
+        if level:
+            queryset = queryset.filter(level_slug=level)
+
+        # Filter global spaces
+        global_only = self.request.query_params.get('global')
+        if global_only and global_only.lower() == 'true':
+            queryset = queryset.filter(is_global=True)
+
+        return queryset.order_by('-is_global', 'title')
+
+    @action(detail=True, methods=['post'])
+    def join(self, request, slug=None):
+        """Join a community space."""
+        space = self.get_object()
+        role, _ = CommunityRole.objects.get_or_create(
+            name='student',
+            defaults={'description': 'Student member'}
+        )
+        CommunitySpaceMember.objects.get_or_create(
+            space=space,
+            user=request.user,
+            defaults={'role': role, 'is_active': True}
+        )
+        return Response({'joined': True}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get'])
+    def members(self, request, slug=None):
+        """Get space members."""
+        space = self.get_object()
+        members = CommunitySpaceMember.objects.filter(
+            space=space, is_active=True
+        ).select_related('user', 'role').order_by('-joined_at')
+        serializer = CommunitySpaceMemberSerializer(members, many=True)
+        return Response(serializer.data)
+
+
+class CommunityThreadViewSet(viewsets.ModelViewSet):
+    """
+    Discussion threads within channels.
+    """
+    serializer_class = CommunityThreadSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = CommunityThread.objects.filter(is_active=True).select_related('created_by')
+
+        # Filter by channel
+        channel_id = self.request.query_params.get('channel_id')
+        if channel_id:
+            queryset = queryset.filter(channel_id=channel_id)
+
+        # Filter by type
+        thread_type = self.request.query_params.get('type')
+        if thread_type:
+            queryset = queryset.filter(thread_type=thread_type)
+
+        return queryset.order_by('-is_pinned', '-last_message_at')
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+
+class CommunityMessageViewSet(viewsets.ModelViewSet):
+    """
+    Messages within threads with reactions support.
+    """
+    serializer_class = CommunityMessageSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = CommunityMessage.objects.filter(
+            is_active=True
+        ).select_related('author').prefetch_related('reactions')
+
+        # Filter by thread
+        thread_id = self.request.query_params.get('thread_id')
+        if thread_id:
+            queryset = queryset.filter(thread_id=thread_id)
+
+        return queryset.order_by('created_at')
+
+    def get_serializer_class(self):
+        if self.action in ['create', 'update', 'partial_update']:
+            return CommunityMessageCreateSerializer
+        return CommunityMessageSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def react(self, request, pk=None):
+        """Add or toggle a reaction to a message."""
+        message = self.get_object()
+        emoji = request.data.get('emoji')
+        if not emoji:
+            return Response({'error': 'emoji is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Toggle: remove if exists, add if not
+        existing = CommunityMessageReaction.objects.filter(
+            message=message, user=request.user, emoji=emoji
+        ).first()
+
+        if existing:
+            existing.delete()
+            return Response({'reaction': 'removed', 'emoji': emoji})
+        else:
+            CommunityMessageReaction.objects.create(
+                message=message, user=request.user, emoji=emoji
+            )
+            return Response({'reaction': 'added', 'emoji': emoji}, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def flag(self, request, pk=None):
+        """Flag a message for moderation."""
+        message = self.get_object()
+        reason = request.data.get('reason', '')
+        message.has_ai_flag = True
+        message.ai_flag_reason = reason
+        message.save(update_fields=['has_ai_flag', 'ai_flag_reason'])
+
+        # Also log to moderation table
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        ModerationLog.objects.create(
+            moderator=request.user,
+            action='flag',
+            target_message=f"thread_message:{message.id}",
+            reason=reason,
+            metadata={'thread_id': str(message.thread_id)}
+        )
+        return Response({'flagged': True}, status=status.HTTP_200_OK)
 
 
 class ContributionViewSet(viewsets.ReadOnlyModelViewSet):

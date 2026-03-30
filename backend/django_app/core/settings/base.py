@@ -15,18 +15,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 PROJECT_ROOT = BASE_DIR.parent.parent  # /home/caleb/kiptoo/och/ongozaCyberHub
 
 # Check if running in Docker (don't override env vars if they're already set properly)
-# Force local development for now
-IN_DOCKER = False
+IN_DOCKER = bool(
+    os.environ.get("IN_DOCKER")
+) or os.path.exists("/.dockerenv")
 
 # Always load local .env files for development
 env_path = BASE_DIR / '.env'
 if env_path.exists():
-    load_dotenv(env_path, override=True)
+    load_dotenv(env_path, override=not IN_DOCKER)
     print(f"Loaded .env from django_app: {env_path}")
 else:
     root_env = PROJECT_ROOT / '.env'
     if root_env.exists():
-        load_dotenv(root_env, override=True)
+        load_dotenv(root_env, override=not IN_DOCKER)
         print(f"Loaded .env from project root: {root_env}")
 
 # SECURITY WARNING: keep the secret key used in production secret!

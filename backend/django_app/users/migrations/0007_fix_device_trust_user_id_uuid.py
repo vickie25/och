@@ -9,6 +9,23 @@ def alter_device_trust_user_id_to_uuid(apps, schema_editor):
     if schema_editor.connection.vendor != "postgresql":
         return
     with schema_editor.connection.cursor() as cursor:
+        # Ensure users.uuid_id exists (some DB dumps may not include it yet)
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'users' AND column_name = 'uuid_id'
+                ) THEN
+                    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+                    ALTER TABLE users ADD COLUMN uuid_id uuid;
+                    UPDATE users SET uuid_id = gen_random_uuid() WHERE uuid_id IS NULL;
+                    ALTER TABLE users ALTER COLUMN uuid_id SET NOT NULL;
+                    CREATE UNIQUE INDEX IF NOT EXISTS users_uuid_id_uniq ON users(uuid_id);
+                END IF;
+            END $$;
+        """)
+
         # Drop the existing FK constraint
         cursor.execute("""
             DO $$

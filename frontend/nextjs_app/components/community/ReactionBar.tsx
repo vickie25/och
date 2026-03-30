@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/Button"
 import { useState, useEffect } from "react"
-import { createClient } from "@/lib/supabase/client"
+import { apiGateway } from "@/services/apiGateway"
 
 const EMOJIS = ["🔥", "💯", "👏", "❤️", "😂"] as const
 
@@ -13,28 +13,15 @@ interface ReactionBarProps {
 }
 
 export function ReactionBar({ reactions, postId, userId }: ReactionBarProps) {
-  const supabase = createClient()
   const [userReactions, setUserReactions] = useState<Set<string>>(new Set())
   const [localReactions, setLocalReactions] = useState<Record<string, number>>(reactions)
 
-  // Fetch user's reactions for this post
+  // NOTE: user-specific reaction state is not fetched here.
+  // The Django API returns `user_reaction` on feed endpoints; we keep this
+  // component optimistic and only sync counts with incoming props.
   useEffect(() => {
-    if (!userId) return
-
-    const fetchUserReactions = async () => {
-      const { data } = await supabase
-        .from("community_reactions")
-        .select("reaction_type")
-        .eq("post_id", postId)
-        .eq("user_id", userId)
-
-      if (data) {
-        setUserReactions(new Set(data.map(r => r.reaction_type)))
-      }
-    }
-
-    fetchUserReactions()
-  }, [postId, userId, supabase])
+    setUserReactions(new Set())
+  }, [postId, userId])
 
   // Sync local reactions with props
   useEffect(() => {
@@ -65,37 +52,23 @@ export function ReactionBar({ reactions, postId, userId }: ReactionBarProps) {
     setLocalReactions(newLocalReactions)
 
     // Server update
-    if (isReacted) {
-      const { error } = await supabase
-        .from("community_reactions")
-        .delete()
-        .eq("post_id", postId)
-        .eq("user_id", userId)
-        .eq("reaction_type", emoji)
-
-      if (error) {
-        // Rollback on error
-        setUserReactions(prev => {
-          const rolledBack = new Set(prev)
-          rolledBack.add(emoji)
-          return rolledBack
-        })
-        setLocalReactions(reactions)
+    try {
+      // Django toggles reactions; it uses `reaction_type` choices (like/love/fire...)
+      // Our UI currently uses emoji strings. Map to a compatible reaction_type.
+      const emojiToType: Record<string, string> = {
+        "🔥": "fire",
+        "💯": "insightful",
+        "👏": "clap",
+        "❤️": "love",
+        "😂": "curious",
       }
-    } else {
-      const { error } = await supabase
-        .from("community_reactions")
-        .insert({ post_id: postId, user_id: userId, reaction_type: emoji })
 
-      if (error) {
-        // Rollback on error
-        setUserReactions(prev => {
-          const rolledBack = new Set(prev)
-          rolledBack.delete(emoji)
-          return rolledBack
-        })
-        setLocalReactions(reactions)
-      }
+      const reaction_type = emojiToType[emoji] || "like"
+      await apiGateway.post(`/community/posts/${postId}/react/`, { reaction_type })
+    } catch (e) {
+      // Rollback on error
+      setUserReactions(new Set())
+      setLocalReactions(reactions)
     }
   }
 

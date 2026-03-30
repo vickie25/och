@@ -12,6 +12,7 @@ interface CommunityMessage {
     id: string;
     email: string;
     display_name: string;
+    timezone?: string;
   };
   body: string;
   reply_to_message_id: string | null;
@@ -102,6 +103,11 @@ function MessageItem({
             <span className="text-white font-medium text-sm">
               {message.author.display_name}
             </span>
+            {message.author.timezone && (
+              <span className="text-slate-500 text-xs">
+                {message.author.timezone}
+              </span>
+            )}
             <span className="text-slate-500 text-xs">
               {formatTime(message.created_at)}
             </span>

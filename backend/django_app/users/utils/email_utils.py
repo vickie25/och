@@ -224,6 +224,12 @@ def send_onboarding_email(user):
     if not onboarding_url:
         onboarding_url = f"{frontend_url.rstrip('/')}/onboarding/student?email={user.email}"
 
+    tracking_pixel = (
+        f'<img src="{tracking_url}" width="1" height="1" style="display:none;" alt="" />'
+        if tracking_url
+        else ""
+    )
+
     # Create HTML content closely matching director enrollment onboarding email
     html_content = f"""
     <!DOCTYPE html>
@@ -278,7 +284,7 @@ def send_onboarding_email(user):
         </div>
         
         <!-- Tracking pixel -->
-        {"<img src=\"%s\" width=\"1\" height=\"1\" style=\"display:none;\" alt=\"\" />" % tracking_url if tracking_url else ""}
+        {tracking_pixel}
     </body>
     </html>
     """

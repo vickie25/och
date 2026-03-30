@@ -4,11 +4,20 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/client';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    let supabase: any;
+    try {
+      const mod = await import('@/lib/supabase/client');
+      supabase = mod.createClient();
+    } catch (e) {
+      console.error('Supabase client initialization failed:', e);
+      return NextResponse.json(
+        { error: 'Supabase is not configured' },
+        { status: 503 }
+      );
+    }
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

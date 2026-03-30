@@ -180,6 +180,14 @@ class InstitutionalSeatPool(models.Model):
             self.active_seats = max(0, self.active_seats - count)
         
         self.save()
+    
+    def reserve_seats(self, count):
+        """Reserve seats without allocating them (for invitations)"""
+        if not self.can_allocate_seats(count):
+            raise ValueError(f"Not enough available seats. Available: {self.available_seats}, Requested: {count}")
+        
+        self.reserved_seats += count
+        self.save()
 
 
 class InstitutionalStudentAllocation(models.Model):
@@ -688,3 +696,131 @@ class InstitutionalAcademicCalendar(models.Model):
             if start_date <= check_date <= end_date:
                 return True
         return False
+
+
+class InstitutionalInvitation(models.Model):
+    """
+    Email-based student invitations for institutional contracts.
+    Allows pre-reserving seats for students who haven't joined yet.
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('expired', 'Expired'),
+        ('revoked', 'Revoked'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    contract = models.ForeignKey(
+        InstitutionalContract,
+        on_delete=models.CASCADE,
+        related_name='student_invitations'
+    )
+    seat_pool = models.ForeignKey(
+        InstitutionalSeatPool,
+        on_delete=models.CASCADE,
+        related_name='invitations'
+    )
+    
+    # Invitation details
+    email = models.EmailField(db_index=True)
+    first_name = models.CharField(max_length=100, blank=True)
+    last_name = models.CharField(max_length=100, blank=True)
+    department = models.CharField(max_length=200, blank=True)
+    
+    # Assignment configuration (applied when accepted)
+    assigned_cohort = models.ForeignKey(
+        Cohort,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='institutional_invitations'
+    )
+    assigned_tracks = models.JSONField(default=list, blank=True)
+    
+    # Status tracking
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    token = models.CharField(max_length=255, unique=True, db_index=True)
+    invited_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='sent_institutional_invitations'
+    )
+    invited_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    accepted_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='accepted_institutional_invitations'
+    )
+    
+    # Metadata
+    reminder_count = models.IntegerField(default=0)
+    last_reminder_sent = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    
+    class Meta:
+        db_table = 'institutional_invitations'
+        unique_together = ['contract', 'email', 'status']
+        indexes = [
+            models.Index(fields=['contract', 'status']),
+            models.Index(fields=['email', 'status']),
+            models.Index(fields=['token']),
+            models.Index(fields=['expires_at']),
+        ]
+    
+    def __str__(self):
+        return f"Invitation {self.email} - {self.contract.organization.name} ({self.status})"
+    
+    def save(self, *args, **kwargs):
+        # Generate token if not set
+        if not self.token:
+            import secrets
+            self.token = secrets.token_urlsafe(32)
+        super().save(*args, **kwargs)
+    
+    @property
+    def is_expired(self):
+        """Check if invitation has expired"""
+        if self.status != 'pending':
+            return False
+        return timezone.now() > self.expires_at
+    
+    @property
+    def days_until_expiry(self):
+        """Calculate days until invitation expires"""
+        if self.status != 'pending':
+            return 0
+        delta = self.expires_at - timezone.now()
+        return max(0, delta.days)
+    
+    def accept(self, user):
+        """Mark invitation as accepted by a user"""
+        self.status = 'accepted'
+        self.accepted_at = timezone.now()
+        self.accepted_by = user
+        self.save()
+        
+        # Release reserved seat and create actual allocation
+        self.seat_pool.release_seats(1, from_reserved=True)
+    
+    def revoke(self):
+        """Revoke the invitation and release reserved seat"""
+        self.status = 'revoked'
+        self.save()
+        
+        # Release reserved seat
+        self.seat_pool.release_seats(1, from_reserved=True)
+    
+    def expire(self):
+        """Mark invitation as expired and release reserved seat"""
+        if self.status == 'pending':
+            self.status = 'expired'
+            self.save()
+            
+            # Release reserved seat
+            self.seat_pool.release_seats(1, from_reserved=True)

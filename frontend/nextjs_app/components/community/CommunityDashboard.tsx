@@ -17,6 +17,7 @@ import { UniversityCommunityView } from './UniversityCommunityView';
 import { GlobalFeedView } from './GlobalFeedView';
 import { CommunityLeaderboard } from './CommunityLeaderboard';
 import { CreatePostModal } from './CreatePostModal';
+import { UniversityOnboardingModal } from './UniversityOnboardingModal';
 import { Users, Globe, Trophy, Plus, Settings, Shield, MessageCircle, UserCircle, ChevronRight, ExternalLink, MessageSquare } from 'lucide-react';
 import { apiGateway } from '@/services/apiGateway';
 import { programsClient } from '@/services/programsClient';
@@ -157,6 +158,8 @@ export function CommunityDashboard() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('university');
   const [showCreatePost, setShowCreatePost] = useState(false);
+  const [needsUniversitySetup, setNeedsUniversitySetup] = useState(false);
+  const [checkingMembership, setCheckingMembership] = useState(true);
   
   // Cohort data state
   const [cohortId, setCohortId] = useState<string | null>(null);
@@ -168,6 +171,36 @@ export function CommunityDashboard() {
   const roles = useMemo(() => getUserRoles(user), [user]);
   const primaryRole = useMemo(() => getPrimaryRole(user), [user]);
   const permissions = useMemo(() => getCommunityPermissions(roles, primaryRole), [roles, primaryRole]);
+
+  // Enforce Option 1 university setup for students/mentees
+  useEffect(() => {
+    const checkMembership = async () => {
+      if (!user?.id) {
+        setCheckingMembership(false);
+        return;
+      }
+
+      const isStudent = roles.includes('student') || roles.includes('mentee');
+      if (!isStudent) {
+        setNeedsUniversitySetup(false);
+        setCheckingMembership(false);
+        return;
+      }
+
+      setCheckingMembership(true);
+      try {
+        const raw = await apiGateway.get<any>('/community/memberships/');
+        const list = Array.isArray(raw) ? raw : (raw?.results ?? []);
+        setNeedsUniversitySetup(list.length === 0);
+      } catch {
+        setNeedsUniversitySetup(true);
+      } finally {
+        setCheckingMembership(false);
+      }
+    };
+
+    void checkMembership();
+  }, [user?.id, roles]);
   
   // Fetch cohort data (only for students)
   useEffect(() => {
@@ -242,6 +275,19 @@ export function CommunityDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto">
+      <UniversityOnboardingModal
+        isOpen={needsUniversitySetup && !checkingMembership}
+        onClose={() => {
+          // Don't allow dismissing setup for students/mentees in option 1.
+          // Keep modal open.
+          setNeedsUniversitySetup(true);
+        }}
+        onCompleted={async () => {
+          setNeedsUniversitySetup(false);
+          router.refresh();
+        }}
+      />
+
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">

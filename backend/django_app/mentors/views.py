@@ -15,7 +15,7 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from users.permissions import IsMentor
-from .models import Mentor, MentorStudentAssignment, MentorStudentNote, MentorSession
+from .models import Mentor, MentorStudentAssignment, MentorStudentNote, MentorSession, MentorRating, MentorCredit, CreditTransaction, CreditRedemption
 from .serializers import (
     MentorDashboardSerializer,
     MentorStudentDetailSerializer,
@@ -23,6 +23,7 @@ from .serializers import (
     MentorSessionSerializer,
     MentorSessionCreateSerializer,
 )
+from .services import MentorCreditService
 
 logger = logging.getLogger(__name__)
 
@@ -453,3 +454,184 @@ class MentorBoostView(APIView):
             'interventions': interventions,
             'message': f"Successfully triggered {len(interventions)} interventions for {boost_type} boost"
         }
+
+
+class StudentRateMentorView(APIView):
+    """
+    POST /api/v1/mentors/[mentor_slug]/rate/
+    Student rates a mentor after engagement/support.
+    Awards credits to mentor based on rating (5 stars = 10, 4 = 8, 3 = 6, 2 = 4, 1 = 2).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, mentor_slug):
+        """Submit a rating for a mentor."""
+        try:
+            mentor = get_object_or_404(Mentor, mentor_slug=mentor_slug)
+            student = request.user
+
+            # Validate rating
+            rating_value = request.data.get('rating')
+            if rating_value not in [1, 2, 3, 4, 5]:
+                return Response(
+                    {'error': 'Rating must be between 1 and 5'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Check if student has an active assignment with this mentor
+            has_assignment = MentorStudentAssignment.objects.filter(
+                mentor=mentor,
+                student=student,
+                is_active=True
+            ).exists()
+
+            if not has_assignment:
+                return Response(
+                    {'error': 'You can only rate mentors you have been assigned to'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # Create or update rating
+            rating, created = MentorRating.objects.update_or_create(
+                mentor=mentor,
+                student=student,
+                defaults={
+                    'rating': rating_value,
+                    'review': request.data.get('review', '')
+                }
+            )
+
+            credits_awarded = rating.calculate_credits()
+
+            return Response({
+                'success': True,
+                'rating': {
+                    'id': str(rating.id),
+                    'rating': rating.rating,
+                    'review': rating.review,
+                    'credits_awarded_to_mentor': credits_awarded,
+                    'created_at': rating.created_at
+                },
+                'message': f'Rating submitted. Mentor received {credits_awarded} credits.'
+            }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"Error submitting mentor rating: {e}", exc_info=True)
+            return Response(
+                {'error': 'Failed to submit rating'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class MentorCreditsView(APIView):
+    """
+    GET /api/v1/mentors/[mentor_slug]/credits/
+    Get mentor's credit balance and summary.
+    """
+    permission_classes = [IsAuthenticated, IsMentor]
+
+    def get(self, request, mentor_slug):
+        """Get mentor credit summary."""
+        try:
+            mentor = get_object_or_404(Mentor, mentor_slug=mentor_slug, user=request.user)
+
+            summary = MentorCreditService.get_credit_summary(mentor)
+            recent_transactions = MentorCreditService.get_transaction_history(mentor, limit=10)
+
+            return Response({
+                'credits': summary,
+                'recent_transactions': recent_transactions
+            })
+
+        except Exception as e:
+            logger.error(f"Error getting mentor credits: {e}", exc_info=True)
+            return Response(
+                {'error': 'Failed to load credit information'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class MentorRedeemCreditsView(APIView):
+    """
+    POST /api/v1/mentors/[mentor_slug]/credits/redeem/
+    Redeem credits for rewards (courses, certificates, badges, priority matching).
+    """
+    permission_classes = [IsAuthenticated, IsMentor]
+
+    def post(self, request, mentor_slug):
+        """Redeem credits for a reward."""
+        try:
+            mentor = get_object_or_404(Mentor, mentor_slug=mentor_slug, user=request.user)
+
+            redemption_type = request.data.get('redemption_type')
+            description = request.data.get('description', '')
+
+            # Validate redemption type
+            valid_types = ['course', 'certificate', 'badge', 'priority_matching', 'featured_profile']
+            if redemption_type not in valid_types:
+                return Response(
+                    {'error': f'Invalid redemption type. Must be one of: {valid_types}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Get cost
+            cost = CreditRedemption.get_cost(redemption_type)
+
+            # Attempt redemption
+            try:
+                redemption = MentorCreditService.redeem_credits(
+                    mentor=mentor,
+                    redemption_type=redemption_type,
+                    description=description,
+                    course_id=request.data.get('course_id'),
+                    certificate_id=request.data.get('certificate_id'),
+                    badge_type=request.data.get('badge_type')
+                )
+
+                return Response({
+                    'success': True,
+                    'redemption': {
+                        'id': str(redemption.id),
+                        'type': redemption.redemption_type,
+                        'credits_used': redemption.credits_used,
+                        'description': redemption.description,
+                        'status': redemption.status,
+                        'redeemed_at': redemption.redeemed_at
+                    },
+                    'message': f'Successfully redeemed {cost} credits for {redemption_type}'
+                })
+
+            except ValueError as e:
+                return Response(
+                    {'error': str(e)},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        except Exception as e:
+            logger.error(f"Error redeeming credits: {e}", exc_info=True)
+            return Response(
+                {'error': 'Failed to redeem credits'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class MentorCreditOptionsView(APIView):
+    """
+    GET /api/v1/mentors/credit-options/
+    Get available credit redemption options and their costs.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get credit redemption options."""
+        options = MentorCreditService.get_redemption_options()
+        return Response({
+            'options': options,
+            'credit_values': {
+                '5_star_rating': 10,
+                '4_star_rating': 8,
+                '3_star_rating': 6,
+                '2_star_rating': 4,
+                '1_star_rating': 2
+            }
+        })

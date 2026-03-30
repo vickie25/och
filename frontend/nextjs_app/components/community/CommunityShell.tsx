@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs"
 import { CommunityPostCard } from "./CommunityPostCard"
 import { UniversityStatsBar } from "./UniversityStatsBar"
 import { LeaderboardWidget } from "./LeaderboardWidget"
@@ -9,14 +9,12 @@ import { useCommunityFeed } from "@/hooks/useCommunityFeed"
 import { CreatePostModal } from "./CreatePostModal"
 import { CommentThread } from "./CommentThread"
 import { Search } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 
 interface CommunityShellProps {
   userId: string
 }
 
 export function CommunityShell({ userId }: CommunityShellProps) {
-  const supabase = createClient()
   const {
     posts,
     universities,
@@ -34,37 +32,20 @@ export function CommunityShell({ userId }: CommunityShellProps) {
 
   // Get community ID based on active tab
   useEffect(() => {
-    const fetchCommunityId = async () => {
-      if (activeTab === 'my-university' && currentUniversity) {
-        const { data } = await supabase
-          .from("communities")
-          .select("id")
-          .eq("university_id", currentUniversity.id)
-          .eq("type", "university")
-          .single()
-        setCommunityId(data?.id || currentUniversity.id)
-      } else if (activeTab === 'global') {
-        const { data } = await supabase
-          .from("communities")
-          .select("id")
-          .eq("type", "global")
-          .single()
-        setCommunityId(data?.id || "global-community")
-      } else if (activeTab === 'competitions') {
-        const { data } = await supabase
-          .from("communities")
-          .select("id")
-          .eq("type", "competition")
-          .limit(1)
-          .single()
-        setCommunityId(data?.id || "competition-community")
-      } else {
-        setCommunityId(currentUniversity?.id || "default-community")
-      }
+    if (activeTab === 'my-university') {
+      setCommunityId(currentUniversity?.id || '')
+      return
     }
-
-    fetchCommunityId()
-  }, [activeTab, currentUniversity, supabase])
+    if (activeTab === 'global') {
+      setCommunityId('global')
+      return
+    }
+    if (activeTab === 'competitions') {
+      setCommunityId('competitions')
+      return
+    }
+    setCommunityId(currentUniversity?.id || '')
+  }, [activeTab, currentUniversity])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">

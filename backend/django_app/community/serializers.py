@@ -3,6 +3,7 @@ Serializers for Community module.
 """
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from django.db.models import Count
 from .models import (
     University, UniversityDomain, UniversityMembership, Post, Comment, Reaction,
     CommunityEvent, EventParticipant, Badge, UserBadge,
@@ -10,7 +11,10 @@ from .models import (
     # Advanced features
     Channel, ChannelMembership, StudySquad, SquadMembership,
     CommunityReputation, AISummary, CollabRoom, CollabRoomParticipant,
-    CommunityContribution, EnterpriseCohort
+    CommunityContribution, EnterpriseCohort,
+    # Discord-style community
+    CommunitySpace, CommunityChannel, CommunityThread, CommunityMessage,
+    CommunityMessageReaction, CommunitySpaceMember, CommunityRole
 )
 
 User = get_user_model()
@@ -18,14 +22,30 @@ User = get_user_model()
 
 class UserMiniSerializer(serializers.ModelSerializer):
     """Minimal user info for posts/comments."""
+    display_name = serializers.SerializerMethodField()
     university_name = serializers.SerializerMethodField()
     current_circle = serializers.SerializerMethodField()
     badge_count = serializers.SerializerMethodField()
     
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'email', 'avatar_url', 
-                  'university_name', 'current_circle', 'badge_count']
+        fields = ['id', 'first_name', 'last_name', 'email', 'avatar_url',
+                  'timezone',
+                  'display_name', 'university_name', 'current_circle', 'badge_count']
+
+    def get_display_name(self, obj):
+        try:
+            if getattr(obj, 'metadata', None) and isinstance(obj.metadata, dict):
+                community_profile = obj.metadata.get('community_profile')
+                if community_profile and isinstance(community_profile, dict):
+                    dn = community_profile.get('display_name')
+                    if dn and isinstance(dn, str) and dn.strip():
+                        return dn.strip()
+        except Exception:
+            pass
+
+        full_name = f"{obj.first_name or ''} {obj.last_name or ''}".strip()
+        return full_name if full_name else obj.email
     
     def get_university_name(self, obj):
         membership = obj.university_memberships.filter(is_primary=True).first()
@@ -874,6 +894,127 @@ class EnterpriseCohortSerializer(serializers.ModelSerializer):
             'enterprise_name', 'member_count', 'is_active', 'is_private',
             'allow_external_view', 'created_at', 'updated_at'
         ]
+
+
+class CommunitySpaceSerializer(serializers.ModelSerializer):
+    """Community space with channels."""
+    channels = serializers.SerializerMethodField()
+    user_role = serializers.SerializerMethodField()
+    is_member = serializers.SerializerMethodField()
+    member_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CommunitySpace
+        fields = [
+            'id', 'slug', 'title', 'track_code', 'level_slug', 'cohort_code',
+            'description', 'is_global', 'is_active',
+            'channels', 'user_role', 'is_member', 'member_count',
+            'created_at', 'updated_at'
+        ]
+
+    def get_channels(self, obj):
+        from .models import CommunityChannel
+        channels = CommunityChannel.objects.filter(space=obj, is_active=True, is_hidden=False).order_by('sort_order')
+        return CommunityChannelSerializer(channels, many=True).data
+
+    def get_user_role(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return None
+        membership = CommunitySpaceMember.objects.filter(space=obj, user=request.user, is_active=True).first()
+        return membership.role.name if membership and membership.role else None
+
+    def get_is_member(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        return CommunitySpaceMember.objects.filter(space=obj, user=request.user, is_active=True).exists()
+
+    def get_member_count(self, obj):
+        return CommunitySpaceMember.objects.filter(space=obj, is_active=True).count()
+
+
+class CommunityChannelSerializer(serializers.ModelSerializer):
+    """Community channel within a space."""
+    thread_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CommunityChannel
+        fields = [
+            'id', 'slug', 'title', 'description', 'channel_type',
+            'sort_order', 'is_hidden', 'is_active', 'thread_count',
+            'created_at', 'updated_at'
+        ]
+
+    def get_thread_count(self, obj):
+        return CommunityThread.objects.filter(channel=obj, is_active=True).count()
+
+
+class CommunityThreadSerializer(serializers.ModelSerializer):
+    """Community thread with creator info."""
+    created_by = UserMiniSerializer(read_only=True)
+    message_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = CommunityThread
+        fields = [
+            'id', 'title', 'thread_type', 'created_by',
+            'mission_id', 'recipe_slug', 'module_id',
+            'is_locked', 'is_pinned', 'is_active',
+            'message_count', 'created_at', 'updated_at', 'last_message_at'
+        ]
+        read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
+
+
+class CommunityMessageReactionSerializer(serializers.ModelSerializer):
+    """Message reaction with emoji and count info."""
+    class Meta:
+        model = CommunityMessageReaction
+        fields = ['emoji', 'created_at']
+
+
+class CommunityMessageSerializer(serializers.ModelSerializer):
+    """Community message with author (includes timezone)."""
+    author = UserMiniSerializer(read_only=True)
+    reactions = serializers.SerializerMethodField()
+    reply_to_message_id = serializers.UUIDField(source='reply_to_message_id', read_only=True)
+
+    class Meta:
+        model = CommunityMessage
+        fields = [
+            'id', 'body', 'author', 'reply_to_message_id',
+            'has_ai_flag', 'ai_flag_reason', 'is_edited', 'edited_at',
+            'reactions', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'author', 'created_at', 'updated_at']
+
+    def get_reactions(self, obj):
+        """Aggregate reactions with counts and users."""
+        reactions = obj.reactions.values('emoji').annotate(
+            count=Count('id'),
+            users=ArrayAgg('user_id')
+        ).order_by('-count')
+        return [
+            {'emoji': r['emoji'], 'count': r['count'], 'users': r['users'] or []}
+            for r in reactions
+        ]
+
+
+class CommunityMessageCreateSerializer(serializers.ModelSerializer):
+    """Create community message."""
+    class Meta:
+        model = CommunityMessage
+        fields = ['body', 'reply_to_message']
+
+
+class CommunitySpaceMemberSerializer(serializers.ModelSerializer):
+    """Space membership with role."""
+    user = UserMiniSerializer(read_only=True)
+    role = serializers.CharField(source='role.name', read_only=True)
+
+    class Meta:
+        model = CommunitySpaceMember
+        fields = ['id', 'user', 'role', 'joined_at', 'last_seen_at', 'is_active']
 
 
 class AwardPointsSerializer(serializers.Serializer):

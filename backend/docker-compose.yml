@@ -158,8 +158,9 @@ services:
     command: sh -c "npm install && npm run dev -- --hostname 0.0.0.0 --port 3000"
     environment:
       NODE_ENV: development
-      NEXT_PUBLIC_DJANGO_API_URL: ""
-      NEXT_PUBLIC_FASTAPI_API_URL: ""
+      NEXT_PUBLIC_DJANGO_API_URL: "http://localhost:8000"
+      NEXT_PUBLIC_FASTAPI_API_URL: "http://localhost:8001"
+      DJANGO_API_URL: "http://django:8000"
       NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
       DJANGO_INTERNAL_URL: http://django:8000
       HOST: 0.0.0.0

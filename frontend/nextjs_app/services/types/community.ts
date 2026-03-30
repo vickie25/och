@@ -843,3 +843,94 @@ export const getLevelProgress = (points: number, level: number): number => {
   const pointsInLevel = points - currentThreshold
   return Math.min(100, Math.round((pointsInLevel / levelRange) * 100))
 }
+
+// ==================== Discord-style Community Types ====================
+
+export type ChannelTypeDiscord = 'text' | 'announcement'
+
+export interface CommunityChannel {
+  id: string
+  slug: string
+  title: string
+  description?: string
+  channel_type: ChannelTypeDiscord
+  sort_order: number
+  is_hidden: boolean
+  is_active: boolean
+  thread_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CommunitySpace {
+  id: string
+  slug: string
+  title: string
+  track_code?: string
+  level_slug?: string
+  cohort_code?: string
+  description?: string
+  is_global: boolean
+  is_active: boolean
+  channels: CommunityChannel[]
+  user_role?: string
+  is_member: boolean
+  member_count: number
+  created_at: string
+  updated_at: string
+}
+
+export type ThreadType = 'generic' | 'mission' | 'recipe' | 'module'
+
+export interface CommunityThread {
+  id: string
+  title: string
+  thread_type: ThreadType
+  created_by: {
+    id: string
+    first_name: string
+    last_name: string
+    email: string
+    avatar_url?: string
+    timezone?: string
+    display_name?: string
+  }
+  mission_id?: string
+  recipe_slug?: string
+  module_id?: string
+  is_locked: boolean
+  is_pinned: boolean
+  is_active: boolean
+  message_count: number
+  created_at: string
+  updated_at: string
+  last_message_at: string
+}
+
+export interface MessageReaction {
+  emoji: string
+  count: number
+  users: string[]
+}
+
+export interface CommunityMessage {
+  id: string
+  body: string
+  author: {
+    id: string
+    first_name: string
+    last_name: string
+    email: string
+    avatar_url?: string
+    timezone?: string
+    display_name?: string
+  }
+  reply_to_message_id: string | null
+  has_ai_flag: boolean
+  ai_flag_reason?: string
+  is_edited: boolean
+  edited_at?: string
+  reactions: MessageReaction[]
+  created_at: string
+  updated_at: string
+}

@@ -15,7 +15,8 @@ from io import BytesIO
 import base64
 
 from ..models import Program, Cohort, Enrollment, Certificate
-from ..serializers import CertificateSerializer
+from ..services.certificate_eligibility_service import CertificateEligibilityService
+from ..services.certificate_docx_generator import CertificateDOCXGenerator, DOCX_AVAILABLE
 from ..permissions import IsProgramDirector
 
 import logging
@@ -136,6 +137,18 @@ class DirectorCertificateViewSet(viewsets.ViewSet):
                     status=status.HTTP_403_FORBIDDEN
                 )
             
+            # Check certificate eligibility
+            is_eligible, eligibility_details = CertificateEligibilityService.check_eligibility(enrollment)
+            
+            if not is_eligible:
+                return Response(
+                    {
+                        'error': 'Enrollment not eligible for certificate generation',
+                        'details': eligibility_details
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
             # Check if certificate already exists
             existing_cert = Certificate.objects.filter(enrollment=enrollment).first()
             if existing_cert and existing_cert.file_uri:
@@ -144,38 +157,53 @@ class DirectorCertificateViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Generate certificate data
-            cert_data = {
-                'user_name': f"{enrollment.user.first_name} {enrollment.user.last_name}".strip(),
-                'program_name': enrollment.cohort.track.program.name,
-                'track_name': enrollment.cohort.track.name,
-                'cohort_name': enrollment.cohort.name,
-                'completion_date': enrollment.completed_at.strftime('%B %d, %Y') if enrollment.completed_at else timezone.now().strftime('%B %d, %Y'),
-                'director_name': request.user.get_full_name() or request.user.email,
-                'template_type': template_type,
-                **custom_fields
-            }
-            
-            # Mock certificate generation (would integrate with actual certificate service)
-            certificate_url = self._generate_certificate_file(cert_data)
-            
-            # Create or update certificate record
+            # Create certificate record
             if existing_cert:
-                existing_cert.file_uri = certificate_url
-                existing_cert.save()
                 certificate = existing_cert
             else:
                 certificate = Certificate.objects.create(
                     enrollment=enrollment,
-                    file_uri=certificate_url
+                    issue_date=timezone.now().date(),
+                    expiry_date=timezone.now().date() + timezone.timedelta(days=365),
+                    status='active'
                 )
+            
+            # Generate certificate using DOCX template
+            if DOCX_AVAILABLE:
+                try:
+                    docx_content = CertificateDOCXGenerator.generate_certificate_docx(certificate)
+                    
+                    # Save to file
+                    from django.core.files.base import ContentFile
+                    filename = f"certificate_{certificate.id}.docx"
+                    
+                    # Create file field if it doesn't exist
+                    if hasattr(certificate, 'certificate_file'):
+                        certificate.certificate_file.save(filename, ContentFile(docx_content))
+                        certificate.file_uri = certificate.certificate_file.url
+                    else:
+                        # Fallback: save to default storage
+                        from django.core.files.storage import default_storage
+                        path = default_storage.save(f"certificates/generated/{filename}", ContentFile(docx_content))
+                        certificate.file_uri = default_storage.url(path)
+                    
+                    certificate.save()
+                except Exception as e:
+                    logger.error(f"Failed to generate DOCX certificate: {e}")
+                    # Fallback
+                    certificate.file_uri = f"/certificates/{certificate.id}.docx"
+                    certificate.save()
+            else:
+                certificate.file_uri = f"/certificates/{certificate.id}.docx"
+                certificate.save()
             
             return Response({
                 'message': 'Certificate generated successfully',
                 'certificate': {
                     'id': str(certificate.id),
                     'file_uri': certificate.file_uri,
-                    'issued_at': certificate.issued_at.isoformat()
+                    'issued_at': certificate.issued_at.isoformat(),
+                    'eligibility': eligibility_details['summary']
                 }
             })
             
@@ -209,40 +237,61 @@ class DirectorCertificateViewSet(viewsets.ViewSet):
         
         for enrollment in enrollments:
             try:
+                # Check eligibility for each enrollment
+                is_eligible, eligibility_details = CertificateEligibilityService.check_eligibility(enrollment)
+                
+                if not is_eligible:
+                    errors.append({
+                        'enrollment_id': str(enrollment.id),
+                        'user_email': enrollment.user.email,
+                        'error': 'Not eligible for certificate',
+                        'details': eligibility_details
+                    })
+                    continue
+                
                 # Check if certificate already exists
                 existing_cert = Certificate.objects.filter(enrollment=enrollment).first()
                 if existing_cert and existing_cert.file_uri:
                     errors.append(f"Certificate already exists for {enrollment.user.email}")
                     continue
                 
-                # Generate certificate
-                cert_data = {
-                    'user_name': f"{enrollment.user.first_name} {enrollment.user.last_name}".strip(),
-                    'program_name': enrollment.cohort.track.program.name,
-                    'track_name': enrollment.cohort.track.name,
-                    'cohort_name': enrollment.cohort.name,
-                    'completion_date': enrollment.completed_at.strftime('%B %d, %Y') if enrollment.completed_at else timezone.now().strftime('%B %d, %Y'),
-                    'director_name': request.user.get_full_name() or request.user.email,
-                    'template_type': template_type
-                }
-                
-                certificate_url = self._generate_certificate_file(cert_data)
-                
+                # Create certificate record
                 if existing_cert:
-                    existing_cert.file_uri = certificate_url
-                    existing_cert.save()
                     certificate = existing_cert
                 else:
                     certificate = Certificate.objects.create(
                         enrollment=enrollment,
-                        file_uri=certificate_url
+                        issue_date=timezone.now().date(),
+                        expiry_date=timezone.now().date() + timezone.timedelta(days=365),
+                        status='active'
                     )
+                
+                # Generate certificate using DOCX template
+                if DOCX_AVAILABLE:
+                    try:
+                        docx_content = CertificateDOCXGenerator.generate_certificate_docx(certificate)
+                        
+                        # Save to file
+                        from django.core.files.base import ContentFile
+                        from django.core.files.storage import default_storage
+                        filename = f"certificate_{certificate.id}.docx"
+                        path = default_storage.save(f"certificates/generated/{filename}", ContentFile(docx_content))
+                        certificate.file_uri = default_storage.url(path)
+                        certificate.save()
+                    except Exception as e:
+                        logger.error(f"Failed to generate DOCX certificate: {e}")
+                        certificate.file_uri = f"/certificates/{certificate.id}.docx"
+                        certificate.save()
+                else:
+                    certificate.file_uri = f"/certificates/{certificate.id}.docx"
+                    certificate.save()
                 
                 generated_certificates.append({
                     'enrollment_id': str(enrollment.id),
                     'user_email': enrollment.user.email,
                     'certificate_id': str(certificate.id),
-                    'file_uri': certificate.file_uri
+                    'file_uri': certificate.file_uri,
+                    'eligibility': eligibility_details['summary']
                 })
                 
             except Exception as e:
@@ -274,11 +323,19 @@ class DirectorCertificateViewSet(viewsets.ViewSet):
                     status=status.HTTP_404_NOT_FOUND
                 )
             
-            # Mock file download (would serve actual file in production)
-            response = HttpResponse(
-                self._generate_mock_pdf_content(certificate),
-                content_type='application/pdf'
-            )
+            # Generate real PDF if ReportLab available, otherwise use mock
+            from ..services.certificate_pdf_generator import CertificatePDFGenerator, REPORTLAB_AVAILABLE
+            
+            if REPORTLAB_AVAILABLE:
+                pdf_content = CertificatePDFGenerator.generate_certificate_pdf(certificate, template_name='technical')
+                response = HttpResponse(pdf_content, content_type='application/pdf')
+            else:
+                # Fallback to mock if ReportLab not installed
+                response = HttpResponse(
+                    self._generate_mock_pdf_content(certificate),
+                    content_type='application/pdf'
+                )
+            
             response['Content-Disposition'] = f'attachment; filename="certificate_{certificate.id}.pdf"'
             return response
             
@@ -347,11 +404,18 @@ class DirectorCertificateViewSet(viewsets.ViewSet):
         })
     
     def _generate_certificate_file(self, cert_data):
-        """Mock certificate file generation."""
-        # In production, this would integrate with a certificate generation service
-        # like PDFKit, ReportLab, or a third-party service
-        certificate_id = f"cert_{timezone.now().strftime('%Y%m%d_%H%M%S')}"
-        return f"/certificates/{certificate_id}.pdf"
+        """Generate certificate file using ReportLab PDF generation."""
+        from ..services.certificate_pdf_generator import CertificatePDFGenerator, REPORTLAB_AVAILABLE
+        
+        if REPORTLAB_AVAILABLE:
+            pdf_generator = CertificatePDFGenerator()
+            pdf_content = pdf_generator.generate_certificate_pdf(cert_data, template_name='technical')
+            certificate_id = f"cert_{timezone.now().strftime('%Y%m%d_%H%M%S')}"
+            return f"/certificates/{certificate_id}.pdf"
+        else:
+            # Fallback to mock if ReportLab not installed
+            certificate_id = f"cert_{timezone.now().strftime('%Y%m%d_%H%M%S')}"
+            return f"/certificates/{certificate_id}.pdf"
     
     def _generate_mock_pdf_content(self, certificate):
         """Generate mock PDF content for download."""

@@ -1,17 +1,15 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { createClient } from "@/lib/supabase/client"
+import { apiGateway } from "@/services/apiGateway"
 import type {
   CommunityPost,
   Community,
   University,
-  StudentUniversityMapping,
   CreatePostData,
 } from "@/types/community"
 
 export function useCommunityFeed(userId: string) {
-  const supabase = createClient()
   const [posts, setPosts] = useState<CommunityPost[]>([])
   const [universities, setUniversities] = useState<University[]>([])
   const [currentUniversity, setCurrentUniversity] = useState<University | null>(null)
@@ -20,109 +18,19 @@ export function useCommunityFeed(userId: string) {
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'my-university' | 'global' | 'competitions' | 'leaderboard'>('my-university')
 
-  // Auto-join university community
-  const joinUniversityCommunity = useCallback(async (userId: string) => {
+  const fetchUserPrimaryUniversity = useCallback(async () => {
     try {
-      // Get user's email from auth.users
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user?.email) return
-
-      // Extract domain from email (e.g., student@uon.ac.ke -> uon)
-      const emailDomain = user.email.split('@')[1]
-      const domainParts = emailDomain.split('.')
-      const potentialCode = domainParts[0].toUpperCase()
-
-      // Try to find university by code
-      const { data: university } = await supabase
-        .from("universities")
-        .select("*")
-        .ilike("code", `%${potentialCode}%`)
-        .limit(1)
-        .single()
-
-      if (!university) {
-        // Try to find by email domain
-        const { data: universityByDomain } = await supabase
-          .from("universities")
-          .select("*")
-          .ilike("code", `%${domainParts[0]}%`)
-          .limit(1)
-          .single()
-
-        if (!universityByDomain) {
-          console.log("No university found for domain:", emailDomain)
-          return
-        }
-
-        // Map student to university
-        await supabase
-          .from("student_university_mapping")
-          .upsert({
-            user_id: userId,
-            university_id: universityByDomain.id,
-            mapped_method: 'email_domain',
-            updated_at: new Date().toISOString(),
-          })
-
-        setCurrentUniversity(universityByDomain as University)
-
-        // Find or create university community
-        const { data: community } = await supabase
-          .from("communities")
-          .select("*")
-          .eq("university_id", universityByDomain.id)
-          .eq("type", "university")
-          .limit(1)
-          .single()
-
-        if (community) {
-          // Auto-join community
-          await supabase
-            .from("community_memberships")
-            .upsert({
-              community_id: community.id,
-              user_id: userId,
-              role: 'member',
-            })
-        }
-        return
+      const memberships = await apiGateway.get<any[]>(`/community/memberships/`)
+      const primary = memberships?.find((m) => m.is_primary)
+      if (primary?.university) {
+        setCurrentUniversity(primary.university as University)
+      } else {
+        setCurrentUniversity(null)
       }
-
-      // Map student to university
-      await supabase
-        .from("student_university_mapping")
-        .upsert({
-          user_id: userId,
-          university_id: university.id,
-          mapped_method: 'email_domain',
-          updated_at: new Date().toISOString(),
-        })
-
-      setCurrentUniversity(university as University)
-
-      // Find or create university community
-      const { data: community } = await supabase
-        .from("communities")
-        .select("*")
-        .eq("university_id", university.id)
-        .eq("type", "university")
-        .limit(1)
-        .single()
-
-      if (community) {
-        // Auto-join community
-        await supabase
-          .from("community_memberships")
-          .upsert({
-            community_id: community.id,
-            user_id: userId,
-            role: 'member',
-          })
-      }
-    } catch (err) {
-      console.error("Error joining university community:", err)
+    } catch {
+      setCurrentUniversity(null)
     }
-  }, [supabase])
+  }, [])
 
   // Fetch initial data
   const fetchInitialData = useCallback(async () => {
@@ -132,222 +40,62 @@ export function useCommunityFeed(userId: string) {
     setError(null)
 
     try {
-      // Get user's university mapping
-      const { data: mapping } = await supabase
-        .from("student_university_mapping")
-        .select("university_id")
-        .eq("user_id", userId)
-        .single()
+      await fetchUserPrimaryUniversity()
 
-      if (mapping?.university_id) {
-        // Fetch university details
-        const { data: university } = await supabase
-          .from("universities")
-          .select("*")
-          .eq("id", mapping.university_id)
-          .single()
+      const universitiesResp = await apiGateway.get<any[]>(`/community/universities/?country=KE`)
+      setUniversities((universitiesResp || []) as University[])
 
-        if (university) {
-          setCurrentUniversity(university as University)
+      const feedType = activeTab === 'my-university'
+        ? 'my-university'
+        : activeTab
+
+      const feedResp = await apiGateway.get<any>(`/community/feed/?feed_type=${encodeURIComponent(feedType)}`)
+      const apiPosts: any[] = feedResp?.posts || []
+
+      const mappedPosts: CommunityPost[] = apiPosts.map((p) => {
+        const author = p.author || {}
+        const reactionType = p.user_reaction
+        const reactions: Record<string, number> = {}
+        if (reactionType) {
+          reactions[reactionType] = 1
         }
 
-        // Fetch university community
-        const { data: uniCommunity } = await supabase
-          .from("communities")
-          .select("*")
-          .eq("university_id", mapping.university_id)
-          .eq("type", "university")
-          .single()
-
-        if (uniCommunity && activeTab === 'my-university') {
-          await fetchPosts(uniCommunity.id)
+        return {
+          id: p.id,
+          community_id: p.university_code || (p.visibility === 'global' ? 'global' : 'university'),
+          user_id: author.id,
+          post_type: p.post_type,
+          title: p.title || undefined,
+          content: p.content,
+          media_urls: p.media_urls || undefined,
+          event_details: p.event_details || undefined,
+          poll_options: p.poll_options || undefined,
+          achievement_data: p.achievement_data || undefined,
+          tags: p.tags || [],
+          status: p.status,
+          view_count: p.view_count || 0,
+          reaction_count: p.reaction_count || 0,
+          comment_count: p.comment_count || 0,
+          pinned_by: undefined,
+          pinned_at: p.pinned_at || undefined,
+          created_at: p.created_at,
+          updated_at: p.updated_at || p.created_at,
+          user_name: author.display_name || `${author.first_name || ''} ${author.last_name || ''}`.trim() || author.email || 'Anonymous',
+          user_avatar: author.avatar_url || undefined,
+          user_circle: undefined,
+          university_name: p.university_name || undefined,
+          university_logo: p.university_logo || undefined,
+          reactions,
         }
-      }
+      })
 
-      if (activeTab === 'global') {
-        // Fetch global community posts
-        const { data: globalCommunity } = await supabase
-          .from("communities")
-          .select("*")
-          .eq("type", "global")
-          .single()
-
-        if (globalCommunity) {
-          await fetchPosts(globalCommunity.id)
-        }
-      }
-
-      // Fetch all universities
-      const { data: allUniversities } = await supabase
-        .from("universities")
-        .select("*")
-        .eq("is_active", true)
-        .order("member_count", { ascending: false })
-
-      if (allUniversities) {
-        setUniversities(allUniversities as University[])
-      }
+      setPosts(mappedPosts)
     } catch (err: any) {
       setError(err.message || "Failed to fetch data")
     } finally {
       setLoading(false)
     }
-  }, [userId, activeTab, supabase])
-
-  // Fetch posts for a community
-  const fetchPosts = useCallback(async (communityId: string) => {
-    try {
-      const { data: postsData, error: postsError } = await supabase
-        .from("community_posts")
-        .select("*")
-        .eq("community_id", communityId)
-        .eq("status", "published")
-        .order("created_at", { ascending: false })
-        .limit(20)
-
-      if (postsError) throw postsError
-
-      if (!postsData || postsData.length === 0) {
-        setPosts([])
-        return
-      }
-
-      // Get current user for comparison
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
-      
-      // Create user lookup (in production, you'd fetch from a profiles table)
-      const userLookup: Record<string, { name?: string; email?: string; avatar?: string }> = {}
-      
-      // For now, we'll use a simple approach - in production, join with profiles table
-      postsData.forEach(post => {
-        if (!userLookup[post.user_id]) {
-          // If it's the current user, use their data
-          if (post.user_id === currentUser?.id) {
-            userLookup[post.user_id] = {
-              email: currentUser.email,
-              name: currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || "Anonymous",
-              avatar: currentUser.user_metadata?.avatar_url,
-            }
-          } else {
-            // For other users, use placeholder (in production, fetch from profiles)
-            userLookup[post.user_id] = {
-              name: "Anonymous",
-              email: undefined,
-            }
-          }
-        }
-      })
-
-      // Fetch reactions for all posts
-      const postIds = postsData.map(p => p.id)
-      const { data: reactionsData } = await supabase
-        .from("community_reactions")
-        .select("post_id, reaction_type")
-        .in("post_id", postIds)
-
-      // Aggregate reactions by post
-      const reactionsByPost: Record<string, Record<string, number>> = {}
-      reactionsData?.forEach(reaction => {
-        if (!reactionsByPost[reaction.post_id]) {
-          reactionsByPost[reaction.post_id] = {}
-        }
-        reactionsByPost[reaction.post_id][reaction.reaction_type] =
-          (reactionsByPost[reaction.post_id][reaction.reaction_type] || 0) + 1
-      })
-
-      // Fetch university data for posts
-      const { data: universitiesData } = await supabase
-        .from("universities")
-        .select("id, name, logo_url")
-
-      const universityLookup: Record<string, { name: string; logo?: string }> = {}
-      universitiesData?.forEach(uni => {
-        universityLookup[uni.id] = { name: uni.name, logo: uni.logo_url || undefined }
-      })
-
-      // Merge all data into posts
-      const postsWithData = postsData.map(post => {
-        const user = userLookup[post.user_id] || { name: "Anonymous" }
-        return {
-          ...post,
-          reactions: reactionsByPost[post.id] || {},
-          user_name: user.name,
-          user_avatar: user.avatar,
-          user_circle: undefined, // This would come from portfolio/progress system
-          university_name: currentUniversity?.name,
-          university_logo: currentUniversity?.logo_url,
-        } as CommunityPost
-      })
-
-      setPosts(postsWithData)
-    } catch (err: any) {
-      console.error("Error fetching posts:", err)
-      setError(err.message)
-    }
-  }, [supabase, currentUniversity])
-
-  // Set up realtime subscriptions
-  useEffect(() => {
-    if (!userId) return
-
-    // Subscribe to new posts
-    const postsChannel = supabase
-      .channel("community_posts_channel")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "community_posts",
-        },
-        (payload) => {
-          setPosts((prev) => [payload.new as CommunityPost, ...prev])
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "community_posts",
-        },
-        (payload) => {
-          setPosts((prev) =>
-            prev.map((p) => (p.id === payload.new.id ? payload.new as CommunityPost : p))
-          )
-        }
-      )
-      .subscribe()
-
-    // Subscribe to reactions
-    const reactionsChannel = supabase
-      .channel("community_reactions_channel")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "community_reactions",
-        },
-        () => {
-          // Refetch posts to get updated reaction counts
-          fetchInitialData()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(postsChannel)
-      supabase.removeChannel(reactionsChannel)
-    }
-  }, [userId, supabase, fetchInitialData])
-
-  // Auto-join on mount
-  useEffect(() => {
-    if (userId) {
-      joinUniversityCommunity(userId)
-    }
-  }, [userId, joinUniversityCommunity])
+  }, [userId, activeTab, fetchUserPrimaryUniversity])
 
   // Fetch data when tab changes
   useEffect(() => {
@@ -357,26 +105,37 @@ export function useCommunityFeed(userId: string) {
   // Create post
   const createPost = useCallback(async (postData: CreatePostData) => {
     try {
-      const { data, error: createError } = await supabase
-        .from("community_posts")
-        .insert({
-          ...postData,
-          user_id: userId,
-          status: 'published',
-        })
-        .select()
-        .single()
+      // Determine visibility based on active tab (university vs global)
+      const visibility = activeTab === 'global' ? 'global' : 'university'
 
-      if (createError) throw createError
+      // For university posts, attach the user's primary university
+      let universityId: string | null = null
+      if (visibility === 'university') {
+        const memberships = await apiGateway.get<any[]>(`/community/memberships/`)
+        const primary = memberships?.find((m) => m.is_primary)
+        universityId = primary?.university?.id || null
+      }
 
-      // Refresh posts
+      await apiGateway.post(`/community/posts/`, {
+        post_type: postData.post_type,
+        title: postData.title,
+        content: postData.content,
+        media_urls: postData.media_urls || [],
+        visibility,
+        tags: postData.tags || [],
+        university_id: universityId,
+        event_details: postData.event_details,
+        poll_options: postData.poll_options,
+        achievement_type: (postData as any).achievement_type,
+        achievement_data: postData.achievement_data,
+      })
+
       await fetchInitialData()
-
-      return data
+      return null
     } catch (err: any) {
       throw new Error(err.message || "Failed to create post")
     }
-  }, [userId, supabase, fetchInitialData])
+  }, [activeTab, fetchInitialData])
 
   return {
     posts,

@@ -16,10 +16,12 @@ def calculate_risk_score(user, ip_address, device_fingerprint, user_agent):
     - Previous failed attempts
     """
     risk_score = 0.0
+
+    user_uuid = getattr(user, 'uuid_id', None)
     
     # Check if device is new
     if not DeviceTrust.objects.filter(
-        user=user,
+        user_id=user_uuid,
         device_fingerprint=device_fingerprint
     ).exists():
         risk_score += 0.3  # New device

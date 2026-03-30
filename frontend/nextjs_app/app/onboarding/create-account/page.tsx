@@ -5,12 +5,12 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { apiGateway } from '@/services/apiGateway';
 import { Shield, Lock, Mail, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 
-export default function CreateAccountPage() {
+function CreateAccountPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
@@ -324,5 +324,24 @@ export default function CreateAccountPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CreateAccountPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-och-midnight flex items-center justify-center p-8">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-och-gold/30 border-t-och-gold rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-och-steel font-black uppercase tracking-widest text-sm">
+              Verifying your link...
+            </p>
+          </div>
+        </div>
+      }
+    >
+      <CreateAccountPageContent />
+    </Suspense>
   );
 }

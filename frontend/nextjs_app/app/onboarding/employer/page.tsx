@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Card } from '@/components/ui/Card'
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/Input'
 import { apiGateway } from '@/services/apiGateway'
 import { Eye, EyeOff } from 'lucide-react'
 
-export default function EmployerOnboardingPage() {
+function EmployerOnboardingPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const organization = searchParams.get('organization') || ''
@@ -264,5 +264,19 @@ export default function EmployerOnboardingPage() {
         )}
       </Card>
     </div>
+  )
+}
+
+export default function EmployerOnboardingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-och-midnight flex items-center justify-center p-8 text-och-steel">
+          Loading onboarding…
+        </div>
+      }
+    >
+      <EmployerOnboardingPageContent />
+    </Suspense>
   )
 }

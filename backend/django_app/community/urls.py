@@ -26,6 +26,11 @@ router.register(r'collab-rooms', views.CollabRoomViewSet, basename='collab-room'
 router.register(r'enterprise-cohorts', views.EnterpriseCohortViewSet, basename='enterprise-cohort')
 router.register(r'contributions', views.ContributionViewSet, basename='contribution')
 
+# Discord-style Community Spaces
+router.register(r'spaces', views.CommunitySpaceViewSet, basename='space')
+router.register(r'threads', views.CommunityThreadViewSet, basename='thread')
+router.register(r'messages', views.CommunityMessageViewSet, basename='message')
+
 urlpatterns = [
     # Router URLs
     path('', include(router.urls)),

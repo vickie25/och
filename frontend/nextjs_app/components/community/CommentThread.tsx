@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/Button"
-import { createClient } from "@/lib/supabase/client"
+import { apiGateway } from "@/services/apiGateway"
 import type { CommunityComment } from "@/types/community"
 import { MessageCircle, Reply } from "lucide-react"
 
@@ -14,7 +14,6 @@ interface CommentThreadProps {
 }
 
 export function CommentThread({ postId, comments: initialComments, userId }: CommentThreadProps) {
-  const supabase = createClient()
   const [comments, setComments] = useState<CommunityComment[]>(initialComments)
   const [newComment, setNewComment] = useState("")
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
@@ -46,19 +45,23 @@ export function CommentThread({ postId, comments: initialComments, userId }: Com
 
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from("community_comments")
-        .insert({
-          post_id: postId,
-          user_id: userId,
-          content: newComment.trim(),
-        })
-        .select()
-        .single()
+      const created = await apiGateway.post<any>(`/community/posts/${postId}/comments/`, {
+        content: newComment.trim(),
+      })
 
-      if (error) throw error
+      const mapped: CommunityComment = {
+        id: created.id,
+        post_id: postId,
+        user_id: created.author?.id,
+        content: created.content,
+        reaction_count: created.reaction_count || 0,
+        created_at: created.created_at,
+        user_name: `${created.author?.first_name || ''} ${created.author?.last_name || ''}`.trim() || created.author?.email || 'Anonymous',
+        user_avatar: created.author?.avatar_url || undefined,
+        replies: created.replies || [],
+      }
 
-      setComments([...comments, data as CommunityComment])
+      setComments([...comments, mapped])
       setNewComment("")
     } catch (error: any) {
       console.error("Error posting comment:", error)
@@ -73,25 +76,30 @@ export function CommentThread({ postId, comments: initialComments, userId }: Com
 
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from("community_comments")
-        .insert({
-          post_id: postId,
-          parent_id: parentId,
-          user_id: userId,
-          content: replyContent.trim(),
-        })
-        .select()
-        .single()
+      const created = await apiGateway.post<any>(`/community/posts/${postId}/comments/`, {
+        content: replyContent.trim(),
+        parent: parentId,
+      })
 
-      if (error) throw error
+      const mappedReply: CommunityComment = {
+        id: created.id,
+        post_id: postId,
+        parent_id: parentId,
+        user_id: created.author?.id,
+        content: created.content,
+        reaction_count: created.reaction_count || 0,
+        created_at: created.created_at,
+        user_name: `${created.author?.first_name || ''} ${created.author?.last_name || ''}`.trim() || created.author?.email || 'Anonymous',
+        user_avatar: created.author?.avatar_url || undefined,
+        replies: created.replies || [],
+      }
 
       // Add reply to the appropriate parent comment
       const updatedComments = comments.map(comment => {
         if (comment.id === parentId) {
           return {
             ...comment,
-            replies: [...(comment.replies || []), data as CommunityComment],
+            replies: [...(comment.replies || []), mappedReply],
           }
         }
         return comment

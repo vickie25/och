@@ -5,9 +5,6 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useSettingsMaster } from './useSettingsMaster';
-import { createClient } from '@/lib/supabase/client';
-
-const supabase = createClient();
 
 export function useEntitlements(userId?: string) {
   const { entitlements: masterEntitlements, isLoading, error, refetch, settings } = useSettingsMaster(userId);

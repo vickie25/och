@@ -3,10 +3,7 @@
  * Cross-system event coordination
  */
 
-import { createClient } from '@/lib/supabase/client';
 import type { SettingsUpdate } from './types';
-
-const supabase = createClient();
 
 /**
  * Trigger cross-system updates when settings change
@@ -32,22 +29,6 @@ export async function triggerSystemUpdates(
   } catch (error) {
     console.error('Failed to trigger system updates:', error);
     // Continue anyway - triggers will handle it
-  }
-
-  // Local optimizations
-  if (updates.profileCompleteness !== undefined || updates.avatarUploaded !== undefined) {
-    // Trigger profile completeness recalculation
-    await supabase.rpc('calculate_profile_completeness', { user_id: userId });
-  }
-
-  if (updates.portfolioVisibility !== undefined) {
-    // Portfolio visibility sync is handled by database trigger
-    // But we can also broadcast the change
-    await supabase.channel(`portfolio_visibility_${userId}`).send({
-      type: 'broadcast',
-      event: 'visibility_changed',
-      payload: { visibility: updates.portfolioVisibility },
-    });
   }
 }
 
@@ -75,15 +56,8 @@ export async function broadcastSettingsChange(
   type: string,
   changes: Partial<SettingsUpdate>
 ): Promise<void> {
-  await supabase.channel(`settings_${userId}`).send({
-    type: 'broadcast',
-    event: 'settings_changed',
-    payload: {
-      userId,
-      type,
-      changes,
-      timestamp: new Date().toISOString(),
-    },
-  });
+  void userId;
+  void type;
+  void changes;
 }
 

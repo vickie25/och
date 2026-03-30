@@ -1,26 +1,37 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  output: 'standalone',
-  productionBrowserSourceMaps: false,
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  async rewrites() {
-    const django =
-      process.env.NEXT_PUBLIC_DJANGO_API_URL || 'http://localhost:8001';
-    return [
-      {
-        source: '/api/profiling/:path*',
-        destination: `${django}/api/v1/profiling/:path*`,
-      },
-      // Proxy Django API (Stream B institutional billing, etc.) — no Next route under /api/v1/
-      {
-        source: '/api/v1/:path*',
-        destination: `${django}/api/v1/:path*`,
-      },
-    ];
-  },
+const { PHASE_DEVELOPMENT_SERVER } = require('next/constants');
+const path = require('path');
+
+/** @type {(phase: string) => import('next').NextConfig} */
+module.exports = (phase) => {
+  const djangoBase =
+    process.env.NEXT_PUBLIC_DJANGO_API_URL || 'http://localhost:8000';
+
+  /** @type {import('next').NextConfig} */
+  const nextConfig = {
+    output: 'standalone',
+    outputFileTracingRoot: path.join(__dirname, '../..'),
+    productionBrowserSourceMaps: false,
+    typescript: {
+      ignoreBuildErrors: true,
+    },
+    async rewrites() {
+      return [
+        {
+          source: '/api/profiling/:path*',
+          destination: `${djangoBase}/api/v1/profiling/:path*`,
+        },
+        {
+          source: '/api/v1/:path*',
+          destination: `${djangoBase}/api/v1/:path*`,
+        },
+      ];
+    },
+  };
+
+  // Must match outputFileTracingRoot (Next 16). Use webpack dev (`npm run dev`) if Turbopack is slow here.
+  if (phase === PHASE_DEVELOPMENT_SERVER) {
+    nextConfig.turbopack = { root: path.join(__dirname, '../..') };
+  }
+
+  return nextConfig;
 };
-
-module.exports = nextConfig;
-

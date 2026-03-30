@@ -15,7 +15,7 @@ import {
   Target,
   Video,
   FileText,
-  Lab,
+  FlaskConical,
   Award
 } from 'lucide-react';
 import { apiGateway } from '@/services/apiGateway';
@@ -133,7 +133,7 @@ export function CohortDashboard({ enrollmentId }: CohortDashboardProps) {
     switch (type) {
       case 'video': return <Video className="w-5 h-5" />;
       case 'article': return <FileText className="w-5 h-5" />;
-      case 'lab': return <Lab className="w-5 h-5" />;
+      case 'lab': return <FlaskConical className="w-5 h-5" />;
       case 'quiz': return <Target className="w-5 h-5" />;
       default: return <BookOpen className="w-5 h-5" />;
     }

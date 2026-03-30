@@ -502,7 +502,55 @@ The OCH Team
             raise ValueError(f"Contract {contract_id} not found")
     
     @staticmethod
-    def setup_sso_integration(contract_id, sso_config, created_by):
+    def _send_invitation_email(invitation, base_url):
+        """Send invitation email to prospective student"""
+        try:
+            from django.core.mail import send_mail
+            from django.conf import settings
+            
+            contract = invitation.contract
+            organization_name = contract.organization.name
+            
+            # Build invitation URL with token
+            invitation_url = f"{base_url}?token={invitation.token}"
+            
+            subject = f"You're invited to join {organization_name}'s learning program"
+            
+            message = f"""
+Dear {invitation.first_name or invitation.email},
+
+You've been invited to join {organization_name}'s cybersecurity learning program powered by OCH!
+
+Your program includes:
+- Access to industry-leading cybersecurity curriculum
+- Hands-on missions and labs
+- Expert mentorship and support
+- Portfolio building opportunities
+- Career readiness preparation
+
+Click the link below to accept your invitation and get started:
+{invitation_url}
+
+This invitation expires on {invitation.expires_at.strftime('%B %d, %Y')}.
+
+If you have any questions, please contact your program administrator.
+
+Best regards,
+The {organization_name} Team
+            """
+            
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[invitation.email],
+                fail_silently=True
+            )
+            
+            logger.info(f"Invitation email sent to {invitation.email} for {organization_name}")
+            
+        except Exception as e:
+            logger.error(f"Failed to send invitation email to {invitation.email}: {str(e)}")
         """
         Set up SSO integration for an institutional contract.
         

@@ -1,3 +1,5 @@
+from typing import Optional
+
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
@@ -202,7 +204,7 @@ def _set_impersonation(code: str, payload: dict) -> None:
     _impersonation_store[code] = (payload, time.monotonic() + _IMPERSONATION_TTL_SECONDS)
 
 
-def _get_impersonation(code: str) -> dict | None:
+def _get_impersonation(code: str) -> Optional[dict]:
     payload = cache.get(f'impersonate:{code}')
     if payload is not None:
         return payload

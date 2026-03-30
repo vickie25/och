@@ -1,8 +1,40 @@
+import { existsSync } from 'fs'
 import { promises as fs } from 'fs'
 import path from 'path'
 
+const MARKETING_HTML = 'OCH-CCF_Interactive_Platform_Revised.html'
+
+/** Next may use `frontend/nextjs_app` or monorepo root as cwd; walk up until the file is found. */
+function resolveMarketingHtmlPath(): string {
+  const publicCandidate = path.join(process.cwd(), 'public', MARKETING_HTML)
+  if (existsSync(publicCandidate)) {
+    return publicCandidate
+  }
+
+  let dir = process.cwd()
+  for (let i = 0; i < 10; i++) {
+    const candidate = path.join(dir, MARKETING_HTML)
+    if (existsSync(candidate)) {
+      return candidate
+    }
+
+    const candidateInPublic = path.join(dir, 'public', MARKETING_HTML)
+    if (existsSync(candidateInPublic)) {
+      return candidateInPublic
+    }
+    const parent = path.dirname(dir)
+    if (parent === dir) {
+      break
+    }
+    dir = parent
+  }
+  throw new Error(
+    `Could not find ${MARKETING_HTML} (started search from ${process.cwd()})`
+  )
+}
+
 export async function GET() {
-  const htmlPath = path.resolve(process.cwd(), '../../OCH-CCF_Interactive_Platform_Revised.html')
+  const htmlPath = resolveMarketingHtmlPath()
   let html = await fs.readFile(htmlPath, 'utf8')
 
   // Remove JS that overrides "Join Pioneer Cohort" to open auth; keep inline waitlist handler.

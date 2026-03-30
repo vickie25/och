@@ -565,18 +565,145 @@ class CohortPublicApplication(models.Model):
 
 
 class Certificate(models.Model):
-    """Certificate model - issued certificates for completed enrollments."""
+    """
+    Certificate model - issued certificates for completed enrollments.
+    Includes full renewal lifecycle management per OCH Certificate Renewal Model v1.0.
+    """
+    # Certificate lifecycle status
+    STATUS_CHOICES = [
+        ('active', 'ACTIVE'),
+        ('renewal_pending', 'RENEWAL_PENDING'),
+        ('grace_period', 'GRACE_PERIOD'),
+        ('expired', 'EXPIRED'),
+        ('renewed', 'RENEWED'),
+        ('suspended', 'SUSPENDED'),
+    ]
+    
+    # Renewal method choices
+    RENEWAL_METHOD_CHOICES = [
+        ('activity', 'ACTIVITY'),
+        ('mission', 'MISSION'),
+        ('contribution_and_mission', 'CONTRIBUTION_AND_MISSION'),
+    ]
+    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     enrollment = models.OneToOneField(Enrollment, on_delete=models.CASCADE, related_name='certificate')
     file_uri = models.URLField(blank=True)
+    
+    # Core certificate dates
+    issue_date = models.DateField(help_text="Original date of certificate issuance")
+    expiry_date = models.DateField(help_text="Current expiry date (recalculated on renewal)")
+    
+    # Lifecycle status
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='active',
+        help_text="Certificate lifecycle status"
+    )
+    
+    # Renewal tracking
+    renewal_count = models.IntegerField(default=0, help_text="Number of times this certificate has been renewed")
+    last_renewal_date = models.DateField(null=True, blank=True, help_text="Date of most recent renewal")
+    last_renewal_method = models.CharField(
+        max_length=30,
+        choices=RENEWAL_METHOD_CHOICES,
+        null=True,
+        blank=True,
+        help_text="Method used for last renewal"
+    )
+    renewal_mission = models.ForeignKey(
+        'missions.Mission',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='renewal_certificates',
+        help_text="Reference to renewal mission record"
+    )
+    
+    # Notification tracking
+    next_notification_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Date of next scheduled renewal reminder email"
+    )
+    grace_period_end = models.DateField(
+        null=True,
+        blank=True,
+        help_text="End date of grace period (expiry_date + 30 days)"
+    )
+    
+    # Additional metrics for certificate
+    total_hours = models.IntegerField(default=0, help_text="Total learning hours logged")
+    missions_completed = models.IntegerField(default=0, help_text="Total missions completed in track")
+    grade = models.CharField(max_length=10, blank=True, help_text="Grade achieved")
+    
+    # Template and generation
+    template_used = models.CharField(max_length=100, default='default', help_text="Certificate template used")
+    
+    # Metadata
     issued_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         db_table = 'certificates'
         ordering = ['-issued_at']
+        indexes = [
+            models.Index(fields=['status', 'expiry_date']),
+            models.Index(fields=['next_notification_date']),
+            models.Index(fields=['enrollment']),
+        ]
     
     def __str__(self):
-        return f"Certificate - {self.enrollment.user.email} - {self.enrollment.cohort.name}"
+        return f"Certificate - {self.enrollment.user.email} - {self.status}"
+    
+    def save(self, *args, **kwargs):
+        """Override save to set default dates and calculate grace period."""
+        is_new = self._state.adding
+        
+        if is_new:
+            # Set issue date if not set
+            if not self.issue_date:
+                self.issue_date = timezone.now().date()
+            
+            # Set expiry date if not set (default 1 year from issue)
+            if not self.expiry_date:
+                from datetime import timedelta
+                self.expiry_date = self.issue_date + timedelta(days=365)
+        
+        # Always recalculate grace period end
+        if self.expiry_date:
+            from datetime import timedelta
+            self.grace_period_end = self.expiry_date + timedelta(days=30)
+        
+        super().save(*args, **kwargs)
+    
+    @property
+    def certificate_id_formatted(self):
+        """Generate formatted certificate ID: OCH-{TRACK}-{LEVEL}-{YYYYMMDD}-{RANDOM}"""
+        track_key = self.enrollment.track_key or 'GEN'
+        date_str = self.issue_date.strftime('%Y%m%d')
+        random_suffix = str(self.id)[:8].upper()
+        return f"OCH-{track_key}-L1-{date_str}-{random_suffix}"
+    
+    def needs_renewal_notification(self):
+        """Check if certificate needs renewal notification."""
+        if not self.next_notification_date:
+            return False
+        from datetime import date
+        return date.today() >= self.next_notification_date
+    
+    def is_in_grace_period(self):
+        """Check if certificate is currently in grace period."""
+        from datetime import date
+        today = date.today()
+        return (
+            self.status == 'grace_period' and
+            self.expiry_date and
+            today > self.expiry_date and
+            self.grace_period_end and
+            today <= self.grace_period_end
+        )
 
 
 class MentorshipCycle(models.Model):

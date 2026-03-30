@@ -1,33 +1,55 @@
 /**
  * Settings Engine - API Operations
  * Master control API for user settings
+ * Rewired from Supabase to Django APIs
  */
 
-import { createClient } from '@/lib/supabase/client';
+import { apiGateway } from '@/services/apiGateway';
 import { calculateProfileCompleteness } from './profile-completeness';
 import type { UserSettings, UserEntitlements, SettingsUpdate } from './types';
-
-const supabase = createClient();
 
 /**
  * Get user settings
  */
 export async function getUserSettings(userId: string): Promise<UserSettings | null> {
-  const { data, error } = await supabase
-    .from('user_settings')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
+  try {
+    const response = await apiGateway.get<{
+      communityDisplayName?: string;
+      country?: string;
+      timezone?: string;
+      profile_completeness?: number;
+      avatar_uploaded?: boolean;
+      linkedin_linked?: boolean;
+      bio_completed?: boolean;
+      name?: string;
+      headline?: string;
+      location?: string;
+      track?: string;
+      timezone_set?: string;
+      language_preference?: string;
+      portfolio_visibility?: string;
+      marketplace_contact_enabled?: boolean;
+      data_sharing_consent?: Record<string, any>;
+      notifications_email?: boolean;
+      notifications_push?: boolean;
+      notifications_categories?: Record<string, boolean>;
+      ai_coach_style?: string;
+      habit_frequency?: string;
+      reflection_prompt_style?: string;
+      integrations?: Record<string, any>;
+      two_factor_enabled?: boolean;
+      active_sessions?: any[];
+      created_at?: string;
+      updated_at?: string;
+    }>('/settings/');
 
-  if (error) {
-    if (error.code === 'PGRST116') {
-      // Settings don't exist, create default
-      return createDefaultSettings(userId);
+    return mapUserSettings(response);
+  } catch (error) {
+    if ((error as any)?.status === 404) {
+      return null;
     }
     throw error;
   }
-
-  return mapUserSettings(data);
 }
 
 /**
@@ -44,105 +66,45 @@ export async function updateUserSettings(
 
   // Merge updates with current settings
   const mergedSettings = { ...currentSettings, ...updates };
-  
+
   // Check portfolio items if not provided
   let hasItems = hasPortfolioItems;
   if (hasItems === undefined) {
-    const { data: portfolioItems } = await supabase
-      .from('portfolio_items')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('status', 'approved')
-      .limit(1);
-    
-    hasItems = (portfolioItems?.length || 0) > 0;
+    try {
+      const { getPortfolioHealthMetrics } = await import('../portfolio/api');
+      const health = await getPortfolioHealthMetrics(userId);
+      hasItems = health.approvedItems > 0;
+    } catch {
+      hasItems = false;
+    }
   }
-  
+
   // Recalculate profile completeness
   const newCompleteness = calculateProfileCompleteness(mergedSettings, hasItems);
-  
-  // Include completeness in update
-  const dbUpdates = {
-    ...mapToDatabaseFormat(updates),
-    profile_completeness: newCompleteness,
-  };
 
-  const { data, error } = await supabase
-    .from('user_settings')
-    .update(dbUpdates)
-    .eq('user_id', userId)
-    .select()
-    .single();
+  // Build update payload
+  const payload = mapToApiFormat(updates);
+  payload.profile_completeness = newCompleteness;
 
-  if (error) throw error;
-  return mapUserSettings(data);
+  const response = await apiGateway.patch('/settings/', payload);
+  return mapUserSettings(response);
 }
 
 /**
  * Get user entitlements
  */
 export async function getUserEntitlements(userId: string): Promise<UserEntitlements | null> {
-  const { data, error } = await supabase
-    .from('user_entitlements')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
-
-  if (error) {
-    if (error.code === 'PGRST116') return null;
-    throw error;
-  }
-
-  return mapUserEntitlements(data);
+  // TODO: Implement when Django endpoint is available
+  console.log('Fetching entitlements for user:', userId);
+  return null;
 }
 
 /**
- * Create default settings
- */
-async function createDefaultSettings(userId: string): Promise<UserSettings> {
-  const { data, error } = await supabase
-    .from('user_settings')
-    .insert({
-      user_id: userId,
-      profile_completeness: 0,
-      avatar_uploaded: false,
-      linkedin_linked: false,
-      bio_completed: false,
-      name: null,
-      headline: null,
-      location: null,
-      track: 'defender',
-      timezone_set: 'Africa/Nairobi',
-      language_preference: 'en',
-      portfolio_visibility: 'private',
-      marketplace_contact_enabled: false,
-      data_sharing_consent: {},
-      notifications_email: true,
-      notifications_push: true,
-      notifications_categories: {
-        missions: true,
-        coaching: true,
-        mentor: false,
-        marketplace: false,
-      },
-      ai_coach_style: 'motivational',
-      habit_frequency: 'daily',
-      reflection_prompt_style: 'guided',
-      integrations: {},
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return mapUserSettings(data);
-}
-
-/**
- * Map database format to TypeScript interface
+ * Map API response to UserSettings interface
  */
 function mapUserSettings(data: any): UserSettings {
   return {
-    userId: data.user_id,
+    userId: data.user_id || '',
     profileCompleteness: data.profile_completeness || 0,
     avatarUploaded: data.avatar_uploaded || false,
     linkedinLinked: data.linkedin_linked || false,
@@ -151,7 +113,7 @@ function mapUserSettings(data: any): UserSettings {
     headline: data.headline,
     location: data.location,
     track: data.track || 'defender',
-    timezoneSet: data.timezone_set || 'Africa/Nairobi',
+    timezoneSet: data.timezone_set || data.timezone || 'Africa/Nairobi',
     languagePreference: data.language_preference || 'en',
     portfolioVisibility: data.portfolio_visibility || 'private',
     marketplaceContactEnabled: data.marketplace_contact_enabled || false,
@@ -189,31 +151,30 @@ function mapUserEntitlements(data: any): UserEntitlements {
   };
 }
 
-function mapToDatabaseFormat(updates: SettingsUpdate): any {
-  const dbFormat: any = {};
+function mapToApiFormat(updates: SettingsUpdate): any {
+  const apiFormat: any = {};
 
-  if (updates.profileCompleteness !== undefined) dbFormat.profile_completeness = updates.profileCompleteness;
-  if (updates.avatarUploaded !== undefined) dbFormat.avatar_uploaded = updates.avatarUploaded;
-  if (updates.linkedinLinked !== undefined) dbFormat.linkedin_linked = updates.linkedinLinked;
-  if (updates.bioCompleted !== undefined) dbFormat.bio_completed = updates.bioCompleted;
-  if (updates.name !== undefined) dbFormat.name = updates.name;
-  if (updates.headline !== undefined) dbFormat.headline = updates.headline;
-  if (updates.location !== undefined) dbFormat.location = updates.location;
-  if (updates.track !== undefined) dbFormat.track = updates.track;
-  if (updates.timezoneSet !== undefined) dbFormat.timezone_set = updates.timezoneSet;
-  if (updates.languagePreference !== undefined) dbFormat.language_preference = updates.languagePreference;
-  if (updates.portfolioVisibility !== undefined) dbFormat.portfolio_visibility = updates.portfolioVisibility;
-  if (updates.marketplaceContactEnabled !== undefined) dbFormat.marketplace_contact_enabled = updates.marketplaceContactEnabled;
-  if (updates.dataSharingConsent !== undefined) dbFormat.data_sharing_consent = updates.dataSharingConsent;
-  if (updates.notificationsEmail !== undefined) dbFormat.notifications_email = updates.notificationsEmail;
-  if (updates.notificationsPush !== undefined) dbFormat.notifications_push = updates.notificationsPush;
-  if (updates.notificationsCategories !== undefined) dbFormat.notifications_categories = updates.notificationsCategories;
-  if (updates.aiCoachStyle !== undefined) dbFormat.ai_coach_style = updates.aiCoachStyle;
-  if (updates.habitFrequency !== undefined) dbFormat.habit_frequency = updates.habitFrequency;
-  if (updates.reflectionPromptStyle !== undefined) dbFormat.reflection_prompt_style = updates.reflectionPromptStyle;
-  if (updates.integrations !== undefined) dbFormat.integrations = updates.integrations;
-  if (updates.twoFactorEnabled !== undefined) dbFormat.two_factor_enabled = updates.twoFactorEnabled;
+  if (updates.profileCompleteness !== undefined) apiFormat.profile_completeness = updates.profileCompleteness;
+  if (updates.avatarUploaded !== undefined) apiFormat.avatar_uploaded = updates.avatarUploaded;
+  if (updates.linkedinLinked !== undefined) apiFormat.linkedin_linked = updates.linkedinLinked;
+  if (updates.bioCompleted !== undefined) apiFormat.bio_completed = updates.bioCompleted;
+  if (updates.name !== undefined) apiFormat.name = updates.name;
+  if (updates.headline !== undefined) apiFormat.headline = updates.headline;
+  if (updates.location !== undefined) apiFormat.location = updates.location;
+  if (updates.track !== undefined) apiFormat.track = updates.track;
+  if (updates.timezoneSet !== undefined) apiFormat.timezone_set = updates.timezoneSet;
+  if (updates.languagePreference !== undefined) apiFormat.language_preference = updates.languagePreference;
+  if (updates.portfolioVisibility !== undefined) apiFormat.portfolio_visibility = updates.portfolioVisibility;
+  if (updates.marketplaceContactEnabled !== undefined) apiFormat.marketplace_contact_enabled = updates.marketplaceContactEnabled;
+  if (updates.dataSharingConsent !== undefined) apiFormat.data_sharing_consent = updates.dataSharingConsent;
+  if (updates.notificationsEmail !== undefined) apiFormat.notifications_email = updates.notificationsEmail;
+  if (updates.notificationsPush !== undefined) apiFormat.notifications_push = updates.notificationsPush;
+  if (updates.notificationsCategories !== undefined) apiFormat.notifications_categories = updates.notificationsCategories;
+  if (updates.aiCoachStyle !== undefined) apiFormat.ai_coach_style = updates.aiCoachStyle;
+  if (updates.habitFrequency !== undefined) apiFormat.habit_frequency = updates.habitFrequency;
+  if (updates.reflectionPromptStyle !== undefined) apiFormat.reflection_prompt_style = updates.reflectionPromptStyle;
+  if (updates.integrations !== undefined) apiFormat.integrations = updates.integrations;
+  if (updates.twoFactorEnabled !== undefined) apiFormat.two_factor_enabled = updates.twoFactorEnabled;
 
-  return dbFormat;
+  return apiFormat;
 }
-

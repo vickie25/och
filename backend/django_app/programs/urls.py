@@ -106,8 +106,13 @@ from .views.public_registration_views import (
 )
 from .views.public_assessment_views import get_public_assessment, submit_public_assessment
 from .views.application_questions_views import save_cohort_application_questions
+from .views.certificate_verification_views import verify_certificate, verify_certificate_by_formatted_id
 
 urlpatterns = [
+    # Certificate verification (public - no auth required)
+    path('certificates/<uuid:certificate_id>/verify/', verify_certificate, name='verify-certificate'),
+    path('certificates/verify/formatted/<str:formatted_id>/', verify_certificate_by_formatted_id, name='verify-certificate-formatted'),
+    
     # Director: list public applications (auth required)
     path('director/public-applications/', list_public_applications, name='director-public-applications'),
     path('director/public-applications/assign-to-mentor/', assign_applications_to_mentor, name='assign-applications-to-mentor'),
