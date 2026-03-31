@@ -49,9 +49,24 @@ else:
         'http://localhost:3000',
         'http://127.0.0.1:3000',
         'http://localhost:3001',  # In case Next.js runs on different port
+        'http://localhost',       # Nginx proxy on port 80
+        'http://127.0.0.1',       # Nginx proxy on port 80 via 127.0.0.1
+        'http://localhost:80',    # Explicit port 80
+        'http://127.0.0.1:80',    # Explicit port 80 via 127.0.0.1
+        # Browser preview ports (IDE specific)
+        'http://127.0.0.1:51219',
+        'http://localhost:51219',
+        'http://127.0.0.1:53732',
+        'http://localhost:53732',
     ]
 
-CORS_ALLOW_CREDENTIALS = True
+# For development, allow all localhost origins with any port
+# This helps with browser preview and development tools
+if os.environ.get('DEBUG', 'False') == 'True':
+    CORS_ALLOW_ALL_ORIGINS = True
+    CORS_ALLOW_CREDENTIALS = True
+else:
+    CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_HEADERS = [
     'accept',

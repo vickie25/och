@@ -29,7 +29,7 @@ from .serializers import (
 from subscriptions.models import UserSubscription
 from programs.permissions import user_has_finance_role
 from organizations.models import OrganizationMember
-from users.models import Role, UserRole
+from users.utils.permission_utils import has_admin_role, can_manage_users
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -40,7 +40,7 @@ class WalletViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        if self.request.user.is_staff:
+        if has_admin_role(self.request.user, ['admin', 'finance']):
             return Wallet.objects.all()
         return Wallet.objects.filter(user=self.request.user)
     
@@ -55,7 +55,7 @@ class WalletViewSet(viewsets.ModelViewSet):
     def top_up(self, request, pk=None):
         """Add balance to wallet."""
         wallet = self.get_object()
-        if wallet.user != request.user and not request.user.is_staff:
+        if wallet.user != request.user and not has_admin_role(request.user, ['admin', 'finance']):
             return Response(
                 {'error': 'Permission denied'}, 
                 status=status.HTTP_403_FORBIDDEN
@@ -78,7 +78,7 @@ class WalletViewSet(viewsets.ModelViewSet):
     def transactions(self, request, pk=None):
         """Get wallet transaction history."""
         wallet = self.get_object()
-        if wallet.user != request.user and not request.user.is_staff:
+        if wallet.user != request.user and not has_admin_role(request.user, ['admin', 'finance']):
             return Response(
                 {'error': 'Permission denied'}, 
                 status=status.HTTP_403_FORBIDDEN
@@ -94,7 +94,7 @@ class TransactionViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        if self.request.user.is_staff:
+        if has_admin_role(self.request.user, ['admin', 'finance']):
             return Transaction.objects.all()
         return Transaction.objects.filter(wallet__user=self.request.user)
 
@@ -104,7 +104,7 @@ class CreditViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        if self.request.user.is_staff:
+        if has_admin_role(self.request.user, ['admin', 'finance']):
             return Credit.objects.all()
         return Credit.objects.filter(user=self.request.user)
     

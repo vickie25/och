@@ -48,7 +48,7 @@ def health_check(request):
 urlpatterns = [
     path('health/', health_check, name='health-check-root'),
     path('api/v1/health/', health_check, name='health-check-api'),
-    path('admin/', admin.site.urls),
+    path('cyboch-ops-panel/', admin.site.urls),
     
     # OIDC Discovery Endpoints
     path('.well-known/openid-configuration', openid_configuration, name='openid-configuration'),

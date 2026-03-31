@@ -46,29 +46,99 @@ export function UserManagementModal({ user, onClose, onUpdate }: UserManagementM
     }
   }
 
-  const handleHardDelete = async () => {
+  const handleResetOnboarding = async () => {
     if (!user) return
-
-    const confirmation = prompt(
-      `Type DELETE to permanently remove ${user.email} and all related data.`
-    )
-    if (confirmation !== 'DELETE') {
+    
+    console.log('🔄 Reset onboarding initiated for user:', user.email, 'ID:', user.id)
+    
+    if (!confirm(`Are you sure you want to reset ${user.email}'s onboarding progress?`)) {
+      console.log('❌ Reset onboarding cancelled by user')
       return
     }
 
     setIsLoading(true)
     try {
-      await apiGateway.delete(`/users/${user.id}/`, { params: { permanent: true } })
+      console.log('🔄 Making request to reset onboarding for user:', user.id)
+      
+      // Reset onboarding by clearing relevant user progress fields
+      await apiGateway.patch(`/users/${user.id}/`, {
+        onboarding_complete: false,
+        profile_complete: false,
+        profiling_complete: false,
+        email_verified: false,
+        account_status: 'pending_verification',
+        profiling_completed_at: null,
+        profiling_session_id: null,
+        email_verified_at: null
+      })
+      
+      console.log('✅ Onboarding reset successful')
+      alert('Onboarding reset successfully')
+      await onUpdate()
+      onClose()
+    } catch (error: any) {
+      console.error('❌ Reset onboarding failed:', error)
+      console.error('Error details:', {
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+        data: error?.response?.data,
+        message: error?.message
+      })
+      
+      const message =
+        error?.response?.data?.detail ||
+        error?.message ||
+        'Failed to reset onboarding'
+      alert(`Reset onboarding failed: ${message}`)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleHardDelete = async () => {
+    console.log('🗑️ Hard delete function called')
+    console.log('👤 User object:', user)
+    
+    if (!user) {
+      console.log('❌ No user object available')
+      return
+    }
+
+    console.log('🗑️ Hard delete initiated for user:', user.email, 'ID:', user.id)
+
+    const confirmation = prompt(
+      `Type DELETE to permanently remove ${user.email} and all related data.`
+    )
+    if (confirmation !== 'DELETE') {
+      console.log('❌ Hard delete cancelled by user')
+      return
+    }
+
+    console.log('✅ Confirmation received, proceeding with hard delete')
+    setIsLoading(true)
+    try {
+      const deleteUrl = `/users/${user.id}/`
+      console.log('🔍 Making DELETE request to:', deleteUrl)
+      
+      await apiGateway.delete(deleteUrl)
+      console.log('✅ Hard delete successful')
       alert('User permanently deleted.')
       await onUpdate()
       onClose()
     } catch (error: any) {
-      console.error('Hard delete failed:', error)
+      console.error('❌ Hard delete failed:', error)
+      console.error('Error details:', {
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+        data: error?.response?.data,
+        message: error?.message
+      })
+      
       const message =
         error?.response?.data?.detail ||
         error?.message ||
         'Failed to permanently delete user'
-      alert(message)
+      alert(`Hard delete failed: ${message}`)
     } finally {
       setIsLoading(false)
     }
@@ -347,10 +417,26 @@ export function UserManagementModal({ user, onClose, onUpdate }: UserManagementM
             <Button variant="outline" onClick={onClose} className="flex-1">
               Close
             </Button>
-            <Button variant="orange" className="flex-1">
+            <Button 
+              variant="orange" 
+              className="flex-1"
+              onClick={() => {
+                console.log('🔄 Reset onboarding button clicked!')
+                handleResetOnboarding()
+              }}
+              disabled={isLoading}
+            >
               Reset Onboarding
             </Button>
-            <Button variant="orange" className="flex-1" onClick={handleHardDelete} disabled={isLoading}>
+            <Button 
+              variant="orange" 
+              className="flex-1" 
+              onClick={() => {
+                console.log('🔘 Hard delete button clicked!')
+                handleHardDelete()
+              }} 
+              disabled={isLoading}
+            >
               Hard Delete
             </Button>
           </div>

@@ -90,9 +90,11 @@ services:
       context: .
       dockerfile: backend/docker/django.Dockerfile
     container_name: ongozacyberhub_django
+    env_file:
+      - ./backend/django_app/.env
     environment:
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      DJANGO_SECRET_KEY: flxDJLo}59g{G4xF#WDylXt&~nsG-zJmhS~%:j.^M_br)z'a9U
+      JWT_SECRET_KEY: psd3zhcbrDdxzbzDsZW9NeavR_wLXLP3S_LD4kNc5kk
       DB_NAME: ${POSTGRES_DB:-ongozacyberhub}
       DB_USER: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -102,7 +104,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       DEBUG: ${DEBUG:-False}
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,cybochengine.africa}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-cybochengine.africa,www.cybochengine.africa}
     volumes:
       - ./backend/django_app:/app
       - django_static:/app/staticfiles
@@ -136,7 +138,7 @@ services:
       VECTOR_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       DJANGO_API_URL: http://django:8000
       CORS_ORIGINS: '["http://localhost:3000","https://cybochengine.africa"]'
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_SECRET_KEY: psd3zhcbrDdxzbzDsZW9NeavR_wLXLP3S_LD4kNc5kk
       LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
       - ./backend/fastapi_app:/app

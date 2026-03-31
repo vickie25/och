@@ -5,11 +5,50 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
+import logging
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# Load environment variables from .env file
+# Sentry for error tracking in production
+if not os.environ.get('DEBUG', 'False').lower() == 'true' and os.environ.get('SENTRY_DSN'):
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
+    
+    # Configure Sentry to exclude PII
+    sentry_logging = LoggingIntegration(
+        level=logging.INFO,
+        event_level=logging.ERROR,
+    )
+    
+    sentry_sdk.init(
+        dsn=os.environ.get('SENTRY_DSN'),
+        integrations=[
+            DjangoIntegration(
+                transaction_style='url',
+                middleware_spans=True,
+                signals_spans=True,
+            ),
+            sentry_logging,
+        ],
+        traces_sample_rate=0.1,
+        send_default_pii=False,  # Don't send PII to Sentry
+        environment=os.environ.get('DJANGO_SETTINGS_MODULE', 'development'),
+        before_send=lambda event, hint: {
+            # Remove PII from Sentry events
+            if 'request' in event and 'data' in event['request']:
+                # Remove sensitive data from form data
+                if 'password' in event['request']['data']:
+                    event['request']['data']['password'] = '[FILTERED]'
+                if 'token' in event['request']['data']:
+                    event['request']['data']['token'] = '[FILTERED]'
+                if 'secret' in event['request']['data']:
+                    event['request']['data']['secret'] = '[FILTERED]'
+            return event
+        }
+    )
+
 # Priority: 1) Project root, 2) backend/django_app (legacy), 3) backend (legacy)
 # NOTE: In Docker, environment variables are already set - don't override them
 PROJECT_ROOT = BASE_DIR.parent.parent  # /home/caleb/kiptoo/och/ongozaCyberHub
@@ -99,6 +138,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'users.middleware.consent_middleware.ConsentMiddleware',
+    'core.middleware.LoginRateLimitMiddleware',
+    'core.middleware.SecurityHeadersMiddleware',
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -175,6 +216,33 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Custom User Model
 AUTH_USER_MODEL = 'users.User'
 
+# Password hashing - Use bcrypt for better security
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+]
+
+# Password validation
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            'min_length': 8,
+        }
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+]
+
 # REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -186,6 +254,15 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'EXCEPTION_HANDLER': 'core.exceptions.custom_exception_handler',
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '20/hour',
+        'user': '1000/day'
+    }
 }
 
 # JWT Settings
@@ -205,13 +282,18 @@ print(f"Keys match: {JWT_SECRET_KEY == SECRET_KEY}")
 print("="*60)
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),  # 15 minutes as required
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),     # 7 days as required
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'SIGNING_KEY': JWT_SECRET_KEY,  # Use dedicated JWT secret key (rest_framework_simplejwt will use this)
     'ALGORITHM': JWT_ALGORITHM,
     'VERIFYING_KEY': None,  # Use SIGNING_KEY for verification too
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
 }
 
 print(f"Django SIMPLE_JWT SIGNING_KEY: {SIMPLE_JWT['SIGNING_KEY']}")
@@ -226,6 +308,14 @@ CORS_ALLOWED_ORIGINS = [
     "http://www.cybochengine.africa",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost",       # Nginx proxy on port 80
+    "http://127.0.0.1",       # Nginx proxy on port 80 via 127.0.0.1
+    "http://localhost:80",    # Explicit port 80
+    "http://127.0.0.1:80",    # Explicit port 80 via 127.0.0.1
+    "http://127.0.0.1:51219", # Browser preview port
+    "http://localhost:51219", # Alternative browser preview port
+    "http://127.0.0.1:53732", # Current browser preview port
+    "http://localhost:53732", # Alternative current browser preview port
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -238,6 +328,14 @@ CSRF_TRUSTED_ORIGINS = [
     "http://www.cybochengine.africa",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost",       # Nginx proxy on port 80
+    "http://127.0.0.1",       # Nginx proxy on port 80 via 127.0.0.1
+    "http://localhost:80",    # Explicit port 80
+    "http://127.0.0.1:80",    # Explicit port 80 via 127.0.0.1
+    "http://127.0.0.1:51219", # Browser preview port
+    "http://localhost:51219", # Alternative browser preview port
+    "http://127.0.0.1:53732", # Current browser preview port
+    "http://localhost:53732", # Alternative current browser preview port
 ]
 
 # Redis Configuration

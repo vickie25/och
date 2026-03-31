@@ -7,30 +7,35 @@ import os
 DEBUG = False
 
 # Production hosts
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'ongozacyberhub.com,www.ongozacyberhub.com,159.223.224.136').split(',')
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'cybochengine.africa,www.cybochengine.africa,localhost,127.0.0.1').split(',')
 
 # Frontend URL for production
-FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://ongozacyberhub.com')
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://cybochengine.africa')
 
 # Security settings for production
 SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True') == 'True'
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# Session settings for production OAuth
+# Session security
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_DOMAIN = None
 CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 # CSRF trusted origins for production
-CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'https://ongozacyberhub.com,https://www.ongozacyberhub.com').split(',')
+CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'https://cybochengine.africa,https://www.cybochengine.africa').split(',')
 
 # CORS settings for production
-CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'https://ongozacyberhub.com,https://www.ongozacyberhub.com').split(',')
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'https://cybochengine.africa,https://www.cybochengine.africa').split(',')
 
 CORS_ALLOW_CREDENTIALS = True
 

@@ -13,6 +13,7 @@ from django.utils.text import slugify
 
 from .models import Recipe, UserRecipeProgress, RecipeContextLink, UserRecipeBookmark, RecipeSource, RecipeLLMJob
 from rest_framework.decorators import api_view, permission_classes
+from users.permissions import IsAdminOrDirector
 from rest_framework.permissions import IsAuthenticated
 from .serializers import (
     RecipeListSerializer, RecipeDetailSerializer,
@@ -913,12 +914,9 @@ class RecipeEnvStatusView(APIView):
 
 class RecipeGenerateView(APIView):
     """View for generating recipes using LLM."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsAdminOrDirector]
 
     def post(self, request):
-        # Only admin/system can generate recipes
-        if not request.user.is_staff:
-            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
 
         # Get parameters
         track_code = request.data.get('track_code')

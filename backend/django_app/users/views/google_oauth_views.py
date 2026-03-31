@@ -31,32 +31,50 @@ from users.utils.risk_utils import calculate_risk_score
 from users.utils.consent_utils import get_consent_scopes_for_token
 from users.serializers import UserSerializer
 from users.utils.email_utils import send_onboarding_email
+from users.utils.permission_utils import assign_role_if_not_exists
 import requests
 import jwt
 
 User = get_user_model()
 
 
-GOOGLE_SSO_SPONSOR_EMAILS = {
-    "nelsonochieng516@gmail.com",
-}
-
-
 def _apply_google_email_role_overrides(user, email: str) -> None:
+    """
+    Apply role overrides based on verified email domains.
+    Only for specific pre-authorized admin emails - permissions are granted by admin.
+    """
     normalized_email = (email or "").strip().lower()
-    if normalized_email not in GOOGLE_SSO_SPONSOR_EMAILS:
+    
+    # Only individual email mappings for specific pre-authorized users
+    # No domain-based auto-assignments - permissions must be granted by admin
+    individual_email_mappings = {
+        "nelsonochieng516@gmail.com": "sponsor_admin",
+    }
+    
+    # Check individual mappings only
+    role_name = individual_email_mappings.get(normalized_email)
+    
+    if not role_name:
+        return  # No mapping applies
+    
+    # Get or create the role
+    from users.models import Role, UserRole
+    try:
+        role = Role.objects.get(name=role_name)
+    except Role.DoesNotExist:
+        print(f"Warning: Role {role_name} not found for email override")
         return
-
-    sponsor_role = Role.objects.filter(name="sponsor_admin").first()
-    if not sponsor_role:
-        return
-
-    UserRole.objects.update_or_create(
+    
+    # Assign the role if not already assigned
+    user_role, created = UserRole.objects.get_or_create(
         user=user,
-        role=sponsor_role,
+        role=role,
         scope='global',
-        defaults={'is_active': True},
+        defaults={'is_active': True}
     )
+    
+    if created:
+        print(f"Auto-assigned role {role_name} to user {user.email} based on pre-authorized email")
 
 
 class GoogleOAuthInitiateView(APIView):

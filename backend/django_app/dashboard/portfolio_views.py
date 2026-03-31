@@ -363,6 +363,23 @@ def upload_portfolio_file(request, user_id):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    # Validate file type - only allow safe file types
+    allowed_types = [
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+        'video/mp4', 'video/webm', 'video/ogg',
+        'application/pdf',
+        'text/plain', 'text/markdown',
+        'application/x-pcap', 'application/octet-stream'  # For .pcap files
+    ]
+    allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.webm', '.ogg', '.pdf', '.txt', '.md', '.pcap', '.log']
+    
+    file_extension = os.path.splitext(uploaded_file.name)[1].lower()
+    if uploaded_file.content_type not in allowed_types or file_extension not in allowed_extensions:
+        return Response(
+            {'detail': f'File type {uploaded_file.content_type} or extension {file_extension} not allowed'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
     # Generate unique filename
     file_extension = os.path.splitext(uploaded_file.name)[1]
     unique_filename = f"{uuid.uuid4()}{file_extension}"

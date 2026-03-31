@@ -6,6 +6,7 @@
 
 import { fetcher, ApiError, FetchOptions } from '../utils/fetcher';
 import { getRefreshToken, setAuthTokens, clearAuthTokens } from '../utils/auth';
+import { logger } from '../lib/logger';
 import type {
   LoginRequest,
   LoginResponse,
@@ -15,6 +16,11 @@ import type {
 
 const DJANGO_API_URL = process.env.NEXT_PUBLIC_DJANGO_API_URL || process.env.NEXT_PUBLIC_API_URL;
 const FASTAPI_API_URL = process.env.NEXT_PUBLIC_FASTAPI_API_URL || '';
+
+// Extended RequestInit type to include skipAuth option
+interface ApiRequestInit extends RequestInit {
+  skipAuth?: boolean;
+}
 
 /**
  * Origin for same-origin API calls (Next.js API routes)
@@ -140,21 +146,18 @@ async function refreshAccessToken(): Promise<string | null> {
 /**
  * API Gateway request handler with automatic token refresh
  */
-async function apiGatewayRequest<T>(
-  path: string,
-  options: FetchOptions = {}
-): Promise<T> {
+export const apiGatewayRequest = async <T = any>(path: string, options: ApiRequestInit = {}): Promise<T> => {
   const baseUrl = getBaseUrl(path);
   const fullUrl = `${baseUrl}${path}`;
 
-  console.log('[apiGateway] Path:', path);
-  console.log('[apiGateway] Base URL:', baseUrl);
-  console.log('[apiGateway] DJANGO_API_URL:', DJANGO_API_URL);
-  console.log('[apiGateway] Making request to:', fullUrl);
+  logger('[apiGateway] Path:', path);
+  logger('[apiGateway] Base URL:', baseUrl);
+  logger('[apiGateway] DJANGO_API_URL:', DJANGO_API_URL);
+  logger('[apiGateway] Making request to:', fullUrl);
 
   try {
     const result = await fetcher<T>(fullUrl, options);
-    console.log('[apiGateway] Response received:', result);
+    logger('[apiGateway] Response received:', result);
     return result;
   } catch (error) {
     // If unauthorized and we have a refresh token, try to refresh

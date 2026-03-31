@@ -16,6 +16,7 @@ import os
 import uuid
 from ..serializers import UserSerializer, UserCreateSerializer
 from ..audit_models import AuditLog
+from ..utils.permission_utils import can_manage_users
 
 User = get_user_model()
 
@@ -177,23 +178,13 @@ class UserViewSet(viewsets.ModelViewSet):
         """
         instance = self.get_object()
         
-        # Check permissions
+        # Check permissions using centralized utility
         user = request.user
-        if not user.is_staff:
-            # Program directors can delete users
-            from ..models import Role, UserRole
-            director_roles = Role.objects.filter(name__in=['program_director', 'admin'])
-            has_director_role = UserRole.objects.filter(
-                user=user,
-                role__in=director_roles,
-                is_active=True
-            ).exists()
-            
-            if not has_director_role:
-                return Response(
-                    {'detail': 'You do not have permission to delete users'},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+        if not can_manage_users(user):
+            return Response(
+                {'detail': 'You do not have permission to delete users'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         
         # Prevent deleting yourself
         if instance.id == user.id:

@@ -5,10 +5,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import type { LoginRequest, LoginResponse } from '@/services/types';
+import { logger } from '@/lib/logger';
 
 function normalizeRoleName(roleName: string): string {
   const normalized = (roleName || '').toLowerCase().trim()
-  console.log('[Role Normalization] Input:', roleName, 'Normalized:', normalized)
+  logger('[Role Normalization] Input:', roleName, 'Normalized:', normalized)
 
   if (normalized === 'program_director' || normalized === 'program director' || normalized === 'programdirector' || normalized === 'director') return 'program_director'
   if (normalized === 'mentee') return 'mentee'

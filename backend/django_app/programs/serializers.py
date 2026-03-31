@@ -19,7 +19,22 @@ class ModuleSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Module
-        fields = '__all__'
+        fields = [
+            'id',
+            'milestone',
+            'name',
+            'description',
+            'content_type',
+            'content_url',
+            'order',
+            'estimated_hours',
+            'skills',
+            'applicable_tracks',
+            'milestone_name',
+            'applicable_track_names',
+            'created_at',
+            'updated_at',
+        ]
         read_only_fields = ['id', 'created_at', 'updated_at']
     
     def get_applicable_track_names(self, obj):
@@ -32,7 +47,18 @@ class MilestoneSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Milestone
-        fields = '__all__'
+        fields = [
+            'id',
+            'track',
+            'name',
+            'description',
+            'order',
+            'duration_weeks',
+            'track_name',
+            'modules',
+            'created_at',
+            'updated_at',
+        ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
     def validate(self, data):

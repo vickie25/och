@@ -18,6 +18,54 @@ module.exports = (phase) => {
     typescript: {
       ignoreBuildErrors: true,
     },
+    // Security configurations
+    compiler: {
+      removeConsole: {
+        exclude: ['error'], // Keep error logs for production debugging
+      },
+    },
+    // Additional security headers
+    async headers() {
+      return [
+        {
+          source: '/(.*)',
+          headers: [
+            {
+              key: 'X-Frame-Options',
+              value: 'DENY',
+            },
+            {
+              key: 'X-Content-Type-Options',
+              value: 'nosniff',
+            },
+            {
+              key: 'Referrer-Policy',
+              value: 'strict-origin-when-cross-origin',
+            },
+            {
+              key: 'Permissions-Policy',
+              value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+            },
+            {
+              key: 'Content-Security-Policy',
+              value: [
+                "default-src 'self'",
+                "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com https://checkout.stripe.com",
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+                "font-src 'self' https://fonts.gstatic.com",
+                "img-src 'self' data: https: blob:",
+                "connect-src 'self' https://cybochengine.africa https://www.cybochengine.africa http://localhost:8000 http://localhost:8001",
+                "frame-src 'self' https://js.stripe.com https://checkout.stripe.com",
+                "object-src 'none'",
+                "base-uri 'self'",
+                "form-action 'self'",
+                "upgrade-insecure-requests",
+              ].join('; '),
+            },
+          ],
+        },
+      ];
+    },
     async rewrites() {
       return [
         {
