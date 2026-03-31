@@ -22,6 +22,18 @@ if not os.environ.get('DEBUG', 'False').lower() == 'true' and os.environ.get('SE
         event_level=logging.ERROR,
     )
     
+    def _sentry_before_send(event, hint):
+        """Remove PII from Sentry events."""
+        if 'request' in event and 'data' in event['request']:
+            # Remove sensitive data from form data
+            if 'password' in event['request']['data']:
+                event['request']['data']['password'] = '[FILTERED]'
+            if 'token' in event['request']['data']:
+                event['request']['data']['token'] = '[FILTERED]'
+            if 'secret' in event['request']['data']:
+                event['request']['data']['secret'] = '[FILTERED]'
+        return event
+    
     sentry_sdk.init(
         dsn=os.environ.get('SENTRY_DSN'),
         integrations=[
@@ -35,18 +47,7 @@ if not os.environ.get('DEBUG', 'False').lower() == 'true' and os.environ.get('SE
         traces_sample_rate=0.1,
         send_default_pii=False,  # Don't send PII to Sentry
         environment=os.environ.get('DJANGO_SETTINGS_MODULE', 'development'),
-        before_send=lambda event, hint: {
-            # Remove PII from Sentry events
-            if 'request' in event and 'data' in event['request']:
-                # Remove sensitive data from form data
-                if 'password' in event['request']['data']:
-                    event['request']['data']['password'] = '[FILTERED]'
-                if 'token' in event['request']['data']:
-                    event['request']['data']['token'] = '[FILTERED]'
-                if 'secret' in event['request']['data']:
-                    event['request']['data']['secret'] = '[FILTERED]'
-            return event
-        }
+        before_send=_sentry_before_send
     )
 
 # Priority: 1) Project root, 2) backend/django_app (legacy), 3) backend (legacy)
