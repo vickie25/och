@@ -49,14 +49,30 @@ function parseRolesCookie(raw: string | undefined): string[] {
     if (Array.isArray(parsed)) {
       return parsed.map((r: string) => {
         const normalized = String(r).toLowerCase().trim()
-        if (normalized === 'finance_admin') return 'finance'
+        // Map all role variations to standard frontend role names
+        if (normalized === 'finance_admin' || normalized === 'financeadmin') return 'finance'
+        if (normalized === 'sponsor_admin' || normalized === 'sponsoremployer admin' || normalized === 'sponsor') return 'sponsor_admin'
+        if (normalized === 'institution_admin' || normalized === 'institution admin' || normalized === 'institutional_admin') return 'institution_admin'
+        if (normalized === 'organization_admin' || normalized === 'organization admin') return 'organization_admin'
+        if (normalized === 'program_director' || normalized === 'program director' || normalized === 'director') return 'program_director'
+        if (normalized === 'mentee') return 'mentee'
+        if (normalized === 'student') return 'student'
+        if (normalized === 'mentor') return 'mentor'
+        if (normalized === 'admin') return 'admin'
+        if (normalized === 'analyst') return 'analyst'
+        if (normalized === 'employer') return 'employer'
+        if (normalized === 'support') return 'support'
         return String(r)
       })
     }
   } catch {}
   return raw.split(',').map(s => {
     const normalized = s.trim().toLowerCase()
-    if (normalized === 'finance_admin') return 'finance'
+    if (normalized === 'finance_admin' || normalized === 'financeadmin') return 'finance'
+    if (normalized === 'sponsor_admin' || normalized === 'sponsor' || normalized === 'sponsoremployer admin') return 'sponsor_admin'
+    if (normalized === 'institution_admin' || normalized === 'institution admin') return 'institution_admin'
+    if (normalized === 'organization_admin' || normalized === 'organization admin') return 'organization_admin'
+    if (normalized === 'program_director' || normalized === 'program director' || normalized === 'director') return 'program_director'
     return s.trim()
   }).filter(Boolean)
 }
@@ -84,29 +100,39 @@ function dashboardForRole(role: string | null): string {
 }
 
 function canAccess(pathname: string, roles: string[]): boolean {
-  if (roles.includes('admin')) return true
+  // Normalize all roles to lowercase for comparison
+  const normalizedRoles = roles.map(r => r.toLowerCase().trim())
+  
+  // Admin has access to everything
+  if (normalizedRoles.includes('admin')) return true
 
   if (pathname.startsWith('/students/')) {
-    return roles.includes('student') || roles.includes('mentee')
+    return normalizedRoles.includes('student') || normalizedRoles.includes('mentee')
   }
 
   if (pathname.startsWith('/sponsor/')) {
-    return roles.includes('sponsor') || roles.includes('sponsor_admin') || roles.includes('institution_admin') || roles.includes('organization_admin')
+    return normalizedRoles.includes('sponsor') || normalizedRoles.includes('sponsor_admin') || 
+           normalizedRoles.includes('institution_admin') || normalizedRoles.includes('organization_admin')
   }
 
   if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
-    if (pathname.startsWith('/dashboard/director')) return roles.includes('program_director')
-    if (pathname.startsWith('/dashboard/admin')) return roles.includes('admin')
-    if (pathname.startsWith('/dashboard/mentor')) return roles.includes('mentor')
-    if (pathname.startsWith('/dashboard/sponsor')) return roles.includes('sponsor_admin')
-    if (pathname.startsWith('/dashboard/institution')) {
-      return roles.includes('institution_admin') || roles.includes('organization_admin') || roles.includes('sponsor_admin')
+    if (pathname.startsWith('/dashboard/director')) return normalizedRoles.includes('program_director') || normalizedRoles.includes('director')
+    if (pathname.startsWith('/dashboard/admin')) return normalizedRoles.includes('admin')
+    if (pathname.startsWith('/dashboard/mentor')) return normalizedRoles.includes('mentor')
+    if (pathname.startsWith('/dashboard/sponsor')) {
+      return normalizedRoles.includes('sponsor_admin') || normalizedRoles.includes('sponsor') ||
+             normalizedRoles.includes('institution_admin') || normalizedRoles.includes('organization_admin')
     }
-    if (pathname.startsWith('/dashboard/analyst')) return roles.includes('analyst')
-    if (pathname.startsWith('/dashboard/analytics')) return roles.includes('analyst') || roles.includes('program_director')
-    if (pathname.startsWith('/dashboard/employer') || pathname.startsWith('/dashboard/marketplace')) return roles.includes('employer')
-    if (pathname.startsWith('/dashboard/finance')) return roles.includes('finance') || roles.includes('finance_admin')
-    return roles.includes('student') || roles.includes('mentee')
+    if (pathname.startsWith('/dashboard/institution')) {
+      return normalizedRoles.includes('institution_admin') || normalizedRoles.includes('organization_admin') || 
+             normalizedRoles.includes('sponsor_admin') || normalizedRoles.includes('sponsor')
+    }
+    if (pathname.startsWith('/dashboard/analyst')) return normalizedRoles.includes('analyst')
+    if (pathname.startsWith('/dashboard/analytics')) return normalizedRoles.includes('analyst') || normalizedRoles.includes('program_director') || normalizedRoles.includes('director')
+    if (pathname.startsWith('/dashboard/employer') || pathname.startsWith('/dashboard/marketplace')) return normalizedRoles.includes('employer')
+    if (pathname.startsWith('/dashboard/finance')) return normalizedRoles.includes('finance') || normalizedRoles.includes('finance_admin')
+    // Student dashboard is the fallback - allow all authenticated users
+    return normalizedRoles.includes('student') || normalizedRoles.includes('mentee') || normalizedRoles.length > 0
   }
   return true
 }
