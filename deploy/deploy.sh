@@ -169,7 +169,7 @@ if [ ! -f "$BACKEND_ENV_FILE" ]; then
 DJANGO_SECRET_KEY=your-super-secret-key-change-this-in-production
 JWT_SECRET_KEY=your-jwt-secret-key-change-this-too
 DEBUG=False
-ALLOWED_HOSTS=ongozacyberhub.com,www.ongozacyberhub.com,your-server-ip
+ALLOWED_HOSTS=ongozacyberhub.com,www.ongozacyberhub.com,69.30.235.220
 
 # Frontend URL for CORS and OAuth callbacks
 FRONTEND_URL=https://ongozacyberhub.com

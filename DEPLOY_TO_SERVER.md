@@ -5,7 +5,8 @@
 SSH into the server and run:
 
 ```bash
-ssh root@159.223.224.136
+ssh administrator@69.30.235.220 -p 22
+sudo -i
 cd ~/ongozacyberhub
 bash deploy/quick_update.sh
 ```
@@ -22,7 +23,8 @@ This will:
 For a complete update with verification:
 
 ```bash
-ssh root@159.223.224.136
+ssh administrator@69.30.235.220 -p 22
+sudo -i
 cd ~/ongozacyberhub
 bash deploy/update_and_restart.sh
 ```
@@ -85,6 +87,7 @@ docker compose logs -f nextjs
 
 ## Server Details
 
-- IP: 159.223.224.136
+- IP: 69.30.235.220
+- Port: 22
 - Domain: ongozacyberhub.com
-- SSH: ssh root@159.223.224.136
+- SSH: ssh administrator@69.30.235.220 -p 22
