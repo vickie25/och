@@ -104,7 +104,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       DEBUG: ${DEBUG:-False}
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-cybochengine.africa,www.cybochengine.africa}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,django,nginx,cybochengine.africa,www.cybochengine.africa}
     volumes:
       - ./backend/django_app:/app
       - django_static:/app/staticfiles
