@@ -276,7 +276,7 @@ export function getUserRoles(user: User | null): Role[] {
     // Normalize role names (backend uses exact names: 'mentor', 'admin', etc.)
     const normalized = roleName.toLowerCase().trim()
     
-    // Map backend role names to frontend roles
+    // Map backend role names to frontend roles with comprehensive variations
     // This ensures all role variations are correctly identified
     // Check program_director FIRST before checking 'director' to avoid conflicts
     if (normalized === 'program_director' || normalized === 'program director' || normalized === 'programdirector') return 'program_director'
@@ -289,7 +289,9 @@ export function getUserRoles(user: User | null): Role[] {
       normalized === 'sponsor_admin' ||
       normalized === 'sponsor' ||
       normalized === 'sponsor/employer admin' ||
-      normalized === 'sponsoremployer admin' ||
+      normalized === 'sponsoremployer admin'
+    ) return 'institution_admin' // Map sponsor roles to institution_admin for consistency
+    if (
       normalized === 'institution_admin' ||
       normalized === 'institution admin' ||
       normalized === 'institutional_admin' ||
