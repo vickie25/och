@@ -33,18 +33,27 @@ export default async function HomePage() {
     .replace(/<!DOCTYPE[^>]*>/i, '')
     .replace(/<html[^>]*>|<\/html>/gi, '')
   
-  // Add script to handle navigation clicks for Next.js
+  // Add script to handle navigation clicks for Next.js - Safari compatible
   const navScript = `<script>
     (function() {
-      document.addEventListener('click', function(e) {
+      function handleNavClick(e) {
         var a = e.target.closest && e.target.closest('a[href]');
         if (!a) return;
         var href = a.getAttribute('href');
         if (!href || href.charAt(0) !== '/') return;
         if (/^\\/(login|register|dashboard|cohorts|onboarding)/.test(href)) {
           e.preventDefault();
+          e.stopPropagation();
+          // Safari-friendly navigation
           window.location.href = href;
+          return false;
         }
+      }
+      // Use capture phase for better Safari compatibility
+      document.addEventListener('click', handleNavClick, true);
+      // Also handle touch events for iOS Safari
+      document.addEventListener('touchend', function(e) {
+        handleNavClick(e);
       }, true);
     })();
   </script>`

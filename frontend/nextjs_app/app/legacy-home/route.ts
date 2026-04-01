@@ -137,8 +137,9 @@ export async function GET() {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
-      'Content-Security-Policy': "frame-ancestors 'self' http://localhost:3000;",
-      'X-Frame-Options': 'SAMEORIGIN',
+      // Safari-friendly CSP - allow localhost and relax frame restrictions for dev
+      'Content-Security-Policy': "default-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:8000 https://localhost:8000; frame-ancestors 'self' http://localhost:* https://localhost:*;",
+      // Remove X-Frame-Options to avoid conflict with CSP frame-ancestors
     },
   })
 }
