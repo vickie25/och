@@ -228,27 +228,32 @@ export async function POST(request: NextRequest) {
     
     console.log('[Login API] Next.js response includes access_token:', !!nextResponse.body);
 
+    // Detect HTTPS for proper cookie secure flag
+    const proto = request.headers.get('x-forwarded-proto') ?? request.headers.get('x-url-scheme') ?? (request.url.startsWith('https') ? 'https' : null);
+    const isSecure = proto === 'https';
+    console.log('[Login API] Setting cookies with secure:', isSecure, 'proto:', proto);
+
     // Set RBAC cookies for middleware enforcement (HttpOnly so client can't tamper)
     const normalizedRoles = extractNormalizedRoles(loginResponse.user)
     const primaryRole = getPrimaryRole(normalizedRoles)
     console.log('[Login API] Final results - Normalized roles:', normalizedRoles, 'Primary role:', primaryRole);
     nextResponse.cookies.set('och_roles', JSON.stringify(normalizedRoles), {
       httpOnly: true,
-      secure: false, // Set to true only when using HTTPS
+      secure: isSecure,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
       path: '/',
     })
     nextResponse.cookies.set('och_primary_role', primaryRole || '', {
       httpOnly: true,
-      secure: false,
+      secure: isSecure,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
       path: '/',
     })
     nextResponse.cookies.set('och_dashboard', getDashboardForRole(primaryRole), {
       httpOnly: true,
-      secure: false,
+      secure: isSecure,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
       path: '/',
@@ -258,7 +263,7 @@ export async function POST(request: NextRequest) {
 
     nextResponse.cookies.set('user_track', trackKey, {
       httpOnly: false, // Allow client-side access
-      secure: false,
+      secure: isSecure,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
       path: '/',
@@ -268,7 +273,7 @@ export async function POST(request: NextRequest) {
     if (loginResponse.access_token) {
       nextResponse.cookies.set('access_token', loginResponse.access_token, {
         httpOnly: false, // Allow client-side access for Authorization header
-        secure: false,
+        secure: isSecure,
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 30, // 30 days (matches refresh token)
         path: '/',
@@ -278,7 +283,7 @@ export async function POST(request: NextRequest) {
     if (loginResponse.refresh_token) {
       nextResponse.cookies.set('refresh_token', loginResponse.refresh_token, {
         httpOnly: true,
-        secure: false,
+        secure: isSecure,
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 30, // 30 days
         path: '/',
