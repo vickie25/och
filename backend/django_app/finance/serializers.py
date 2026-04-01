@@ -6,7 +6,7 @@ from rest_framework.exceptions import PermissionDenied
 from organizations.models import Organization
 from .models import (
     Wallet, Transaction, Credit, Contract, TaxRate, 
-    MentorPayout, Invoice, Payment
+    MentorPayout, Invoice, Payment, PricingTier, PricingHistory
 )
 
 
@@ -276,3 +276,64 @@ class CreditPurchaseSerializer(serializers.Serializer):
     amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=1)
     type = serializers.ChoiceField(choices=Credit.TYPE_CHOICES, default='purchased')
     expires_days = serializers.IntegerField(min_value=1, required=False)
+
+
+class PricingTierSerializer(serializers.ModelSerializer):
+    """Serializer for dynamic pricing tiers"""
+    
+    class Meta:
+        model = PricingTier
+        fields = [
+            'id', 'name', 'display_name', 'tier_type', 'min_quantity', 'max_quantity',
+            'price_per_unit', 'currency', 'billing_frequency', 'annual_discount_percent',
+            'is_active', 'effective_date', 'expiry_date', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def validate(self, data):
+        """Validate pricing tier configuration"""
+        min_qty = data.get('min_quantity', 0)
+        max_qty = data.get('max_quantity')
+        
+        if max_qty is not None and min_qty > max_qty:
+            raise serializers.ValidationError(
+                "min_quantity cannot be greater than max_quantity"
+            )
+        
+        if data.get('annual_discount_percent', 0) < 0 or data.get('annual_discount_percent', 0) > 100:
+            raise serializers.ValidationError(
+                "annual_discount_percent must be between 0 and 100"
+            )
+        
+        return data
+
+
+class PricingHistorySerializer(serializers.ModelSerializer):
+    """Serializer for pricing change history"""
+    pricing_tier_name = serializers.CharField(source='pricing_tier.name', read_only=True)
+    pricing_tier_display = serializers.CharField(source='pricing_tier.display_name', read_only=True)
+    changed_by_email = serializers.CharField(source='changed_by.email', read_only=True)
+    
+    class Meta:
+        model = PricingHistory
+        fields = [
+            'id', 'pricing_tier', 'pricing_tier_name', 'pricing_tier_display',
+            'old_price_per_unit', 'new_price_per_unit',
+            'old_annual_discount', 'new_annual_discount',
+            'change_reason', 'changed_by', 'changed_by_email', 'changed_at'
+        ]
+        read_only_fields = ['id', 'pricing_tier', 'changed_by', 'changed_at']
+
+
+class PricingUpdateSerializer(serializers.Serializer):
+    """Serializer for pricing update requests"""
+    price_per_unit = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0)
+    annual_discount_percent = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=0, max_value=100, required=False
+    )
+    reason = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    
+    def validate_reason(self, value):
+        if not value:
+            return "Price updated without specific reason"
+        return value

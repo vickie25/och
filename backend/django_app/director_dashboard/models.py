@@ -68,7 +68,9 @@ class DirectorCohortHealth(models.Model):
         'programs.Cohort',
         on_delete=models.CASCADE,
         related_name='health_records',
-        db_index=True
+        db_index=True,
+        null=True,
+        blank=True
     )
     cohort_name = models.CharField(max_length=255)
     

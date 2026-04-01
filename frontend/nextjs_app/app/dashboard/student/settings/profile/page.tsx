@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   User, CheckCircle2, XCircle, AlertCircle, Mail, Shield, 
@@ -120,16 +120,35 @@ interface Tier0Status {
 
 export default function ProfileSettingsPage() {
   const router = useRouter()
-  const { user: authUser, reloadUser } = useAuth()
+  const searchParams = useSearchParams()
+  const { user: authUser, reloadUser, isAuthenticated, isLoading: authLoading } = useAuth()
+  const [profile, setProfile] = useState<ProfileData | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [profile, setProfile] = useState<ProfileData | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState('profile')
+  const [highlightName, setHighlightName] = useState(false)
   const [universities, setUniversities] = useState<University[]>([])
   const [showUniversitySearch, setShowUniversitySearch] = useState(false)
   const [universitySearch, setUniversitySearch] = useState('')
   const [tier0Status, setTier0Status] = useState<Tier0Status | null>(null)
+
+  // Check for highlight parameter
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    const highlight = searchParams.get('highlight')
+    
+    if (tab) {
+      setActiveTab(tab)
+    }
+    
+    if (highlight === 'name') {
+      setHighlightName(true)
+      // Clear highlight after 5 seconds
+      setTimeout(() => setHighlightName(false), 5000)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     loadProfile()
@@ -224,13 +243,14 @@ export default function ProfileSettingsPage() {
     if (!profile) return
 
     setSaving(true)
-    setSaveStatus(null)
+    setSuccess(null)
+    setError(null)
     try {
       await djangoClient.users.updateProfile(updates)
       await reloadUser()
       await loadProfile() // Reload to get updated data
-      setSaveStatus('success')
-      setTimeout(() => setSaveStatus(null), 3000)
+      setSuccess('Profile updated successfully!')
+      setTimeout(() => setSuccess(null), 3000)
     } catch (err: any) {
       console.error('Error saving profile:', err)
 
@@ -244,14 +264,13 @@ export default function ProfileSettingsPage() {
 
       if (isAuthError) {
         setError('Changes saved locally. Authentication required to sync with server.')
-        setSaveStatus('success') // Show success since changes are saved in local state
+        setSuccess('Profile updated locally!') // Show success since changes are saved in local state
       } else {
-        setSaveStatus('error')
         setError(err.message || 'Failed to save profile. Please try again.')
       }
 
       setTimeout(() => {
-        setSaveStatus(null)
+        setSuccess(null)
         setError(null)
       }, 5000)
     } finally {
@@ -267,26 +286,11 @@ export default function ProfileSettingsPage() {
       }
       await djangoClient.auth.updateConsent(update)
       await loadProfile()
-      setSaveStatus('success')
-      setTimeout(() => setSaveStatus(null), 3000)
+      setSuccess('Consent preferences updated!')
+      setTimeout(() => setSuccess(null), 3000)
     } catch (err: any) {
       console.error('Error updating consent:', err)
-
-      // Check if it's an authentication error (401)
-      const isAuthError = err?.status === 401 ||
-                         err?.response?.status === 401 ||
-                         err?.message?.includes('401') ||
-                         err?.message?.includes('Authentication') ||
-                         err?.message?.includes('credentials') ||
-                         err?.message?.includes('Unauthorized')
-
-      if (isAuthError) {
-        setError('Consent preferences updated locally. Authentication required to sync with server.')
-        // Don't show error status for consent updates on auth failure
-      } else {
-        setError(err.message || 'Failed to update consent')
-      }
-
+      setError(err.message || 'Failed to update consent preferences.')
       setTimeout(() => setError(null), 5000)
     }
   }
@@ -400,7 +404,7 @@ export default function ProfileSettingsPage() {
               <p className="text-red-400 text-sm">{error}</p>
             </motion.div>
           )}
-          {saveStatus === 'success' && (
+          {success && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -560,8 +564,11 @@ export default function ProfileSettingsPage() {
               <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4">Core Metadata</h3>
               
               <div>
-                <label className="block text-xs font-bold text-och-steel uppercase tracking-widest mb-2">
-                  Full Name
+                <label className={clsx(
+                  "block text-xs font-bold uppercase tracking-widest mb-2 transition-all duration-300",
+                  highlightName ? "text-och-gold animate-pulse" : "text-och-steel"
+                )}>
+                  Full Name {highlightName && <span className="text-och-gold ml-2">⚠️ Required for certificates</span>}
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <input
@@ -574,7 +581,12 @@ export default function ProfileSettingsPage() {
                       }
                     }}
                     placeholder="First Name"
-                    className="w-full px-4 py-3 bg-black/40 border border-och-steel/20 rounded-xl text-white text-sm focus:border-och-gold focus:outline-none transition-all"
+                    className={clsx(
+                      "w-full px-4 py-3 border rounded-xl text-white text-sm transition-all duration-300",
+                      highlightName 
+                        ? "bg-black/60 border-och-gold/50 focus:border-och-gold animate-pulse" 
+                        : "bg-black/40 border-och-steel/20 focus:border-och-gold focus:outline-none"
+                    )}
                   />
                   <input
                     type="text"
@@ -586,9 +598,24 @@ export default function ProfileSettingsPage() {
                       }
                     }}
                     placeholder="Last Name"
-                    className="w-full px-4 py-3 bg-black/40 border border-och-steel/20 rounded-xl text-white text-sm focus:border-och-gold focus:outline-none transition-all"
+                    className={clsx(
+                      "w-full px-4 py-3 border rounded-xl text-white text-sm transition-all duration-300",
+                      highlightName 
+                        ? "bg-black/60 border-och-gold/50 focus:border-och-gold animate-pulse" 
+                        : "bg-black/40 border-och-steel/20 focus:border-och-gold focus:outline-none"
+                    )}
                   />
                 </div>
+                {highlightName && (
+                  <motion.p 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-xs text-och-gold mt-2 flex items-center gap-2"
+                  >
+                    <AlertCircle className="w-3 h-3" />
+                    Your full name is required for professional certificates and marketplace display
+                  </motion.p>
+                )}
               </div>
 
               <div>

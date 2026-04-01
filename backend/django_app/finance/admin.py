@@ -5,6 +5,7 @@ from django.contrib import admin
 from .models import (
     Wallet, Transaction, Credit, Contract, TaxRate,
     MentorPayout, Invoice, Payment, ReconciliationRun,
+    PricingTier, PricingHistory
 )
 
 
@@ -84,3 +85,70 @@ class PaymentAdmin(admin.ModelAdmin):
     list_filter = ['status', 'payment_method', 'currency', 'created_at']
     search_fields = ['invoice__invoice_number', 'paystack_reference']
     readonly_fields = ['created_at', 'updated_at']
+
+
+@admin.register(PricingTier)
+class PricingTierAdmin(admin.ModelAdmin):
+    list_display = [
+        'name', 'display_name', 'tier_type', 'min_quantity', 'max_quantity',
+        'price_per_unit', 'currency', 'billing_frequency', 'is_active', 'effective_date'
+    ]
+    list_filter = ['tier_type', 'currency', 'billing_frequency', 'is_active', 'effective_date']
+    search_fields = ['name', 'display_name']
+    readonly_fields = ['created_at', 'updated_at']
+    list_editable = ['price_per_unit', 'is_active']
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name', 'display_name', 'tier_type', 'is_active')
+        }),
+        ('Pricing Configuration', {
+            'fields': (
+                'min_quantity', 'max_quantity', 'price_per_unit', 'currency',
+                'billing_frequency', 'annual_discount_percent'
+            )
+        }),
+        ('Effective Period', {
+            'fields': ('effective_date', 'expiry_date')
+        }),
+        ('System Information', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def save_model(self, request, obj, form, change):
+        """Track pricing changes when updated via admin"""
+        if change:  # This is an update, not a creation
+            old_obj = PricingTier.objects.get(pk=obj.pk)
+            if old_obj.price_per_unit != obj.price_per_unit or old_obj.annual_discount_percent != obj.annual_discount_percent:
+                from .services import DynamicPricingService
+                DynamicPricingService.update_pricing_record(
+                    tier_id=str(obj.pk),
+                    new_price=obj.price_per_unit,
+                    new_discount=obj.annual_discount_percent,
+                    reason=f"Updated via Django Admin by {request.user.email}",
+                    changed_by_user=request.user
+                )
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(PricingHistory)
+class PricingHistoryAdmin(admin.ModelAdmin):
+    list_display = [
+        'pricing_tier', 'old_price_per_unit', 'new_price_per_unit',
+        'old_annual_discount', 'new_annual_discount', 'changed_by', 'changed_at'
+    ]
+    list_filter = ['pricing_tier__tier_type', 'changed_at']
+    search_fields = ['pricing_tier__name', 'change_reason', 'changed_by__email']
+    readonly_fields = ['pricing_tier', 'old_price_per_unit', 'new_price_per_unit', 
+                      'old_annual_discount', 'new_annual_discount', 'changed_by', 'changed_at']
+    date_hierarchy = 'changed_at'
+    
+    def has_add_permission(self, request):
+        """Prevent manual addition of pricing history"""
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        """Prevent editing of pricing history"""
+        return False

@@ -679,3 +679,188 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"Payment {self.amount} for {self.invoice.invoice_number}"
+
+
+class PricingTier(models.Model):
+    """
+    Dynamic pricing configuration for institution and employer tiers.
+    Allows admin to update pricing without code changes.
+    """
+    TIER_TYPE_CHOICES = [
+        ('institution', 'Institution'),
+        ('employer', 'Employer'),
+    ]
+    
+    CURRENCY_CHOICES = [
+        ('USD', 'US Dollar'),
+        ('KES', 'Kenyan Shilling'),
+        ('EUR', 'Euro'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(
+        max_length=50,
+        help_text='Tier identifier (e.g., tier_1_50, starter)'
+    )
+    display_name = models.CharField(
+        max_length=100,
+        help_text='Human-readable name for admin interface'
+    )
+    tier_type = models.CharField(
+        max_length=20,
+        choices=TIER_TYPE_CHOICES,
+        help_text='Whether this is for institution or employer pricing'
+    )
+    min_quantity = models.PositiveIntegerField(
+        default=0,
+        help_text='Minimum quantity (students for institution, placements for employer)'
+    )
+    max_quantity = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text='Maximum quantity (null for unlimited)'
+    )
+    price_per_unit = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        help_text='Price per unit per month in selected currency'
+    )
+    currency = models.CharField(
+        max_length=3,
+        choices=CURRENCY_CHOICES,
+        default='USD',
+        help_text='Currency for this pricing tier'
+    )
+    billing_frequency = models.CharField(
+        max_length=20,
+        choices=[
+            ('monthly', 'Monthly'),
+            ('quarterly', 'Quarterly'),
+            ('annual', 'Annual'),
+        ],
+        default='monthly',
+        help_text='Billing frequency for this tier'
+    )
+    annual_discount_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text='Discount percentage for annual billing'
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text='Whether this pricing tier is currently active'
+    )
+    effective_date = models.DateTimeField(
+        default=timezone.now,
+        help_text='When this pricing becomes effective'
+    )
+    expiry_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='When this pricing expires (null for no expiry)'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'pricing_tiers'
+        ordering = ['tier_type', 'min_quantity']
+        unique_together = [
+            ['name', 'tier_type', 'currency'],
+        ]
+        indexes = [
+            models.Index(fields=['tier_type', 'is_active']),
+            models.Index(fields=['effective_date', 'expiry_date']),
+        ]
+    
+    def __str__(self):
+        return f"{self.display_name} ({self.tier_type}): {self.price_per_unit} {self.currency}/{self.billing_frequency}"
+    
+    @classmethod
+    def get_active_tiers(cls, tier_type, currency='USD'):
+        """Get all active pricing tiers for a specific type and currency."""
+        return cls.objects.filter(
+            tier_type=tier_type,
+            currency=currency,
+            is_active=True,
+            effective_date__lte=timezone.now()
+        ).filter(
+            models.Q(expiry_date__isnull=True) | models.Q(expiry_date__gt=timezone.now())
+        ).order_by('min_quantity')
+    
+    def calculate_price(self, quantity, billing_frequency='monthly'):
+        """Calculate total price for given quantity and billing frequency."""
+        base_price = self.price_per_unit * quantity
+        
+        if billing_frequency == 'quarterly':
+            return base_price * 3
+        elif billing_frequency == 'annual':
+            annual_price = base_price * 12
+            discount = annual_price * (self.annual_discount_percent / 100)
+            return annual_price - discount
+        else:
+            return base_price
+    
+    def is_quantity_in_range(self, quantity):
+        """Check if quantity falls within this tier's range."""
+        if quantity < self.min_quantity:
+            return False
+        if self.max_quantity is not None and quantity > self.max_quantity:
+            return False
+        return True
+
+
+class PricingHistory(models.Model):
+    """
+    Track pricing changes for audit and historical billing purposes.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    pricing_tier = models.ForeignKey(
+        PricingTier,
+        on_delete=models.CASCADE,
+        related_name='history'
+    )
+    old_price_per_unit = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    new_price_per_unit = models.DecimalField(
+        max_digits=10,
+        decimal_places=2
+    )
+    old_annual_discount = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    new_annual_discount = models.DecimalField(
+        max_digits=5,
+        decimal_places=2
+    )
+    change_reason = models.TextField(
+        blank=True,
+        help_text='Reason for pricing change'
+    )
+    changed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='pricing_changes'
+    )
+    changed_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'pricing_history'
+        ordering = ['-changed_at']
+        indexes = [
+            models.Index(fields=['pricing_tier', 'changed_at']),
+        ]
+    
+    def __str__(self):
+        return f"Price change for {self.pricing_tier.name} at {self.changed_at}"

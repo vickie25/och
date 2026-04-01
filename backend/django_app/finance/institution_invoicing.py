@@ -11,9 +11,10 @@ from django.db import IntegrityError
 from django.utils import timezone
 
 from .models import Contract, Invoice
+from .services import DynamicPricingService
 
 
-# USD per student / month by volume tier (2.2.2)
+# USD per student / month by volume tier (2.2.2) - LEGACY FALLBACK
 PER_STUDENT_MONTHLY_USD = {
     'tier_1_50': Decimal('15'),
     'tier_51_200': Decimal('12'),
@@ -23,14 +24,28 @@ PER_STUDENT_MONTHLY_USD = {
 
 
 def _invoice_amount_for_period(contract: Contract) -> Optional[Decimal]:
+    """
+    Calculate invoice amount using dynamic pricing service.
+    Falls back to hardcoded rates if no dynamic pricing configured.
+    """
     tier = contract.institution_pricing_tier
     cycle = contract.billing_cycle
     seats = int(contract.seat_cap or 0)
+    
     if not tier or not cycle or seats < 1:
         return None
+    
+    # Use dynamic pricing service first
+    amount = DynamicPricingService.calculate_institution_invoice(contract, cycle)
+    
+    if amount is not None:
+        return amount
+    
+    # Fallback to legacy hardcoded calculation
     rate = PER_STUDENT_MONTHLY_USD.get(tier)
     if rate is None:
         return None
+    
     monthly = rate * seats
     if cycle == 'monthly':
         return monthly

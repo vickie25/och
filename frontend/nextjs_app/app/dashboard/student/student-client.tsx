@@ -55,6 +55,16 @@ export default function StudentClient() {
 
     console.log('StudentClient: User is student/mentee, proceeding with checks');
 
+    // Check if user needs to update their profile name
+    const checkProfileName = () => {
+      if (!user?.first_name || !user?.last_name || 
+          user.first_name.trim() === '' || user.last_name.trim() === '') {
+        console.log('StudentClient: Profile name incomplete - showing name update prompt');
+        return true;
+      }
+      return false;
+    };
+
     // Check profiling status - fetch fresh status from Django API
     const checkProfiling = async () => {
       try {
@@ -183,6 +193,16 @@ export default function StudentClient() {
         setCheckingFoundations(false);
       }
     };
+
+    // Check if profile name update is needed
+    if (checkProfileName()) {
+      console.log('StudentClient: Profile name incomplete - redirecting to profile settings');
+      setCheckingProfiling(false);
+      setCheckingFoundations(false);
+      // Add query parameter to highlight the name fields
+      router.push('/dashboard/student/settings?tab=profile&highlight=name');
+      return;
+    }
 
     checkProfiling();
   }, [isAuthenticated, authLoading, user]);

@@ -18,13 +18,14 @@ from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
 from .models import (
     Wallet, Transaction, Credit, Contract, TaxRate,
-    MentorPayout, Invoice, Payment
+    MentorPayout, Invoice, Payment, ReconciliationRun,
+    PricingTier, PricingHistory
 )
 from .serializers import (
     WalletSerializer, TransactionSerializer, CreditSerializer,
     ContractSerializer, TaxRateSerializer, MentorPayoutSerializer,
-    InvoiceSerializer, PaymentSerializer, WalletTopUpSerializer,
-    CreditPurchaseSerializer
+    InvoiceSerializer, PaymentSerializer,
+    PricingTierSerializer, PricingHistorySerializer
 )
 from subscriptions.models import UserSubscription
 from programs.permissions import user_has_finance_role
@@ -877,3 +878,175 @@ class FinancialDashboardView(APIView):
             'subscription': subscription_payload,
             'range': range_key,
         })
+
+
+class PricingTierViewSet(viewsets.ModelViewSet):
+    """API endpoint for managing dynamic pricing tiers"""
+    serializer_class = PricingTierSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        tier_type = self.request.query_params.get('tier_type')
+        currency = self.request.query_params.get('currency', 'USD')
+        is_active = self.request.query_params.get('is_active')
+        
+        queryset = PricingTier.objects.all()
+        
+        if tier_type:
+            queryset = queryset.filter(tier_type=tier_type)
+        if currency:
+            queryset = queryset.filter(currency=currency)
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        
+        return queryset.order_by('tier_type', 'min_quantity')
+    
+    @action(detail=False, methods=['get'])
+    def active(self, request):
+        """Get only active pricing tiers"""
+        tier_type = request.query_params.get('tier_type')
+        currency = request.query_params.get('currency', 'USD')
+        
+        tiers = PricingTier.get_active_tiers(tier_type, currency)
+        serializer = self.get_serializer(tiers, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def update_price(self, request, pk=None):
+        """Update pricing for a tier with history tracking"""
+        tier = self.get_object()
+        new_price = request.data.get('price_per_unit')
+        new_discount = request.data.get('annual_discount_percent')
+        reason = request.data.get('reason', 'Price update via API')
+        
+        if not new_price:
+            return Response(
+                {'error': 'price_per_unit is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            from .services import DynamicPricingService
+            DynamicPricingService.update_pricing_record(
+                tier_id=str(tier.id),
+                new_price=Decimal(str(new_price)),
+                new_discount=Decimal(str(new_discount)) if new_discount is not None else None,
+                reason=reason,
+                changed_by_user=request.user
+            )
+            
+            # Refresh and return updated tier
+            tier.refresh_from_db()
+            serializer = self.get_serializer(tier)
+            return Response(serializer.data)
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to update pricing: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'])
+    def calculate_price(self, request):
+        """Calculate price for given parameters"""
+        tier_type = request.query_params.get('tier_type')
+        quantity = request.query_params.get('quantity')
+        billing_frequency = request.query_params.get('billing_frequency', 'monthly')
+        currency = request.query_params.get('currency', 'USD')
+        
+        if not tier_type or not quantity:
+            return Response(
+                {'error': 'tier_type and quantity are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            quantity = int(quantity)
+        except ValueError:
+            return Response(
+                {'error': 'quantity must be a valid integer'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        from .services import DynamicPricingService
+        
+        if tier_type == 'institution':
+            rate = DynamicPricingService.get_institution_rate(quantity, currency)
+            if not rate:
+                return Response(
+                    {'error': 'No pricing tier found for given student count'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Create mock contract for calculation
+            mock_contract = type('MockContract', (), {
+                'seat_cap': quantity,
+                'institution_pricing_tier': 'auto',  # Will be determined by quantity
+                'billing_cycle': billing_frequency,
+            })()
+            
+            amount = DynamicPricingService.calculate_institution_invoice(mock_contract, billing_frequency)
+            
+        elif tier_type == 'employer':
+            plan = request.query_params.get('plan')
+            if not plan:
+                return Response(
+                    {'error': 'plan is required for employer tier_type'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            rate = DynamicPricingService.get_employer_rate(plan, currency)
+            if not rate:
+                return Response(
+                    {'error': f'No pricing tier found for plan: {plan}'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Create mock contract for calculation
+            mock_contract = type('MockContract', (), {
+                'employer_plan': plan,
+                'total_value': None,
+            })()
+            
+            amount = DynamicPricingService.calculate_employer_invoice(mock_contract)
+            
+        else:
+            return Response(
+                {'error': 'tier_type must be either "institution" or "employer"'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        return Response({
+            'tier_type': tier_type,
+            'quantity': quantity,
+            'billing_frequency': billing_frequency,
+            'currency': currency,
+            'unit_price': float(rate) if rate else None,
+            'total_amount': float(amount) if amount else None,
+            'calculated_at': timezone.now().isoformat(),
+        })
+
+
+class PricingHistoryViewSet(viewsets.ReadOnlyModelViewSet):
+    """API endpoint for viewing pricing history (read-only)"""
+    serializer_class = PricingHistorySerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        tier_id = self.request.query_params.get('tier_id')
+        queryset = PricingHistory.objects.all()
+        
+        if tier_id:
+            queryset = queryset.filter(pricing_tier_id=tier_id)
+        
+        return queryset.order_by('-changed_at')
+    
+    @action(detail=False, methods=['get'])
+    def recent(self, request):
+        """Get recent pricing changes"""
+        days = int(request.query_params.get('days', 30))
+        since = timezone.now() - timedelta(days=days)
+        
+        queryset = self.get_queryset().filter(changed_at__gte=since)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)

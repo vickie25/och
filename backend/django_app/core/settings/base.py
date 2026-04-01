@@ -116,11 +116,11 @@ INSTALLED_APPS = [
     'mentorship_coordination',
     'mentors',
     'programs',
+    'director_dashboard',        # Move before cohorts to fix circular dependency
     'cohorts',                 # Cohort management system
     'finance',                 # Financial management system
     'sponsor_dashboard',
     'sponsors',
-    'director_dashboard',
     'support',
     'talentscope',
     'marketplace',

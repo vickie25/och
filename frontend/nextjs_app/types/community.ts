@@ -43,7 +43,7 @@ export interface CommunityMembership {
   joined_at: string;
 }
 
-export type PostType = 'text' | 'media' | 'event' | 'achievement' | 'poll';
+export type PostType = 'text' | 'media' | 'event' | 'achievement' | 'poll' | 'announcement';
 export type PostStatus = 'draft' | 'published' | 'pinned' | 'archived';
 
 export interface CommunityPost {
@@ -84,6 +84,7 @@ export interface CommunityPost {
   university_name?: string;
   university_logo?: string;
   reactions?: Record<string, number>;
+  is_verified?: boolean;
 }
 
 export interface CommunityReaction {

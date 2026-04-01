@@ -6,7 +6,8 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     WalletViewSet, TransactionViewSet, CreditViewSet,
     ContractViewSet, TaxRateViewSet, MentorPayoutViewSet,
-    InvoiceViewSet, PaymentViewSet, FinancialDashboardView
+    InvoiceViewSet, PaymentViewSet, FinancialDashboardView,
+    PricingTierViewSet, PricingHistoryViewSet
 )
 from .enhanced_views import AnalyticsViewSet, ComplianceViewSet
 from .operations_views import (
@@ -26,6 +27,8 @@ router.register(r'tax-rates', TaxRateViewSet, basename='taxrate')
 router.register(r'mentor-payouts', MentorPayoutViewSet, basename='mentorpayout')
 router.register(r'invoices', InvoiceViewSet, basename='invoice')
 router.register(r'payments', PaymentViewSet, basename='payment')
+router.register(r'pricing-tiers', PricingTierViewSet, basename='pricing-tier')
+router.register(r'pricing-history', PricingHistoryViewSet, basename='pricing-history')
 router.register(r'analytics', AnalyticsViewSet, basename='finance-analytics')
 router.register(r'compliance', ComplianceViewSet, basename='finance-compliance')
 

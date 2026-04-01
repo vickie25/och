@@ -17,6 +17,8 @@ from django.db import transaction
 from django.db.models import Case, When, Value, IntegerField
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
 from users.models import User, UserRole
 from users.audit_models import AuditLog
@@ -158,6 +160,7 @@ def _log_audit_event(user, action, resource_type, result='success', metadata=Non
     )
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class SignupView(APIView):
     """
     POST /api/v1/auth/signup

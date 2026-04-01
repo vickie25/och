@@ -11,9 +11,10 @@ from django.db import IntegrityError
 from django.utils import timezone
 
 from .models import Contract, Invoice
+from .services import DynamicPricingService
 
 
-# Monthly retainer (USD) — aligned with employer commercial catalog
+# Monthly retainer (USD) — aligned with employer commercial catalog - LEGACY FALLBACK
 EMPLOYER_RETAINER_USD = {
     'starter': Decimal('500'),
     'growth': Decimal('1500'),
@@ -25,19 +26,26 @@ def ensure_employer_plan_retainer_invoice(contract: Contract) -> Optional[Invoic
     """
     Create or update a sent invoice for the monthly retainer when employer_plan is set/changed.
     If an unpaid invoice exists for this contract, its amounts are updated to match the new plan.
+    Uses dynamic pricing service with fallback to hardcoded rates.
     """
     if contract.type != 'employer' or not contract.employer_plan:
         return None
 
     plan = contract.employer_plan
-    if plan == 'custom':
-        amount = contract.total_value or Decimal('0')
-        if amount <= 0:
-            return None
-    else:
-        amount = EMPLOYER_RETAINER_USD.get(plan)
-        if amount is None:
-            return None
+    
+    # Use dynamic pricing service first
+    amount = DynamicPricingService.calculate_employer_invoice(contract)
+    
+    if amount is None:
+        # Fallback to legacy hardcoded calculation
+        if plan == 'custom':
+            amount = contract.total_value or Decimal('0')
+            if amount <= 0:
+                return None
+        else:
+            amount = EMPLOYER_RETAINER_USD.get(plan)
+            if amount is None:
+                return None
 
     unpaid = (
         Invoice.objects.filter(

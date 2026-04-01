@@ -5,43 +5,71 @@
 
 'use client';
 
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Heart, Share2, MoreHorizontal, User, Zap, Star } from 'lucide-react';
+import { MessageSquare, Heart, Share2, MoreHorizontal, User, Zap, Star, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
+import { useCommunityFeed } from '@/hooks/useCommunityFeed';
+import { useAuth } from '@/hooks/useAuth';
 import clsx from 'clsx';
 
 export function CommunityFeed({ type }: { type: 'university' | 'global' }) {
-  const posts = [
-    {
-      id: 1,
-      user: 'Sarah Miller',
-      role: 'Defender Pilot',
-      university: 'Strathmore University',
-      content: 'Just deployed my first SIEM configuration for the Ransomware Response mission. The Recipe Engine was a lifesaver for the log analysis part! 🚀',
-      likes: 24,
-      comments: 6,
-      tags: ['SIEM', 'Defense'],
-      isVerified: true
-    },
-    {
-      id: 2,
-      user: 'Dr. James Okoro',
-      role: 'Program Director',
-      university: 'University of Nairobi',
-      content: 'Local News: The upcoming Cyber Hackathon is set for next Friday. Ensure your Readiness Score is at least 650 to qualify for the elite track.',
-      likes: 89,
-      comments: 12,
-      tags: ['Hackathon', 'Announcement'],
-      isAnnouncement: true
-    }
-  ];
+  const { user } = useAuth();
+  const { posts, loading, error, activeTab, setActiveTab, refetch } = useCommunityFeed(String(user?.id || ''));
 
-  const filteredPosts = type === 'university' ? posts : [...posts].reverse();
+  // Sync activeTab with prop type
+  useEffect(() => {
+    const targetTab = type === 'university' ? 'my-university' : 'global';
+    if (activeTab !== targetTab) {
+      setActiveTab(targetTab as 'my-university' | 'global' | 'competitions' | 'leaderboard');
+    }
+  }, [type, activeTab, setActiveTab]);
+
+  // Refetch when tab changes
+  useEffect(() => {
+    refetch();
+  }, [type, refetch]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 text-och-gold animate-spin" />
+        <span className="ml-2 text-sm text-och-steel">Loading feed...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 text-sm">
+        <p>Failed to load feed: {error}</p>
+        <button 
+          onClick={refetch}
+          className="mt-2 text-xs underline hover:text-white"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  if (posts.length === 0) {
+    return (
+      <div className="p-6 rounded-[2rem] bg-och-steel/5 border border-white/5 text-center">
+        <p className="text-sm text-och-steel">
+          No posts yet in {type === 'university' ? 'your university' : 'global'} feed.
+        </p>
+        <p className="text-xs text-och-steel/60 mt-1">
+          Be the first to share something!
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
       <AnimatePresence mode="popLayout">
-        {filteredPosts.map((post) => (
+        {posts.map((post) => (
           <motion.div
             key={`${type}-${post.id}`}
             layout
@@ -50,21 +78,25 @@ export function CommunityFeed({ type }: { type: 'university' | 'global' }) {
             exit={{ opacity: 0, scale: 0.95 }}
             className={clsx(
               "p-6 rounded-[2rem] bg-och-steel/5 border border-white/5 hover:border-white/10 transition-all group",
-              post.isAnnouncement && "bg-gradient-to-r from-och-mint/5 to-transparent border-och-mint/10"
+              post.post_type === 'announcement' && "bg-gradient-to-r from-och-mint/5 to-transparent border-och-mint/10"
             )}
           >
             <div className="flex justify-between items-start mb-4">
                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-och-midnight border border-white/10 flex items-center justify-center">
-                     <User className="w-5 h-5 text-och-steel" />
+                  <div className="w-10 h-10 rounded-xl bg-och-midnight border border-white/10 flex items-center justify-center overflow-hidden">
+                     {post.user_avatar ? (
+                       <img src={post.user_avatar} alt={post.user_name} className="w-full h-full object-cover" />
+                     ) : (
+                       <User className="w-5 h-5 text-och-steel" />
+                     )}
                   </div>
                   <div>
                      <div className="flex items-center gap-2">
-                        <h5 className="text-xs font-black text-white uppercase tracking-tight leading-none">{post.user}</h5>
-                        {post.isVerified && <Zap className="w-3 h-3 text-och-gold" />}
+                        <h5 className="text-xs font-black text-white uppercase tracking-tight leading-none">{post.user_name}</h5>
+                        {post.is_verified && <Zap className="w-3 h-3 text-och-gold" />}
                      </div>
                      <p className="text-[9px] text-och-steel font-black uppercase tracking-widest mt-1">
-                        {post.role} • {post.university}
+                        {post.user_circle ? `${post.user_circle} • ` : ''}{post.university_name || (type === 'global' ? 'Global' : 'University')}
                      </p>
                   </div>
                </div>
@@ -73,12 +105,26 @@ export function CommunityFeed({ type }: { type: 'university' | 'global' }) {
                </button>
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed mb-4 italic">
-               "{post.content}"
+            {post.title && (
+              <h4 className="text-sm font-bold text-white mb-2">{post.title}</h4>
+            )}
+
+            <p className="text-xs text-slate-300 leading-relaxed mb-4">
+               {post.content}
             </p>
 
+            {post.media_urls && post.media_urls.length > 0 && (
+              <div className="mb-4 rounded-xl overflow-hidden">
+                <img 
+                  src={post.media_urls[0]} 
+                  alt="Post media" 
+                  className="w-full h-48 object-cover"
+                />
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-2 mb-6">
-               {post.tags.map(tag => (
+               {post.tags?.map(tag => (
                  <Badge key={tag} variant="outline" className="text-[8px] font-black uppercase tracking-tighter border-och-steel/20 text-och-steel">
                     #{tag}
                  </Badge>
@@ -88,12 +134,12 @@ export function CommunityFeed({ type }: { type: 'university' | 'global' }) {
             <div className="flex items-center justify-between pt-4 border-t border-white/5">
                <div className="flex items-center gap-6">
                   <button className="flex items-center gap-1.5 text-[10px] text-och-steel hover:text-och-gold transition-colors font-black">
-                     <Heart className="w-4 h-4" />
-                     {post.likes}
+                     <Heart className={clsx("w-4 h-4", Object.keys(post.reactions || {}).length > 0 && "fill-och-gold text-och-gold")} />
+                     {post.reaction_count || 0}
                   </button>
                   <button className="flex items-center gap-1.5 text-[10px] text-och-steel hover:text-och-gold transition-colors font-black">
                      <MessageSquare className="w-4 h-4" />
-                     {post.comments}
+                     {post.comment_count || 0}
                   </button>
                </div>
                <button className="text-och-steel hover:text-white transition-colors">

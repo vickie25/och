@@ -20,6 +20,122 @@ from cohorts.models import CohortPayment
 
 logger = logging.getLogger(__name__)
 
+
+class DynamicPricingService:
+    """Service for dynamic pricing calculations using PricingTier model"""
+    
+    @classmethod
+    def get_institution_rate(cls, student_count: int, currency: str = 'USD') -> Optional[Decimal]:
+        """Get per-student rate for given student count using dynamic pricing"""
+        tiers = PricingTier.get_active_tiers('institution', currency)
+        
+        for tier in tiers:
+            if tier.is_quantity_in_range(student_count):
+                return tier.price_per_unit
+        
+        # Fallback to hardcoded rates if no dynamic tiers found
+        from .institution_invoicing import PER_STUDENT_MONTHLY_USD
+        if currency == 'USD' and student_count <= 50:
+            return PER_STUDENT_MONTHLY_USD.get('tier_1_50')
+        elif currency == 'USD' and student_count <= 200:
+            return PER_STUDENT_MONTHLY_USD.get('tier_51_200')
+        elif currency == 'USD' and student_count <= 500:
+            return PER_STUDENT_MONTHLY_USD.get('tier_201_500')
+        elif currency == 'USD':
+            return PER_STUDENT_MONTHLY_USD.get('tier_500_plus')
+        
+        return None
+    
+    @classmethod
+    def get_employer_rate(cls, plan: str, currency: str = 'USD') -> Optional[Decimal]:
+        """Get monthly retainer for employer plan using dynamic pricing"""
+        tiers = PricingTier.get_active_tiers('employer', currency)
+        
+        for tier in tiers:
+            if tier.name == plan:
+                return tier.price_per_unit
+        
+        # Fallback to hardcoded rates if no dynamic tiers found
+        from .employer_invoicing import EMPLOYER_RETAINER_USD
+        if currency == 'USD':
+            return EMPLOYER_RETAINER_USD.get(plan)
+        
+        return None
+    
+    @classmethod
+    def calculate_institution_invoice(cls, contract, billing_cycle: str = 'monthly') -> Optional[Decimal]:
+        """Calculate institution contract invoice amount using dynamic pricing"""
+        student_count = int(contract.seat_cap or 0)
+        if student_count < 1:
+            return None
+        
+        rate = cls.get_institution_rate(student_count)
+        if not rate:
+            return None
+        
+        monthly_total = rate * student_count
+        
+        if billing_cycle == 'quarterly':
+            return monthly_total * 3
+        elif billing_cycle == 'annual':
+            # Apply annual discount from dynamic pricing or fallback
+            tiers = PricingTier.get_active_tiers('institution', 'USD')
+            annual_discount = Decimal('0')
+            
+            for tier in tiers:
+                if tier.is_quantity_in_range(student_count):
+                    annual_discount = tier.annual_discount_percent
+                    break
+            
+            annual_total = monthly_total * 12
+            discount_amount = annual_total * (annual_discount / 100)
+            return (annual_total - discount_amount).quantize(Decimal('0.01'))
+        else:
+            return monthly_total
+    
+    @classmethod
+    def calculate_employer_invoice(cls, contract) -> Optional[Decimal]:
+        """Calculate employer contract invoice amount using dynamic pricing"""
+        plan = contract.employer_plan
+        if not plan:
+            return None
+        
+        if plan == 'custom':
+            return contract.total_value or Decimal('0')
+        
+        rate = cls.get_employer_rate(plan)
+        if not rate:
+            return None
+        
+        return rate
+    
+    @classmethod
+    def update_pricing_record(cls, tier_id: str, new_price: Decimal, new_discount: Decimal = None, 
+                             reason: str = '', changed_by_user=None):
+        """Update pricing and track history"""
+        with transaction.atomic():
+            tier = PricingTier.objects.get(id=tier_id)
+            
+            # Record history
+            PricingHistory.objects.create(
+                pricing_tier=tier,
+                old_price_per_unit=tier.price_per_unit,
+                new_price_per_unit=new_price,
+                old_annual_discount=tier.annual_discount_percent,
+                new_annual_discount=new_discount or tier.annual_discount_percent,
+                change_reason=reason,
+                changed_by=changed_by_user
+            )
+            
+            # Update tier
+            tier.price_per_unit = new_price
+            if new_discount is not None:
+                tier.annual_discount_percent = new_discount
+            tier.save()
+            
+            logger.info(f"Updated pricing tier {tier.name}: {tier.price_per_unit} {tier.currency}")
+
+
 class FinancialAnalyticsService:
     """Service for financial analytics and metrics calculation"""
     
