@@ -19,9 +19,9 @@ async function getMarketingHtml() {
 export default async function HomePage() {
   const html = await getMarketingHtml()
   
-  // Extract styles from head
+  // Extract styles from head (get CSS content only, not the tags)
   const stylesMatch = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || []
-  const allStyles = stylesMatch.join('\n')
+  const allStyles = stylesMatch.map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n')
   
   // Extract body content
   const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i)
