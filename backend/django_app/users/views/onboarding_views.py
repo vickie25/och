@@ -110,14 +110,8 @@ def check_onboarding_status(request):
             }, status=status.HTTP_200_OK)
     
     # Signup page flow (after account creation)
-    if not email_verified:
-        return Response({
-            'onboarding_complete': False,
-            'next_step': 'verify_email',
-            'email': user.email,
-            'message': 'Please verify your email address'
-        }, status=status.HTTP_200_OK)
-    elif not account_active:
+    # Email verification disabled - skip this check
+    if not account_active:
         return Response({
             'onboarding_complete': False,
             'next_step': 'activate_account',
