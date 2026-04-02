@@ -22,6 +22,15 @@ function VerifyEmailContent() {
   const code = searchParams.get('code')
   const email = searchParams.get('email')
   const redirectTo = searchParams.get('redirect')
+  const registered = searchParams.get('registered') === 'true'
+
+  // Show registration success message if user just signed up
+  useEffect(() => {
+    if (registered && status === 'idle') {
+      setMessage('Registration successful! Please check your email for a verification link.')
+      setStatus('idle')
+    }
+  }, [registered, status])
 
   useEffect(() => {
     // Auto-verify on mount if we have the required params

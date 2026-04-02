@@ -235,8 +235,6 @@ class User(AbstractUser):
         """Activate user account."""
         self.account_status = 'active'
         self.is_active = True
-        self.email_verified = True
-        self.email_verified_at = timezone.now()
         if not self.activated_at:
             self.activated_at = timezone.now()
         self.save()

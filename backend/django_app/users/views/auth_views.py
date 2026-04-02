@@ -272,11 +272,17 @@ class SignupView(APIView):
             if data.get('cohort_id') or data.get('track_key'):
                 user.activate()
             else:
-                # Skip email verification - activate immediately for development
-                user.activate()
-                user.email_verified = True
-                user.email_verified_at = timezone.now()
-                logger.info(f"User {user.email} activated without email verification")
+                # Send verification email with OTP (non-blocking)
+                try:
+                    code, mfa_code = create_mfa_code(user, method='email', expires_minutes=60)
+                    from users.utils.email_utils import send_verification_email
+                    from django.conf import settings
+                    frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+                    verification_url = f"{frontend_url}/auth/verify-email?code={code}&email={user.email}"
+                    send_verification_email(user, verification_url)
+                except Exception as e:
+                    # Log email failure but don't block signup
+                    logger.warning(f"Failed to send verification email to {user.email}: {str(e)}")
             
             _log_audit_event(user, 'create', 'user', 'success', {'method': 'email_password'})
             
@@ -360,6 +366,7 @@ class SimpleLoginView(APIView):
             )
 
 
+from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
@@ -370,6 +377,7 @@ class LoginView(APIView):
     Login with email+password or passwordless code.
     """
     permission_classes = [permissions.AllowAny]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
     
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -1505,19 +1513,22 @@ def register_user(request):
             # Generate verification token and get raw token
             raw_token = user.generate_verification_token()
 
-            # Send activation email with raw token
-            if email_service.send_activation_email(user, raw_token=raw_token):
-                return Response({
-                    'message': 'Registration successful. Please check your email to activate your account.',
-                    'user_id': user.id
-                }, status=status.HTTP_201_CREATED)
-            else:
-                # If email fails, rollback/delete user and return error
-                user.delete()
-                return Response(
-                    {'error': 'Failed to send activation email. Please try again.'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+            # Send verification email with token
+            try:
+                from users.utils.email_utils import send_verification_email
+                from django.conf import settings
+                frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+                verification_url = f"{frontend_url}/auth/verify-email?token={raw_token}"
+                send_verification_email(user, verification_url)
+                logger.info(f"Verification email sent to {user.email}")
+            except Exception as e:
+                # Log email failure but don't block signup
+                logger.warning(f"Failed to send verification email to {user.email}: {str(e)}")
+
+            return Response({
+                'message': 'Registration successful. Please check your email to activate your account.',
+                'user_id': user.id
+            }, status=status.HTTP_201_CREATED)
 
     except Exception as e:
         logger.error(f"Registration error: {str(e)}")
@@ -1530,26 +1541,116 @@ def register_user(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def verify_email(request):
-    """
-    Email verification disabled for development.
-    All users are activated automatically.
-    """
-    return Response(
-        {'detail': 'Email verification is disabled. All users are activated automatically.'},
-        status=status.HTTP_200_OK
-    )
+    """Verify user email with token or code (OTP)"""
+    try:
+        token = request.data.get('token')
+        code = request.data.get('code')
+        email = request.data.get('email')
+
+        if not token and not (code and email):
+            return Response(
+                {'detail': 'Either token or code+email required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Code-based verification (OTP)
+        if code and email:
+            try:
+                user = User.objects.get(email=email.strip().lower())
+                if user.verify_mfa_code(code, method='email'):
+                    user.activate()
+                    user.email_verified = True
+                    user.email_verified_at = timezone.now()
+                    user.save()
+                    logger.info(f"User {user.email} verified email via OTP code")
+                    return Response({
+                        'detail': 'Email verified successfully. You can now login.',
+                        'message': 'Email verified successfully'
+                    })
+                else:
+                    return Response(
+                        {'detail': 'Invalid or expired verification code'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except User.DoesNotExist:
+                return Response(
+                    {'detail': 'User not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+        # Token-based verification
+        if token:
+            try:
+                # Find user by checking token hash against all users
+                users = User.objects.filter(verification_hash__isnull=False)
+                for user in users:
+                    if user.verify_email_token(token):
+                        logger.info(f"User {user.email} verified email via token")
+                        return Response({
+                            'detail': 'Email verified successfully. You can now login.',
+                            'message': 'Email verified successfully'
+                        })
+                
+                return Response(
+                    {'detail': 'Invalid or expired verification token'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            except Exception as e:
+                logger.error(f"Token verification error: {str(e)}")
+                return Response(
+                    {'detail': 'Invalid or expired verification token'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        return Response(
+            {'detail': 'Invalid verification request'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    except Exception as e:
+        logger.error(f"Email verification error: {str(e)}")
+        return Response(
+            {'detail': 'Email verification failed. Please try again.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def resend_verification_email(request):
     """
-    Admin endpoint - Email verification disabled for development.
+    Resend verification email to user.
     """
-    return Response(
-        {'detail': 'Email verification is disabled. All users are activated automatically.'},
-        status=status.HTTP_200_OK
-    )
+    try:
+        user = request.user
+        
+        # Don't resend if already verified
+        if user.email_verified:
+            return Response(
+                {'detail': 'Email is already verified'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Generate new verification code and send email
+        code, mfa_code = create_mfa_code(user, method='email', expires_minutes=60)
+        from users.utils.email_utils import send_verification_email
+        from django.conf import settings
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+        verification_url = f"{frontend_url}/auth/verify-email?code={code}&email={user.email}"
+        send_verification_email(user, verification_url)
+        
+        logger.info(f"Resent verification email to {user.email}")
+        return Response({
+            'detail': 'Verification email sent successfully',
+            'message': 'Please check your email for the verification link'
+        })
+        
+    except Exception as e:
+        logger.error(f"Failed to resend verification email: {str(e)}")
+        return Response(
+            {'detail': 'Failed to send verification email. Please try again.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(['POST'])

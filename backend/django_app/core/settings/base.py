@@ -407,6 +407,10 @@ ENABLE_METRICS = os.environ.get('ENABLE_METRICS', 'False').lower() == 'true'
 # Frontend URL for email links and redirects
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
 
+# Google OAuth 2.0 Configuration
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID') or os.environ.get('GOOGLE_OAUTH_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET') or os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET')
+
 # Resend settings for email activation and password reset (fallback)
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
 RESEND_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', 'onboarding@resend.dev')

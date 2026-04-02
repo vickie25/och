@@ -150,41 +150,9 @@ export default function RoleSignupPage() {
 
       const response = await djangoClient.auth.signup(signupData);
       if (response?.detail || response?.user_id) {
-        // Handle different role-specific onboarding flows
-        if (role === 'student') {
-          // Students go through AI profiler first
-          router.push('/onboarding/ai-profiler');
-        } else {
-          // For other roles, redirect to role-specific dashboard or onboarding
-          switch (role) {
-            case 'mentor':
-              router.push('/dashboard/mentor');
-              break;
-            case 'director':
-            case 'program_director':
-              router.push('/dashboard/director');
-              break;
-            case 'sponsor':
-            case 'sponsor_admin':
-              router.push('/dashboard/sponsor');
-              break;
-            case 'analyst':
-              router.push('/dashboard/analyst');
-              break;
-            case 'employer':
-              router.push('/dashboard/employer');
-              break;
-            case 'finance':
-              router.push('/dashboard/finance');
-              break;
-            case 'admin':
-              router.push('/dashboard/admin');
-              break;
-            default:
-              // Fallback to login with success message
-              router.push(`/login/${role}?registered=true`);
-          }
-        }
+        // For all roles, redirect to email verification page first
+        // The onboarding flow will handle the next steps after email verification
+        router.push('/auth/verify-email?registered=true');
       }
     } catch (err: any) {
       console.error('Signup error:', err);
