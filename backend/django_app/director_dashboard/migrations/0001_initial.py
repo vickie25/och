@@ -10,6 +10,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
+        ('programs', '0001_initial'),
     ]
 
     operations = [

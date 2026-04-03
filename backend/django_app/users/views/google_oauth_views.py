@@ -162,289 +162,257 @@ class GoogleOAuthCallbackView(APIView):
 
     def post(self, request):
         """Handle Google OAuth callback."""
-        code = request.data.get('code')
-        state = request.data.get('state')
-        device_fingerprint = request.data.get('device_fingerprint', 'unknown')
-        device_name = request.data.get('device_name', 'Unknown Device')
-        
-        if not code:
-            return Response(
-                {'detail': 'Authorization code is required'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Get Google OAuth credentials from environment
-        client_id = os.getenv('GOOGLE_CLIENT_ID') or os.getenv('GOOGLE_OAUTH_CLIENT_ID')
-        client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
-        
-        if not client_id or not client_secret:
-            return Response(
-                {'detail': 'Google SSO is not configured'},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE
-            )
-
-        # Verify state (CSRF protection)
-        if not state:
-            return Response(
-                {'detail': 'State parameter is required'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        session_state = request.session.get('oauth_state')
-        if settings.DEBUG and session_state != state:
-            print(f"[OAuth Debug] Session state mismatch (dev mode allows this)")
-        elif not settings.DEBUG and session_state != state:
-            return Response(
-                {'detail': 'Invalid state parameter. Possible CSRF attack.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Get code verifier from session (only used in production with PKCE)
-        code_verifier = request.session.get('oauth_code_verifier')
-        if not code_verifier and not settings.DEBUG:
-            return Response(
-                {'detail': 'Session expired. Please try again.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        if settings.DEBUG:
-            print(f"[OAuth Debug] PKCE disabled in development mode")
-            code_verifier = None  # Don't use PKCE in development
-
-        # Exchange authorization code for tokens
-        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
-        redirect_uri = f"{frontend_url.rstrip('/')}/auth/google/callback"
-        
-        print(f"[OAuth Debug] Token exchange parameters:")
-        print(f"  - redirect_uri: {redirect_uri}")
-        print(f"  - code: {code[:20]}...")
-        print(f"  - has code_verifier: {bool(code_verifier)}")
-        
-        token_data = {
-            'grant_type': 'authorization_code',
-            'code': code,
-            'client_id': client_id,
-            'client_secret': client_secret,
-            'redirect_uri': redirect_uri,
-        }
-        
-        # Only add code_verifier if we have it (PKCE - production only)
-        if code_verifier:
-            token_data['code_verifier'] = code_verifier
-            print(f"[OAuth Debug] Using PKCE with code_verifier")
-        else:
-            print(f"[OAuth Debug] Not using PKCE (development mode)")
-
         try:
-            print(f"[OAuth Debug] Sending token request to Google...")
-            response = requests.post('https://oauth2.googleapis.com/token', data=token_data)
-            print(f"[OAuth Debug] Google response status: {response.status_code}")
-            if response.status_code != 200:
-                print(f"[OAuth Debug] Google error response: {response.text}")
-            response.raise_for_status()
-            tokens = response.json()
-        except requests.RequestException as e:
-            error_detail = f'Failed to exchange authorization code: {str(e)}'
-            if hasattr(e, 'response') and e.response is not None:
-                try:
-                    error_json = e.response.json()
-                    error_detail += f" - {error_json}"
-                except:
-                    error_detail += f" - {e.response.text}"
-            print(f"[OAuth Error] {error_detail}")
-            return Response(
-                {'detail': error_detail},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            code = request.data.get('code')
+            state = request.data.get('state')
+            device_fingerprint = request.data.get('device_fingerprint', 'unknown')
+            device_name = request.data.get('device_name', 'Unknown Device')
 
-        id_token = tokens.get('id_token')
-        
-        if not id_token:
-            return Response(
-                {'detail': 'No ID token received from Google'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            if not code:
+                return Response({'detail': 'Authorization code is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Verify and decode ID token
-        try:
-            unverified = jwt.decode(id_token, options={"verify_signature": False})
-            
-            if unverified.get('iss') not in ['https://accounts.google.com', 'accounts.google.com']:
+            client_id = os.getenv('GOOGLE_CLIENT_ID') or os.getenv('GOOGLE_OAUTH_CLIENT_ID')
+            client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
+            if not client_id or not client_secret:
+                return Response({'detail': 'Google SSO is not configured'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+            if not state:
+                return Response({'detail': 'State parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+            session_state = request.session.get('oauth_state')
+            if settings.DEBUG and session_state != state:
+                print('[OAuth Debug] Session state mismatch (dev mode allows this)')
+            elif not settings.DEBUG and session_state != state:
                 return Response(
-                    {'detail': 'Invalid token issuer'},
-                    status=status.HTTP_401_UNAUTHORIZED
+                    {'detail': 'Invalid state parameter. Possible CSRF attack.'},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
-            
-            if unverified.get('aud') != client_id:
-                return Response(
-                    {'detail': 'Invalid token audience'},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
-            
-            decoded = jwt.decode(id_token, options={"verify_signature": False})
-        except jwt.InvalidTokenError:
-            return Response(
-                {'detail': 'Invalid ID token'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
 
-        # Extract user information
-        email = decoded.get('email')
-        email_verified = decoded.get('email_verified', False)
-        external_id = decoded.get('sub')
-        first_name = decoded.get('given_name', '')
-        last_name = decoded.get('family_name', '')
-        picture = decoded.get('picture')
+            code_verifier = request.session.get('oauth_code_verifier')
+            if not code_verifier and not settings.DEBUG:
+                return Response({'detail': 'Session expired. Please try again.'}, status=status.HTTP_400_BAD_REQUEST)
+            if settings.DEBUG:
+                code_verifier = None
 
-        if not email or not external_id:
-            return Response(
-                {'detail': 'Email and user ID required from Google'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+            redirect_uri = f"{frontend_url.rstrip('/')}/auth/google/callback"
 
+<<<<<<< HEAD
         # Decide behaviour based on how the flow was started:
         # - mode = 'login': only allow existing users, do NOT auto-create
         # - mode = 'register': create account if it doesn't exist yet
         oauth_mode = request.session.get('oauth_mode', 'login')
         intended_role = request.session.get('oauth_intended_role', 'student')
+=======
+            token_data = {
+                'grant_type': 'authorization_code',
+                'code': code,
+                'client_id': client_id,
+                'client_secret': client_secret,
+                'redirect_uri': redirect_uri,
+            }
+            if code_verifier:
+                token_data['code_verifier'] = code_verifier
+>>>>>>> 81f422b (update the auth error onserver)
 
-        user = None
-        created = False
-        onboarding_email_sent = False
-
-        if oauth_mode == 'register':
-            # Registration flow: create a new account if one doesn't exist yet.
-            user = User.objects.filter(email__iexact=email).first()
-            if user:
-                created = False
-            else:
-                # IMPORTANT: Use an unusable password so onboarding can correctly
-                # detect that the student still needs to set a password.
-                user = User.objects.create(
-                    email=email,
-                    username=email,
-                    first_name=first_name,
-                    last_name=last_name,
-                    avatar_url=picture,
-                    email_verified=email_verified,
-                    account_status='active' if email_verified else 'pending_verification',
-                    is_active=True,
-                )
-                user.set_unusable_password()
-                user.save(update_fields=["password"])
-                created = True
-        else:
-            # Login flow: require an existing account
             try:
-                user = User.objects.get(email__iexact=email)
-                created = False
-            except User.DoesNotExist:
+                response = requests.post('https://oauth2.googleapis.com/token', data=token_data)
+                response.raise_for_status()
+                tokens = response.json()
+            except requests.RequestException as e:
+                error_detail = f'Failed to exchange authorization code: {str(e)}'
+                if hasattr(e, 'response') and e.response is not None:
+                    try:
+                        error_detail += f" - {e.response.json()}"
+                    except Exception:
+                        error_detail += f" - {e.response.text}"
+                return Response({'detail': error_detail}, status=status.HTTP_400_BAD_REQUEST)
+
+            id_token = tokens.get('id_token')
+            if not id_token:
+                return Response({'detail': 'No ID token received from Google'}, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                unverified = jwt.decode(id_token, options={'verify_signature': False})
+                if unverified.get('iss') not in ['https://accounts.google.com', 'accounts.google.com']:
+                    return Response({'detail': 'Invalid token issuer'}, status=status.HTTP_401_UNAUTHORIZED)
+                if unverified.get('aud') != client_id:
+                    return Response({'detail': 'Invalid token audience'}, status=status.HTTP_401_UNAUTHORIZED)
+                decoded = jwt.decode(id_token, options={'verify_signature': False})
+            except jwt.InvalidTokenError:
+                return Response({'detail': 'Invalid ID token'}, status=status.HTTP_401_UNAUTHORIZED)
+
+            email = decoded.get('email')
+            email_verified = decoded.get('email_verified', False)
+            external_id = decoded.get('sub')
+            first_name = decoded.get('given_name', '')
+            last_name = decoded.get('family_name', '')
+            picture = decoded.get('picture')
+
+            if not email or not external_id:
                 return Response(
-                    {
-                        'detail': 'No account is registered with this Google email. Please register first, then sign in with Google.',
-                        'code': 'user_not_registered',
-                        'email': email,
-                    },
-                    status=status.HTTP_404_NOT_FOUND,
+                    {'detail': 'Email and user ID required from Google'},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        # Update existing user profile details
-        if not created:
-            if not user.avatar_url and picture:
-                user.avatar_url = picture
-            if not user.email_verified and email_verified:
-                user.email_verified = True
-                user.email_verified_at = timezone.now()
-            if user.account_status == 'pending_verification' and email_verified:
-                user.account_status = 'active'
-                if not user.activated_at:
-                    user.activated_at = timezone.now()
-            user.is_active = True
-            user.save()
+            oauth_mode = request.data.get('mode') or request.session.get('oauth_mode', 'login')
+            intended_role = request.data.get('role') or request.session.get('oauth_intended_role', 'student')
+            if oauth_mode not in ('login', 'register'):
+                oauth_mode = 'login'
+            if not intended_role:
+                intended_role = 'student'
 
-        # If this is a newly created account via registration flow, assign role.
-        if created:
-            from users.views.auth_views import _assign_user_role
-            _assign_user_role(user, intended_role)
-            request.session.pop('oauth_intended_role', None)
-            if email_verified and not user.activated_at:
-                user.activated_at = timezone.now()
-                user.account_status = 'active'
+            user = None
+            created = False
+            onboarding_email_sent = False
+
+            if oauth_mode == 'register':
+                user = User.objects.filter(email__iexact=email).first()
+                if user:
+                    created = False
+                else:
+                    user = User.objects.create(
+                        email=email,
+                        username=email,
+                        first_name=first_name,
+                        last_name=last_name,
+                        avatar_url=picture,
+                        email_verified=email_verified,
+                        account_status='active' if email_verified else 'pending_verification',
+                        is_active=True,
+                    )
+                    user.set_unusable_password()
+                    user.save(update_fields=['password'])
+                    created = True
+            else:
+                try:
+                    user = User.objects.get(email__iexact=email)
+                    created = False
+                except User.DoesNotExist:
+                    return Response(
+                        {
+                            'detail': 'No account is registered with this Google email. Please register first, then sign in with Google.',
+                            'code': 'user_not_registered',
+                            'email': email,
+                        },
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+
+            if not created:
+                if not user.avatar_url and picture:
+                    user.avatar_url = picture
+                if not user.email_verified and email_verified:
+                    user.email_verified = True
+                    user.email_verified_at = timezone.now()
+                if user.account_status == 'pending_verification' and email_verified:
+                    user.account_status = 'active'
+                    if not user.activated_at:
+                        user.activated_at = timezone.now()
+                user.is_active = True
                 user.save()
 
-        _apply_google_email_role_overrides(user, email)
+            if created:
+                from users.views.auth_views import _assign_user_role
+                try:
+                    _assign_user_role(user, intended_role)
+                except Exception as e:
+                    return Response(
+                        {
+                            'detail': f'Failed to assign role during Google signup: {str(e)}',
+                            'role': intended_role,
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                request.session.pop('oauth_intended_role', None)
+                if email_verified and not user.activated_at:
+                    user.activated_at = timezone.now()
+                    user.account_status = 'active'
+                    user.save()
 
-        # For any student/mentee coming through Google SSO who has NOT completed profiling yet,
-        # send (or re-send) the onboarding email so they always enter via the email link instead
-        # of being dropped directly into the profiler. This applies to both register and login flows.
-        try:
-            primary_role_names = [
-                ur.role.name
-                for ur in UserRole.objects.filter(user=user, is_active=True).select_related("role")
-            ]
-            has_student_role = any(r in ("student", "mentee") for r in primary_role_names)
-            has_non_student_dashboard_role = any(
-                r in (
-                    "sponsor_admin",
-                    "institution_admin",
-                    "organization_admin",
-                    "employer",
-                    "mentor",
-                    "program_director",
-                    "admin",
-                    "analyst",
-                    "finance",
-                    "support",
+            _apply_google_email_role_overrides(user, email)
+
+            try:
+                primary_role_names = [
+                    ur.role.name
+                    for ur in UserRole.objects.filter(user=user, is_active=True).select_related('role')
+                ]
+                has_student_role = any(r in ('student', 'mentee') for r in primary_role_names)
+                has_non_student_dashboard_role = any(
+                    r in (
+                        'sponsor_admin',
+                        'institution_admin',
+                        'organization_admin',
+                        'employer',
+                        'mentor',
+                        'program_director',
+                        'admin',
+                        'analyst',
+                        'finance',
+                        'support',
+                    )
+                    for r in primary_role_names
                 )
-                for r in primary_role_names
+                if has_student_role and not has_non_student_dashboard_role:
+                    profiling_complete = getattr(user, 'profiling_complete', False)
+                    if not profiling_complete:
+                        send_onboarding_email(user)
+                        onboarding_email_sent = True
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f'Failed to send onboarding email for Google SSO user {user.email}: {str(e)}')
+
+            ip_address = _get_client_ip(request)
+            user_agent = request.META.get('HTTP_USER_AGENT', '')
+            risk_score = calculate_risk_score(user, ip_address, device_fingerprint, user_agent)
+
+            access_token_jwt, refresh_token, session = create_user_session(
+                user=user,
+                device_fingerprint=device_fingerprint,
+                device_name=device_name,
+                ip_address=ip_address,
+                user_agent=user_agent,
             )
-            if has_student_role and not has_non_student_dashboard_role:
-                profiling_complete = getattr(user, "profiling_complete", False)
-                if not profiling_complete:
-                    send_onboarding_email(user)
-                    onboarding_email_sent = True
+
+            user.last_login = timezone.now()
+            user.last_login_ip = ip_address
+            user.save()
+
+            _log_audit_event(user, 'sso_login', 'user', 'success', {
+                'provider': 'google',
+                'risk_score': risk_score,
+                'jit_created': created,
+            })
+
+            consent_scopes = get_consent_scopes_for_token(user)
+            request.session.pop('oauth_code_verifier', None)
+            request.session.pop('oauth_state', None)
+            request.session.pop('oauth_mode', None)
+            user.refresh_from_db()
+
+            return Response({
+                'access_token': access_token_jwt,
+                'refresh_token': refresh_token,
+                'user': UserSerializer(user).data,
+                'consent_scopes': consent_scopes,
+                'account_created': created,
+                'onboarding_email_sent': onboarding_email_sent,
+            }, status=status.HTTP_200_OK)
+
         except Exception as e:
             import logging
+            import traceback
             logger = logging.getLogger(__name__)
-            logger.warning(f"Failed to send onboarding email for Google SSO user {user.email}: {str(e)}")
-
-        # Create session and issue tokens
-        ip_address = _get_client_ip(request)
-        user_agent = request.META.get('HTTP_USER_AGENT', '')
-        risk_score = calculate_risk_score(user, ip_address, device_fingerprint, user_agent)
-
-        access_token_jwt, refresh_token, session = create_user_session(
-            user=user,
-            device_fingerprint=device_fingerprint,
-            device_name=device_name,
-            ip_address=ip_address,
-            user_agent=user_agent
-        )
-
-        user.last_login = timezone.now()
-        user.last_login_ip = ip_address
-        user.save()
-
-        _log_audit_event(user, 'sso_login', 'user', 'success', {
-            'provider': 'google',
-            'risk_score': risk_score,
-            'jit_created': created,
-        })
-
-        consent_scopes = get_consent_scopes_for_token(user)
-        request.session.pop('oauth_code_verifier', None)
-        request.session.pop('oauth_state', None)
-        request.session.pop('oauth_mode', None)
-        user.refresh_from_db()
-
-        return Response({
-            'access_token': access_token_jwt,
-            'refresh_token': refresh_token,
-            'user': UserSerializer(user).data,
-            'consent_scopes': consent_scopes,
-            'account_created': created,
-            'onboarding_email_sent': onboarding_email_sent,
-        }, status=status.HTTP_200_OK)
+            logger.error('Unhandled Google OAuth callback error: %s', str(e), exc_info=True)
+            if settings.DEBUG:
+                return Response(
+                    {
+                        'detail': f'Google OAuth callback failed: {str(e)}',
+                        'traceback': traceback.format_exc(),
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+            return Response({'detail': 'Something went wrong.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])

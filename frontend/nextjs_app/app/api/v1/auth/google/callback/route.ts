@@ -9,7 +9,7 @@ import { logger } from '@/lib/logger';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { code, state, device_fingerprint, device_name } = body;
+    const { code, state, device_fingerprint, device_name, mode, role } = body;
 
     logger('[Google OAuth Callback] Request:', { 
       hasCode: !!code, 
@@ -37,7 +37,9 @@ export async function POST(request: NextRequest) {
         code,
         state,
         device_fingerprint,
-        device_name
+        device_name,
+        mode,
+        role,
       }),
     });
 
