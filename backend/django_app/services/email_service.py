@@ -61,6 +61,23 @@ class EmailService:
         try:
             # Check if we're in development mode with console backend
             email_backend = getattr(settings, 'EMAIL_BACKEND', '')
+
+            # In production-like environments, fail fast if SMTP backend is selected but missing credentials.
+            if (
+                not getattr(settings, 'DEBUG', False)
+                and email_backend == 'django.core.mail.backends.smtp.EmailBackend'
+                and (
+                    not getattr(settings, 'EMAIL_HOST', None)
+                    or not getattr(settings, 'EMAIL_HOST_USER', None)
+                    or not getattr(settings, 'EMAIL_HOST_PASSWORD', None)
+                )
+            ):
+                logger.error(
+                    'SMTP email backend is configured but missing required settings '
+                    '(EMAIL_HOST/EMAIL_HOST_USER/EMAIL_HOST_PASSWORD). Email will not be sent.'
+                )
+                return False
+
             if email_backend == 'django.core.mail.backends.console.EmailBackend':
                 # Use console backend for development
                 from django.core.mail import send_mail
@@ -74,7 +91,10 @@ class EmailService:
                     html_message=html_content,
                     fail_silently=False,
                 )
-                logger.info(f"Email sent to console (development mode) (type: {email_type})")
+                logger.info(
+                    f"Email output to console backend (not delivered) "
+                    f"(type: {email_type}, to: {to_email})"
+                )
                 return True
             elif self.use_resend:
                 # Send via Resend API
@@ -124,7 +144,10 @@ class EmailService:
                     html_message=html_content,
                     fail_silently=False,
                 )
-                logger.info(f"Email sent successfully via Django send_mail (type: {email_type})")
+                logger.info(
+                    f"Email accepted by SMTP backend for delivery (not guaranteed delivered) "
+                    f"(type: {email_type}, to: {to_email})"
+                )
                 return True
 
         except Exception as e:

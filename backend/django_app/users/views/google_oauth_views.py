@@ -197,13 +197,6 @@ class GoogleOAuthCallbackView(APIView):
             frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
             redirect_uri = f"{frontend_url.rstrip('/')}/auth/google/callback"
 
-<<<<<<< HEAD
-        # Decide behaviour based on how the flow was started:
-        # - mode = 'login': only allow existing users, do NOT auto-create
-        # - mode = 'register': create account if it doesn't exist yet
-        oauth_mode = request.session.get('oauth_mode', 'login')
-        intended_role = request.session.get('oauth_intended_role', 'student')
-=======
             token_data = {
                 'grant_type': 'authorization_code',
                 'code': code,
@@ -213,7 +206,6 @@ class GoogleOAuthCallbackView(APIView):
             }
             if code_verifier:
                 token_data['code_verifier'] = code_verifier
->>>>>>> 81f422b (update the auth error onserver)
 
             try:
                 response = requests.post('https://oauth2.googleapis.com/token', data=token_data)

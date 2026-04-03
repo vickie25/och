@@ -316,19 +316,35 @@ class MentorRating(models.Model):
         return credit_map.get(self.rating, 0)
     
     def save(self, *args, **kwargs):
-        """Override save to calculate and award credits"""
+        """
+        Override save to calculate and award credits.
+
+        - On first rating by a student: award full credits (5→10, 4→8, 3→6, 2→4, 1→2)
+        - On updates: award only the positive delta if the new rating increases credits
+          (we do not claw back credits if the rating is lowered).
+        """
         is_new = self._state.adding
-        
+        previous_credits = 0
+        if not is_new and self.pk:
+            try:
+                previous_credits = (
+                    MentorRating.objects.only("credits_awarded").get(pk=self.pk).credits_awarded
+                    or 0
+                )
+            except MentorRating.DoesNotExist:
+                previous_credits = 0
+
         # Calculate credits for this rating
         self.credits_awarded = self.calculate_credits()
-        
+
         super().save(*args, **kwargs)
-        
-        # Award credits to mentor if new rating
-        if is_new:
+
+        # Award credits to mentor (new rating or positive delta)
+        delta = self.credits_awarded - previous_credits
+        if is_new or delta > 0:
             from .services import MentorCreditService
-            MentorCreditService.award_credits_for_rating(self)
-        
+            MentorCreditService.award_credits_for_rating(self, override_amount=delta if not is_new else None)
+
         # Update mentor's average rating
         self.mentor.update_average_rating()
 

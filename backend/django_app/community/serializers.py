@@ -977,7 +977,7 @@ class CommunityMessageSerializer(serializers.ModelSerializer):
     """Community message with author (includes timezone)."""
     author = UserMiniSerializer(read_only=True)
     reactions = serializers.SerializerMethodField()
-    reply_to_message_id = serializers.UUIDField(source='reply_to_message_id', read_only=True)
+    reply_to_message_id = serializers.UUIDField(read_only=True)
 
     class Meta:
         model = CommunityMessage

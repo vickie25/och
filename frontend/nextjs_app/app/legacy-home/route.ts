@@ -2,25 +2,33 @@ import { existsSync } from 'fs'
 import { promises as fs } from 'fs'
 import path from 'path'
 
-const MARKETING_HTML = 'OCH-CCF_Interactive_Platform_Revised.html'
+// Prefer the newer OCF file name; fall back to the existing CCF asset.
+const MARKETING_HTML_CANDIDATES = [
+  'OCH-OCF_Interactive_Platform_Revised.html',
+  'OCH-CCF_Interactive_Platform_Revised.html',
+]
 
 /** Next may use `frontend/nextjs_app` or monorepo root as cwd; walk up until the file is found. */
 function resolveMarketingHtmlPath(): string {
-  const publicCandidate = path.join(process.cwd(), 'public', MARKETING_HTML)
-  if (existsSync(publicCandidate)) {
-    return publicCandidate
+  for (const filename of MARKETING_HTML_CANDIDATES) {
+    const publicCandidate = path.join(process.cwd(), 'public', filename)
+    if (existsSync(publicCandidate)) {
+      return publicCandidate
+    }
   }
 
   let dir = process.cwd()
   for (let i = 0; i < 10; i++) {
-    const candidate = path.join(dir, MARKETING_HTML)
-    if (existsSync(candidate)) {
-      return candidate
-    }
+    for (const filename of MARKETING_HTML_CANDIDATES) {
+      const candidate = path.join(dir, filename)
+      if (existsSync(candidate)) {
+        return candidate
+      }
 
-    const candidateInPublic = path.join(dir, 'public', MARKETING_HTML)
-    if (existsSync(candidateInPublic)) {
-      return candidateInPublic
+      const candidateInPublic = path.join(dir, 'public', filename)
+      if (existsSync(candidateInPublic)) {
+        return candidateInPublic
+      }
     }
     const parent = path.dirname(dir)
     if (parent === dir) {
@@ -29,7 +37,7 @@ function resolveMarketingHtmlPath(): string {
     dir = parent
   }
   throw new Error(
-    `Could not find ${MARKETING_HTML} (started search from ${process.cwd()})`
+    `Could not find marketing HTML (${MARKETING_HTML_CANDIDATES.join(' or ')}) (started search from ${process.cwd()})`
   )
 }
 
@@ -137,9 +145,11 @@ export async function GET() {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
+      // Allow embedding this marketing doc in the homepage iframe (same-origin).
+      // Next may add `X-Frame-Options: DENY` by default; setting SAMEORIGIN here overrides it.
+      'X-Frame-Options': 'SAMEORIGIN',
       // Safari-friendly CSP - allow localhost and relax frame restrictions for dev
       'Content-Security-Policy': "default-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:8000 https://localhost:8000; frame-ancestors 'self' http://localhost:* https://localhost:*;",
-      // Remove X-Frame-Options to avoid conflict with CSP frame-ancestors
     },
   })
 }

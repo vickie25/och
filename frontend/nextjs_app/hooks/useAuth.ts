@@ -8,6 +8,7 @@
 import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiGateway } from '../services/apiGateway';
+import { djangoClient } from '../services/djangoClient';
 import { setAuthTokens, clearAuthTokens, getAccessToken, isAuthenticated } from '../utils/auth';
 import type { LoginRequest, User } from '../services/types';
 
@@ -53,10 +54,8 @@ function useProvideAuth(): AuthContextValue {
     }
 
     try {
-      // TODO: Replace with API gateway call to get current user
-      // const user = await apiGateway.get('/auth/me');
-      // setState({ user, isLoading: false, isAuthenticated: true });
-      setState({ user: null, isLoading: false, isAuthenticated: false });
+      const user = await djangoClient.auth.getCurrentUser();
+      setState({ user, isLoading: false, isAuthenticated: true });
     } catch (error: any) {
       // Don't log connection errors (backend not running) as errors - this is expected
       const isConnectionError = 
@@ -71,7 +70,8 @@ function useProvideAuth(): AuthContextValue {
         clearAuthTokens();
         setState({ user: null, isLoading: false, isAuthenticated: false });
       } else {
-        // For other errors (including connection errors), keep the token but mark as not authenticated
+        // For other errors (including connection errors), keep tokens but show logged-out UI.
+        // This avoids hard-locking guarded routes on transient backend errors.
         setState({ user: null, isLoading: false, isAuthenticated: false });
       }
     }
@@ -85,7 +85,7 @@ function useProvideAuth(): AuthContextValue {
       // Call Next.js API route (sets HttpOnly cookies)
       let response: Response;
       try {
-        response = await apiGateway.post('/auth/login', credentials, { skipAuth: true });
+        response = await apiGateway.post<any>('/auth/login', credentials, { skipAuth: true });
       } catch (fetchError: any) {
         // Catch network/connection errors
         const errorMsg = fetchError.message || 'Unknown error';
@@ -114,7 +114,7 @@ function useProvideAuth(): AuthContextValue {
         throw error;
       }
 
-      const responseData = await response.json();
+      const responseData: any = await response.json();
 
       // Check if MFA is required — return structured result (do not throw)
       if (responseData.mfa_required) {
@@ -181,8 +181,8 @@ function useProvideAuth(): AuthContextValue {
     method: 'totp' | 'sms' | 'email' | 'backup_codes';
   }) => {
     try {
-      const response = await apiGateway.post('/auth/mfa/complete', params, { skipAuth: true });
-      const { access_token, refresh_token: newRefreshToken, user: userData } = response;
+      const response: any = await apiGateway.post<any>('/auth/mfa/complete', params, { skipAuth: true });
+      const { access_token, refresh_token: newRefreshToken, user: userData } = response as any;
       // Set tokens in localStorage and in cookies (client-side) so middleware sees them on next request
       setAuthTokens(access_token, newRefreshToken ?? '');
       // Also set via API so och_roles and other cookies are set; middleware relies on access_token cookie
@@ -206,20 +206,7 @@ function useProvideAuth(): AuthContextValue {
       return { user: fullUser, access_token };
     } catch (error: any) {
       throw error;
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ access_token, refresh_token: newRefreshToken, user: userData }),
-      });
-    } catch {
-      // Non-fatal; tokens may still be in localStorage
     }
-    let fullUser = userData;
-    try {
-      fullUser = await djangoClient.auth.getCurrentUser();
-    } catch {
-      fullUser = userData;
-    }
-    setState({ user: fullUser, isLoading: false, isAuthenticated: true });
-    return { user: fullUser, access_token };
   }, []);
 
   /**
@@ -263,7 +250,11 @@ function useProvideAuth(): AuthContextValue {
     }
 
     try {
-      const response = await apiGateway.post('/auth/token/refresh', { refresh_token }, { skipAuth: true });
+      const response: any = await apiGateway.post<any>(
+        '/auth/token/refresh',
+        { refresh_token: refreshToken },
+        { skipAuth: true }
+      );
       setAuthTokens(response.access_token, response.refresh_token);
       return response;
     } catch (error) {
@@ -282,7 +273,7 @@ function useProvideAuth(): AuthContextValue {
     ...state,
     login,
     logout,
-    refresh,
+    refresh: refreshToken,
     reloadUser: loadUser,
     completeMFA,
     sendMFAChallenge,

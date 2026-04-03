@@ -17,6 +17,7 @@ from .operations_views import (
     RevenueRecognitionRunView,
     CohortManagerFinanceView,
 )
+from .mentor_credit_views import MentorCreditWalletsView, MentorCreditWalletTransactionsView
 
 router = DefaultRouter()
 router.register(r'wallets', WalletViewSet, basename='wallet')
@@ -38,6 +39,12 @@ router.register(r'compliance', ComplianceViewSet, basename='finance-compliance')
 urlpatterns = [
     path('', include(router.urls)),
     path('dashboard/', FinancialDashboardView.as_view(), name='financial-dashboard'),
+    path('mentor-credit-wallets/', MentorCreditWalletsView.as_view(), name='mentor-credit-wallets'),
+    path(
+        'mentor-credit-wallets/<str:mentor_slug>/transactions/',
+        MentorCreditWalletTransactionsView.as_view(),
+        name='mentor-credit-wallet-transactions',
+    ),
     path('reconciliation/preview/', ReconciliationPreviewView.as_view(), name='finance-reconciliation-preview'),
     path('reconciliation/run/', ReconciliationRunCreateView.as_view(), name='finance-reconciliation-run'),
     path('reconciliation/history/', ReconciliationRunListView.as_view(), name='finance-reconciliation-history'),

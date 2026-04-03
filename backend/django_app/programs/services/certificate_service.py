@@ -8,6 +8,7 @@ import logging
 
 from programs.models import Enrollment, Certificate, Cohort
 from programs.core_services import auto_graduate_cohort
+from programs.services.certificate_eligibility_service import CertificateEligibilityService
 
 logger = logging.getLogger(__name__)
 
@@ -30,18 +31,42 @@ class CertificateService:
         """
         if enrollment.status != 'completed':
             raise ValueError(f"Enrollment {enrollment.id} is not completed")
+
+        # Enforce eligibility gates: completion, no pending payments, missions complete, etc.
+        is_eligible, details = CertificateEligibilityService.check_eligibility(enrollment)
+        if not is_eligible:
+            raise ValueError(f"Enrollment {enrollment.id} not eligible for certificate: {details.get('summary')}")
         
         # Check if certificate already exists
-        if hasattr(enrollment, 'certificate'):
-            return enrollment.certificate
-        
-        # Generate certificate file URI (mock - should integrate with certificate generation service)
-        certificate_uri = f"https://certificates.och.com/{enrollment.id}.pdf"
-        
+        existing = Certificate.objects.filter(enrollment=enrollment).first()
+        if existing:
+            return existing
+
+        issue_date = timezone.now().date()
+        from datetime import timedelta
+        expiry_date = issue_date + timedelta(days=365)
+
         certificate = Certificate.objects.create(
             enrollment=enrollment,
-            file_uri=certificate_uri,
+            issue_date=issue_date,
+            expiry_date=expiry_date,
+            status='active',
+            file_uri='',
         )
+
+        # Attempt to generate a DOCX and persist via storage (same path as director generation).
+        try:
+            from programs.services.certificate_docx_generator import CertificateDOCXGenerator, DOCX_AVAILABLE
+            if DOCX_AVAILABLE:
+                docx_content = CertificateDOCXGenerator.generate_certificate_docx(certificate)
+                from django.core.files.base import ContentFile
+                filename = f"certificate_{certificate.id}.docx"
+                from django.core.files.storage import default_storage
+                path = default_storage.save(f"certificates/generated/{filename}", ContentFile(docx_content))
+                certificate.file_uri = default_storage.url(path)
+                certificate.save(update_fields=["file_uri"])
+        except Exception as e:
+            logger.warning("Certificate DOCX generation skipped for %s: %s", certificate.id, e)
         
         logger.info(f"Issued certificate {certificate.id} for enrollment {enrollment.id}")
         return certificate

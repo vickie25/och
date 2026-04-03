@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from ..models import Cohort, Enrollment, CalendarEvent
 from ..serializers import CohortSerializer
 from ..permissions import IsProgramDirector
+from ..services.certificate_service import CertificateService
 
 import logging
 
@@ -67,6 +68,16 @@ class DirectorCohortLifecycleViewSet(viewsets.ViewSet):
         # Perform transition with side effects
         with transaction.atomic():
             old_status = cohort.status
+            # Closed transition triggers graduation + certificates for eligible students.
+            if new_status == 'closed':
+                result = CertificateService.archive_cohort_and_issue_certificates(cohort)
+                cohort.refresh_from_db()
+                return Response({
+                    'message': f'Cohort status changed from {old_status} to {new_status}',
+                    'cohort': CohortSerializer(cohort).data,
+                    'certificates': result.get('certificates'),
+                })
+
             cohort.status = new_status
             
             # Handle status-specific logic
@@ -86,13 +97,6 @@ class DirectorCohortLifecycleViewSet(viewsets.ViewSet):
                 # Mark all pending enrollments as active
                 cohort.enrollments.filter(status='pending_payment').update(
                     status='active'
-                )
-            
-            elif new_status == 'closed':
-                # Mark all active enrollments as completed
-                cohort.enrollments.filter(status='active').update(
-                    status='completed',
-                    completed_at=timezone.now()
                 )
             
             cohort.save()

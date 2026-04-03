@@ -271,16 +271,8 @@ REST_FRAMEWORK = {
 JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', SECRET_KEY)
 JWT_ALGORITHM = os.environ.get('JWT_ALGORITHM', 'HS256')
 
-# Log JWT configuration on startup (for debugging)
-print("="*60)
-print("DJANGO JWT CONFIGURATION:")
-print(f"DJANGO_SECRET_KEY from env: {os.environ.get('DJANGO_SECRET_KEY', 'NOT SET')}")
-print(f"JWT_SECRET_KEY from env: {os.environ.get('JWT_SECRET_KEY', 'NOT SET')}")
-print(f"SECRET_KEY (Django): {SECRET_KEY}")
-print(f"JWT_SECRET_KEY (for JWT): {JWT_SECRET_KEY}")
-print(f"JWT_ALGORITHM: {JWT_ALGORITHM}")
-print(f"Keys match: {JWT_SECRET_KEY == SECRET_KEY}")
-print("="*60)
+# NOTE: Never print secret key material (DJANGO_SECRET_KEY/JWT_SECRET_KEY) to logs.
+# If you need to debug key wiring locally, inspect env vars directly.
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),  # 15 minutes as required
@@ -297,9 +289,14 @@ SIMPLE_JWT = {
     'TOKEN_TYPE_CLAIM': 'token_type',
 }
 
-print(f"Django SIMPLE_JWT SIGNING_KEY: {SIMPLE_JWT['SIGNING_KEY']}")
-print(f"Django SIMPLE_JWT ALGORITHM: {SIMPLE_JWT['ALGORITHM']}")
-print("="*60)
+if DEBUG:
+    print("=" * 60)
+    print("DJANGO JWT CONFIGURATION (safe summary):")
+    print(f"JWT_ALGORITHM: {JWT_ALGORITHM}")
+    print(f"Has DJANGO_SECRET_KEY env: {bool(os.environ.get('DJANGO_SECRET_KEY'))}")
+    print(f"Has JWT_SECRET_KEY env: {bool(os.environ.get('JWT_SECRET_KEY'))}")
+    print(f"Keys match: {JWT_SECRET_KEY == SECRET_KEY}")
+    print("=" * 60)
 
 # CORS Settings
 CORS_ALLOWED_ORIGINS = [

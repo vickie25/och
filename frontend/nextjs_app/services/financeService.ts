@@ -103,6 +103,35 @@ export interface MentorPayout {
   updated_at: string
 }
 
+export interface MentorCreditWallet {
+  mentor_id: string
+  mentor_slug: string
+  mentor_name: string
+  mentor_email: string
+  average_rating: number | null
+  credits: {
+    current_balance: number
+    total_earned: number
+    total_redeemed: number
+    last_earned_at: string | null
+    last_redeemed_at: string | null
+  }
+}
+
+export interface MentorCreditWalletTransactions {
+  mentor_slug: string
+  mentor_email: string
+  transactions: Array<{
+    id: string
+    type: 'earned' | 'redeemed' | 'expired'
+    amount: number
+    description: string
+    source: string | null
+    balance_after: number
+    created_at: string
+  }>
+}
+
 export interface CohortManagerFinanceSummary {
   cohort_id: string
   cohort_name: string
@@ -181,6 +210,15 @@ class FinanceService {
   async getContracts(): Promise<Contract[]> {
     const response = await apiGateway.get('/finance/contracts/')
     return Array.isArray(response) ? response : response.results || []
+  }
+
+  // Mentor credit wallets (finance/admin)
+  async getMentorCreditWallets(): Promise<MentorCreditWallet[]> {
+    return apiGateway.get('/finance/mentor-credit-wallets/')
+  }
+
+  async getMentorCreditWalletTransactions(mentorSlug: string): Promise<MentorCreditWalletTransactions> {
+    return apiGateway.get(`/finance/mentor-credit-wallets/${encodeURIComponent(mentorSlug)}/transactions/`)
   }
 
   async getActiveContracts(): Promise<Contract[]> {

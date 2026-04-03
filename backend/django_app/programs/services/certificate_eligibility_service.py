@@ -72,38 +72,47 @@ class CertificateEligibilityService:
     def _check_payments(cls, enrollment) -> Dict[str, Any]:
         """Check if all payments are completed - no pending amounts."""
         user = enrollment.user
-        cohort = enrollment.cohort
-        
-        # Check for pending invoices
-        try:
-            from billing.models import Invoice
-            pending_invoices = Invoice.objects.filter(
-                user=user,
-                status__in=['pending', 'overdue', 'partial'],
-                items__cohort=cohort
-            ).distinct()
-            
-            pending_amount = pending_invoices.aggregate(
-                total=Sum('balance_due')
-            )['total'] or 0
-            
-            passed = pending_amount == 0
-            
+        track_key = getattr(enrollment, "track_key", None) or getattr(getattr(getattr(enrollment, "cohort", None), "track", None), "key", None)
+
+        # Foundations (Tier 1 / L0) is free by design: do not block certificates on payments/invoices.
+        if str(track_key or "").upper() in {"L0", "FOUNDATION", "FOUNDATIONS"}:
             return {
-                'name': 'Payment Status',
-                'passed': passed,
-                'required': True,
-                'pending_amount': float(pending_amount),
-                'pending_invoices_count': pending_invoices.count(),
-                'message': 'All payments completed' if passed else f'Pending amount: {pending_amount}',
+                "name": "Payment Status",
+                "passed": True,
+                "required": False,
+                "message": "Foundations is free (payment not required)",
             }
-        except ImportError:
-            # If billing module not available, assume payments are OK
+
+        # Fast-path: enrollment-level payment status (kept for backwards compatibility)
+        enrollment_paid = getattr(enrollment, "payment_status", None) in {"paid", "waived"}
+
+        # Finance invoice check (authoritative in this codebase)
+        try:
+            from finance.models import Invoice as FinanceInvoice
+
+            unpaid = FinanceInvoice.objects.filter(
+                user=user,
+                status__in=["draft", "sent", "overdue"],
+            )
+            unpaid_count = unpaid.count()
+            passed = unpaid_count == 0 and enrollment_paid
+
             return {
-                'name': 'Payment Status',
-                'passed': True,
-                'required': False,
-                'message': 'Payment check skipped - billing module not available',
+                "name": "Payment Status",
+                "passed": passed,
+                "required": True,
+                "unpaid_invoices_count": unpaid_count,
+                "enrollment_payment_status": getattr(enrollment, "payment_status", None),
+                "message": "All payments completed" if passed else "Pending payments detected",
+            }
+        except Exception as e:
+            logger.warning("Payment check failed; falling back to enrollment.payment_status: %s", e)
+            return {
+                "name": "Payment Status",
+                "passed": bool(enrollment_paid),
+                "required": True,
+                "enrollment_payment_status": getattr(enrollment, "payment_status", None),
+                "message": "Payment status derived from enrollment.payment_status only",
             }
     
     @classmethod
@@ -214,51 +223,59 @@ class CertificateEligibilityService:
     def _check_missions(cls, enrollment) -> Dict[str, Any]:
         """Check if required missions are completed."""
         try:
-            from missions.models import Mission, MissionSubmission
-            
-            cohort = enrollment.cohort
-            track = cohort.track
-            
-            # Get required missions for this track/cohort
-            required_missions = Mission.objects.filter(
-                Q(track=track) | Q(cohort=cohort),
-                is_required=True
+            from missions.models_mxp import MissionProgress
+        except Exception as e:
+            logger.warning("MissionProgress unavailable; cannot enforce mission completion: %s", e)
+            return {
+                "name": "Mission Completion",
+                "passed": False,
+                "required": True,
+                "message": "Mission progress system not available",
+            }
+
+        track = getattr(getattr(enrollment, "cohort", None), "track", None)
+        mission_ids = getattr(track, "missions", None) if track else None
+        mission_ids = mission_ids if isinstance(mission_ids, list) else []
+
+        total_required = len(mission_ids)
+        if total_required == 0:
+            return {
+                "name": "Mission Completion",
+                "passed": True,
+                "required": False,
+                "message": "No required missions configured for this track",
+            }
+
+        # MissionProgress.user FK targets users.uuid_id in this codebase; filter by uuid_id explicitly.
+        user_uuid = getattr(enrollment.user, "uuid_id", None)
+        if not user_uuid:
+            return {
+                "name": "Mission Completion",
+                "passed": False,
+                "required": True,
+                "message": "User uuid_id missing; cannot check mission progress",
+            }
+
+        completed_count = (
+            MissionProgress.objects.filter(
+                user_id=user_uuid,
+                mission_id__in=mission_ids,
             )
-            
-            total_required = required_missions.count()
-            
-            if total_required == 0:
-                return {
-                    'name': 'Mission Completion',
-                    'passed': True,
-                    'required': False,
-                    'message': 'No required missions for this track',
-                }
-            
-            # Get completed missions
-            completed_missions = MissionSubmission.objects.filter(
-                user=enrollment.user,
-                mission__in=required_missions,
-                status='completed'
-            ).values('mission').distinct().count()
-            
-            passed = completed_missions >= total_required
-            
-            return {
-                'name': 'Mission Completion',
-                'passed': passed,
-                'required': True,
-                'completed': completed_missions,
-                'total_required': total_required,
-                'message': f'{completed_missions}/{total_required} missions completed',
-            }
-        except ImportError:
-            return {
-                'name': 'Mission Completion',
-                'passed': True,
-                'required': False,
-                'message': 'Mission check skipped - module not available',
-            }
+            .filter(Q(status="approved") | Q(final_status="pass"))
+            .values("mission_id")
+            .distinct()
+            .count()
+        )
+
+        passed = completed_count >= total_required
+        return {
+            "name": "Mission Completion",
+            "passed": passed,
+            "required": True,
+            "completed": completed_count,
+            "total_required": total_required,
+            "message": f"{completed_count}/{total_required} missions completed",
+        }
     
     @classmethod
     def _generate_summary(cls, checks: Dict[str, Any]) -> str:

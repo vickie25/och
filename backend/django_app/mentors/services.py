@@ -10,13 +10,13 @@ class MentorCreditService:
     
     @staticmethod
     @transaction.atomic
-    def award_credits_for_rating(rating):
+    def award_credits_for_rating(rating, override_amount=None):
         """
         Award credits to mentor based on student rating.
         Credits: 5 stars = 10, 4 stars = 8, 3 stars = 6, 2 stars = 4, 1 star = 2
         """
         mentor = rating.mentor
-        credits_to_award = rating.credits_awarded
+        credits_to_award = override_amount if override_amount is not None else rating.credits_awarded
         
         if credits_to_award <= 0:
             return

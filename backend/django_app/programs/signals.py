@@ -4,7 +4,7 @@ Auto-syncs programs.Track -> curriculum.CurriculumTrack when Directors create/up
 This ensures Director-created tracks appear in the student curriculum automatically.
 """
 import logging
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 from django.utils.text import slugify
 
@@ -131,3 +131,41 @@ def deactivate_curriculum_track_on_delete(sender, instance, **kwargs):
             )
     except Exception as e:
         logger.error(f"[SYNC] Failed to deactivate CurriculumTrack on delete: {e}", exc_info=True)
+
+
+@receiver(pre_save, sender='programs.Enrollment')
+def _capture_enrollment_prev_status(sender, instance, **kwargs):
+    """Track status transitions for post_save side effects."""
+    if not instance.pk:
+        instance._previous_status = None
+        return
+    try:
+        prev = sender.objects.filter(pk=instance.pk).values_list('status', flat=True).first()
+        instance._previous_status = prev
+    except Exception:
+        instance._previous_status = None
+
+
+@receiver(post_save, sender='programs.Enrollment')
+def issue_certificate_on_completion(sender, instance, created, **kwargs):
+    """
+    Auto-issue certificates when an enrollment transitions to completed,
+    enforcing eligibility gates (payments + missions + completion).
+    """
+    prev = getattr(instance, '_previous_status', None)
+    if instance.status != 'completed':
+        return
+    if not created and prev == 'completed':
+        return
+    try:
+        from programs.services.certificate_service import CertificateService
+        CertificateService.issue_certificate(instance, auto_approve=True)
+    except Exception as e:
+        # Never block enrollment completion; log for follow-up.
+        logger.error(
+            "[CERT] Failed to auto-issue certificate for enrollment=%s user=%s: %s",
+            instance.id,
+            getattr(getattr(instance, 'user', None), 'email', None),
+            e,
+            exc_info=True,
+        )

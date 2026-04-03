@@ -16,6 +16,83 @@ from users.models import User
 
 logger = logging.getLogger(__name__)
 
+def _issue_foundations_certificate(user: User) -> None:
+    """
+    Foundations is Tier 1 and free. When a user completes Foundations,
+    create/complete a special Foundations Enrollment (track key L0) so the
+    platform's certificate system can issue a certificate.
+    """
+    try:
+        from programs.models import Program, Track, Cohort, Enrollment
+        from programs.services.certificate_service import CertificateService
+    except Exception as e:
+        logger.error("Foundations certificate issuance unavailable: %s", e, exc_info=True)
+        return
+
+    # Ensure a stable Program/Track/Cohort exist for Foundations certificates.
+    program, _ = Program.objects.get_or_create(
+        name="OCH Foundations (Tier 1)",
+        defaults={
+            "category": "technical",
+            "description": "Tier 1 Foundations orientation (free).",
+            "duration_months": 1,
+            "default_price": 0.00,
+            "currency": "USD",
+            "status": "active",
+        },
+    )
+
+    track, _ = Track.objects.get_or_create(
+        program=program,
+        key="L0",
+        defaults={
+            "name": "Foundations",
+            "description": "Tier 1 Foundations orientation.",
+            "track_type": "primary",
+            "missions": [],
+        },
+    )
+
+    # A single evergreen cohort used to anchor Foundations certificates.
+    from datetime import date, timedelta
+    today = timezone.now().date()
+    cohort, _ = Cohort.objects.get_or_create(
+        track=track,
+        name="Foundations (Self-Paced)",
+        defaults={
+            "start_date": today - timedelta(days=3650),
+            "end_date": today + timedelta(days=3650),
+            "mode": "virtual",
+            "seat_cap": 1000000,
+            "status": "running",
+        },
+    )
+
+    enrollment, _ = Enrollment.objects.get_or_create(
+        cohort=cohort,
+        user=user,
+        defaults={
+            "enrollment_type": "self",
+            "seat_type": "scholarship",
+            "payment_status": "waived",
+            "status": "completed",
+            "completed_at": timezone.now(),
+        },
+    )
+
+    # If an enrollment exists but is not completed, complete it.
+    if enrollment.status != "completed":
+        enrollment.status = "completed"
+        enrollment.payment_status = "waived"
+        enrollment.completed_at = timezone.now()
+        enrollment.save(update_fields=["status", "payment_status", "completed_at"])
+
+    # Issue certificate (idempotent).
+    try:
+        CertificateService.issue_certificate(enrollment, auto_approve=True)
+    except Exception as e:
+        logger.error("Failed to issue Foundations certificate for user=%s: %s", user.id, e, exc_info=True)
+
 
 def _get_missing_requirements(progress):
     """Helper function to identify what's missing for Foundations completion."""
@@ -258,6 +335,7 @@ def complete_module(request, module_id):
         user.foundations_complete = True
         user.foundations_completed_at = timezone.now()
         user.save()
+        _issue_foundations_certificate(user)
     
     progress.save()
     
