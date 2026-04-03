@@ -167,6 +167,8 @@ services:
         NEXT_PUBLIC_FASTAPI_API_URL: https://cybochengine.africa/ai
         NEXT_PUBLIC_FRONTEND_URL: https://cybochengine.africa
     container_name: ongozacyberhub_nextjs
+    ports:
+      - "3000:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
