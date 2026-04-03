@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { useRouter } from 'next/navigation';
-import { djangoClient } from '../services/djangoClient';
+import { apiGateway } from '../services/apiGateway';
 import { setAuthTokens, clearAuthTokens, getAccessToken, isAuthenticated } from '../utils/auth';
 import type { LoginRequest, User } from '../services/types';
 
@@ -53,8 +53,10 @@ function useProvideAuth(): AuthContextValue {
     }
 
     try {
-      const user = await djangoClient.auth.getCurrentUser();
-      setState({ user, isLoading: false, isAuthenticated: true });
+      // TODO: Replace with API gateway call to get current user
+      // const user = await apiGateway.get('/auth/me');
+      // setState({ user, isLoading: false, isAuthenticated: true });
+      setState({ user: null, isLoading: false, isAuthenticated: false });
     } catch (error: any) {
       // Don't log connection errors (backend not running) as errors - this is expected
       const isConnectionError = 
@@ -83,13 +85,7 @@ function useProvideAuth(): AuthContextValue {
       // Call Next.js API route (sets HttpOnly cookies)
       let response: Response;
       try {
-        response = await fetch('/api/auth/login', {
-        method: 'POST',
-        credentials: 'include',
-        cache: 'no-store',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials),
-      });
+        response = await apiGateway.post('/auth/login', credentials, { skipAuth: true });
       } catch (fetchError: any) {
         // Catch network/connection errors
         const errorMsg = fetchError.message || 'Unknown error';
@@ -184,14 +180,32 @@ function useProvideAuth(): AuthContextValue {
     code: string;
     method: 'totp' | 'sms' | 'email' | 'backup_codes';
   }) => {
-    const { access_token, refresh_token: newRefreshToken, user: userData } = await djangoClient.auth.completeMFA(params);
-    // Set tokens in localStorage and in cookies (client-side) so middleware sees them on next request
-    setAuthTokens(access_token, newRefreshToken ?? '');
-    // Also set via API so och_roles and other cookies are set; middleware relies on access_token cookie
     try {
-      await fetch('/api/auth/set-tokens', {
-        method: 'POST',
-        credentials: 'include',
+      const response = await apiGateway.post('/auth/mfa/complete', params, { skipAuth: true });
+      const { access_token, refresh_token: newRefreshToken, user: userData } = response;
+      // Set tokens in localStorage and in cookies (client-side) so middleware sees them on next request
+      setAuthTokens(access_token, newRefreshToken ?? '');
+      // Also set via API so och_roles and other cookies are set; middleware relies on access_token cookie
+      try {
+        await fetch('/api/auth/set-tokens', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_token, refresh_token: newRefreshToken, user: userData }),
+        });
+      } catch {
+        // Non-fatal; tokens may still be in localStorage
+      }
+      let fullUser = userData;
+      try {
+        fullUser = await djangoClient.auth.getCurrentUser();
+      } catch {
+        fullUser = userData;
+      }
+      setState({ user: fullUser, isLoading: false, isAuthenticated: true });
+      return { user: fullUser, access_token };
+    } catch (error: any) {
+      throw error;
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ access_token, refresh_token: newRefreshToken, user: userData }),
       });
@@ -212,7 +226,12 @@ function useProvideAuth(): AuthContextValue {
    * Send MFA challenge (SMS or email code). Call when user's method is sms/email.
    */
   const sendMFAChallenge = useCallback(async (refresh_token: string, method?: 'email' | 'sms') => {
-    return djangoClient.auth.sendMFAChallenge(refresh_token, method);
+    try {
+      const response = await apiGateway.post('/auth/mfa/send-challenge', { refresh_token, method }, { skipAuth: true });
+      return response;
+    } catch (error: any) {
+      throw error;
+    }
   }, []);
 
   /**
@@ -237,14 +256,14 @@ function useProvideAuth(): AuthContextValue {
   /**
    * Refresh access token
    */
-  const refresh = useCallback(async () => {
+  const refreshToken = useCallback(async () => {
     const refreshToken = localStorage.getItem('refresh_token');
     if (!refreshToken) {
       throw new Error('No refresh token available');
     }
 
     try {
-      const response = await djangoClient.auth.refreshToken({ refresh_token: refreshToken });
+      const response = await apiGateway.post('/auth/token/refresh', { refresh_token }, { skipAuth: true });
       setAuthTokens(response.access_token, response.refresh_token);
       return response;
     } catch (error) {

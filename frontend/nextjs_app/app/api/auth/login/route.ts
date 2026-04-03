@@ -123,11 +123,9 @@ export async function POST(request: NextRequest) {
 
     console.log('[Login API] Received login attempt:', { email, passwordLength: password?.length });
 
-    // Forward authentication to Django backend
-    // Use NEXT_PUBLIC_DJANGO_API_URL for client-side, but for server-side API routes,
-    // we can use DJANGO_API_URL or fallback to localhost
-    const djangoUrl = process.env.DJANGO_API_URL || process.env.NEXT_PUBLIC_DJANGO_API_URL;
-    const apiUrl = `http://localhost:8000/api/v1/auth/login/simple`;
+    // Forward authentication to Django backend through Nginx proxy
+    const djangoUrl = process.env.DJANGO_API_URL || process.env.NEXT_PUBLIC_DJANGO_API_URL || 'http://localhost/api';
+    const apiUrl = `${djangoUrl}/v1/auth/login/simple`;
     console.log('[Login API] Forwarding to API URL:', apiUrl);
     console.log('[Login API] DJANGO_API_URL env:', process.env.DJANGO_API_URL);
     console.log('[Login API] NEXT_PUBLIC_DJANGO_API_URL env:', process.env.NEXT_PUBLIC_DJANGO_API_URL);
