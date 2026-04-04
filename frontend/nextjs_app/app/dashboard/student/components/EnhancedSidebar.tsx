@@ -53,6 +53,7 @@ import { Badge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import clsx from 'clsx';
 import type { UserTrackProgress } from '@/services/types/curriculum';
+import { OchLogoMark } from '@/components/brand/OchLogo';
 
 // Track theme configuration
 const trackThemes: Record<string, {
@@ -260,11 +261,8 @@ export function EnhancedSidebar({ isCollapsed = false, onCollapsedChange }: Side
                 animate={{ opacity: 1, x: 0 }}
                 className="flex items-center gap-2"
               >
-                <div className="w-7 h-7 rounded-lg bg-och-gold flex items-center justify-center">
-                  <Shield className="w-4 h-4 text-black font-black" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-xs font-black text-white uppercase tracking-tighter">OCH HUB</span>
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <OchLogoMark variant="white" className="h-7 max-w-[160px]" priority />
                   <span className="text-[10px] text-och-steel/60 font-medium">Control Panel</span>
                 </div>
               </motion.div>

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import clsx from 'clsx'
+import { OchBrandLockup } from '@/components/brand/OchLogo'
 import { useAuth } from '@/hooks/useAuth'
 import { useNavigation } from '@/hooks/useNavigation'
 import { getPrimaryRole, hasPermission } from '@/utils/rbac'
@@ -296,10 +297,12 @@ export function DirectorNavigation() {
       >
         {/* Logo/Brand */}
         <div className="p-6 border-b border-och-steel/20">
-          <Link href="/dashboard/director" className="flex items-center gap-2" onClick={() => setIsMobileMenuOpen(false)}>
-            <Target className="w-6 h-6 text-och-defender" />
-            <span className="text-xl font-bold text-och-defender">Program Director</span>
-          </Link>
+          <OchBrandLockup
+            href="/dashboard/director"
+            title="Program Director"
+            variant="white"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
         </div>
 
         {/* Search Bar */}

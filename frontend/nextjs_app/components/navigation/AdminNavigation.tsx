@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import clsx from 'clsx'
+import { OchBrandLockup } from '@/components/brand/OchLogo'
 import { useAuth } from '@/hooks/useAuth'
 import { useNavigation } from '@/hooks/useNavigation'
 import { getPrimaryRole, hasPermission } from '@/utils/rbac'
@@ -279,9 +280,12 @@ export function AdminNavigation() {
       >
         {/* Logo/Brand */}
         <div className="p-6 border-b border-och-steel/20">
-          <Link href="/dashboard/admin" className="flex items-center gap-2" onClick={() => setIsMobileMenuOpen(false)}>
-            <span className="text-xl font-bold text-och-gold">Admin Panel</span>
-          </Link>
+          <OchBrandLockup
+            href="/dashboard/admin"
+            title="Admin Panel"
+            variant="white"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
         </div>
 
         {/* Search Bar */}

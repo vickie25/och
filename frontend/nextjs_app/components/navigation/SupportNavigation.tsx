@@ -4,12 +4,12 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import clsx from 'clsx'
+import { OchBrandLockup } from '@/components/brand/OchLogo'
 import {
   LayoutDashboard,
   Ticket,
   Hash,
   Settings,
-  LifeBuoy,
   LogOut,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
@@ -83,10 +83,7 @@ export function SupportNavigation() {
       >
         <div className="flex flex-col h-full">
           <div className="p-6 border-b border-och-steel/20">
-            <Link href="/support/dashboard" className="flex items-center gap-2">
-              <LifeBuoy className="h-8 w-8 text-och-defender" aria-hidden />
-              <span className="text-xl font-bold text-white">Support</span>
-            </Link>
+            <OchBrandLockup href="/support/dashboard" title="Support" variant="white" onClick={() => setIsMobileMenuOpen(false)} />
           </div>
 
           <nav className="flex-1 overflow-y-auto p-4 space-y-2" aria-label="Support navigation">

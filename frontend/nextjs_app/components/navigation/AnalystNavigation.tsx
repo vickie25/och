@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import clsx from 'clsx'
+import { OchBrandLockup } from '@/components/brand/OchLogo'
 
 interface NavItem {
   label: string
@@ -88,9 +88,7 @@ export function AnalystNavigation() {
         <div className="flex flex-col h-full">
           {/* Logo/Brand */}
           <div className="p-6 border-b border-och-steel/20">
-            <Link href="/dashboard/analyst" className="flex items-center">
-              <span className="text-xl font-bold text-och-mint">OCH Analyst</span>
-            </Link>
+            <OchBrandLockup href="/dashboard/analyst" title="Analyst" variant="white" onClick={() => setIsMobileMenuOpen(false)} />
           </div>
 
           {/* Navigation Items */}

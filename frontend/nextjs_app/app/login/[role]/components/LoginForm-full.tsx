@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { getRedirectRoute } from '@/utils/redirect';
 import { getAccessToken, getRefreshToken } from '@/utils/auth';
-import { Eye, EyeOff, ArrowRight, Lock, Mail, Shield, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Lock, Mail, Sparkles } from 'lucide-react';
+import { OchLogoMark } from '@/components/brand/OchLogo';
 import type { LoginRequest } from '@/services/types';
 
 const PERSONAS = {
@@ -684,14 +685,9 @@ export function LoginForm() {
             <button
               type="button"
               onClick={() => router.push('/')}
-              className="flex items-center gap-2"
+              className="flex items-center gap-3 min-w-0"
             >
-              <div className="h-9 w-9 rounded-xl bg-[rgba(245,158,11,0.08)] border border-[rgba(245,158,11,0.4)] flex items-center justify-center shadow-[0_0_18px_rgba(245,158,11,0.55)]">
-                <Shield className="h-5 w-5 text-[#F59E0B]" />
-              </div>
-              <span className="text-[17px] font-[700] tracking-[0.18em] text-[#94A3B8] uppercase">
-                CybOCH <span className="text-[#F59E0B]">Engine</span>
-              </span>
+              <OchLogoMark variant="white" className="h-9 max-w-[200px]" priority />
             </button>
             <div className="flex items-center gap-3">
               <button
@@ -709,13 +705,11 @@ export function LoginForm() {
 
       <div className="flex items-center justify-center px-4 py-12 sm:py-16">
         <div className="w-full max-w-[440px] relative z-10 rounded-[18px] border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.03)] backdrop-blur-xl shadow-[0_18px_60px_rgba(0,0,0,0.85)] p-8">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="h-9 w-9 rounded-xl bg-[rgba(245,158,11,0.08)] border border-[rgba(245,158,11,0.4)] flex items-center justify-center">
-              <Shield className="h-5 w-5 text-[#F59E0B]" />
-            </div>
+          <div className="flex flex-col gap-3 mb-6">
+            <OchLogoMark variant="white" className="h-8 max-w-[200px]" priority />
             <div>
               <h1 className="font-heading text-xl font-bold tracking-tight text-[#E2E8F0]">Sign in</h1>
-              <p className="text-[13px] text-[#94A3B8]">CybOCH Engine Access</p>
+              <p className="text-[13px] text-[#94A3B8]">Ongoza CyberHub — secure access</p>
             </div>
           </div>
 

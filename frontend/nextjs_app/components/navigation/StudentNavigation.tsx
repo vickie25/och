@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import clsx from 'clsx'
+import { OchBrandLockup } from '@/components/brand/OchLogo'
 
 
 interface NavItem {
@@ -75,10 +76,7 @@ export function StudentNavigation() {
         <div className="flex flex-col h-full">
           {/* Logo/Brand */}
           <div className="p-6 border-b border-och-steel/20">
-            <Link href="/dashboard/student" className="flex items-center gap-2">
-              <span className="text-2xl">🎓</span>
-              <span className="text-xl font-bold text-och-mint">OCH Student</span>
-            </Link>
+            <OchBrandLockup href="/dashboard/student" title="Student" variant="white" onClick={() => setIsMobileMenuOpen(false)} />
           </div>
 
           {/* Navigation Items */}

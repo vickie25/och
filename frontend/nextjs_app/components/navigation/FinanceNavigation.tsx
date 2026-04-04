@@ -4,8 +4,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import clsx from 'clsx'
+import { OchBrandLockup } from '@/components/brand/OchLogo'
 import { 
-  DollarSign, 
   BarChart3, 
   FileText, 
   Wallet, 
@@ -92,10 +92,7 @@ export function FinanceNavigation() {
         <div className="flex flex-col h-full">
           {/* Logo/Brand */}
           <div className="p-6 border-b border-och-steel/20">
-            <Link href="/dashboard/finance" className="flex items-center gap-2">
-              <DollarSign className="h-8 w-8 text-och-defender" />
-              <span className="text-xl font-bold text-white">OCH Finance</span>
-            </Link>
+            <OchBrandLockup href="/dashboard/finance" title="Finance" variant="white" onClick={() => setIsMobileMenuOpen(false)} />
           </div>
 
           {/* Navigation Items */}

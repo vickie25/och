@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import clsx from 'clsx'
+import { OchBrandLockup } from '@/components/brand/OchLogo'
 
 export function InstitutionNavigation() {
   const pathname = usePathname()
@@ -56,12 +57,7 @@ export function InstitutionNavigation() {
       >
         <div className="flex flex-col h-full">
           <div className="p-6 border-b border-och-steel/20">
-            <Link href="/dashboard/institution" className="flex items-center gap-2">
-              <span className="text-2xl" aria-hidden>
-                🎓
-              </span>
-              <span className="text-xl font-bold text-och-mint">OCH Institutions</span>
-            </Link>
+            <OchBrandLockup href="/dashboard/institution" title="Institutions" variant="white" onClick={() => setIsMobileMenuOpen(false)} />
           </div>
 
           <nav className="flex-1 overflow-y-auto p-4 space-y-1" aria-label="Institution">

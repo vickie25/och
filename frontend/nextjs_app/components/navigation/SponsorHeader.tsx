@@ -1,6 +1,7 @@
 'use client'
 
 import { useAuth } from '@/hooks/useAuth'
+import { OchLogoMark } from '@/components/brand/OchLogo'
 import { Breadcrumbs } from './Breadcrumbs'
 import { Notifications } from './Notifications'
 import { SponsorProfileDropdown } from './SponsorProfileDropdown'
@@ -10,9 +11,13 @@ export function SponsorHeader() {
   
   return (
     <header className="sticky top-0 z-30 bg-och-midnight/95 backdrop-blur-sm border-b border-och-steel/20">
-      <div className="flex items-center justify-between px-6 py-4">
+      <div className="flex items-center justify-between gap-4 px-6 py-4">
+        <div className="flex shrink-0 items-center gap-3 min-w-0">
+          <OchLogoMark variant="white" className="h-7 max-w-[140px]" priority />
+          <span className="hidden sm:inline text-xs font-bold text-och-steel uppercase tracking-wide">Sponsors</span>
+        </div>
         {/* Breadcrumbs */}
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <Breadcrumbs />
         </div>
 
