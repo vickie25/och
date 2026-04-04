@@ -124,7 +124,15 @@ export const missionsClient = {
     status?: string
     page?: number
     page_size?: number
-  }): Promise<{ results: MissionTemplate[]; count: number; next?: string | null; previous?: string | null }> {
+  }): Promise<{
+    results: MissionTemplate[]
+    count: number
+    total?: number
+    next?: string | null
+    previous?: string | null
+    has_next?: boolean
+    has_previous?: boolean
+  }> {
     try {
       console.log('📡 Fetching missions from /api/v1/student/missions/', params)
       const data = await apiGateway.get<any>('/student/missions/', { params })

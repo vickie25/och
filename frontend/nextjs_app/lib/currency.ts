@@ -78,10 +78,10 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   KES: 'KSh', DZD: 'DA', BWP: 'P', ZAR: 'R', NGN: '₦', GHS: '₵', TZS: 'TSh',
   UGX: 'USh', ETB: 'Br', RWF: 'FRw', XOF: 'CFA', XAF: 'FCFA', CDF: 'FC',
   EGP: 'E£', MUR: '₨', MAD: 'DH', ZMW: 'ZK', GMD: 'D', LRD: '$', LYD: 'LD',
-  MGA: 'Ar', MWK: 'MK', MZN: 'MT', NAD: '$', RWF: 'FRw', SLE: 'Le', SOS: 'Sh',
+  MGA: 'Ar', MWK: 'MK', MZN: 'MT', NAD: '$', SLE: 'Le', SOS: 'Sh',
   SZL: 'E', SSP: '£', SDG: '£', TND: 'DT', ZWL: '$', CVE: 'Esc', DJF: 'Fdj',
-  ERN: 'Nfk', SZL: 'E', GNF: 'FG', LSL: 'L', MRU: 'UM', STN: 'Db', SCR: '₨',
-  KMF: 'CF', BIF: 'FBu', AOA: 'Kz', XAF: 'FCFA',
+  ERN: 'Nfk', GNF: 'FG', LSL: 'L', MRU: 'UM', STN: 'Db', SCR: '₨',
+  KMF: 'CF', BIF: 'FBu', AOA: 'Kz',
 }
 
 /**

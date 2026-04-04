@@ -101,10 +101,10 @@ function showNotificationToast(notification: NotificationData): void {
 
   const config = getToastConfig();
 
-  toast(notification.title, {
-    description: notification.body,
-    ...config
-  });
+  const message = notification.body
+    ? `${notification.title} — ${notification.body}`
+    : notification.title
+  toast(message, config);
 }
 
 /**

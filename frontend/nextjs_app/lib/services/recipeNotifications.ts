@@ -6,6 +6,14 @@
 import { Recipe, RecipeNotification } from '@/lib/types/recipes';
 import { apiGateway } from '@/services/apiGateway';
 
+function listFromEnvelope<T>(response: unknown, key: string): T[] {
+  if (!response || typeof response !== 'object') return [];
+  const o = response as Record<string, unknown>;
+  const inner = o.data && typeof o.data === 'object' ? (o.data as Record<string, unknown>) : o;
+  const v = inner[key];
+  return Array.isArray(v) ? (v as T[]) : [];
+}
+
 export interface NotificationPayload {
   title: string;
   message: string;
@@ -36,7 +44,7 @@ export class RecipeNotificationService {
         },
       };
 
-      await this.createNotification(userId, recipe.id, 'recommendation', payload);
+      await this.createNotification(userId, String(recipe.id), 'recommendation', payload);
     } catch (error) {
       console.error('Failed to send recipe recommendation:', error);
     }
@@ -61,7 +69,7 @@ export class RecipeNotificationService {
         },
       };
 
-      await this.createNotification(userId, recipe.id, 'reminder', payload);
+      await this.createNotification(userId, String(recipe.id), 'reminder', payload);
     } catch (error) {
       console.error('Failed to send progress reminder:', error);
     }
@@ -86,7 +94,7 @@ export class RecipeNotificationService {
         },
       };
 
-      await this.createNotification(userId, recipe.id, 'completion', payload);
+      await this.createNotification(userId, String(recipe.id), 'completion', payload);
 
       // Also suggest next recipe
       await this.suggestNextRecipe(userId, recipe);
@@ -105,7 +113,7 @@ export class RecipeNotificationService {
     try {
       // Get user's next recommended recipes
       const response = await apiGateway.get(`/api/users/${userId}/recipes/recommendations`);
-      const recommendations = response.data?.recipes || [];
+      const recommendations = listFromEnvelope<Recipe>(response, 'recipes');
 
       if (recommendations.length > 0) {
         const nextRecipe = recommendations[0];
@@ -151,7 +159,7 @@ export class RecipeNotificationService {
       const response = await apiGateway.get(`/api/users/${userId}/recipe-notifications`, {
         params: { limit, unread: true },
       });
-      return response.data?.notifications || [];
+      return listFromEnvelope<RecipeNotification>(response, 'notifications');
     } catch (error) {
       console.error('Failed to get user notifications:', error);
       return [];
@@ -185,7 +193,10 @@ export class RecipeNotificationScheduler {
         params: { days: 7 },
       });
 
-      const inactiveProgress = response.data?.progress || [];
+      const inactiveProgress = listFromEnvelope<{ user_id: string; recipe: Recipe; days_inactive: number }>(
+        response,
+        'progress'
+      );
 
       for (const progress of inactiveProgress) {
         await RecipeNotificationService.sendProgressReminder(
@@ -210,12 +221,12 @@ export class RecipeNotificationScheduler {
         params: { active: true, limit: 1000 },
       });
 
-      const users = response.data?.users || [];
+      const users = listFromEnvelope<{ id: string }>(response, 'users');
 
       for (const user of users) {
         // Get personalized recommendations for this user
         const recResponse = await apiGateway.get(`/api/users/${user.id}/recipes/recommendations`);
-        const recommendations = recResponse.data?.recipes || [];
+        const recommendations = listFromEnvelope<Recipe>(recResponse, 'recipes');
 
         // Send top 2 recommendations
         for (const recipe of recommendations.slice(0, 2)) {

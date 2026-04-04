@@ -10,7 +10,7 @@ import {
   AcademicCapIcon,
   CurrencyDollarIcon,
   ClockIcon,
-  TrendingUpIcon,
+  ArrowTrendingUpIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
@@ -262,7 +262,7 @@ const Dashboard: React.FC<DashboardProps> = () => {
                 title="ROI"
                 value={`${analytics.roi_metrics.roi_percentage.toFixed(0)}%`}
                 subtitle={`${analytics.roi_metrics.certification_rate.toFixed(1)}% certification rate`}
-                icon={TrendingUpIcon}
+                icon={ArrowTrendingUpIcon}
                 color="success"
                 trend="up"
               />

@@ -2,7 +2,7 @@
  * Recipe Engine TypeScript types
  */
 
-export type RecipeDifficulty = 'beginner' | 'intermediate' | 'advanced';
+export type RecipeDifficulty = 'beginner' | 'intermediate' | 'advanced' | 'mastery';
 
 export type RecipeStatus = 'not_started' | 'in_progress' | 'completed';
 
@@ -30,6 +30,12 @@ export interface Recipe {
   description?: string;
   difficulty: RecipeDifficulty;
   estimated_minutes: number;
+  /** Next.js / file-based recipe JSON (optional; may mirror track_codes[0]) */
+  track_code?: string;
+  /** Level tier for filtering (Next API / OCH bundles) */
+  level?: RecipeDifficulty | string;
+  /** Alias used by some JSON seeds */
+  expected_duration_minutes?: number;
   track_codes: string[];
   skill_codes: string[];
   tools_used: string[];
@@ -111,10 +117,37 @@ export interface RecipeStats {
 export interface RecipeFilters {
   search?: string;
   track?: string;
+  /** Alias for `track` (Next `/api/recipes?track_code=`) */
+  track_code?: string;
+  /** Alias for `difficulty` (Next `/api/recipes?level=`) */
+  level?: string;
+  skill_code?: string;
+  max_duration?: number;
   difficulty?: RecipeDifficulty;
   max_time?: number;
   context?: 'mission' | 'module' | 'project' | 'mentor_session';
   sort?: 'relevance' | 'popular' | 'recent' | 'rating';
+}
+
+/** Query shape from `useRecipeFilters` / coaching recipes URL */
+export type RecipeQueryParams = {
+  track_code?: string;
+  level?: string;
+  skill_code?: string | string[];
+  max_duration?: number;
+  search?: string;
+  limit?: number;
+};
+
+/** In-app / push-style recipe notification payload */
+export interface RecipeNotification {
+  id?: string;
+  title: string;
+  body?: string;
+  recipe_id?: string | number;
+  type?: string;
+  read?: boolean;
+  created_at?: string;
 }
 
 export interface RecipeDetailResponse extends Recipe {

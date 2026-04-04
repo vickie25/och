@@ -6,13 +6,16 @@
 import { z } from 'zod'
 
 export interface Recipe {
-  id?: number
+  id?: number | string
   title: string
   description?: string
   difficulty?: string
   estimated_time?: number
   tags?: string[]
   steps?: string[]
+  skill_code?: string
+  level?: string
+  expected_duration_minutes?: number
   [key: string]: any
 }
 
@@ -45,3 +48,5 @@ export const UserRecipesResponseSchema = z.object({
   })),
   total: z.number(),
 })
+
+export type { RecipeQueryParams, RecipeNotification } from '../../services/types/recipes'

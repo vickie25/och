@@ -64,20 +64,25 @@ export function useRecipes(
     try {
       // Fetch recipes, user progress, and bookmarks in parallel
       const [response, progressList, bookmarkList] = await Promise.all([
-        recipesClient.getRecipesWithStats(queryParams),
+        recipesClient.getRecipesWithStats(queryParams as RecipeFilters),
         recipesClient.getMyProgress().catch(() => []),
         recipesClient.getBookmarks().catch(() => []),
       ]);
 
       // Build lookup maps from live Django data
-      const progressBySlug = new Map(progressList.map(p => [p.recipe_slug, p.status]));
-      const bookmarkedSlugs = new Set(bookmarkList.map(b => b.recipe?.slug));
-      const bookmarkedIds = bookmarkList.map(b => b.recipe?.id).filter(Boolean);
+      const progressBySlug = new Map<string, RecipeStatus>(
+        progressList.map((p): [string, RecipeStatus] => [
+          p.recipe_slug,
+          p.status as RecipeStatus,
+        ])
+      );
+      const bookmarkedSlugs = new Set(bookmarkList.map((b) => b.recipe?.slug));
+      const bookmarkedIds = bookmarkList.map((b) => b.recipe?.id).filter(Boolean);
 
       // Merge live status and bookmark into each recipe
-      const recipesData = (response.recipes || []).map(r => ({
+      const recipesData: RecipeListResponse[] = (response.recipes || []).map((r) => ({
         ...r,
-        status: progressBySlug.get(r.slug) || null,
+        status: (progressBySlug.get(r.slug) ?? null) as RecipeStatus | null,
         is_bookmarked: bookmarkedSlugs.has(r.slug),
       }));
 
@@ -361,7 +366,7 @@ export function useUpdateRecipeProgress(): UseUpdateRecipeProgressResult {
     setError(null);
 
     try {
-      await recipesClient.updateRecipeProgress(recipeId, { status });
+      await recipesClient.updateProgress(recipeId, { status });
     } catch (err: any) {
       setError(err.message || 'Failed to update progress');
       console.error('Error updating recipe progress:', err);

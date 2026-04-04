@@ -1,5 +1,5 @@
-# Django Core
-Django>=4.2,<5.0
+# Django Core (latest 4.2.x LTS; Django 5 upgrade is a separate migration)
+Django>=4.2.29,<5.0
 django-environ>=0.10.0
 
 # Database

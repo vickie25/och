@@ -17,6 +17,18 @@ import type {
   MyProgressResponse,
 } from './types/curriculum'
 
+/** Normalize list endpoints that may return a bare array or DRF-style `{ results, data, tracks }`. */
+function unwrapListResponse<T>(response: unknown): T[] {
+  if (Array.isArray(response)) return response as T[]
+  if (response && typeof response === 'object') {
+    const o = response as Record<string, unknown>
+    if (Array.isArray(o.results)) return o.results as T[]
+    if (Array.isArray(o.data)) return o.data as T[]
+    if (Array.isArray(o.tracks)) return o.tracks as T[]
+  }
+  return []
+}
+
 export interface Tier2Status {
   track_code: string
   track_name: string
@@ -57,24 +69,10 @@ export const curriculumClient = {
     const url = `/curriculum/tracks/${queryString ? `?${queryString}` : ''}`
     
     try {
-      const response = await apiGateway.get(url)
-      // Handle both array and object responses
-      if (Array.isArray(response)) {
-        return response
-      }
-      // If response is an object with results or data property
-      if (response && typeof response === 'object') {
-        if (Array.isArray(response.results)) {
-          return response.results
-        }
-        if (Array.isArray(response.data)) {
-          return response.data
-        }
-        if (Array.isArray(response.tracks)) {
-          return response.tracks
-        }
-      }
-      // Fallback: return empty array if response format is unexpected
+      const response: unknown = await apiGateway.get(url)
+      if (Array.isArray(response)) return response as CurriculumTrack[]
+      const list = unwrapListResponse<CurriculumTrack>(response)
+      if (list.length > 0) return list
       console.warn('Unexpected response format from /curriculum/tracks/', response)
       return []
     } catch (error: any) {
@@ -125,10 +123,8 @@ export const curriculumClient = {
     if (params?.level) q.append('level', params.level)
     if (params?.track) q.append('track', params.track)
     const qs = q.toString()
-    const response = await apiGateway.get(`/curriculum/modules/${qs ? `?${qs}` : ''}`)
-    if (Array.isArray(response)) return response
-    if (response && Array.isArray(response.results)) return response.results
-    return []
+    const response: unknown = await apiGateway.get(`/curriculum/modules/${qs ? `?${qs}` : ''}`)
+    return unwrapListResponse<CurriculumModuleList>(response)
   },
 
   /**
@@ -160,11 +156,10 @@ export const curriculumClient = {
    * GET /curriculum/lessons/?module={moduleId}
    */
   async getLessonsByModule(moduleId: string): Promise<Lesson[]> {
-    const response = await apiGateway.get(`/curriculum/lessons/?module=${encodeURIComponent(moduleId)}`)
-    if (Array.isArray(response)) return response
-    if (response?.results) return response.results
-    if (response?.data) return response.data
-    return []
+    const response: unknown = await apiGateway.get(
+      `/curriculum/lessons/?module=${encodeURIComponent(moduleId)}`
+    )
+    return unwrapListResponse<Lesson>(response)
   },
 
   /**

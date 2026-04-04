@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useDebouncedCallback } from 'use-debounce';
+import type { RecipeQueryParams } from '@/services/types/recipes';
 
 export type RecipeFilterState = {
   track: string;
@@ -17,13 +18,7 @@ export type RecipeFilterState = {
   search: string;
 };
 
-export type RecipeQueryParams = {
-  track_code?: string;
-  level?: string;
-  skill_code?: string;
-  max_duration?: number;
-  search?: string;
-};
+export type { RecipeQueryParams };
 
 export function useRecipeFilters(initialFilters: Partial<RecipeFilterState> = {}) {
   const router = useRouter();

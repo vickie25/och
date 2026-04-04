@@ -5,6 +5,14 @@
 
 import { apiGateway } from './apiGateway'
 
+function unwrapResults<T>(response: unknown): T[] {
+  if (Array.isArray(response)) return response as T[]
+  if (response && typeof response === 'object' && Array.isArray((response as { results?: T[] }).results)) {
+    return (response as { results: T[] }).results
+  }
+  return []
+}
+
 export interface WalletData {
   id: string
   balance: number
@@ -192,8 +200,8 @@ class FinanceService {
 
   // Credits operations
   async getCredits(): Promise<Credit[]> {
-    const response = await apiGateway.get('/finance/credits/')
-    return Array.isArray(response) ? response : response.results || []
+    const response: unknown = await apiGateway.get('/finance/credits/')
+    return unwrapResults<Credit>(response)
   }
 
   async getCreditSummary(): Promise<Record<string, { total_amount: number; total_remaining: number; count: number }>> {
@@ -208,8 +216,8 @@ class FinanceService {
 
   // Contract operations
   async getContracts(): Promise<Contract[]> {
-    const response = await apiGateway.get('/finance/contracts/')
-    return Array.isArray(response) ? response : response.results || []
+    const response: unknown = await apiGateway.get('/finance/contracts/')
+    return unwrapResults<Contract>(response)
   }
 
   // Mentor credit wallets (finance/admin)
@@ -243,8 +251,8 @@ class FinanceService {
 
   // Tax rate operations
   async getTaxRates(): Promise<TaxRate[]> {
-    const response = await apiGateway.get('/finance/tax-rates/')
-    return Array.isArray(response) ? response : response.results || []
+    const response: unknown = await apiGateway.get('/finance/tax-rates/')
+    return unwrapResults<TaxRate>(response)
   }
 
   async getTaxRateByLocation(country: string, region?: string, type: string = 'VAT'): Promise<{ rate: number; country: string; region?: string }> {
@@ -267,8 +275,8 @@ class FinanceService {
 
   // Invoice operations
   async getInvoices(): Promise<Invoice[]> {
-    const response = await apiGateway.get('/finance/invoices/')
-    return Array.isArray(response) ? response : response.results || []
+    const response: unknown = await apiGateway.get('/finance/invoices/')
+    return unwrapResults<Invoice>(response)
   }
 
   async createInvoice(invoiceData: Partial<Invoice>): Promise<Invoice> {
@@ -281,8 +289,8 @@ class FinanceService {
 
   // Mentor payout operations
   async getMentorPayouts(): Promise<MentorPayout[]> {
-    const response = await apiGateway.get('/finance/mentor-payouts/')
-    return Array.isArray(response) ? response : response.results || []
+    const response: unknown = await apiGateway.get('/finance/mentor-payouts/')
+    return unwrapResults<MentorPayout>(response)
   }
 
   async approvePayout(id: string): Promise<{ message: string }> {

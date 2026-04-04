@@ -14,22 +14,27 @@ export class CurriculumEngineIntegration {
   static async getRecipesForModule(moduleId: string): Promise<Recipe[]> {
     try {
       // Get module details from Curriculum Engine
-      const moduleResponse = await apiGateway.get(`/api/curriculum/modules/${moduleId}`);
-      const module = moduleResponse.data || moduleResponse;
+      const curriculumModule = (await apiGateway.get<Record<string, unknown>>(
+        `/api/curriculum/modules/${moduleId}`
+      )) as Record<string, unknown>;
 
-      if (!module.skill_codes || module.skill_codes.length === 0) {
+      const skillCodes = curriculumModule.skill_codes;
+      const codes = Array.isArray(skillCodes) ? (skillCodes as string[]) : [];
+      if (codes.length === 0) {
         return [];
       }
 
       // Find recipes that match the module's skill codes
       const queryParams: RecipeQueryParams = {
-        skill_code: module.skill_codes,
-        level: module.level || undefined,
+        skill_code: codes,
+        level: typeof curriculumModule.level === 'string' ? curriculumModule.level : undefined,
         limit: 10,
       };
 
-      const recipesResponse = await apiGateway.get('/api/recipes', { params: queryParams });
-      return recipesResponse.data?.recipes || [];
+      const recipesResponse = (await apiGateway.get<{ recipes?: Recipe[] }>('/api/recipes', {
+        params: queryParams,
+      })) as { recipes?: Recipe[] };
+      return recipesResponse?.recipes || [];
     } catch (error) {
       console.error('Failed to get recipes for module:', error);
       return [];
@@ -51,8 +56,10 @@ export class CurriculumEngineIntegration {
         limit,
       };
 
-      const response = await apiGateway.get('/api/recipes', { params: queryParams });
-      return response.data?.recipes || [];
+      const response = (await apiGateway.get<{ recipes?: Recipe[] }>('/api/recipes', {
+        params: queryParams,
+      })) as { recipes?: Recipe[] };
+      return response?.recipes || [];
     } catch (error) {
       console.error('Failed to get recipes for skill codes:', error);
       return [];
@@ -68,17 +75,21 @@ export class MissionsEngineIntegration {
   static async getRecommendedRecipesForMission(missionId: string): Promise<Recipe[]> {
     try {
       // Get mission details from Missions Engine
-      const missionResponse = await apiGateway.get(`/api/missions/${missionId}`);
-      const mission = missionResponse.data || missionResponse;
+      const mission = (await apiGateway.get<Record<string, unknown>>(`/api/missions/${missionId}`)) as Record<
+        string,
+        unknown
+      >;
 
-      if (!mission.required_skills || mission.required_skills.length === 0) {
+      const req = mission.required_skills;
+      const skills = Array.isArray(req) ? (req as string[]) : [];
+      if (skills.length === 0) {
         return [];
       }
 
       // Get recipes that match required skills
       return await CurriculumEngineIntegration.getRecipesForSkillCodes(
-        mission.required_skills,
-        mission.level,
+        skills,
+        mission.level as 'beginner' | 'intermediate' | 'advanced' | 'mastery' | undefined,
         5
       );
     } catch (error) {
@@ -117,8 +128,9 @@ export class CoachingOSIntegration {
   }> {
     try {
       // Get user's current progress and skill gaps from Coaching OS
-      const progressResponse = await apiGateway.get(`/api/coaching/users/${userId}/progress`);
-      const progress = progressResponse.data || progressResponse;
+      const progress = (await apiGateway.get<Record<string, unknown>>(
+        `/api/coaching/users/${userId}/progress`
+      )) as Record<string, unknown>;
 
       // Identify skill gaps
       const skillGaps = this.identifySkillGaps(progress);
@@ -128,7 +140,7 @@ export class CoachingOSIntegration {
       for (const [skillCode, gap] of Object.entries(skillGaps)) {
         const recipes = await CurriculumEngineIntegration.getRecipesForSkillCodes(
           [skillCode],
-          gap.level,
+          gap.level as 'beginner' | 'intermediate' | 'advanced' | 'mastery',
           3
         );
         recommendations.push(...recipes);
@@ -203,8 +215,8 @@ export class TalentScopeIntegration {
    */
   static async getUserSkillHeatmap(userId: string): Promise<Record<string, number>> {
     try {
-      const response = await apiGateway.get(`/api/talentscope/users/${userId}/heatmap`);
-      return response.data || {};
+      const response = await apiGateway.get<Record<string, number>>(`/api/talentscope/users/${userId}/heatmap`);
+      return response && typeof response === 'object' ? response : {};
     } catch (error) {
       console.error('Failed to get skill heatmap:', error);
       return {};

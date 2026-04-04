@@ -227,7 +227,7 @@ export function testRoutingLogic(): void {
       roles: testCase.roles
     };
 
-    const result = getRedirectRoute(mockUser);
+    const result = getRedirectRoute(mockUser as unknown as User);
     const passed = result === testCase.expected;
 
     console.log(`Test ${index + 1}: ${passed ? '✅' : '❌'}`, {

@@ -1,20 +1,25 @@
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   env: {
-    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1',
+    NEXT_PUBLIC_API_BASE_URL: API_BASE,
   },
   async rewrites() {
     return [
       {
-        source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/:path*`,
+        source: "/api/:path*",
+        destination: `${API_BASE}/:path*`,
       },
     ];
   },
   images: {
-    domains: ['localhost', 'och.com'],
+    remotePatterns: [
+      { protocol: "http", hostname: "localhost", pathname: "/**" },
+      { protocol: "https", hostname: "och.com", pathname: "/**" },
+    ],
   },
 };
 

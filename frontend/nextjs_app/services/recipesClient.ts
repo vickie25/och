@@ -29,10 +29,15 @@ export const recipesClient = {
   async getRecipesWithStats(filters?: RecipeFilters): Promise<{ recipes: RecipeListResponse[], total: number, bookmarked?: number }> {
     const params = new URLSearchParams();
 
+    const track = filters?.track || filters?.track_code;
+    const difficulty = filters?.difficulty || filters?.level;
+
     if (filters?.search) params.append('search', filters.search);
-    if (filters?.track) params.append('track', filters.track);
-    if (filters?.difficulty) params.append('difficulty', filters.difficulty);
+    if (track) params.append('track_code', track);
+    if (difficulty) params.append('level', difficulty);
     if (filters?.max_time) params.append('max_time', filters.max_time.toString());
+    if (filters?.max_duration) params.append('max_duration', filters.max_duration.toString());
+    if (filters?.skill_code) params.append('skill_code', filters.skill_code);
     if (filters?.context) params.append('context', filters.context);
     if (filters?.sort) params.append('sort', filters.sort);
 
@@ -76,17 +81,22 @@ export const recipesClient = {
    */
   async getRecipes(filters?: RecipeFilters): Promise<RecipeListResponse[]> {
     const params = new URLSearchParams();
-    
+
+    const track = filters?.track || filters?.track_code;
+    const difficulty = filters?.difficulty || filters?.level;
+
     if (filters?.search) params.append('search', filters.search);
-    if (filters?.track) params.append('track', filters.track);
-    if (filters?.difficulty) params.append('difficulty', filters.difficulty);
+    if (track) params.append('track_code', track);
+    if (difficulty) params.append('level', difficulty);
     if (filters?.max_time) params.append('max_time', filters.max_time.toString());
+    if (filters?.max_duration) params.append('max_duration', filters.max_duration.toString());
+    if (filters?.skill_code) params.append('skill_code', filters.skill_code);
     if (filters?.context) params.append('context', filters.context);
     if (filters?.sort) params.append('sort', filters.sort);
-    
+
     const queryString = params.toString();
     const path = `/recipes/${queryString ? `?${queryString}` : ''}`;
-    
+
     const data = await apiGateway.get<any>(path);
 
     // Handle new Next.js API response format: { recipes: [...], total: ..., page: ..., page_size: ... }

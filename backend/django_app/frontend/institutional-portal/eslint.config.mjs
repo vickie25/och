@@ -15,32 +15,16 @@ const eslintConfig = [
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
-      "@typescript-eslint/ban-ts-comment": "off",
-      "@typescript-eslint/no-require-imports": "off",
-      "@typescript-eslint/no-empty-object-type": "off",
     },
   },
   {
     rules: {
-      "react-hooks/exhaustive-deps": "warn",
-      "react-hooks/rules-of-hooks": "warn",
       "react-hooks/set-state-in-effect": "warn",
       "react-hooks/immutability": "warn",
       "react-hooks/purity": "warn",
       "react-hooks/refs": "warn",
       "react-hooks/static-components": "warn",
-      "react/no-unescaped-entities": "off",
-      "react/jsx-no-undef": "warn",
-      "prefer-const": "warn",
-      "@next/next/no-assign-module-variable": "off",
     },
-  },
-  {
-    ignores: [
-      "**/__tests__/**",
-      "**/*.test.ts",
-      "**/*.test.tsx",
-    ],
   },
 ];
 
