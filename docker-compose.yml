@@ -166,6 +166,9 @@ services:
         NEXT_PUBLIC_DJANGO_API_URL: https://cybochengine.africa/api
         NEXT_PUBLIC_FASTAPI_API_URL: https://cybochengine.africa/ai
         NEXT_PUBLIC_FRONTEND_URL: https://cybochengine.africa
+        # Interpolated from /var/www/och/.env (same IDs as Django GOOGLE_*)
+        NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     container_name: ongozacyberhub_nextjs
     ports:
       - "3000:3000"
@@ -179,6 +182,8 @@ services:
       NEXT_PUBLIC_DJANGO_API_URL: https://cybochengine.africa/api
       NEXT_PUBLIC_FASTAPI_API_URL: https://cybochengine.africa/ai
       NEXT_PUBLIC_FRONTEND_URL: https://cybochengine.africa
+      NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     volumes:
       - nextjs_cache:/app/.next/cache
     networks:
