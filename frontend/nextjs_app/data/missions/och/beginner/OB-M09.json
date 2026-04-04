@@ -1,0 +1,136 @@
+{
+  "mission_id": "OB-M09",
+  "title": "Request Inspector",
+  "pillar": "Web Fundamentals",
+  "module_number": 9,
+  "module_title": "HTTP Analysis & Web Application Reconnaissance",
+  "video_duration": "16 min",
+  "estimated_time": "1 hour",
+  "multiday": false,
+  "deadline": "5 days",
+  "prerequisites": [
+    "Web browser with Developer Tools",
+    "Basic HTTP understanding"
+  ],
+  "learning_objectives": [
+    "Analyse HTTP requests and responses using browser developer tools",
+    "Identify security-relevant information leakage in HTTP headers",
+    "Assess cookie and session security configurations"
+  ],
+  "key_topics": [
+    "HTTP methods (GET, POST, PUT, DELETE, OPTIONS)",
+    "Request and response header analysis",
+    "Security headers (CSP, HSTS, X-Frame-Options, X-Content-Type-Options)",
+    "Cookie security flags (Secure, HttpOnly, SameSite)",
+    "Information disclosure through headers",
+    "API endpoint discovery"
+  ],
+  "scenario": "A client's web application seems to be leaking information through its HTTP responses. Using only your browser's developer tools, analyse the target application and document everything you can learn without sending any attack payloads.",
+  "scenario_context": {
+    "setting": "Client web application passive analysis",
+    "challenge": "Extract maximum intelligence from HTTP traffic using only browser DevTools",
+    "relevance": "Web applications are the primary attack surface for most organisations. Understanding HTTP traffic is foundational for all web security work."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "HTTP Method Mapping",
+      "description": "Navigate through the target and document every HTTP method used. Note which endpoints use which methods.",
+      "detailed_guidance": "Open DevTools Network tab. Navigate through the app. Note GET, POST, PUT, DELETE, OPTIONS requests. Map which endpoints use which methods. Look for API calls.",
+      "evidence_required": "HTTP method map: endpoint, method, purpose"
+    },
+    {
+      "number": 2,
+      "title": "Header Analysis",
+      "description": "Capture response headers from 5 pages. Identify server technology, security headers present/missing, and information disclosure.",
+      "detailed_guidance": "For each page: check Server header, X-Powered-By, Content-Security-Policy, Strict-Transport-Security, X-Frame-Options. Note what's present and what's missing.",
+      "evidence_required": "Header analysis table with security assessment"
+    },
+    {
+      "number": 3,
+      "title": "Cookie & Session Analysis",
+      "description": "Document all cookies: names, flags (Secure, HttpOnly, SameSite), and expiration.",
+      "detailed_guidance": "Check Application tab in DevTools. List every cookie. For each: name, value (redacted), domain, path, Secure flag, HttpOnly flag, SameSite value, expiration. Assess security of each.",
+      "evidence_required": "Cookie audit report"
+    },
+    {
+      "number": 4,
+      "title": "Information Leakage Report",
+      "description": "Compile findings into a report identifying what an attacker could learn from passive observation of HTTP traffic.",
+      "detailed_guidance": "Synthesize all findings: what technology stack is revealed? What session management weaknesses exist? What missing security headers create risk? Rate each finding.",
+      "evidence_required": "Information leakage report with risk ratings"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "HTTP Knowledge",
+      "weight": "25%"
+    },
+    {
+      "category": "Analysis Thoroughness",
+      "weight": "30%"
+    },
+    {
+      "category": "Security Assessment",
+      "weight": "25%"
+    },
+    {
+      "category": "Report Quality",
+      "weight": "20%"
+    }
+  ],
+  "linked_recipes": [
+    "R15",
+    "R16"
+  ],
+  "resources": [
+    {
+      "name": "HTTP Header Security Guide",
+      "type": "PDF"
+    },
+    {
+      "name": "DevTools Tutorial",
+      "type": "Guide"
+    },
+    {
+      "name": "Security Headers Reference",
+      "type": "Document"
+    }
+  ],
+  "reflection_prompt": "A web application returns the header 'Server: Apache/2.4.49' and has no Content-Security-Policy. What does this tell an attacker, and what are the first three things they would research?",
+  "quiz": [
+    {
+      "question": "The HttpOnly cookie flag prevents:",
+      "options": [
+        "Cookie expiration",
+        "JavaScript from accessing the cookie, reducing XSS impact",
+        "CSRF attacks",
+        "SQL injection"
+      ],
+      "correct_index": 1,
+      "explanation": "HttpOnly prevents client-side JavaScript from reading the cookie, which limits the impact of XSS attacks on session tokens."
+    },
+    {
+      "question": "Missing Content-Security-Policy header means:",
+      "options": [
+        "The site is secure",
+        "The browser applies no restrictions on content sources, increasing XSS risk",
+        "Only admins can access the site",
+        "HTTPS is disabled"
+      ],
+      "correct_index": 1,
+      "explanation": "Without CSP, the browser allows content from any source, making it easier for attackers to inject and execute malicious scripts."
+    }
+  ],
+  "portfolio_artifacts": [
+    "HTTP method map",
+    "Header analysis report",
+    "Cookie audit",
+    "Information leakage assessment"
+  ],
+  "mentor_notes": "This mission tests observation skills, not exploitation. Evaluate the student's ability to extract intelligence from normal HTTP traffic. Missing security headers should be identified with specific risk context.",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "🕸️",
+  "mission_type": "Mandatory"
+}

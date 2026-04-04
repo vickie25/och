@@ -1,0 +1,189 @@
+{
+  "mission_id": "OM-M15",
+  "title": "Identity Eclipse — The Final Portfolio",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Red Team Leadership & Practice",
+  "pillar_icon": "👑",
+  "mission_type": "Grand Capstone",
+  "module_number": 15,
+  "module_title": "Mastery Identity",
+  "video_duration": "17-19 min",
+  "estimated_time": "8-10 hrs",
+  "multiday": true,
+  "deadline": "7 days",
+  "prerequisites": [
+    "Advanced Offensive Track - Mastery Tier Access"
+  ],
+  "learning_objectives": [
+    "Comprehensive self-assessment across all 15 modules",
+    "Portfolio selection and documentation of top deliverables",
+    "Specialization positioning and market differentiation",
+    "24-month mastery plan with specific milestones",
+    "Mentorship commitment formalization",
+    "Professional identity statement creation",
+    "Leadership letter to next generation",
+    "Three commitments (Build, Teach, Change)"
+  ],
+  "key_topics": [
+    "Self-assessment",
+    "Portfolio documentation",
+    "Career planning",
+    "Specialization",
+    "Mentorship",
+    "Identity development",
+    "Leadership philosophy",
+    "African cyber community"
+  ],
+  "scenario": "This Mastery mission requires professional-grade execution in Personal reflection and identity crystallization. Challenge: Synthesize 15 missions and complete OCH journey into definitive professional identity and commitment. Relevance: Final portfolio demonstrates readiness for professional red team leadership and African industry impact",
+  "scenario_context": {
+    "setting": "Personal reflection and identity crystallization",
+    "challenge": "Synthesize 15 missions and complete OCH journey into definitive professional identity and commitment",
+    "relevance": "Final portfolio demonstrates readiness for professional red team leadership and African industry impact"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Comprehensive Mastery Assessment",
+      "description": "Evidence-based self-assessment across all 15 modules.",
+      "detailed_guidance": "For this subtask in the context of Identity Eclipse — The Final Portfolio:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Mastery skills matrix with evidence"
+    },
+    {
+      "number": 2,
+      "title": "Definitive Portfolio",
+      "description": "Top 10 deliverables from Beginner through Mastery.",
+      "detailed_guidance": "For this subtask in the context of Identity Eclipse — The Final Portfolio:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "10 portfolio summaries with samples"
+    },
+    {
+      "number": 3,
+      "title": "Specialization Deep-Dive",
+      "description": "1000-word statement on market positioning.",
+      "detailed_guidance": "For this subtask in the context of Identity Eclipse — The Final Portfolio:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Specialization statement (1000 words)"
+    },
+    {
+      "number": 4,
+      "title": "24-Month Mastery Plan",
+      "description": "Certs, research, business milestones, community.",
+      "detailed_guidance": "For this subtask in the context of Identity Eclipse — The Final Portfolio:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "24-month plan with quarterly milestones"
+    },
+    {
+      "number": 5,
+      "title": "Mentorship Commitment",
+      "description": "3 structured mentorship plans using OCH principles.",
+      "detailed_guidance": "For this subtask in the context of Identity Eclipse — The Final Portfolio:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "3 mentorship plans with accountability"
+    },
+    {
+      "number": 6,
+      "title": "Mastery Identity Statement",
+      "description": "Definitive identity as Mastery-level operator.",
+      "detailed_guidance": "For this subtask in the context of Identity Eclipse — The Final Portfolio:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Identity Statement (2 pages)"
+    },
+    {
+      "number": 7,
+      "title": "Letter to Next Generation",
+      "description": "Open letter to someone starting in Africa today.",
+      "detailed_guidance": "For this subtask in the context of Identity Eclipse — The Final Portfolio:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Letter (2-3 pages)"
+    },
+    {
+      "number": 8,
+      "title": "The Three Commitments",
+      "description": "BUILD (practice/product), TEACH (transfer/mentor), CHANGE (industry/community).",
+      "detailed_guidance": "For this subtask in the context of Identity Eclipse — The Final Portfolio:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Three Commitments with 12-month action plans"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Self-Awareness",
+      "weight": "10%"
+    },
+    {
+      "category": "Portfolio Quality",
+      "weight": "15%"
+    },
+    {
+      "category": "Specialization Clarity",
+      "weight": "10%"
+    },
+    {
+      "category": "Career Planning",
+      "weight": "10%"
+    },
+    {
+      "category": "Mentorship Commitment",
+      "weight": "15%"
+    },
+    {
+      "category": "Identity Authenticity",
+      "weight": "15%"
+    },
+    {
+      "category": "Letter Quality",
+      "weight": "10%"
+    },
+    {
+      "category": "Commitment Specificity",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "RM15",
+    "RM01"
+  ],
+  "resources": [
+    {
+      "type": "Documentation",
+      "title": "OCH Mastery Reference Guide",
+      "url": "https://och.dev/mastery-reference"
+    },
+    {
+      "type": "Video",
+      "title": "Mission Overview: Identity Eclipse — The Final Portfolio",
+      "duration": "17-19 min"
+    },
+    {
+      "type": "Tool",
+      "title": "OCH Mastery Assessment Framework",
+      "url": "https://och.dev/assessment"
+    }
+  ],
+  "reflection_prompt": "What is your unique contribution to the African red team and cyber security ecosystem? What legacy do you want to leave for the next generation of African cyber professionals?",
+  "quiz": [
+    {
+      "question": "In the comprehensive mastery assessment of OM-M15, what does a complete skills matrix demonstrate?",
+      "options": [
+        "Only technical skills matter",
+        "Evidence-based demonstration of capability across all 15 modules—technical depth, leadership, business acumen, and African context understanding—validating readiness for professional practice",
+        "Assessments are subjective and can't be evidenced",
+        "Only the capstone project matters"
+      ],
+      "correct_index": 1,
+      "explanation": "The mastery skills matrix requires evidence from all 15 modules. This demonstrates that you have developed comprehensive capability: zero-day research, implant development, evasion, infrastructure, specialist domains, and leadership. This breadth defines mastery-level operators."
+    },
+    {
+      "question": "What is the significance of your 'Three Commitments' (BUILD, TEACH, CHANGE) in your final mastery identity?",
+      "options": [
+        "They are arbitrary exercises with no real meaning",
+        "They define your professional identity and commitment to African cyber community: building capabilities/products, teaching the next generation, and changing the industry/community",
+        "Only technical building matters",
+        "Teaching and community engagement are optional"
+      ],
+      "correct_index": 1,
+      "explanation": "The Three Commitments crystallize your role as a mastery-level operator: you BUILD (develop capabilities, create products), TEACH (mentor others, create educational content), and CHANGE (transform the industry and community). This defines responsible leadership and impact in the African cybersecurity ecosystem."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Professional deliverables demonstrating mastery-level capability",
+    "Complete documentation and methodology",
+    "Evidence of technical excellence and strategic thinking",
+    "Leadership and mentorship contributions"
+  ],
+  "mentor_notes": "\nThis Mastery mission requires senior mentor review. Candidates must demonstrate:\n- Professional-grade execution and documentation\n- Deep understanding of African organizational and threat contexts\n- Strategic thinking beyond tactical execution\n- Readiness for commercial red team operations\n- Leadership potential within OCH and broader community\n\nSuccessful completion positions candidate for Mastery portfolio and professional practice.\n        "
+}

@@ -1,0 +1,70 @@
+{
+  "recipe_id": "RI28",
+  "title": "Pentest Phase Checklist",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Pentest Methodology",
+  "pillar_icon": "\ud83c\udfaf",
+  "estimated_time": "20 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "All pentest tools"
+  ],
+  "when_to_use": "Master checklist for any engagement",
+  "linked_missions": [
+    "OI-M19",
+    "OI-M20"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Pre-engagement: Obtain written authorization, define scope, document rules of engagement",
+      "tip": "Start with the most reliable information source for pentest phase checklist",
+      "expected_output": "Signed contracts and documented scope preventing legal and technical issues"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Reconnaissance: Conduct passive recon before active scanning begins",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "Comprehensive passive intelligence informing active testing approach"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Enumeration: Systematically identify services, versions, and potential vulnerabilities",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Complete inventory of target services and known vulnerability associations"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Exploitation: Validate vulnerabilities with successful exploits and shell access",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Confirmed code execution on target systems with evidence"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Post-exploitation: Escalate privileges, move laterally, and document access",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Demonstrated full attack chain with multiple system compromises"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Reporting: Compile findings, prioritize risks, document remediation",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Professional report suitable for executive and technical audiences"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Verification: Retest fixed vulnerabilities confirming remediation success",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Confirmed closure of vulnerabilities through independent verification"
+    }
+  ]
+}

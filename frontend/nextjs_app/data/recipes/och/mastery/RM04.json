@@ -1,0 +1,83 @@
+{
+  "recipe_id": "RM04",
+  "title": "Custom Implant Development Lifecycle",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Custom Implant Engineering",
+  "pillar_icon": "\u2699\ufe0f",
+  "estimated_time": "38 min",
+  "difficulty": "Mastery",
+  "tools_required": [
+    "C/Rust for core development",
+    "Python for server components",
+    "CMake/cargo (build systems)",
+    "Git/version control",
+    "Custom protobuf/msgpack (C2 protocol)",
+    "Memory safety tools (ASAN, Valgrind)",
+    "Encryption libraries (libsodium, openssl)"
+  ],
+  "when_to_use": "Use Custom Implant Development Lifecycle to develop professional-grade custom implant development lifecycle capabilities at Mastery level. This recipe is part of the Custom Implant Engineering pillar and integrates with linked missions OM-M03, OM-M04.",
+  "linked_missions": [
+    "OM-M03",
+    "OM-M04"
+  ],
+  "step_count": 8,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Architecture Design",
+      "instruction": "Design complete implant architecture (8+ pages): core runtime, module system, C2 protocol, OPSEC measures, evasion layers. Document: process injection strategy, persistence mechanisms, privilege escalation paths, cleanup procedures. Include network diagrams showing callback channels, encryption protocols, and fallback mechanisms.",
+      "tip": "Architecture quality determines maintainability. Design for extensibility: modular architecture allows adding capabilities after deployment.",
+      "expected_output": "Architecture document (8+ pages) with diagrams"
+    },
+    {
+      "number": 2,
+      "title": "Core Development",
+      "instruction": "Implement implant core: initial check-in logic, tasking loop, 3 foundational commands (e.g., shell execution, file read, process listing). Use secure coding practices: bounds checking, input validation, error handling. Provide build instructions (dependencies, compilation flags). Demonstrate successful compilation and test execution.",
+      "tip": "Start minimal; complexity grows as you add features. Each command must include error handling and response formatting.",
+      "expected_output": "Working core with 3 commands + build instructions"
+    },
+    {
+      "number": 3,
+      "title": "Secure C2 Protocol",
+      "instruction": "Design and implement encrypted C2 protocol: message format, authentication (mutual), encryption (AES-256-GCM), anti-replay tokens, configurable jitter. Document: protocol specification (message types, flow diagrams), key exchange mechanism, fallback to secondary channels. Implement both client (implant) and server (operator) sides.",
+      "tip": "C2 security is critical; replay attacks are subtle. Include nonce + timestamp-based anti-replay. Support multiple encryption backends.",
+      "expected_output": "Protocol specification + implementation on both sides"
+    },
+    {
+      "number": 4,
+      "title": "Module Development",
+      "instruction": "Implement 3 modules: file operations (read, write, delete), process operations (list, inject, terminate), reconnaissance (screenshot, API inventory). Each module is a self-contained unit with defined interface. Demonstrate: module loading, execution, response marshalling. Include unit tests for each module.",
+      "tip": "Module isolation prevents one failure from crashing implant. Use consistent error codes and response formats.",
+      "expected_output": "3 working modules with integration tests"
+    },
+    {
+      "number": 5,
+      "title": "Evasion Layer",
+      "instruction": "Implement sleep obfuscation (jitter + timing variance) and one additional evasion technique (e.g., ETW provider disabling, AMSI bypass, unsigned DLL injection). Document: techniques deployed, detection vectors still vulnerable, testing methodology. Demonstrate implant bypassing Windows Defender heuristics.",
+      "tip": "Evasion is arms race; document what still detects you. Defense vendors iterate quickly.",
+      "expected_output": "Evasion code + Defender bypass demo"
+    },
+    {
+      "number": 6,
+      "title": "Server Component",
+      "instruction": "Implement operator-side C2 server: receives checkins, queues tasks, sends responses. Build basic operator interface (CLI or web): view connected implants, send commands, receive output. Demonstrate: operator sends command -> implant executes -> output returned to operator.",
+      "tip": "Server reliability is critical; design for crash recovery. Log all operator actions for audit.",
+      "expected_output": "Working server + operator interface"
+    },
+    {
+      "number": 7,
+      "title": "Operator Manual",
+      "instruction": "Write complete manual (5+ pages): implant deployment, C2 server setup, operator usage, OPSEC best practices, known limitations, troubleshooting. Include: configuration options, persistence techniques, evasion tuning, cleanup procedures. Provide example scenarios and expected output.",
+      "tip": "Manual is your last line of defense against operator mistakes. Be exhaustive on OPSEC requirements.",
+      "expected_output": "Complete operator manual (5+ pages)"
+    },
+    {
+      "number": 8,
+      "title": "Peer Review Preparation",
+      "instruction": "Package implant for code review: organize source code, document architecture decisions, include self-assessment of code quality, identify areas for improvement. Prepare to defend design choices. Create improvement roadmap: features for v2, security hardening, performance optimization.",
+      "tip": "Code review exposes blind spots. Be prepared to discuss trade-offs (security vs complexity, performance vs stealth).",
+      "expected_output": "Code review package + improvement roadmap"
+    }
+  ]
+}

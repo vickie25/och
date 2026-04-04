@@ -1,0 +1,168 @@
+{
+  "mission_id": "OI-M17",
+  "title": "The Final Report",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Professional Reporting",
+  "pillar_icon": "📋",
+  "mission_type": "Mandatory",
+  "module_number": 17,
+  "module_title": "Professional Pentest Report Delivery and Remediation Roadmap",
+  "video_duration": "16 min",
+  "estimated_time": "4-5 hrs",
+  "multiday": true,
+  "deadline": "72 hours",
+  "prerequisites": [
+    "Beginner Offensive Track completed",
+    "Pentest engagement knowledge",
+    "PTES/OWASP methodologies",
+    "Risk assessment and CVSS scoring",
+    "Professional writing and formatting"
+  ],
+  "learning_objectives": [
+    "Write executive summaries translating technical findings to business language",
+    "Document methodology referencing industry standards",
+    "Present detailed technical findings with evidence",
+    "Create actionable risk matrices and remediation roadmaps",
+    "Produce professional reports exceeding industry standards"
+  ],
+  "key_topics": [
+    "Executive summary writing",
+    "PTES and OWASP methodologies",
+    "CVSS v3.1 scoring",
+    "Finding severity and business impact",
+    "Remediation planning and prioritization",
+    "Technical evidence organization",
+    "Report structure and formatting",
+    "Professional communication standards"
+  ],
+  "scenario": "Week-long pentest complete. Write the deliverable: a professional report meeting industry standards.",
+  "scenario_context": {
+    "setting": "End of comprehensive penetration test engagement",
+    "challenge": "Communicate technical findings to diverse stakeholders",
+    "relevance": "Report quality determines client satisfaction and future business"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Executive Summary",
+      "description": "1-page non-technical business language.",
+      "detailed_guidance": "Write 1-page summary highlighting business impact, not technical details. Focus on risk, budget implications, and remediation timeline.",
+      "evidence_required": "Executive summary (1 page)"
+    },
+    {
+      "number": 2,
+      "title": "Methodology Section",
+      "description": "Testing methodology referencing PTES/OWASP.",
+      "detailed_guidance": "Document phases executed, tools used, timeframe, scope limitations, and methodology references.",
+      "evidence_required": "Methodology section (2-3 pages)"
+    },
+    {
+      "number": 3,
+      "title": "Findings Section",
+      "description": "5+ detailed findings per template.",
+      "detailed_guidance": "Write 5+ findings with: title, severity, description, impact, evidence, remediation, CVSS score. Use consistent template.",
+      "evidence_required": "5+ detailed findings with full documentation"
+    },
+    {
+      "number": 4,
+      "title": "Risk Matrix",
+      "description": "Visual risk matrix + remediation roadmap.",
+      "detailed_guidance": "Create risk matrix by severity/likelihood. Develop remediation timeline (immediate, 30 days, 90 days, 6 months).",
+      "evidence_required": "Risk matrix + remediation timeline document"
+    },
+    {
+      "number": 5,
+      "title": "Technical Appendices",
+      "description": "Tool output, scan results, evidence.",
+      "detailed_guidance": "Organize technical evidence: scan outputs, exploitation logs, screenshots, PCAP files. Label and reference from findings.",
+      "evidence_required": "Organized technical appendices"
+    },
+    {
+      "number": 6,
+      "title": "Report Review",
+      "description": "Consistency, accuracy, professionalism.",
+      "detailed_guidance": "Review entire report for consistency, accuracy, professional formatting, grammar, and client readiness.",
+      "evidence_required": "Complete polished report (15+ pages)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Executive Summary",
+      "weight": "15%"
+    },
+    {
+      "category": "Finding Detail",
+      "weight": "25%"
+    },
+    {
+      "category": "Evidence Quality",
+      "weight": "15%"
+    },
+    {
+      "category": "Remediation Specificity",
+      "weight": "15%"
+    },
+    {
+      "category": "Report Structure",
+      "weight": "15%"
+    },
+    {
+      "category": "Professional Polish",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "RI25",
+    "RI26"
+  ],
+  "resources": [
+    {
+      "name": "PTES Documentation and Report Templates",
+      "type": "reference"
+    },
+    {
+      "name": "Professional Report Writing for Penetration Testing",
+      "type": "guide"
+    },
+    {
+      "name": "CVSS v3.1 Scoring Guide",
+      "type": "tutorial"
+    }
+  ],
+  "reflection_prompt": "How would you explain the most critical finding to a non-technical executive? What remediation timeline is realistic?",
+  "quiz": [
+    {
+      "question": "What should an executive summary focus on?",
+      "options": [
+        "Technical exploit details",
+        "Business impact and remediation timeline",
+        "Tool usage and methodology",
+        "All technical findings"
+      ],
+      "correct_index": 1,
+      "explanation": "Executives need business context: impact on operations, budget implications, and remediation timeline. Technical details belong in main report."
+    },
+    {
+      "question": "Why is remediation specificity critical in pentest reports?",
+      "options": [
+        "It shows technical knowledge",
+        "Generic recommendations leave organizations unsure how to fix",
+        "It reduces liability",
+        "It accelerates patching"
+      ],
+      "correct_index": 1,
+      "explanation": "Specific remediation steps with configuration examples enable the organization to fix issues efficiently."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Professional executive summary",
+    "Detailed methodology section",
+    "5+ complete finding descriptions with evidence",
+    "Risk matrix with severity assessment",
+    "Remediation roadmap with timeline",
+    "Organized technical appendices",
+    "Complete polished pentest report (15+ pages)"
+  ],
+  "mentor_notes": "Report quality is paramount. Executive summary must translate technical to business. Findings should be thorough with clear evidence and remediation. Professional polish matters greatly. 72-hour deadline appropriate for report completion."
+}

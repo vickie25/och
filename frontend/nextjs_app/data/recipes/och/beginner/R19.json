@@ -1,0 +1,70 @@
+{
+  "recipe_id": "R19",
+  "title": "Python WHOIS & DNS Lookup",
+  "pillar": "Scripting Basics",
+  "pillar_icon": "📜",
+  "estimated_time": "20 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Python 3",
+    "python-whois library"
+  ],
+  "when_to_use": "When building automated recon tools",
+  "linked_missions": [
+    "OB-M11"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Install Library",
+      "instruction": "Install library: pip install python-whois",
+      "tip": "Use pip3 if pip points to Python 2. Virtual environments keep dependencies clean",
+      "expected_output": "Library installed"
+    },
+    {
+      "number": 2,
+      "title": "Import Modules",
+      "instruction": "Import: import whois, socket",
+      "tip": "whois for WHOIS data, socket for DNS resolution. Both are essential for recon automation",
+      "expected_output": "Imports added"
+    },
+    {
+      "number": 3,
+      "title": "WHOIS Lookup",
+      "instruction": "WHOIS lookup: w = whois.whois(domain); print(w.registrar, w.creation_date)",
+      "tip": "Not all WHOIS fields are present for all domains. Always check for None values",
+      "expected_output": "WHOIS data retrieved"
+    },
+    {
+      "number": 4,
+      "title": "DNS Resolution",
+      "instruction": "DNS resolution: ip = socket.gethostbyname(domain)",
+      "tip": "This returns only one IP. For multiple IPs, use socket.getaddrinfo()",
+      "expected_output": "IP address resolved"
+    },
+    {
+      "number": 5,
+      "title": "Reverse DNS",
+      "instruction": "Reverse DNS: hostname = socket.gethostbyaddr(ip)",
+      "tip": "Reverse DNS often reveals hosting provider or CDN information",
+      "expected_output": "Reverse DNS completed"
+    },
+    {
+      "number": 6,
+      "title": "Error Handling",
+      "instruction": "Wrap each in try/except to handle lookup failures",
+      "tip": "WHOIS may timeout, DNS may fail, reverse DNS may not exist. Handle each gracefully",
+      "expected_output": "Error handling added"
+    },
+    {
+      "number": 7,
+      "title": "Format Output",
+      "instruction": "Format output with clear headers and save to file",
+      "tip": "Use consistent formatting across all output. Make it professional enough for a client report",
+      "expected_output": "Formatted output saved"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 7
+}

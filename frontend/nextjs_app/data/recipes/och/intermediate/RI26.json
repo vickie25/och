@@ -1,0 +1,71 @@
+{
+  "recipe_id": "RI26",
+  "title": "Finding Write-Up Template",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Professional Reporting",
+  "pillar_icon": "\ud83d\udccb",
+  "estimated_time": "15 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "Word processor",
+    "screenshot tool"
+  ],
+  "when_to_use": "When documenting any discovered vulnerability",
+  "linked_missions": [
+    "OI-M17",
+    "OI-M18"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Title the finding with specific vulnerability name and affected component",
+      "tip": "Start with the most reliable information source for finding write-up template",
+      "expected_output": "Descriptive title identifying exact vulnerability and affected system"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Assign severity rating using CVSS scoring and qualitative risk assessment",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "CVSS score with severity level (Critical, High, Medium, Low)"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Write concise 2-3 sentence description of the vulnerability and attack vector",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Clear vulnerability description understandable to technical and non-technical readers"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Explain business impact clearly showing potential damage and risk",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Business context explaining real-world consequences of vulnerability"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Document step-by-step reproduction instructions for verification",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Numbered steps allowing independent vulnerability reproduction"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Include annotated screenshots showing vulnerability exploitation",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Visual proof-of-concept with highlighted critical elements"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Provide specific remediation recommendations with implementation guidance",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Actionable remediation steps with configuration examples"
+    }
+  ]
+}

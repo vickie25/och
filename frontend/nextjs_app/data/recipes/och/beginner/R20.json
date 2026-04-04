@@ -1,0 +1,72 @@
+{
+  "recipe_id": "R20",
+  "title": "CVE Research Workflow",
+  "pillar": "Vulnerability Concepts",
+  "pillar_icon": "🔓",
+  "estimated_time": "20 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Web browser",
+    "NVD",
+    "ExploitDB"
+  ],
+  "when_to_use": "When researching known vulnerabilities in discovered services",
+  "linked_missions": [
+    "OB-M13",
+    "OB-CAP01"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Search NVD",
+      "instruction": "Go to nvd.nist.gov (National Vulnerability Database)",
+      "tip": "NVD is the authoritative source for CVE information. Bookmark it",
+      "expected_output": "NVD accessed"
+    },
+    {
+      "number": 2,
+      "title": "Search by Version",
+      "instruction": "Search for the technology and version (e.g., Apache 2.4.49)",
+      "tip": "Be version-specific. A CVE for 2.4.49 may not affect 2.4.50. Precision matters",
+      "expected_output": "CVEs found"
+    },
+    {
+      "number": 3,
+      "title": "Analyse Each CVE",
+      "instruction": "For each CVE: read description, note CVSS score and vector",
+      "tip": "Read the full description, not just the score. The description tells you what's actually exploitable",
+      "expected_output": "CVE details documented"
+    },
+    {
+      "number": 4,
+      "title": "Check ExploitDB",
+      "instruction": "Check ExploitDB (exploit-db.com) for public exploit code",
+      "tip": "Public exploit = higher risk. No public exploit doesn't mean it's not exploitable — just that code isn't public",
+      "expected_output": "Exploit availability checked"
+    },
+    {
+      "number": 5,
+      "title": "Assess Attack Vector",
+      "instruction": "Note attack vector (Network/Local), complexity (Low/High), and impact",
+      "tip": "Network + Low complexity + No auth required = highest priority. All three must align for critical risk",
+      "expected_output": "Attack vector assessed"
+    },
+    {
+      "number": 6,
+      "title": "Check Auth Requirements",
+      "instruction": "Determine if authentication is required for exploitation",
+      "tip": "Pre-auth vulnerabilities are far more dangerous than post-auth ones. Always note this distinction",
+      "expected_output": "Auth requirements noted"
+    },
+    {
+      "number": 7,
+      "title": "Document Findings",
+      "instruction": "Document findings in a structured table for reporting",
+      "tip": "Table columns: CVE ID, CVSS, Description, Exploit Available, Auth Required, Priority",
+      "expected_output": "Structured CVE table"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 7
+}

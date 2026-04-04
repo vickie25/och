@@ -1,0 +1,166 @@
+{
+  "mission_id": "OM-M10",
+  "title": "Serverless Siege — Cloud-Native Red Team",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Specialist Domains",
+  "pillar_icon": "🎯",
+  "mission_type": "Mandatory",
+  "module_number": 10,
+  "module_title": "Cloud-Native Assessment",
+  "video_duration": "20-22 min",
+  "estimated_time": "12-15 hrs",
+  "multiday": true,
+  "deadline": "10 days",
+  "prerequisites": [
+    "Advanced Offensive Track - Mastery Tier Access"
+  ],
+  "learning_objectives": [
+    "Cloud-native architecture enumeration and attack surface mapping",
+    "Serverless Lambda exploitation: injection, environment variable harvesting, privilege escalation",
+    "CI/CD pipeline compromise through GitHub Actions and supply chain attacks",
+    "Container environment assessment: ECS task definitions, IAM roles, escape techniques",
+    "Cross-service attack chain development for maximum impact",
+    "Architectural remediation recommendations",
+    "Cloud-native OPSEC considerations"
+  ],
+  "key_topics": [
+    "Serverless architecture patterns",
+    "Lambda exploitation",
+    "CI/CD security",
+    "Container security",
+    "IAM misconfiguration",
+    "Cross-service pivoting",
+    "Cloud assessment reporting",
+    "AWS/Azure security"
+  ],
+  "scenario": "This Mastery mission requires professional-grade execution in African SaaS company deployed on AWS with serverless architecture. Challenge: Attack cloud-native architecture: Lambda exploitation, CI/CD compromise, cross-service attack chains. Relevance: African cloud adoption accelerating; enterprises lack cloud-native security expertise",
+  "scenario_context": {
+    "setting": "African SaaS company deployed on AWS with serverless architecture",
+    "challenge": "Attack cloud-native architecture: Lambda exploitation, CI/CD compromise, cross-service attack chains",
+    "relevance": "African cloud adoption accelerating; enterprises lack cloud-native security expertise"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Architecture Enumeration",
+      "description": "Map cloud-native architecture: functions, APIs, containers, CI/CD, IAM.",
+      "detailed_guidance": "Map cloud-native architecture:\n        - Functions: What Lambda/Cloud Functions exist?\n        - APIs: API Gateway, load balancers, endpoints\n        - Containers: ECS/EKS tasks, container registries\n        - CI/CD: GitHub Actions, CodePipeline, build systems\n        - IAM: Service roles, permissions, trust relationships\n\n        Deliver: Architecture map with attack surface inventory.",
+      "evidence_required": "Architecture map with attack surface inventory"
+    },
+    {
+      "number": 2,
+      "title": "Serverless Exploitation",
+      "description": "Lambda injection, env harvesting, privilege escalation.",
+      "detailed_guidance": "Exploit Lambda/Functions:\n        - Injection: Command injection in Lambda handlers\n        - Environment variables: Harvest secrets and credentials\n        - Privilege escalation: Exploit service role permissions\n        - Lateral movement: Use compromised Lambda to attack other services\n\n        Deliver: Exploitation evidence with IAM escalation path.",
+      "evidence_required": "Serverless exploitation with IAM escalation path"
+    },
+    {
+      "number": 3,
+      "title": "CI/CD Pipeline Compromise",
+      "description": "GitHub Actions workflow injection or secret extraction.",
+      "detailed_guidance": "Attack build pipeline:\n        - GitHub Actions: Workflow injection attacks\n        - Secrets extraction: Exfiltrate build secrets\n        - Artifact poisoning: Modify build output\n        - Supply chain impact: Deliver compromised artifacts\n\n        Deliver: CI/CD compromise with supply chain evidence.",
+      "evidence_required": "CI/CD compromise with supply chain impact"
+    },
+    {
+      "number": 4,
+      "title": "Container Environment",
+      "description": "ECS task definitions, IAM roles, networking.",
+      "detailed_guidance": "Assess container security:\n        - ECS task definitions: Role analysis and secrets\n        - Container escape: Break out of container constraints\n        - Metadata service: Harvest AWS credentials\n        - Networking: Communicate with other containers\n\n        Deliver: Container findings with escape/pivot analysis.",
+      "evidence_required": "Container findings with escape/pivot analysis"
+    },
+    {
+      "number": 5,
+      "title": "Cross-Service Attack Chain",
+      "description": "Chain across services for maximum impact.",
+      "detailed_guidance": "Develop multi-service exploitation:\n        - Chain across multiple AWS services\n        - Maximize impact: Data exfiltration, resource compromise\n        - Document complete attack path\n\n        Deliver: Cross-service chain documentation with proof.",
+      "evidence_required": "Cross-service chain documentation"
+    },
+    {
+      "number": 6,
+      "title": "Cloud-Native Assessment",
+      "description": "Comprehensive assessment with architectural remediation.",
+      "detailed_guidance": "Create comprehensive 15+ page assessment:\n        - Architecture overview and findings\n        - Serverless exploitation results\n        - CI/CD compromise impact\n        - Container and networking findings\n        - Cross-service attack chain\n        - Architectural recommendations\n\n        Deliver: Cloud-native assessment report (15+ pages).",
+      "evidence_required": "Assessment report (15+ pages)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Enumeration Depth",
+      "weight": "15%"
+    },
+    {
+      "category": "Serverless Exploitation",
+      "weight": "20%"
+    },
+    {
+      "category": "CI/CD Compromise",
+      "weight": "20%"
+    },
+    {
+      "category": "Attack Chain Quality",
+      "weight": "15%"
+    },
+    {
+      "category": "Assessment Report",
+      "weight": "20%"
+    },
+    {
+      "category": "Architectural Recommendations",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "RM12",
+    "RM13"
+  ],
+  "resources": [
+    {
+      "type": "Documentation",
+      "title": "OCH Mastery Reference Guide",
+      "url": "https://och.dev/mastery-reference"
+    },
+    {
+      "type": "Video",
+      "title": "Mission Overview: Serverless Siege — Cloud-Native Red Team",
+      "duration": "20-22 min"
+    },
+    {
+      "type": "Tool",
+      "title": "OCH Mastery Assessment Framework",
+      "url": "https://och.dev/assessment"
+    }
+  ],
+  "reflection_prompt": "How would you prioritize attack surfaces in a serverless architecture deployed across multiple African regions? What supply chain risks exist in CI/CD pipelines serving African SaaS companies?",
+  "quiz": [
+    {
+      "question": "When enumerating cloud-native architecture for a red team assessment, why is IAM role analysis considered the most critical component?",
+      "options": [
+        "IAM roles are just for human users",
+        "Service roles determine what each component can access; misconfigured roles enable lateral movement and privilege escalation across the entire cloud environment",
+        "IAM is less important than firewalls",
+        "Cloud applications don't use IAM"
+      ],
+      "correct_index": 1,
+      "explanation": "IAM roles are the primary security boundary in cloud environments. Service roles define what resources each Lambda, container, or application can access. Misconfigured roles enable operators to pivot across the entire environment, making IAM analysis critical to cloud-native assessment."
+    },
+    {
+      "question": "In CI/CD pipeline compromise assessments, what is the supply chain impact of successful GitHub Actions workflow injection?",
+      "options": [
+        "Only the immediate build is affected",
+        "Successful injection can modify build artifacts, introducing vulnerabilities into production code deployed to millions of users across Africa",
+        "CI/CD systems are not real security concerns",
+        "Supply chain attacks are not possible in cloud environments"
+      ],
+      "correct_index": 1,
+      "explanation": "CI/CD compromise represents a critical supply chain attack vector. By injecting malicious steps into build workflows, attackers can modify artifacts before deployment. For African SaaS companies, this could affect millions of users across the continent, making CI/CD security assessment essential."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Professional deliverables demonstrating mastery-level capability",
+    "Complete documentation and methodology",
+    "Evidence of technical excellence and strategic thinking",
+    "Leadership and mentorship contributions"
+  ],
+  "mentor_notes": "\nThis Mastery mission requires senior mentor review. Candidates must demonstrate:\n- Professional-grade execution and documentation\n- Deep understanding of African organizational and threat contexts\n- Strategic thinking beyond tactical execution\n- Readiness for commercial red team operations\n- Leadership potential within OCH and broader community\n\nSuccessful completion positions candidate for Mastery portfolio and professional practice.\n        "
+}

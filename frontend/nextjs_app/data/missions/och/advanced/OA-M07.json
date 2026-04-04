@@ -1,0 +1,157 @@
+{
+  "mission_id": "OA-M07",
+  "title": "Kingdom Fall",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Advanced AD Attacks",
+  "pillar_icon": "\ud83c\udff0",
+  "mission_type": "Mandatory",
+  "module_number": 7,
+  "module_title": "Module 7: Kingdom Fall",
+  "video_duration": "15-20 min",
+  "estimated_time": "8-10 hrs",
+  "multiday": true,
+  "deadline": "7 days",
+  "prerequisites": [
+    "Intermediate Offensive Track",
+    "Core Cybersecurity Fundamentals"
+  ],
+  "learning_objectives": [
+    "Analyze Active Directory security posture",
+    "Exploit AD misconfiguration and weak permissions",
+    "Compromise domain controllers and forest root",
+    "Establish domain-level persistence",
+    "Document attack path from user to domain admin"
+  ],
+  "key_topics": [
+    "Active Directory enumeration and recon",
+    "Privilege escalation in AD environments",
+    "BloodHound and AD exploitation tools",
+    "Kerberos exploitation (Pass-the-Ticket, ASPROAST, etc.)",
+    "AD persistence and backdoors"
+  ],
+  "scenario": "Scenario Multi-forest AD with 3 domains. Standard user in child domain. Achieve Enterprise Admin in root domain through AD-native attack paths only \u2014 no CVE exploitation. Subtasks Scoring Rubric Linked Recipes: RA09, RA10 ________________________________________________________________________________",
+  "scenario_context": {
+    "setting": "Kampala, Uganda, SADC member institution",
+    "challenge": "Exploit AD misconfiguration in Kampala, Uganda to compromise domain",
+    "relevance": "Reflects real-world African enterprise security challenges and red team operations across the continent"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "BloodHound Collection & Analysis",
+      "description": "Run collectors. Identify all paths to DA and EA.",
+      "evidence": "BloodHound analysis with screenshots",
+      "detailed_guidance": "Begin by thoroughly reviewing the scenario and understanding all objectives. Document your approach before execution. This is the foundational subtask that enables all following work.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "BloodHound analysis with screenshots"
+    },
+    {
+      "number": 2,
+      "title": "ACL Abuse Chain",
+      "description": "Exploit ACL-based attack path.",
+      "evidence": "ACL exploitation log with permission chain",
+      "detailed_guidance": "Conduct systematic reconnaissance and information gathering. Map the target network, identify services, and document all findings with evidence.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "ACL exploitation log with permission chain"
+    },
+    {
+      "number": 3,
+      "title": "Delegation Attack",
+      "description": "Exploit delegation misconfiguration.",
+      "evidence": "Delegation attack evidence + explanation",
+      "detailed_guidance": "Analyze vulnerabilities discovered in reconnaissance. Validate each vulnerability through testing and document the exploitation path.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Delegation attack evidence + explanation"
+    },
+    {
+      "number": 4,
+      "title": "Domain Admin Achievement",
+      "description": "Achieve DA in child domain.",
+      "evidence": "DA evidence + complete attack chain",
+      "detailed_guidance": "Execute the exploitation with careful attention to OPSEC and evasion. Maintain detailed logs of all actions for evidence and reporting.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "DA evidence + complete attack chain"
+    },
+    {
+      "number": 5,
+      "title": "Cross-Domain Escalation",
+      "description": "Pivot from child DA to Enterprise Admin.",
+      "evidence": "Cross-domain escalation evidence",
+      "detailed_guidance": "Establish persistence mechanisms that survive system reboots and will maintain access throughout the engagement.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Cross-domain escalation evidence"
+    },
+    {
+      "number": 6,
+      "title": "AD Security Assessment",
+      "description": "Comprehensive assessment with hardening roadmap.",
+      "evidence": "AD security assessment (15+ pages)",
+      "detailed_guidance": "Perform privilege escalation and lateral movement to achieve the mission objectives. Document each pivot point.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "AD security assessment (15+ pages)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "BloodHound Analysis",
+      "weight": "15%"
+    },
+    {
+      "category": "Attack Path Execution",
+      "weight": "25%"
+    },
+    {
+      "category": "EA Achievement",
+      "weight": "20%"
+    },
+    {
+      "category": "Chain Documentation",
+      "weight": "15%"
+    },
+    {
+      "category": "Assessment Quality",
+      "weight": "15%"
+    },
+    {
+      "category": "Hardening Recommendations",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "Kingdom Fall"
+  ],
+  "resources": [
+    "OCH Advanced Advanced AD Attacks Toolkit",
+    "Engagement Framework Documentation",
+    "OPSEC Guidelines",
+    "Reporting Templates",
+    "Mentor Support Channel"
+  ],
+  "reflection_prompt": "",
+  "quiz": [
+    {
+      "question": "What is the primary objective of OA-M07?",
+      "options": [
+        "To test defensive capabilities",
+        "To simulate a real-world attack scenario",
+        "To achieve the specified mission goals within the engagement scope",
+        "All of the above"
+      ],
+      "correct_index": 2,
+      "explanation": "The mission objectives define the success criteria for this engagement."
+    },
+    {
+      "question": "What should be the first step when beginning this mission?",
+      "options": [
+        "Immediately execute exploits",
+        "Deploy all available tools",
+        "Thoroughly review scenario, objectives, and engagement scope",
+        "Contact the target organization"
+      ],
+      "correct_index": 2,
+      "explanation": "Understanding the engagement scope and objectives is critical before execution."
+    }
+  ],
+  "portfolio_artifacts": [
+    "OA-M07_engagement_plan.md",
+    "OA-M07_evidence_log.txt",
+    "OA-M07_technical_report.md",
+    "OA-M07_client_presentation.pdf"
+  ],
+  "mentor_notes": "For OA-M07 - Kingdom Fall: Ensure learner demonstrates proper OPSEC, evidence collection, and professional reporting. This mission is designed to build advanced ad attacks expertise. Coordinate with blue team for detection validation where applicable."
+}

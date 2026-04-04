@@ -1,0 +1,72 @@
+{
+  "recipe_id": "RI23",
+  "title": "Custom Wordlist Generation",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Password Attacks",
+  "pillar_icon": "\ud83d\udd11",
+  "estimated_time": "15 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "CeWL",
+    "cupp",
+    "text editor"
+  ],
+  "when_to_use": "When generic wordlists fail",
+  "linked_missions": [
+    "OI-M15",
+    "OI-M16"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Use CeWL to crawl target website and generate context-specific wordlist",
+      "tip": "Start with the most reliable information source for custom wordlist generation",
+      "expected_output": "Wordlist containing target website words and potential password patterns"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Manually add company name variations and brand-related terms",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "Extended wordlist including company-specific terminology and variations"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Add date patterns like seasons, years, and company-specific dates",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Wordlist including common date-based password patterns"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Use cupp (Common User Passwords Profiler) for targeted wordlist generation",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Cupp-generated wordlist based on personal information when available"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Combine multiple wordlist sources and remove duplicates",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Consolidated custom wordlist ready for cracking attempts"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Apply password mutation rules to expand wordlist coverage",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Rule-enhanced wordlist with uppercase, numbers, and symbol variations"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Compare effectiveness of custom wordlist against generic wordlists",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Performance comparison showing custom wordlist improvement over generic options"
+    }
+  ]
+}

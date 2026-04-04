@@ -1,0 +1,169 @@
+{
+  "mission_id": "OA-M20",
+  "title": "Operator Identity \u2014 Final Portfolio",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Professional Operations",
+  "pillar_icon": "\ud83d\udccb",
+  "mission_type": "Capstone",
+  "module_number": 20,
+  "module_title": "Module 20: Operator Identity \u2014 Final Portfolio",
+  "video_duration": "15-20 min",
+  "estimated_time": "4-6 hrs",
+  "multiday": true,
+  "deadline": "7 days",
+  "prerequisites": [
+    "Intermediate Offensive Track",
+    "Core Cybersecurity Fundamentals"
+  ],
+  "learning_objectives": [
+    "Consolidate advanced red team skills across all pillars",
+    "Design and execute professional red team engagement",
+    "Manage client relationships and reporting requirements",
+    "Produce actionable recommendations for defense",
+    "Conduct professional debrief and remediation planning"
+  ],
+  "key_topics": [
+    "Engagement planning and client management",
+    "Red team reporting standards",
+    "Incident response simulation",
+    "Remediation and post-engagement support",
+    "Professional communication and debrief"
+  ],
+  "scenario": "Identify pretext scenarios Register lookalike domains + SPF/DKIM Craft HTML smuggling or macro-free payload Build phishing infrastructure with valid SSL Test payload against email security Deploy with OPSEC: timing, language, context RA03 \u2014 Spear-Phishing Pretext Design Red Team Operations  |  20 min Tools: Word processor, OSINT tools When: When designing targeted phishing campaigns Steps: Research target's professional context Identify urgent/relevant pretext (vendor, recruiter, exec) Write email matching target's communication style Create supporting artifacts (fake invoices, resumes) Design call-to-action that bypasses training Test with colleagues before deployment Document pretext logic for engagement report RA04 \u2014 Stack Buffer Overflow Workflow Advanced Exploitation  |  30 min Tools: GDB, Immunity Debugger, msfvenom, Python When: When exploiting stack-based buffer overflows Steps: Fuzz target with increasing buffer sizes pattern_create + pattern_offset for EIP control Verify with 'B'*4 at offset Identify bad characters (0x00-0xFF) Find JMP ESP: !mona jmp -r esp Generate shellcode: msfvenom -p payload -b badchars Build: padding + JMP_ESP + NOPs + shellcode Test, debug, refine RA05 \u2014 Vulnerability Chaining Framework Advanced Exploitation  |  20 min Tools: Diagramming tool, Python When: When individual findings are low severity but chainable Steps: Map all vulnerabilities including low/info Identify connections: vuln A output feeds vuln B input Test chain: e.g., SSRF -> internal API -> RCE Document each link with evidence Create automated PoC for complete chain Assess combined vs individual impact Write chain narrative for report RA06 \u2014 Evasion Development Workflow Evasion & Anti-Detection  |  25 min Tools: msfvenom, custom compilers, AV test VM When: When standard payloads are detected Steps: Analyse target EDR telemetry collection Generate base payload Obfuscate: encrypt, custom loader, dynamic resolution Test against AV/EDR in isolated environment If detected: analyse reason, modify technique Implement runtime evasion concepts Document what was detected and why RA07 \u2014 Network Evasion Toolkit Evasion & Anti-Detection  |  25 min Tools: iodine/dnscat2, socat, proxychains When: When establishing covert communications Steps: Assess network controls: firewall, IDS/IPS, proxy Select channel: DNS, HTTPS, or tunnel DNS tunnel: iodine or dnscat2 setup HTTPS C2: legitimate-looking traffic patterns Implement jitter and traffic shaping Test against network monitoring Document traffic and detection results RA08 \u2014 C2 Infrastructure Deployment Command & Control  |  30 min Tools: Cloud VPS, Apache/Nginx, Sliver/Mythic When: When setting up red team C2 infrastructure Steps: Plan: team server + 2 redirectors + backup Register aged, well-categorized domains Deploy redirectors: Apache mod_rewrite rules Configure C2: Sliver or Mythic behind redirectors HTTPS: Let's Encrypt on redirectors Test callbacks through each channel OPSEC check: scan from target perspective RA09 \u2014 AD Attack Path Workflow Advanced AD Attacks  |  30 min Tools: BloodHound, SharpHound, Impacket When: When attacking Active Directory environments Steps: Run SharpHound: SharpHound.exe -c All Import to BloodHound, analyse shortest paths to DA Check delegation: Get-ADUser -Filter TrustedForDelegation Enumerate ACLs: Find-InterestingDomainAcl Check ADCS: Certify.exe find /vulnerable Exploit: delegation -> ACL -> DCSync Document complete chain with evidence RA10 \u2014 AD Persistence Playbook Advanced AD Attacks  |  25 min Tools: Mimikatz, Rubeus, Impacket When: When establishing AD persistence during red team ops Steps: Extract krbtgt: mimikatz lsadump::dcsync /user:krbtgt Create Golden Ticket Test Golden Ticket access Create Silver Tickets for critical services Establish machine account persistence Document ALL mechanisms + cleanup procedures CRITICAL: cleanup steps are mandatory RA11 \u2014 Kerberos Attack Deep Reference Advanced AD Attacks  |  20 min Tools: Mimikatz, Rubeus, Impacket When: When performing advanced Kerberos attacks Steps: Golden Ticket: kerberos::golden /user:... /krbtgt:HASH Silver Ticket: kerberos::golden /service:... /rc4:HASH DCSync: lsadump::dcsync /domain:... /user:krbtgt Kerberoast: Rubeus kerberoast /outfile:tickets S4U delegation abuse: Rubeus s4u /user:... Document: each attack + detection indicators Always record cleanup procedures RA12 \u2014 Cloud Attack Methodology Cloud & Container Attacks  |  25 min Tools: AWS CLI, Pacu, ScoutSuite When: When assessing cloud environments Steps: ScoutSuite or Prowler for misconfiguration scan IAM: enumerate users, roles, policies IMDS check: curl http://169.254.169.254/... Test storage: public S3/blob access Credential harvest: env vars, instance profiles Lateral: assume-role, cross-account Document with cloud-specific remediation RA13 \u2014 Container Attack Methodology Cloud & Container Attacks  |  20 min Tools: Docker, kubectl, Linux tools When: When assessing container/Kubernetes environments Steps: Check container: /proc/1/cgroup, /.dockerenv Check privileges: capsh --print If privileged: mount host filesystem If docker.sock: docker run --privileged K8s RBAC: kubectl auth can-i --list K8s secrets: kubectl get secrets --all-namespaces Document escape path and impact RA14 \u2014 Kubernetes Enumeration Checklist Cloud & Container Attacks  |  15 min Tools: kubectl, kube-hunter When: When inside a Kubernetes cluster Steps: kubectl get namespaces kubectl get pods --all-namespaces kubectl get services --all-namespaces kubectl auth can-i --list kubectl get secrets --all-namespaces Check service account token permissions Look for privileged pods and host mounts RA15 \u2014 Data Exfiltration Workflow Command & Control  |  20 min Tools: gpg, split, curl, custom scripts When: When proving data access during engagements Steps: Identify target data: minimum proof, don't over-collect Stage: compress + encrypt (GPG/AES) Select channel based on network controls Chunk for covert transfer Exfiltrate with timing jitter Verify integrity on receiving end Log every action with timestamps RA16 \u2014 Operational Logging Best Practices Command & Control  |  15 min Tools: tmux, script, text editor When: Throughout any red team engagement Steps: Use tmux/screen with logging enabled Timestamp every action: date + command Record: what you did, why, what happened Save all tool output to engagement directory Screenshot critical moments Maintain chain of custody for evidence Review logs daily for completeness RA17 \u2014 Advanced Web Attack Methodology Advanced Web Exploitation  |  25 min Tools: Burp Suite, custom scripts When: When testing modern web applications Steps: SSTI: inject {{7*7}} per template engine If confirmed: escalate to RCE via engine payloads SSRF: test internal URLs, cloud metadata Deserialization: identify serialized objects XXE: test XML parsers with entities Chain: SSRF -> internal API -> RCE Document full chain with per-step evidence RA18 \u2014 API Security Testing Workflow Advanced Web Exploitation  |  25 min Tools: Burp Suite, Postman, jwt_tool When: When testing REST APIs and GraphQL Steps: Enumerate: Swagger/OpenAPI, directory brute-force Test auth: JWT manipulation, none algorithm Test authz: BOLA/IDOR across endpoints GraphQL: introspection, mutation abuse, injection Rate limiting bypass Mass assignment: extra parameters Document API-specific findings with examples RA19 \u2014 JWT Attack Reference Advanced Web Exploitation  |  15 min Tools: jwt_tool, Burp Suite When: When testing JWT implementations Steps: Decode token: jwt.io or jwt_tool Test none algorithm: change alg to 'none', remove signature Key confusion: RS256 -> HS256 with public key Brute-force weak signing keys Token expiry testing Claim manipulation: change user/role Document each attack with evidence RA20 \u2014 Wireless Attack Workflow Wireless & Physical  |  25 min Tools: aircrack-ng suite, Hashcat When: When assessing wireless network security Steps: Monitor mode: airmon-ng start wlan0 Recon: airodump-ng wlan0mon Target: airodump-ng -c CH --bssid MAC -w capture Deauth + handshake capture PMKID: hcxdumptool extraction Crack: hashcat -m 22000 capture wordlist Evil Twin: hostapd-mana or wifiphisher RA21 \u2014 Physical Assessment Checklist Wireless & Physical  |  20 min Tools: Camera, notepad, authorization letter When: When assessing physical security controls Steps: Recon: layout, entries, cameras, guard schedules Test tailgating at high-traffic times Test badge/access card security Deploy USB drops in common areas Vishing: call helpdesk with pretext Document every attempt with evidence CRITICAL: carry authorization letter at all times RA22 \u2014 Social Engineering Pretext Library Wireless & Physical  |  15 min Tools: Phone, word processor When: When designing SE campaigns Steps: Vendor/IT support pretext (maintenance call) Recruiter pretext (job opportunity) Executive pretext (urgent request from CEO) New employee pretext (first day confusion) Delivery person pretext (package for specific person) Always have abort procedure ready Document all interactions for report RA23 \u2014 Threat Intel Operationalization Adversary Emulation  |  25 min Tools: ATT&CK Navigator, threat intel sources When: When designing threat-intelligence-driven operations Steps: Identify relevant threat actors for industry/region Extract TTPs from reports into ATT&CK format Map to Navigator: create technique layer Identify detection coverage gaps Design operation exercising gap areas Execute with purple team coordination Measure: detected vs missed, coverage delta RA24 \u2014 Purple Team Exercise Framework Adversary Emulation  |  20 min Tools: Atomic Red Team, SIGMA, SIEM When: When conducting purple team exercises Steps: Select 5-10 ATT&CK techniques per session",
+  "scenario_context": {
+    "setting": "Lilongwe, Malawi, continental blockchain initiative",
+    "challenge": "Conduct professional red team engagement with full reporting for continental blockchain initiative in Lilongwe, Malawi",
+    "relevance": "Reflects real-world African enterprise security challenges and red team operations across the continent"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Comprehensive Skills Assessment",
+      "description": "Honest assessment across all Advanced domains.",
+      "evidence": "Skills matrix with ratings and evidence",
+      "detailed_guidance": "Begin by thoroughly reviewing the scenario and understanding all objectives. Document your approach before execution. This is the foundational subtask that enables all following work.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Skills matrix with ratings and evidence"
+    },
+    {
+      "number": 2,
+      "title": "Portfolio Assembly",
+      "description": "Top 7 deliverables from Beginner through Advanced.",
+      "evidence": "7 portfolio summaries with samples",
+      "detailed_guidance": "Conduct systematic reconnaissance and information gathering. Map the target network, identify services, and document all findings with evidence.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "7 portfolio summaries with samples"
+    },
+    {
+      "number": 3,
+      "title": "Specialization Declaration",
+      "description": "500-word statement on chosen specialization.",
+      "evidence": "Specialization statement",
+      "detailed_guidance": "Analyze vulnerabilities discovered in reconnaissance. Validate each vulnerability through testing and document the exploitation path.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Specialization statement"
+    },
+    {
+      "number": 4,
+      "title": "Certification & Career Plan",
+      "description": "12-month plan with monthly milestones.",
+      "evidence": "12-month career plan",
+      "detailed_guidance": "Execute the exploitation with careful attention to OPSEC and evasion. Maintain detailed logs of all actions for evidence and reporting.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "12-month career plan"
+    },
+    {
+      "number": 5,
+      "title": "Mentorship Commitment",
+      "description": "3-month mentorship plan for one person.",
+      "evidence": "Mentorship plan with goals",
+      "detailed_guidance": "Establish persistence mechanisms that survive system reboots and will maintain access throughout the engagement.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Mentorship plan with goals"
+    },
+    {
+      "number": 6,
+      "title": "Professional Identity Statement",
+      "description": "Final identity statement as offensive operator.",
+      "evidence": "Professional Identity Statement (1 page)",
+      "detailed_guidance": "Perform privilege escalation and lateral movement to achieve the mission objectives. Document each pivot point.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Professional Identity Statement (1 page)"
+    },
+    {
+      "number": 7,
+      "title": "Letter to Next Generation",
+      "description": "Letter to someone starting their journey in Africa.",
+      "evidence": "Letter (1-2 pages)",
+      "detailed_guidance": "Extract evidence and data according to engagement objectives. Ensure proper handling and documentation.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Letter (1-2 pages)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Self-Awareness",
+      "weight": "15%"
+    },
+    {
+      "category": "Portfolio Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Career Planning",
+      "weight": "15%"
+    },
+    {
+      "category": "Mentorship Commitment",
+      "weight": "15%"
+    },
+    {
+      "category": "Identity Clarity",
+      "weight": "15%"
+    },
+    {
+      "category": "Community Contribution",
+      "weight": "10%"
+    },
+    {
+      "category": "Professional Polish",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "Operator Identity \u2014 Final Portfolio"
+  ],
+  "resources": [
+    "OCH Advanced Professional Operations Toolkit",
+    "Engagement Framework Documentation",
+    "OPSEC Guidelines",
+    "Reporting Templates",
+    "Mentor Support Channel"
+  ],
+  "reflection_prompt": "All 20 missions passed with mentor approval (including 14-day capstone with formal debrief), all reflections submitted, all quizzes passed. The capstone report must meet professional red team reporting standards.",
+  "quiz": [
+    {
+      "question": "What is the primary objective of OA-M20?",
+      "options": [
+        "To test defensive capabilities",
+        "To simulate a real-world attack scenario",
+        "To achieve the specified mission goals within the engagement scope",
+        "All of the above"
+      ],
+      "correct_index": 2,
+      "explanation": "The mission objectives define the success criteria for this engagement."
+    },
+    {
+      "question": "What should be the first step when beginning this mission?",
+      "options": [
+        "Immediately execute exploits",
+        "Deploy all available tools",
+        "Thoroughly review scenario, objectives, and engagement scope",
+        "Contact the target organization"
+      ],
+      "correct_index": 2,
+      "explanation": "Understanding the engagement scope and objectives is critical before execution."
+    }
+  ],
+  "portfolio_artifacts": [
+    "OA-M20_engagement_plan.md",
+    "OA-M20_evidence_log.txt",
+    "OA-M20_technical_report.md",
+    "OA-M20_client_presentation.pdf"
+  ],
+  "mentor_notes": "For OA-M20 - Operator Identity \u2014 Final Portfolio: Ensure learner demonstrates proper OPSEC, evidence collection, and professional reporting. This mission is designed to build professional operations expertise. Coordinate with blue team for detection validation where applicable."
+}

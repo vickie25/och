@@ -1,0 +1,136 @@
+{
+  "mission_id": "OB-M01",
+  "title": "Assumption Breaker",
+  "pillar": "Offensive Mindset",
+  "module_number": 1,
+  "module_title": "Adversarial Thinking Fundamentals",
+  "video_duration": "12 min",
+  "estimated_time": "45 min",
+  "multiday": false,
+  "deadline": "3 days",
+  "prerequisites": [
+    "None — first mission in the track",
+    "Access to any smartphone or web browser"
+  ],
+  "learning_objectives": [
+    "Develop an adversarial mindset by identifying hidden assumptions in digital services",
+    "Perform basic threat modelling using assumption violation",
+    "Apply risk ranking using Likelihood vs Impact analysis"
+  ],
+  "key_topics": [
+    "Adversarial thinking methodology",
+    "Trust assumption identification",
+    "Input validation assumptions",
+    "Risk ranking: Likelihood × Impact",
+    "Basic threat modelling",
+    "Attack scenario construction"
+  ],
+  "scenario": "You have been hired to think like an attacker for a local startup in Gaborone. Before any technical work begins, the CEO wants proof that you can think offensively. Your task is to analyse an everyday digital service and find logical weaknesses using nothing but your mind.",
+  "scenario_context": {
+    "setting": "Local startup in Gaborone, Botswana",
+    "challenge": "Demonstrate adversarial thinking without any technical tools",
+    "relevance": "The ability to think like an attacker is the foundation of all offensive security work. African tech startups often launch services with assumptions about user behaviour that attackers can exploit."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Select & Map",
+      "description": "Choose a publicly available mobile app or website. Map its core functionality, users, and data flows.",
+      "detailed_guidance": "Pick an app you use daily (banking, transport, social media). Document who uses it, what data it handles, what the expected user journey looks like. Think about every interaction point.",
+      "evidence_required": "Written functional map of the chosen application"
+    },
+    {
+      "number": 2,
+      "title": "Assumption Hunting",
+      "description": "Identify at least 7 assumptions the app makes about user behaviour (e.g., users will only enter valid data).",
+      "detailed_guidance": "Think about authentication, input handling, session management, payment flows, data storage. Ask: what does the developer expect users to do? What if someone intentionally does the opposite?",
+      "evidence_required": "Numbered list of 7+ assumptions with explanations"
+    },
+    {
+      "number": 3,
+      "title": "Attack Scenario Building",
+      "description": "For each assumption, write a realistic scenario where an attacker could violate it and describe the consequences.",
+      "detailed_guidance": "For each assumption, create a narrative: who is the attacker, what do they do, what is the immediate effect, what is the downstream impact? Be specific and realistic.",
+      "evidence_required": "Attack scenario document, one scenario per assumption"
+    },
+    {
+      "number": 4,
+      "title": "Risk Ranking",
+      "description": "Rank scenarios using Likelihood × Impact. Justify each ranking.",
+      "detailed_guidance": "Build a 5×5 risk matrix. Place each scenario. Justify: why is this likely or unlikely? Why is the impact minor or critical? Consider the African context: mobile-first users, data costs, infrastructure reliability.",
+      "evidence_required": "Risk ranking table with justification column"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Adversarial Thinking Quality",
+      "weight": "30%"
+    },
+    {
+      "category": "Assumption Depth",
+      "weight": "25%"
+    },
+    {
+      "category": "Scenario Realism",
+      "weight": "25%"
+    },
+    {
+      "category": "Risk Assessment Logic",
+      "weight": "20%"
+    }
+  ],
+  "linked_recipes": [
+    "R01",
+    "R02"
+  ],
+  "resources": [
+    {
+      "name": "Adversarial Thinking Framework",
+      "type": "PDF"
+    },
+    {
+      "name": "Risk Matrix Template",
+      "type": "Template"
+    },
+    {
+      "name": "Sample Assumption Analysis",
+      "type": "Example"
+    }
+  ],
+  "reflection_prompt": "Think about a service millions of Africans use daily — mobile money. What assumptions does it make about user behaviour, and what happens when those assumptions are wrong?",
+  "quiz": [
+    {
+      "question": "An adversarial mindset means:",
+      "options": [
+        "Breaking into systems illegally",
+        "Thinking about how systems can be misused by examining assumptions",
+        "Using hacking tools",
+        "Only working on bug bounties"
+      ],
+      "correct_index": 1,
+      "explanation": "Adversarial thinking is about understanding how systems can fail when assumptions are violated, not about illegal activity."
+    },
+    {
+      "question": "A risk matrix combines:",
+      "options": [
+        "Cost and time",
+        "Likelihood and Impact",
+        "Tools and techniques",
+        "Permissions and access"
+      ],
+      "correct_index": 1,
+      "explanation": "Risk is assessed by combining how likely something is to happen with how much damage it would cause."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Application functional map",
+    "Assumption analysis document",
+    "Attack scenario narratives",
+    "Risk ranking matrix"
+  ],
+  "mentor_notes": "Focus on quality of thinking, not technical depth. A student who identifies subtle trust assumptions scores higher than one who lists obvious input validation issues. The African context should influence scenario realism.",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "🧠",
+  "mission_type": "Mandatory"
+}

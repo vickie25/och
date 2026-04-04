@@ -1,0 +1,71 @@
+{
+  "recipe_id": "RI24",
+  "title": "AD Authentication Attack Checklist",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Password Attacks",
+  "pillar_icon": "\ud83d\udd11",
+  "estimated_time": "20 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "Impacket",
+    "Hashcat",
+    "Responder"
+  ],
+  "when_to_use": "When operating in an AD environment",
+  "linked_missions": [
+    "OI-M16"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Execute Kerberoast attack using GetUserSPNs.py to extract service account hashes",
+      "tip": "Start with the most reliable information source for ad authentication attack checklist",
+      "expected_output": "Extracted Kerberos TGS tickets from service accounts for offline cracking"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Perform AS-REP roasting using GetNPUsers.py on users with DONT_REQ_PREAUTH",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "AS-REP hashes from preauthentication-disabled user accounts"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Crack Kerberoast hashes using Hashcat mode 13100 for TGS-REP hashes",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Cracked service account passwords from Kerberoast attack"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Crack AS-REP hashes using Hashcat mode 18200 for preauthentication hashes",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Recovered user credentials from AS-REP roasting attack"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Deploy ntlmrelayx.py to relay NTLM authentication for pass-the-hash attacks",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Relayed NTLM credentials enabling lateral movement and escalation"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Use psexec.py for pass-the-hash authentication and command execution",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Successful command execution on target systems using stolen NTLM hashes"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Document all captured credentials and privilege levels achieved",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Comprehensive report of all AD authentication attacks and compromised accounts"
+    }
+  ]
+}

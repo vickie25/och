@@ -1,0 +1,171 @@
+{
+  "mission_id": "OM-M01",
+  "title": "The Unknown — Vulnerability Research Campaign",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Zero-Day Research & Development",
+  "pillar_icon": "🔬",
+  "mission_type": "Mandatory",
+  "module_number": 1,
+  "module_title": "Zero-Day Discovery",
+  "video_duration": "22-25 min",
+  "estimated_time": "20-30 hrs",
+  "multiday": true,
+  "deadline": "21 days",
+  "prerequisites": [
+    "Advanced Offensive Track - Mastery Tier Access"
+  ],
+  "learning_objectives": [
+    "Systematic vulnerability research methodology at professional scale",
+    "Advanced source code audit techniques for network protocols",
+    "Coverage-guided fuzzing campaign design and execution",
+    "Crash triage and root cause analysis in complex codebases",
+    "Responsible disclosure frameworks for African vendors",
+    "Research documentation for academic publication"
+  ],
+  "key_topics": [
+    "Vulnerability research methodology",
+    "Source code audit patterns",
+    "Fuzzing campaign execution",
+    "Crash triage and exploitability assessment",
+    "Proof-of-concept development",
+    "Responsible disclosure ethics",
+    "African infrastructure landscape"
+  ],
+  "scenario": "This Mastery mission requires professional-grade execution in Southern African financial infrastructure. Challenge: Discover zero-day vulnerabilities in open-source network services deployed across SADC region. Relevance: Nation-state level threat modeling; African fintech faces targeted exploitation campaigns",
+  "scenario_context": {
+    "setting": "Southern African financial infrastructure",
+    "challenge": "Discover zero-day vulnerabilities in open-source network services deployed across SADC region",
+    "relevance": "Nation-state level threat modeling; African fintech faces targeted exploitation campaigns"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Target Selection & Justification",
+      "description": "Select target software. Justify based on deployment, attack surface, research gaps.",
+      "detailed_guidance": "Select an open-source network service deployed across Southern African infrastructure.\n        Consider services like nginx, OpenSSH, DNS servers, or mail systems. Justify based on:\n        - Deployment prevalence in African data centers and enterprises\n        - Clear attack surface and documented vulnerabilities in similar codebases\n        - Sufficient code complexity to support meaningful research\n        - Alignment with national-level cybersecurity threats in your region\n\n        Document target architecture, deployment patterns, and why this service represents\n        a high-value research target for African organizations.",
+      "evidence_required": "Target selection + attack surface analysis"
+    },
+    {
+      "number": 2,
+      "title": "Source Code Audit",
+      "description": "Structured audit of network-facing input handlers.",
+      "detailed_guidance": "Conduct structured audit of network-facing input handlers:\n        - Map all entry points (network protocols, file formats, IPC)\n        - Identify parsing logic and input validation\n        - Document trust boundaries and privilege levels\n        - Create vulnerability candidate list with risk scores\n\n        African context: Focus on how regional deployment patterns and configurations\n        create unique attack surfaces not documented in upstream security advisories.",
+      "evidence_required": "Audit report with annotated code + vuln candidates"
+    },
+    {
+      "number": 3,
+      "title": "Fuzzing Campaign",
+      "description": "Custom harnesses. 72-hour minimum coverage-guided fuzzing.",
+      "detailed_guidance": "Execute 72-hour minimum coverage-guided fuzzing:\n        - Develop custom harnesses for input fuzzing\n        - Configure coverage-guided tools (libFuzzer, AFL++)\n        - Collect crash samples and coverage metrics\n        - Triage crashes for exploitability\n\n        Document: harness code, coverage reports, crash statistics, and promising crash patterns.",
+      "evidence_required": "Harness code + coverage reports + crash triage"
+    },
+    {
+      "number": 4,
+      "title": "Crash Triage & Root Cause",
+      "description": "Triage unique crashes. Root cause analysis on promising candidates.",
+      "detailed_guidance": "Analyze each crash:\n        - Reproduce crash consistently\n        - Determine root cause (memory corruption, logic error, etc.)\n        - Assess exploitability potential\n        - Identify unique vs duplicate crashes\n\n        Provide: per-crash analysis with root cause, code context, and exploitability scoring.",
+      "evidence_required": "Root cause analysis per crash with exploitability"
+    },
+    {
+      "number": 5,
+      "title": "Proof of Concept Development",
+      "description": "Minimal reliable PoC for confirmed vulns; detailed analysis for near-misses.",
+      "detailed_guidance": "For confirmed vulnerabilities:\n        - Develop minimal, reliable proof-of-concept\n        - Demonstrate vulnerability impact (crash, info leak, RCE)\n        - Document prerequisites and failure modes\n\n        For near-misses:\n        - Provide technical analysis of why exploitation failed\n        - Suggest potential approaches for future research",
+      "evidence_required": "PoC code + technical analysis"
+    },
+    {
+      "number": 6,
+      "title": "Responsible Disclosure Package",
+      "description": "Advisory, timeline, vendor communication drafts, coordination plan.",
+      "detailed_guidance": "Prepare complete disclosure:\n        - Advisory with CVE information (if applicable)\n        - Timeline for vendor notification and patch\n        - Detailed reproduction steps\n        - Risk assessment for affected African organizations\n        - Vendor communication draft and follow-up plan",
+      "evidence_required": "Complete disclosure package"
+    },
+    {
+      "number": 7,
+      "title": "Research Retrospective",
+      "description": "What worked, time allocation, methodology improvements.",
+      "detailed_guidance": "Analyze your research process:\n        - What methodology decisions paid off?\n        - Where did you spend most time? Was it efficient?\n        - What would you do differently next time?\n        - How would you apply this to African infrastructure patterns?\n        - Document methodology improvements for future campaigns.",
+      "evidence_required": "Retrospective with methodology updates"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Research Methodology",
+      "weight": "20%"
+    },
+    {
+      "category": "Technical Depth",
+      "weight": "20%"
+    },
+    {
+      "category": "Fuzzing Campaign Quality",
+      "weight": "15%"
+    },
+    {
+      "category": "Analysis Rigor",
+      "weight": "15%"
+    },
+    {
+      "category": "Disclosure Ethics",
+      "weight": "15%"
+    },
+    {
+      "category": "Retrospective Quality",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "RM01",
+    "RM02"
+  ],
+  "resources": [
+    {
+      "type": "Documentation",
+      "title": "OCH Mastery Reference Guide",
+      "url": "https://och.dev/mastery-reference"
+    },
+    {
+      "type": "Video",
+      "title": "Mission Overview: The Unknown — Vulnerability Research Campaign",
+      "duration": "22-25 min"
+    },
+    {
+      "type": "Tool",
+      "title": "OCH Mastery Assessment Framework",
+      "url": "https://och.dev/assessment"
+    }
+  ],
+  "reflection_prompt": "How would your vulnerability research approach differ if targeting critical African banking infrastructure versus generic open-source? What responsible disclosure challenges exist when vendors lack established security contact procedures?",
+  "quiz": [
+    {
+      "question": "When conducting vulnerability research on an open-source network service deployed across Southern African infrastructure, what is the primary purpose of the fuzzing campaign?",
+      "options": [
+        "To demonstrate the software crashes frequently",
+        "To discover memory corruption and logic vulnerabilities through automated input testing",
+        "To measure the CPU usage of the service",
+        "To optimize the software's performance"
+      ],
+      "correct_index": 1,
+      "explanation": "Fuzzing campaigns use automated input generation to discover memory corruption, logic flaws, and edge cases. In vulnerability research, this is the primary technique for finding exploitable conditions that manual testing might miss."
+    },
+    {
+      "question": "In responsible vulnerability disclosure for African vendors who may lack formal security teams, what is the most important consideration?",
+      "options": [
+        "Always publish findings immediately on social media",
+        "Establish a reasonable disclosure timeline and allow vendor time to patch before public disclosure",
+        "Keep all vulnerabilities secret permanently",
+        "Only disclose to large international companies"
+      ],
+      "correct_index": 1,
+      "explanation": "Responsible disclosure requires giving vendors reasonable time (typically 90 days) to develop and release patches. This is especially important for African vendors who may have limited resources but represent critical infrastructure."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Professional deliverables demonstrating mastery-level capability",
+    "Complete documentation and methodology",
+    "Evidence of technical excellence and strategic thinking",
+    "Leadership and mentorship contributions"
+  ],
+  "mentor_notes": "\nThis Mastery mission requires senior mentor review. Candidates must demonstrate:\n- Professional-grade execution and documentation\n- Deep understanding of African organizational and threat contexts\n- Strategic thinking beyond tactical execution\n- Readiness for commercial red team operations\n- Leadership potential within OCH and broader community\n\nSuccessful completion positions candidate for Mastery portfolio and professional practice.\n        "
+}

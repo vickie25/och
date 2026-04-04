@@ -1,0 +1,64 @@
+{
+  "recipe_id": "R09",
+  "title": "Protocol Port Quick Reference",
+  "pillar": "Networking Essentials",
+  "pillar_icon": "🌐",
+  "estimated_time": "10 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Flashcards or Anki"
+  ],
+  "when_to_use": "Foundational knowledge used in every scanning and enumeration task",
+  "linked_missions": [
+    "OB-M05",
+    "OB-M06",
+    "OB-CAP01"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Web & Remote Access",
+      "instruction": "Memorise: HTTP=80, HTTPS=443, SSH=22, FTP=21, DNS=53",
+      "tip": "These 5 ports account for the majority of findings in external assessments",
+      "expected_output": "5 ports memorised"
+    },
+    {
+      "number": 2,
+      "title": "Enterprise Services",
+      "instruction": "Memorise: SMB=445, RDP=3389, SMTP=25, MySQL=3306, MSSQL=1433",
+      "tip": "SMB and RDP are the most exploited enterprise protocols. Always flag them",
+      "expected_output": "5 more ports memorised"
+    },
+    {
+      "number": 3,
+      "title": "Transport Protocols",
+      "instruction": "For each, write the transport protocol (TCP/UDP)",
+      "tip": "DNS uses both TCP and UDP. Most others are TCP. Know which are which",
+      "expected_output": "Transport protocol mapping"
+    },
+    {
+      "number": 4,
+      "title": "Common Vulnerabilities",
+      "instruction": "Note one common vulnerability per service (e.g., FTP anonymous login)",
+      "tip": "HTTP: misconfigs. SSH: brute force. FTP: anonymous login. SMB: EternalBlue. RDP: BlueKeep",
+      "expected_output": "Vulnerability per service"
+    },
+    {
+      "number": 5,
+      "title": "Create Flashcards",
+      "instruction": "Create flashcards and test daily until automatic",
+      "tip": "Use Anki for spaced repetition. Port knowledge should be instant — no thinking required",
+      "expected_output": "Flashcard deck created"
+    },
+    {
+      "number": 6,
+      "title": "Non-Standard Port Awareness",
+      "instruction": "Flag any non-standard port usage during scans as suspicious",
+      "tip": "HTTP on 8080, 8443, or random high ports often indicates development servers or backdoors",
+      "expected_output": "Non-standard port awareness"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 6
+}

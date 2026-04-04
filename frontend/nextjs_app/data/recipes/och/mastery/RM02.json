@@ -1,0 +1,70 @@
+{
+  "recipe_id": "RM02",
+  "title": "Modern Exploit Development Workflow",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Zero-Day Research & Development",
+  "pillar_icon": "\ud83d\udd2c",
+  "estimated_time": "35 min",
+  "difficulty": "Mastery",
+  "tools_required": [
+    "WinDbg/GDB (kernel debugging)",
+    "Ropper/ROPgadget (ROP gadget finder)",
+    "pwntools (exploit development)",
+    "Unicorn Engine (binary emulation)",
+    "Frida (instrumentation)",
+    "IDA Pro",
+    "Custom Python/C harnesses",
+    "AddressSanitizer"
+  ],
+  "when_to_use": "Use Modern Exploit Development Workflow to develop professional-grade modern exploit development workflow capabilities at Mastery level. This recipe is part of the Zero-Day Research & Development pillar and integrates with linked missions OM-M01, OM-M02.",
+  "linked_missions": [
+    "OM-M01",
+    "OM-M02"
+  ],
+  "step_count": 6,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Binary 1: ROP Chain Exploit (DEP-only)",
+      "instruction": "Select a 64-bit binary with DEP/NX enabled but no ASLR, no stack canary. Develop ROP exploit using gadget chains to disable DEP or execute mprotect(). Use Ropper to find gadget chains. Build exploit using pwntools: overflow buffer, craft ROP payload, execute shellcode. Document gadget semantics and chain walkthrough.",
+      "tip": "Start with simple ret2libc before ROP chains. Verify each ROP gadget with disassembler. Test gadget reliability (may require specific stack state).",
+      "expected_output": "Working ROP exploit with gadget analysis document"
+    },
+    {
+      "number": 2,
+      "title": "Binary 2: ASLR + DEP Bypass",
+      "instruction": "Binary has both ASLR and DEP. Develop info leak to defeat ASLR: pointer disclosure via format string, heap metadata leak, or information disclosure vulnerability. Chain with ROP to bypass DEP. Achieve reliable code execution. Document leak reliability and ROP chain stability under randomization.",
+      "tip": "Info leaks must be repeatable; some may be one-time only. Combine multiple leaks for address space reconstruction. Verify ASLR effectiveness: test on 10+ runs.",
+      "expected_output": "Combined info leak + ROP exploit with reliability metrics"
+    },
+    {
+      "number": 3,
+      "title": "Binary 3: Full Mitigation Bypass (Canary + ASLR + DEP)",
+      "instruction": "Exploit all three protections simultaneously. Strategy: leak canary from memory, leak pointers for address space reconstruction, execute ROP chain to bypass DEP. May require multi-stage approach: stage 1 leak, stage 2 exploit. Achieve 95%+ reliability across 100 runs.",
+      "tip": "Canary leaks often require reading stack memory via format strings or side-channels. Orchestrate multiple info leaks before exploitation attempt.",
+      "expected_output": "Multi-stage exploit with 95%+ reliability; master document"
+    },
+    {
+      "number": 4,
+      "title": "Exploit Reliability Analysis",
+      "instruction": "Run each exploit 100 times on target system. Document success/failure rates, failure modes (core dumps, hangs, exceptions), timing variations. Identify race conditions, environment dependencies, ASLR variability. Produce reliability report with statistical analysis.",
+      "tip": "Use automated test harness to run exploits 100x consecutively. Log every attempt. Failures reveal brittleness; adjust exploit strategy accordingly.",
+      "expected_output": "Reliability report with success rate, failure modes, statistical analysis"
+    },
+    {
+      "number": 5,
+      "title": "Comparative Technical Analysis",
+      "instruction": "Write 5+ page technical paper analyzing how each mitigation (DEP, ASLR, canary) increases exploitation cost. Compare defeat strategies: ROP vs BROP vs info leaks. Quantify protection effectiveness: time to exploit, reliability required, preconditions. Discuss future mitigations and escalation.",
+      "tip": "Technical depth matters; cite academic papers on memory safety. Compare your exploitation approach with published research.",
+      "expected_output": "Technical paper (5+ pages) with comparative analysis"
+    },
+    {
+      "number": 6,
+      "title": "Defender Recommendations",
+      "instruction": "For each binary, propose hardening measures that would prevent your exploits. Discuss architectural changes, compiler-level protections, runtime monitoring. Evaluate feasibility and performance impact. Recommend specific mitigations that would force re-engineering of your approach.",
+      "tip": "Constructive defense insights increase impact. Consider Control Flow Guard (CFG), Shadow Stack, Memory Tagging Extension (MTE), CET on newer platforms.",
+      "expected_output": "Hardening recommendations per binary with implementation rationale"
+    }
+  ]
+}

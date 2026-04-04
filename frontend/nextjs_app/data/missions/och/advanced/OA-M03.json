@@ -1,0 +1,153 @@
+{
+  "mission_id": "OA-M03",
+  "title": "Smash the Stack",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Advanced Exploitation",
+  "pillar_icon": "\ud83d\udca5",
+  "mission_type": "Mandatory",
+  "module_number": 3,
+  "module_title": "Module 3: Smash the Stack",
+  "video_duration": "15-20 min",
+  "estimated_time": "8-10 hrs",
+  "multiday": true,
+  "deadline": "7 days",
+  "prerequisites": [
+    "Intermediate Offensive Track",
+    "Core Cybersecurity Fundamentals"
+  ],
+  "learning_objectives": [
+    "Understand buffer overflow vulnerability mechanisms",
+    "Develop custom exploitation code",
+    "Bypass modern exploit mitigations (ASLR, DEP, stack canaries)",
+    "Execute shellcode for command execution",
+    "Create reproducible exploitation framework"
+  ],
+  "key_topics": [
+    "Exploit development and debugging",
+    "Vulnerability analysis and validation",
+    "Shellcode creation and payload generation",
+    "Exploit mitigation bypass techniques",
+    "Multi-stage exploitation chains"
+  ],
+  "scenario": "Scenario Three custom vulnerable applications with stack-based buffer overflows. Develop working exploits for all three, from fuzzing through shell access. Subtasks Scoring Rubric Linked Recipes: RA04, RA05 ________________________________________________________________________________",
+  "scenario_context": {
+    "setting": "Gaborone, Botswana, Southern African mining conglomerate",
+    "challenge": "Develop buffer overflow exploit against legacy application in Gaborone, Botswana",
+    "relevance": "Reflects real-world African enterprise security challenges and red team operations across the continent"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Application 1: Fuzzing & Crash",
+      "description": "Fuzz the application. Confirm EIP control.",
+      "evidence": "Fuzzing script + crash evidence + EIP proof",
+      "detailed_guidance": "Begin by thoroughly reviewing the scenario and understanding all objectives. Document your approach before execution. This is the foundational subtask that enables all following work.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Fuzzing script + crash evidence + EIP proof"
+    },
+    {
+      "number": 2,
+      "title": "Application 1: Full Exploit",
+      "description": "Bad chars, JMP ESP, shellcode, working shell.",
+      "evidence": "Complete exploit code + walkthrough",
+      "detailed_guidance": "Conduct systematic reconnaissance and information gathering. Map the target network, identify services, and document all findings with evidence.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Complete exploit code + walkthrough"
+    },
+    {
+      "number": 3,
+      "title": "Application 2: Exploit Development",
+      "description": "Different application, different constraints.",
+      "evidence": "Full exploit + methodology comparison",
+      "detailed_guidance": "Analyze vulnerabilities discovered in reconnaissance. Validate each vulnerability through testing and document the exploitation path.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Full exploit + methodology comparison"
+    },
+    {
+      "number": 4,
+      "title": "Application 3: Constrained Exploit",
+      "description": "Limited buffer space, more bad characters.",
+      "evidence": "Exploit with space-constrained techniques",
+      "detailed_guidance": "Execute the exploitation with careful attention to OPSEC and evasion. Maintain detailed logs of all actions for evidence and reporting.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Exploit with space-constrained techniques"
+    },
+    {
+      "number": 5,
+      "title": "Exploit Documentation",
+      "description": "Professional write-ups for each exploit.",
+      "evidence": "3 exploit write-ups (responsible disclosure format)",
+      "detailed_guidance": "Establish persistence mechanisms that survive system reboots and will maintain access throughout the engagement.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "3 exploit write-ups (responsible disclosure format)"
+    },
+    {
+      "number": 6,
+      "title": "Mitigation Analysis",
+      "description": "How DEP, ASLR, stack canaries would prevent each.",
+      "evidence": "Mitigation analysis per exploit",
+      "detailed_guidance": "Perform privilege escalation and lateral movement to achieve the mission objectives. Document each pivot point.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Mitigation analysis per exploit"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Exploitation Success (3/3)",
+      "weight": "30%"
+    },
+    {
+      "category": "Methodology Documentation",
+      "weight": "20%"
+    },
+    {
+      "category": "Code Quality",
+      "weight": "15%"
+    },
+    {
+      "category": "Debugging Evidence",
+      "weight": "15%"
+    },
+    {
+      "category": "Mitigation Understanding",
+      "weight": "20%"
+    }
+  ],
+  "linked_recipes": [
+    "Smash the Stack"
+  ],
+  "resources": [
+    "OCH Advanced Advanced Exploitation Toolkit",
+    "Engagement Framework Documentation",
+    "OPSEC Guidelines",
+    "Reporting Templates",
+    "Mentor Support Channel"
+  ],
+  "reflection_prompt": "",
+  "quiz": [
+    {
+      "question": "Which mitigation technique makes buffer overflow exploitation most difficult?",
+      "options": [
+        "Disabling firewall rules",
+        "Address Space Layout Randomization (ASLR) combined with stack canaries",
+        "Using HTTP instead of HTTPS",
+        "Increasing network bandwidth"
+      ],
+      "correct_index": 1,
+      "explanation": "ASLR randomizes memory addresses and stack canaries detect overwrites, making traditional buffer overflow exploitation very difficult."
+    },
+    {
+      "question": "In developing a buffer overflow exploit, what is Return-Oriented Programming (ROP)?",
+      "options": [
+        "A programming language for network protocols",
+        "A technique to execute code using existing code segments to bypass DEP",
+        "A networking protocol for data transfer",
+        "A method for repairing broken code"
+      ],
+      "correct_index": 1,
+      "explanation": "ROP chaining existing code sequences (gadgets) enables code execution while bypassing Data Execution Prevention."
+    }
+  ],
+  "portfolio_artifacts": [
+    "OA-M03_engagement_plan.md",
+    "OA-M03_evidence_log.txt",
+    "OA-M03_technical_report.md",
+    "OA-M03_client_presentation.pdf"
+  ],
+  "mentor_notes": "For OA-M03 - Smash the Stack: Ensure learner demonstrates proper OPSEC, evidence collection, and professional reporting. This mission is designed to build advanced exploitation expertise. Coordinate with blue team for detection validation where applicable."
+}

@@ -1,0 +1,136 @@
+{
+  "mission_id": "OB-M17",
+  "title": "Legal Compliance Check",
+  "pillar": "Ethics & Legality",
+  "module_number": 17,
+  "module_title": "Pre-Engagement Legal Framework",
+  "video_duration": "14 min",
+  "estimated_time": "1 hour",
+  "multiday": false,
+  "deadline": "5 days",
+  "prerequisites": [
+    "Web browser for legal research",
+    "Word processor"
+  ],
+  "learning_objectives": [
+    "Research applicable cybercrime legislation for penetration testing",
+    "Produce professional pre-engagement legal documentation",
+    "Create reusable compliance checklists"
+  ],
+  "key_topics": [
+    "Botswana Cybercrime Act",
+    "African cybercrime legislation",
+    "Penetration testing legal requirements",
+    "Scope documentation",
+    "Rules of engagement",
+    "Pre-engagement authorisation"
+  ],
+  "scenario": "Your company has been asked to perform a penetration test for a bank in Botswana. Before any technical work, the legal team needs you to prepare all pre-engagement documentation. Get this wrong and the engagement, and possibly your career, is over.",
+  "scenario_context": {
+    "setting": "Bank in Botswana requesting a penetration test",
+    "challenge": "Produce complete pre-engagement legal documentation",
+    "relevance": "Unauthorised testing is a criminal offence in most African jurisdictions. Professional pentesters must understand and comply with local legislation."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Legal Research",
+      "description": "Research Botswana's Cybercrime Act and relevant legislation. Document specific clauses applying to penetration testing.",
+      "detailed_guidance": "Find the Cybercrime and Computer Related Crimes Act. Identify clauses on: unauthorised access, interception, data interference. Note what authorisation is needed to legally conduct testing.",
+      "evidence_required": "Legal research summary with clauses cited"
+    },
+    {
+      "number": 2,
+      "title": "Scope Document",
+      "description": "Create a complete scope document for the bank engagement using the provided template.",
+      "detailed_guidance": "Include: target systems (IPs, domains, applications), in-scope activities, out-of-scope systems, testing window, testing types permitted, data handling requirements.",
+      "evidence_required": "Completed pentest scope document"
+    },
+    {
+      "number": 3,
+      "title": "Rules of Engagement",
+      "description": "Draft rules covering testing hours, communication protocols, escalation procedures, data handling, and reporting.",
+      "detailed_guidance": "Cover: testing hours, communication channels, escalation for critical findings, data handling and destruction, reporting timeline, re-testing policy.",
+      "evidence_required": "Rules of engagement document"
+    },
+    {
+      "number": 4,
+      "title": "Authorisation Checklist",
+      "description": "Create a reusable pre-engagement checklist for legal compliance on future engagements.",
+      "detailed_guidance": "Make it universal: applicable to any African jurisdiction. Include: legal research, written authorisation, scope definition, rules of engagement, emergency contacts, data handling, insurance verification.",
+      "evidence_required": "Reusable pre-engagement checklist"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Legal Accuracy",
+      "weight": "30%"
+    },
+    {
+      "category": "Document Completeness",
+      "weight": "25%"
+    },
+    {
+      "category": "Professional Quality",
+      "weight": "25%"
+    },
+    {
+      "category": "Reusability",
+      "weight": "20%"
+    }
+  ],
+  "linked_recipes": [
+    "R24",
+    "R25"
+  ],
+  "resources": [
+    {
+      "name": "Botswana Cybercrime Act Summary",
+      "type": "PDF"
+    },
+    {
+      "name": "Pre-Engagement Template Pack",
+      "type": "Template"
+    },
+    {
+      "name": "African Cyber Law Reference",
+      "type": "Document"
+    }
+  ],
+  "reflection_prompt": "You discover a critical vulnerability during a pentest, but it's in a system that's explicitly out of scope. What do you do? Walk through the ethical and legal considerations.",
+  "quiz": [
+    {
+      "question": "Testing without written authorisation is:",
+      "options": [
+        "Acceptable if you find vulnerabilities",
+        "A criminal offence in most jurisdictions regardless of intent",
+        "Only illegal if you cause damage",
+        "Legal if you're a certified professional"
+      ],
+      "correct_index": 1,
+      "explanation": "Unauthorised access to computer systems is a criminal offence in virtually all jurisdictions, regardless of intent or outcome."
+    },
+    {
+      "question": "A scope document protects the tester by:",
+      "options": [
+        "Making them immune to prosecution",
+        "Defining exactly what is authorised, creating a legal defence if questions arise",
+        "Guaranteeing payment",
+        "Replacing insurance"
+      ],
+      "correct_index": 1,
+      "explanation": "The scope document defines the authorised boundaries. If a tester stays within scope, the document serves as legal defence."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Legal research summary",
+    "Scope document",
+    "Rules of engagement",
+    "Pre-engagement checklist"
+  ],
+  "mentor_notes": "Legal accuracy is non-negotiable. The checklist should be genuinely reusable. Evaluate professionalism — these documents would be reviewed by lawyers.",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "⚖️",
+  "mission_type": "Mandatory"
+}

@@ -1,0 +1,70 @@
+{
+  "recipe_id": "R23",
+  "title": "Tool Installation Verification Checklist",
+  "pillar": "Beginner Tooling",
+  "pillar_icon": "🛠️",
+  "estimated_time": "15 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Kali Linux terminal"
+  ],
+  "when_to_use": "After any fresh Kali installation or before starting a new engagement",
+  "linked_missions": [
+    "OB-M16",
+    "OB-M19"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Verify Nmap",
+      "instruction": "Nmap: nmap --version (expect 7.x+)",
+      "tip": "Nmap is your most important tool. If it's not working, nothing else matters",
+      "expected_output": "Nmap version confirmed"
+    },
+    {
+      "number": 2,
+      "title": "Verify Burp Suite",
+      "instruction": "Burp Suite: launch from Kali menu, verify proxy starts on 127.0.0.1:8080",
+      "tip": "Test by configuring Firefox to use the proxy and loading a page through Burp",
+      "expected_output": "Burp proxy running"
+    },
+    {
+      "number": 3,
+      "title": "Verify Wireshark",
+      "instruction": "Wireshark: wireshark --version, test packet capture on any interface",
+      "tip": "If capture fails, check permissions: you may need to run as root or add user to wireshark group",
+      "expected_output": "Wireshark capturing"
+    },
+    {
+      "number": 4,
+      "title": "Verify Netcat",
+      "instruction": "Netcat: nc -h, verify connection and listening modes",
+      "tip": "Test both: nc -lvp 4444 (listen) in one terminal, nc localhost 4444 (connect) in another",
+      "expected_output": "Netcat working"
+    },
+    {
+      "number": 5,
+      "title": "Verify Python3",
+      "instruction": "Python3: python3 --version (expect 3.x)",
+      "tip": "Also verify pip3 works. Install a test package to confirm: pip3 install requests",
+      "expected_output": "Python3 confirmed"
+    },
+    {
+      "number": 6,
+      "title": "Verify Gobuster",
+      "instruction": "Gobuster: gobuster --help, verify binary runs",
+      "tip": "Also verify you have wordlists: ls /usr/share/wordlists/",
+      "expected_output": "Gobuster running"
+    },
+    {
+      "number": 7,
+      "title": "Verify Nikto",
+      "instruction": "Nikto: nikto -Version, verify Perl dependencies present",
+      "tip": "If Nikto fails, it's usually a missing Perl module. Install with: apt install libnet-ssleay-perl",
+      "expected_output": "Nikto running"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 7
+}

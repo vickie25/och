@@ -1,0 +1,128 @@
+{
+  "mission_id": "OB-M12",
+  "title": "Recon Script Builder",
+  "pillar": "Scripting Basics",
+  "module_number": 12,
+  "module_title": "Bash Automation for Engagements",
+  "video_duration": "14 min",
+  "estimated_time": "1 hour",
+  "multiday": false,
+  "deadline": "5 days",
+  "prerequisites": [
+    "OB-M08 (Bash one-liners)",
+    "Bash shell access",
+    "dig, whois, host commands available"
+  ],
+  "learning_objectives": [
+    "Build a modular Bash recon script with professional structure",
+    "Implement argument parsing, validation, and help functions",
+    "Generate clean engagement reports from CLI tools"
+  ],
+  "key_topics": [
+    "Bash script architecture",
+    "getopts argument parsing",
+    "Function-based script design",
+    "Output directory management",
+    "Report assembly from multiple tool outputs"
+  ],
+  "scenario": "Create a modular Bash recon script that your team can use on any engagement. It should accept a target domain and run a standard set of passive checks, outputting a clean report.",
+  "scenario_context": {
+    "setting": "Team tooling standardisation",
+    "challenge": "Build a professional-grade Bash recon script",
+    "relevance": "Bash scripts are the backbone of offensive automation on Linux. A well-structured script saves hours on every engagement."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Script Framework",
+      "description": "Create a script with argument validation, help message (-h flag), target domain variable, and output directory creation with timestamp.",
+      "detailed_guidance": "Start with #!/bin/bash. Use getopts for -t target and -h help. Validate input. Create timestamped output directory. Add colour output if you want extra credit.",
+      "evidence_required": "Working script framework with help function"
+    },
+    {
+      "number": 2,
+      "title": "Recon Functions",
+      "description": "Add functions for WHOIS lookup, DNS enumeration (dig), subdomain check (host), and output formatting.",
+      "detailed_guidance": "Each function should: take target as parameter, run the command, capture output, save to file in output directory. Use descriptive function names.",
+      "evidence_required": "Script with all functions working"
+    },
+    {
+      "number": 3,
+      "title": "Report Assembly",
+      "description": "Add a function that combines all output files into a single summary report with headers and timestamps.",
+      "detailed_guidance": "Read all output files. Create a master report with: header, timestamp, target info, then each section with clear headers. Make it readable for a client.",
+      "evidence_required": "Complete script generating professional report"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Script Functionality",
+      "weight": "35%"
+    },
+    {
+      "category": "Code Structure",
+      "weight": "25%"
+    },
+    {
+      "category": "Error Handling",
+      "weight": "20%"
+    },
+    {
+      "category": "Reusability",
+      "weight": "20%"
+    }
+  ],
+  "linked_recipes": [
+    "R14",
+    "R18"
+  ],
+  "resources": [
+    {
+      "name": "Bash Script Template",
+      "type": "Template"
+    },
+    {
+      "name": "Bash Best Practices Guide",
+      "type": "PDF"
+    },
+    {
+      "name": "dig/whois/host Reference",
+      "type": "Document"
+    }
+  ],
+  "reflection_prompt": "A teammate copies your script and runs it without the -t flag. What happens? Now imagine they run it against a target without authorisation. How do you build safeguards into shared tools?",
+  "quiz": [
+    {
+      "question": "getopts in Bash is used for:",
+      "options": [
+        "Getting file permissions",
+        "Parsing command-line arguments and flags",
+        "Downloading files",
+        "Setting environment variables"
+      ],
+      "correct_index": 1,
+      "explanation": "getopts is the standard Bash utility for parsing command-line flags like -t target and -h help."
+    },
+    {
+      "question": "Modular functions in scripts are important because:",
+      "options": [
+        "They make scripts longer",
+        "They allow individual components to be tested, reused, and maintained independently",
+        "Bash requires them",
+        "They run faster"
+      ],
+      "correct_index": 1,
+      "explanation": "Functions create maintainable, testable, reusable code — essential for professional tooling that teams share."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Complete Bash recon script",
+    "Sample output report",
+    "Usage documentation"
+  ],
+  "mentor_notes": "Script must execute end-to-end. Check: does -h work? Does it handle missing arguments? Is the output actually useful? Code structure matters.",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "📜",
+  "mission_type": "Mandatory"
+}

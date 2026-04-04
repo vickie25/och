@@ -1,0 +1,156 @@
+{
+  "mission_id": "OB-CAP01",
+  "title": "Operation Shadow Recon",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar": "Capstone",
+  "pillar_icon": "🏆",
+  "module_number": 21,
+  "module_title": "Capstone: Full OSINT Engagement",
+  "video_duration": "10 min",
+  "mission_type": "Capstone (Optional)",
+  "estimated_time": "3-5 hours",
+  "multiday": true,
+  "deadline": "10 days",
+  "prerequisites": [
+    "All 20 mandatory Beginner missions completed",
+    "Strong passive recon skills (OB-M03)",
+    "CVE research proficiency (OB-M13)",
+    "Report writing skills (OB-M18)"
+  ],
+  "learning_objectives": [
+    "Execute a full-scale passive intelligence engagement",
+    "Synthesise multi-source OSINT into actionable intelligence",
+    "Produce an executive-ready engagement report"
+  ],
+  "key_topics": [
+    "Full OSINT engagement methodology",
+    "Multi-domain passive intelligence gathering",
+    "Personnel and social engineering surface mapping",
+    "Technology and vulnerability landscape assessment",
+    "Executive report writing",
+    "Risk rating and recommendations"
+  ],
+  "scenario": "A medium-sized financial services company in Southern Africa suspects they are being targeted. Before committing to a full engagement, they want a comprehensive passive intelligence report. Using only OSINT techniques, build a complete picture of their external attack surface, personnel exposure, and technology stack. No active scanning is permitted.",
+  "scenario_context": {
+    "setting": "Financial services company in Southern Africa under suspected targeting",
+    "challenge": "Complete passive intelligence engagement producing executive-ready output",
+    "relevance": "Financial services are the most targeted sector in Africa. OSINT-only engagements are increasingly common as a first assessment phase."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Scope Definition",
+      "description": "Define your OSINT scope: target domains, subsidiary companies, key personnel roles to investigate. Document your approach and methodology.",
+      "detailed_guidance": "Research the company publicly. Identify all domains, subsidiaries, and related entities. Define what you'll investigate and how. Create a methodology document before starting collection.",
+      "evidence_required": "OSINT scope and methodology document"
+    },
+    {
+      "number": 2,
+      "title": "Domain & Infrastructure Intelligence",
+      "description": "Perform full WHOIS, DNS, subdomain enumeration, and technology fingerprinting across all target domains.",
+      "detailed_guidance": "Apply everything from OB-M03 at scale. WHOIS all domains. Full DNS enumeration. Subdomain discovery via certificate transparency. Technology fingerprinting. Map all infrastructure.",
+      "evidence_required": "Infrastructure intelligence report with all findings"
+    },
+    {
+      "number": 3,
+      "title": "Personnel & Social Engineering Surface",
+      "description": "Map organisational structure, identify key personnel, discover email patterns, check breach databases.",
+      "detailed_guidance": "LinkedIn enumeration. Email pattern discovery. Breach database checks. Identify high-value targets (executives, IT admins, finance staff). Assess social engineering risk.",
+      "evidence_required": "Personnel exposure report"
+    },
+    {
+      "number": 4,
+      "title": "Technology Stack & Vulnerability Landscape",
+      "description": "Identify visible technologies and cross-reference with known CVEs. Assess the theoretical attack surface.",
+      "detailed_guidance": "Map all visible technologies. Cross-reference each with CVE databases. Assess: what could an attacker exploit without active scanning? What's the theoretical attack surface?",
+      "evidence_required": "Technology and vulnerability landscape assessment"
+    },
+    {
+      "number": 5,
+      "title": "Executive OSINT Report",
+      "description": "Compile a professional executive-ready report with findings, risk ratings, and recommendations.",
+      "detailed_guidance": "Professional report: Executive Summary, Methodology, Infrastructure Findings, Personnel Exposure, Technology Landscape, Risk Assessment, Recommendations. Client-ready quality.",
+      "evidence_required": "Complete OSINT engagement report (PDF)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "OSINT Methodology",
+      "weight": "20%"
+    },
+    {
+      "category": "Finding Completeness",
+      "weight": "25%"
+    },
+    {
+      "category": "Analysis Depth",
+      "weight": "20%"
+    },
+    {
+      "category": "Report Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Recommendations",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "R05",
+    "R06",
+    "R09",
+    "R20"
+  ],
+  "resources": [
+    {
+      "name": "OSINT Engagement Methodology",
+      "type": "PDF"
+    },
+    {
+      "name": "Executive Report Template",
+      "type": "Template"
+    },
+    {
+      "name": "Financial Services Target Profile",
+      "type": "Lab File"
+    },
+    {
+      "name": "OSINT Tool Collection",
+      "type": "Reference"
+    }
+  ],
+  "reflection_prompt": "Your OSINT reveals that the financial company's CEO uses the same password (found in a breach) across multiple personal and professional accounts. This information is clearly in scope. How do you handle this finding in your report?",
+  "quiz": [
+    {
+      "question": "Full OSINT engagements are valuable to clients because:",
+      "options": [
+        "They're cheaper than pentests",
+        "They reveal what any attacker can learn without triggering any defences",
+        "They guarantee finding vulnerabilities",
+        "They replace penetration testing"
+      ],
+      "correct_index": 1,
+      "explanation": "OSINT engagements show clients their external exposure from an attacker's perspective, without touching their systems or triggering alerts."
+    },
+    {
+      "question": "Personnel exposure mapping helps identify:",
+      "options": [
+        "Employee passwords",
+        "Social engineering targets and organisational knowledge that attackers can exploit",
+        "Network vulnerabilities",
+        "Physical security gaps"
+      ],
+      "correct_index": 1,
+      "explanation": "Personnel mapping reveals who attackers might target for social engineering, what roles give access to valuable systems, and what personal information is exposed."
+    }
+  ],
+  "portfolio_artifacts": [
+    "OSINT methodology document",
+    "Infrastructure intelligence report",
+    "Personnel exposure analysis",
+    "Technology landscape assessment",
+    "Executive OSINT report"
+  ],
+  "mentor_notes": "This is the capstone — evaluate as a professional deliverable. The report should be client-ready. Finding completeness and analysis depth are the primary differentiators. Methodology documentation shows professional maturity."
+}

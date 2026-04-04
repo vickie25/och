@@ -1,0 +1,163 @@
+{
+  "mission_id": "OM-M02",
+  "title": "Breaking Barriers — Modern Exploit Development",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Zero-Day Research & Development",
+  "pillar_icon": "🔬",
+  "mission_type": "Mandatory",
+  "module_number": 2,
+  "module_title": "Mitigation Bypass Mastery",
+  "video_duration": "20-22 min",
+  "estimated_time": "15-20 hrs",
+  "multiday": true,
+  "deadline": "14 days",
+  "prerequisites": [
+    "Advanced Offensive Track - Mastery Tier Access"
+  ],
+  "learning_objectives": [
+    "Data Execution Prevention (DEP) bypass techniques using ROP chains",
+    "Address Space Layout Randomization (ASLR) circumvention via information disclosure",
+    "Stack canary defeat through targeted leaks and gadget chains",
+    "Exploit reliability engineering for deployment scenarios",
+    "Comparative impact analysis of defense mechanisms",
+    "Defender recommendations for organizational hardening"
+  ],
+  "key_topics": [
+    "ROP (Return-Oriented Programming) gadget discovery",
+    "Information leak exploitation",
+    "Canary leak techniques",
+    "Multi-stage exploit development",
+    "Exploit reliability metrics",
+    "Defense evasion comparison"
+  ],
+  "scenario": "This Mastery mission requires professional-grade execution in Pan-African enterprise security operations. Challenge: Develop reliable exploits against modern memory protections (DEP, ASLR, stack canaries). Relevance: Nation-state operators target hardened African government and corporate networks",
+  "scenario_context": {
+    "setting": "Pan-African enterprise security operations",
+    "challenge": "Develop reliable exploits against modern memory protections (DEP, ASLR, stack canaries)",
+    "relevance": "Nation-state operators target hardened African government and corporate networks"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Binary 1: ROP Chain Exploit",
+      "description": "ROP-based exploit for DEP-only binary.",
+      "detailed_guidance": "Target: Binary with DEP enabled but no ASLR or canaries.\n        Approach:\n        - Discover ROP gadgets using tools (ropper, ROPgadget)\n        - Build ROP chain to execute system call or enable execution\n        - Leverage known base addresses (no ASLR)\n        - Test against multiple buffer overflow scenarios\n\n        Deliver: ROP exploit code, gadget analysis document, chain walkthrough with comments.",
+      "evidence_required": "ROP exploit + gadget analysis + chain walkthrough"
+    },
+    {
+      "number": 2,
+      "title": "Binary 2: ASLR + DEP Bypass",
+      "description": "Info leak + ROP for DEP+ASLR binary.",
+      "detailed_guidance": "Target: Binary with both DEP and ASLR enabled.\n        Approach:\n        - Discover information leak vulnerability\n        - Leak stack or heap address to defeat ASLR\n        - Combine leak with ROP chain to bypass DEP\n        - Develop multi-stage exploit\n\n        Deliver: Info leak code, ASLR defeat technique, combined ROP chain, reliability metrics.",
+      "evidence_required": "Info leak PoC + combined bypass + reliability metrics"
+    },
+    {
+      "number": 3,
+      "title": "Binary 3: Full Mitigation Bypass",
+      "description": "Bypass all three protections. May require multi-stage.",
+      "detailed_guidance": "Target: Binary with DEP, ASLR, and stack canaries.\n        Approach:\n        - Leak canary value\n        - Defeat ASLR via information disclosure\n        - Bypass DEP with ROP\n        - Potential: multi-stage approach with intermediate stage\n\n        Deliver: Complete exploit demonstrating all three bypasses with explanation.",
+      "evidence_required": "Complete exploit: canary leak + ASLR defeat + ROP"
+    },
+    {
+      "number": 4,
+      "title": "Exploit Reliability Analysis",
+      "description": "100 runs per exploit. Document success rates and failure modes.",
+      "detailed_guidance": "Test each exploit 100+ times:\n        - Document success rate percentage\n        - Identify failure modes and conditions\n        - Test on different target configurations if applicable\n        - Analyze impact of address space layout variations\n\n        Deliver: Reliability report per binary with statistical analysis and recommendations.",
+      "evidence_required": "Reliability report per exploit"
+    },
+    {
+      "number": 5,
+      "title": "Comparative Analysis",
+      "description": "Technical paper on mitigation impact on exploitation cost.",
+      "detailed_guidance": "Write 5+ page technical paper analyzing:\n        - How each mitigation affects exploitation difficulty\n        - Technical cost of bypassing each protection\n        - Interaction effects between protections\n        - Relative importance for defense strategies\n        - African enterprise deployment patterns",
+      "evidence_required": "Technical paper (5+ pages)"
+    },
+    {
+      "number": 6,
+      "title": "Defender Recommendations",
+      "description": "Additional hardening that would prevent each exploit.",
+      "detailed_guidance": "For each binary, suggest hardening:\n        - What additional protections would prevent exploitation?\n        - How would compiler flags or runtime protections help?\n        - What organizational security practices would detect this attack?\n        - Specific recommendations for African organizations using this software.",
+      "evidence_required": "Hardening recommendations per binary"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Exploit Correctness (3/3)",
+      "weight": "30%"
+    },
+    {
+      "category": "Mitigation Bypass Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Reliability Engineering",
+      "weight": "15%"
+    },
+    {
+      "category": "Technical Writing",
+      "weight": "15%"
+    },
+    {
+      "category": "Defender Value",
+      "weight": "10%"
+    },
+    {
+      "category": "Code Quality",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "RM02",
+    "RM03"
+  ],
+  "resources": [
+    {
+      "type": "Documentation",
+      "title": "OCH Mastery Reference Guide",
+      "url": "https://och.dev/mastery-reference"
+    },
+    {
+      "type": "Video",
+      "title": "Mission Overview: Breaking Barriers — Modern Exploit Development",
+      "duration": "20-22 min"
+    },
+    {
+      "type": "Tool",
+      "title": "OCH Mastery Assessment Framework",
+      "url": "https://och.dev/assessment"
+    }
+  ],
+  "reflection_prompt": "How would you prioritize mitigation bypass targets when operating against a target with all three protections? What organizational factors make some African enterprises more likely to deploy modern protections?",
+  "quiz": [
+    {
+      "question": "What is the primary advantage of using Return-Oriented Programming (ROP) gadgets when bypassing Data Execution Prevention (DEP)?",
+      "options": [
+        "ROP chains execute code from the heap, which is always executable",
+        "ROP chains reuse existing code segments (gadgets) already in process memory, avoiding the need to inject executable code",
+        "ROP chains eliminate the need for buffer overflow vulnerabilities",
+        "ROP chains work even when Address Space Layout Randomization is disabled"
+      ],
+      "correct_index": 1,
+      "explanation": "DEP prevents code execution from data regions. ROP bypasses this by chaining together short instruction sequences (gadgets) already present in executable memory (like libc, ntdll), reusing existing code rather than executing from the stack."
+    },
+    {
+      "question": "In a scenario targeting African enterprises with modern memory protections (DEP, ASLR, canaries), which technique would be the first necessary step to achieve code execution?",
+      "options": [
+        "Directly execute ROP gadgets without information gathering",
+        "Discover an information leak vulnerability to defeat ASLR and leak the stack canary",
+        "Immediately attempt stack pivoting",
+        "Rely solely on fuzzing to find all vulnerabilities"
+      ],
+      "correct_index": 1,
+      "explanation": "ASLR randomizes memory layouts, making hardcoded addresses unreliable. Canaries protect against stack overwrites. An information leak is necessary first to gather base addresses and canary values needed for successful exploitation."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Professional deliverables demonstrating mastery-level capability",
+    "Complete documentation and methodology",
+    "Evidence of technical excellence and strategic thinking",
+    "Leadership and mentorship contributions"
+  ],
+  "mentor_notes": "\nThis Mastery mission requires senior mentor review. Candidates must demonstrate:\n- Professional-grade execution and documentation\n- Deep understanding of African organizational and threat contexts\n- Strategic thinking beyond tactical execution\n- Readiness for commercial red team operations\n- Leadership potential within OCH and broader community\n\nSuccessful completion positions candidate for Mastery portfolio and professional practice.\n        "
+}

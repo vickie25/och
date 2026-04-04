@@ -1,0 +1,63 @@
+{
+  "recipe_id": "R11",
+  "title": "Subnet Calculator Shortcut",
+  "pillar": "Networking Essentials",
+  "pillar_icon": "🌐",
+  "estimated_time": "15 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Calculator",
+    "ipcalc command"
+  ],
+  "when_to_use": "When mapping network zones and understanding scope boundaries",
+  "linked_missions": [
+    "OB-M06"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Binary Conversion",
+      "instruction": "Write the IP in binary: 192.168.1.0 = 11000000.10101000.00000001.00000000",
+      "tip": "Practice converting the first octet: 192=11000000, 172=10101100, 10=00001010",
+      "expected_output": "IP in binary"
+    },
+    {
+      "number": 2,
+      "title": "Apply Subnet Mask",
+      "instruction": "Apply the subnet mask: /24 = 255.255.255.0",
+      "tip": "The mask tells you which bits are network (1s) and which are host (0s)",
+      "expected_output": "Mask applied"
+    },
+    {
+      "number": 3,
+      "title": "Network Address",
+      "instruction": "Network address: first address in range",
+      "tip": "AND the IP with the mask. All host bits become 0. This is the network identifier",
+      "expected_output": "Network address calculated"
+    },
+    {
+      "number": 4,
+      "title": "Broadcast Address",
+      "instruction": "Broadcast address: last address in range",
+      "tip": "Set all host bits to 1. This is the broadcast address for the subnet",
+      "expected_output": "Broadcast address calculated"
+    },
+    {
+      "number": 5,
+      "title": "Usable Hosts",
+      "instruction": "Usable hosts: total minus 2 (network and broadcast)",
+      "tip": "Total hosts = 2^(32-prefix) - 2. The network and broadcast addresses aren't assignable",
+      "expected_output": "Usable host count"
+    },
+    {
+      "number": 6,
+      "title": "Common Shortcuts",
+      "instruction": "Shortcut: /24 = 254 hosts, /25 = 126, /26 = 62, /27 = 30, /28 = 14",
+      "tip": "Memorise these. In the field, you'll calculate subnets constantly. Speed matters",
+      "expected_output": "Shortcut table memorised"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 6
+}

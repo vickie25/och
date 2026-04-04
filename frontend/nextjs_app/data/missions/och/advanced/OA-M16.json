@@ -1,0 +1,145 @@
+{
+  "mission_id": "OA-M16",
+  "title": "Breach the Perimeter",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Wireless & Physical",
+  "pillar_icon": "\ud83d\udcf6",
+  "mission_type": "Mandatory",
+  "module_number": 16,
+  "module_title": "Module 16: Breach the Perimeter",
+  "video_duration": "15-20 min",
+  "estimated_time": "4-5 hrs",
+  "multiday": false,
+  "deadline": "\u2014",
+  "prerequisites": [
+    "Intermediate Offensive Track",
+    "Core Cybersecurity Fundamentals"
+  ],
+  "learning_objectives": [
+    "Analyze software supply chain attack vectors",
+    "Develop supply chain compromise techniques",
+    "Create malicious updates or packages",
+    "Distribute compromised software to target organization",
+    "Document supply chain attack impact"
+  ],
+  "key_topics": [
+    "Wireless security (Wi-Fi, Bluetooth, cellular)",
+    "Physical security assessment",
+    "Credential acquisition from physical access",
+    "Badge cloning and access control bypass",
+    "Physical+wireless+network attack chains"
+  ],
+  "scenario": "Scenario Design physical security assessment and social engineering campaign for 500-person corporate office. Planning exercise only. Subtasks Scoring Rubric Linked Recipes: RA21, RA22 ________________________________________________________________________________ 3.9 Adversary Emulation",
+  "scenario_context": {
+    "setting": "Ouagadougou, Burkina Faso, African Union strategic partner",
+    "challenge": "Execute supply chain attack affecting African Union strategic partner in Ouagadougou, Burkina Faso",
+    "relevance": "Reflects real-world African enterprise security challenges and red team operations across the continent"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Physical Recon Plan",
+      "description": "Methodology: what to observe, how, documentation.",
+      "evidence": "Physical recon plan with checklist",
+      "detailed_guidance": "Begin by thoroughly reviewing the scenario and understanding all objectives. Document your approach before execution. This is the foundational subtask that enables all following work.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Physical recon plan with checklist"
+    },
+    {
+      "number": 2,
+      "title": "Social Engineering Campaign",
+      "description": "3 SE scenarios: vishing, in-person pretext, digital SE.",
+      "evidence": "3 SE scenario documents with scripts",
+      "detailed_guidance": "Conduct systematic reconnaissance and information gathering. Map the target network, identify services, and document all findings with evidence.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "3 SE scenario documents with scripts"
+    },
+    {
+      "number": 3,
+      "title": "USB Drop Campaign Design",
+      "description": "Payload, placement strategy, tracking mechanism.",
+      "evidence": "USB drop campaign plan",
+      "detailed_guidance": "Analyze vulnerabilities discovered in reconnaissance. Validate each vulnerability through testing and document the exploitation path.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "USB drop campaign plan"
+    },
+    {
+      "number": 4,
+      "title": "Combined Attack Path",
+      "description": "Physical access + digital exploitation combined.",
+      "evidence": "Combined attack path diagram",
+      "detailed_guidance": "Execute the exploitation with careful attention to OPSEC and evasion. Maintain detailed logs of all actions for evidence and reporting.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Combined attack path diagram"
+    },
+    {
+      "number": 5,
+      "title": "Assessment Report Template",
+      "description": "Physical security report template with scoring.",
+      "evidence": "Physical security report template",
+      "detailed_guidance": "Establish persistence mechanisms that survive system reboots and will maintain access throughout the engagement.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Physical security report template"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Reconnaissance Planning",
+      "weight": "20%"
+    },
+    {
+      "category": "SE Campaign Creativity",
+      "weight": "25%"
+    },
+    {
+      "category": "Combined Attack Design",
+      "weight": "20%"
+    },
+    {
+      "category": "Safety & Ethics",
+      "weight": "20%"
+    },
+    {
+      "category": "Report Quality",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "Breach the Perimeter"
+  ],
+  "resources": [
+    "OCH Advanced Wireless & Physical Toolkit",
+    "Engagement Framework Documentation",
+    "OPSEC Guidelines",
+    "Reporting Templates",
+    "Mentor Support Channel"
+  ],
+  "reflection_prompt": "",
+  "quiz": [
+    {
+      "question": "What is the primary objective of OA-M16?",
+      "options": [
+        "To test defensive capabilities",
+        "To simulate a real-world attack scenario",
+        "To achieve the specified mission goals within the engagement scope",
+        "All of the above"
+      ],
+      "correct_index": 2,
+      "explanation": "The mission objectives define the success criteria for this engagement."
+    },
+    {
+      "question": "What should be the first step when beginning this mission?",
+      "options": [
+        "Immediately execute exploits",
+        "Deploy all available tools",
+        "Thoroughly review scenario, objectives, and engagement scope",
+        "Contact the target organization"
+      ],
+      "correct_index": 2,
+      "explanation": "Understanding the engagement scope and objectives is critical before execution."
+    }
+  ],
+  "portfolio_artifacts": [
+    "OA-M16_engagement_plan.md",
+    "OA-M16_evidence_log.txt",
+    "OA-M16_technical_report.md",
+    "OA-M16_client_presentation.pdf"
+  ],
+  "mentor_notes": "For OA-M16 - Breach the Perimeter: Ensure learner demonstrates proper OPSEC, evidence collection, and professional reporting. This mission is designed to build wireless & physical expertise. Coordinate with blue team for detection validation where applicable."
+}

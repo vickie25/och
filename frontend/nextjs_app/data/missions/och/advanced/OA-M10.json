@@ -1,0 +1,157 @@
+{
+  "mission_id": "OA-M10",
+  "title": "Container Breakout",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Cloud & Container Attacks",
+  "pillar_icon": "\u2601\ufe0f",
+  "mission_type": "Mandatory",
+  "module_number": 10,
+  "module_title": "Module 10: Container Breakout",
+  "video_duration": "15-20 min",
+  "estimated_time": "6-8 hrs",
+  "multiday": true,
+  "deadline": "5 days",
+  "prerequisites": [
+    "Intermediate Offensive Track",
+    "Core Cybersecurity Fundamentals"
+  ],
+  "learning_objectives": [
+    "Understand container security architecture",
+    "Exploit container escape vulnerabilities",
+    "Compromise orchestration platforms (Kubernetes)",
+    "Establish persistence in containerized environments",
+    "Create detection evasion for container attacks"
+  ],
+  "key_topics": [
+    "Cloud infrastructure (AWS, Azure, GCP) enumeration",
+    "IAM policy exploitation and privilege escalation",
+    "Container and Kubernetes security",
+    "Cloud data exfiltration techniques",
+    "Cloud persistence mechanisms"
+  ],
+  "scenario": "Scenario Exploited web app landed you in a container within Kubernetes. Escape to host or pivot across the cluster. Subtasks Scoring Rubric Linked Recipes: RA13, RA14 ________________________________________________________________________________ 3.6 Command & Control",
+  "scenario_context": {
+    "setting": "Algiers, Algeria, continental blockchain initiative",
+    "challenge": "Escape containerized environment at continental blockchain initiative's Algiers, Algeria Kubernetes cluster",
+    "relevance": "Reflects real-world African enterprise security challenges and red team operations across the continent"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Container Assessment",
+      "description": "Determine runtime, capabilities, volumes, network.",
+      "evidence": "Container assessment + escape vector analysis",
+      "detailed_guidance": "Begin by thoroughly reviewing the scenario and understanding all objectives. Document your approach before execution. This is the foundational subtask that enables all following work.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Container assessment + escape vector analysis"
+    },
+    {
+      "number": 2,
+      "title": "Container Escape",
+      "description": "Escape to host or gain host-level access.",
+      "evidence": "Escape evidence + technique docs",
+      "detailed_guidance": "Conduct systematic reconnaissance and information gathering. Map the target network, identify services, and document all findings with evidence.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Escape evidence + technique docs"
+    },
+    {
+      "number": 3,
+      "title": "Kubernetes Enumeration",
+      "description": "Namespaces, pods, services, RBAC.",
+      "evidence": "K8s enumeration + attack path identification",
+      "detailed_guidance": "Analyze vulnerabilities discovered in reconnaissance. Validate each vulnerability through testing and document the exploitation path.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "K8s enumeration + attack path identification"
+    },
+    {
+      "number": 4,
+      "title": "Secret Extraction",
+      "description": "Access Kubernetes secrets across namespaces.",
+      "evidence": "Extracted secrets inventory (redacted)",
+      "detailed_guidance": "Execute the exploitation with careful attention to OPSEC and evasion. Maintain detailed logs of all actions for evidence and reporting.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Extracted secrets inventory (redacted)"
+    },
+    {
+      "number": 5,
+      "title": "Cluster Compromise",
+      "description": "Cluster-admin access or critical workload compromise.",
+      "evidence": "Cluster compromise evidence + chain",
+      "detailed_guidance": "Establish persistence mechanisms that survive system reboots and will maintain access throughout the engagement.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Cluster compromise evidence + chain"
+    },
+    {
+      "number": 6,
+      "title": "Container Security Assessment",
+      "description": "Assessment with CIS Benchmark references.",
+      "evidence": "Container security assessment report",
+      "detailed_guidance": "Perform privilege escalation and lateral movement to achieve the mission objectives. Document each pivot point.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Container security assessment report"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Container Escape",
+      "weight": "20%"
+    },
+    {
+      "category": "K8s Enumeration",
+      "weight": "15%"
+    },
+    {
+      "category": "Cluster Compromise",
+      "weight": "20%"
+    },
+    {
+      "category": "Attack Chain Documentation",
+      "weight": "15%"
+    },
+    {
+      "category": "Assessment Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Hardening Recommendations",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "Container Breakout"
+  ],
+  "resources": [
+    "OCH Advanced Cloud & Container Attacks Toolkit",
+    "Engagement Framework Documentation",
+    "OPSEC Guidelines",
+    "Reporting Templates",
+    "Mentor Support Channel"
+  ],
+  "reflection_prompt": "",
+  "quiz": [
+    {
+      "question": "What is the primary objective of OA-M10?",
+      "options": [
+        "To test defensive capabilities",
+        "To simulate a real-world attack scenario",
+        "To achieve the specified mission goals within the engagement scope",
+        "All of the above"
+      ],
+      "correct_index": 2,
+      "explanation": "The mission objectives define the success criteria for this engagement."
+    },
+    {
+      "question": "What should be the first step when beginning this mission?",
+      "options": [
+        "Immediately execute exploits",
+        "Deploy all available tools",
+        "Thoroughly review scenario, objectives, and engagement scope",
+        "Contact the target organization"
+      ],
+      "correct_index": 2,
+      "explanation": "Understanding the engagement scope and objectives is critical before execution."
+    }
+  ],
+  "portfolio_artifacts": [
+    "OA-M10_engagement_plan.md",
+    "OA-M10_evidence_log.txt",
+    "OA-M10_technical_report.md",
+    "OA-M10_client_presentation.pdf"
+  ],
+  "mentor_notes": "For OA-M10 - Container Breakout: Ensure learner demonstrates proper OPSEC, evidence collection, and professional reporting. This mission is designed to build cloud & container attacks expertise. Coordinate with blue team for detection validation where applicable."
+}

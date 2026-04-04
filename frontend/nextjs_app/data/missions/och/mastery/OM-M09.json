@@ -1,0 +1,166 @@
+{
+  "mission_id": "OM-M09",
+  "title": "Mobile-First Africa — Comprehensive Mobile Assessment",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Specialist Domains",
+  "pillar_icon": "🎯",
+  "mission_type": "Mandatory",
+  "module_number": 9,
+  "module_title": "Mobile & Embedded Security",
+  "video_duration": "20-23 min",
+  "estimated_time": "12-15 hrs",
+  "multiday": true,
+  "deadline": "10 days",
+  "prerequisites": [
+    "Advanced Offensive Track - Mastery Tier Access"
+  ],
+  "learning_objectives": [
+    "Android security assessment: static analysis, dynamic debugging, Frida runtime instrumentation",
+    "iOS security assessment: binary analysis, keychain, transport security vulnerabilities",
+    "Mobile API assessment covering BOLA, IDOR, authentication flaws",
+    "USSD security analysis for feature phone fallbacks",
+    "IoT kiosk assessment: firmware analysis, network communications, physical security",
+    "Cross-platform attack chain development",
+    "African mobile banking impact assessment"
+  ],
+  "key_topics": [
+    "Android security testing",
+    "iOS binary analysis",
+    "Mobile API security",
+    "USSD protocols and attacks",
+    "IoT firmware analysis",
+    "Cross-platform chains",
+    "Financial app assessment",
+    "African mobile ecosystem"
+  ],
+  "scenario": "This Mastery mission requires professional-grade execution in Pan-African mobile fintech platform serving unbanked populations. Challenge: Comprehensive assessment spanning Android, iOS, USSD fallback, IoT ATM kiosks, and backend APIs. Relevance: African mobile-first services (M-Pesa, banking, healthcare) represent critical attack surface; unique threat vectors",
+  "scenario_context": {
+    "setting": "Pan-African mobile fintech platform serving unbanked populations",
+    "challenge": "Comprehensive assessment spanning Android, iOS, USSD fallback, IoT ATM kiosks, and backend APIs",
+    "relevance": "African mobile-first services (M-Pesa, banking, healthcare) represent critical attack surface; unique threat vectors"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Android Assessment",
+      "description": "Full security assessment: static, dynamic, runtime (Frida).",
+      "detailed_guidance": "Comprehensive Android evaluation:\n        - Static analysis: Reverse engineering APK\n        - Dynamic analysis: App behavior at runtime\n        - Frida runtime instrumentation: Bypass protections\n        - API assessment: Backend API security\n\n        Deliver: Android report with Frida techniques and findings.",
+      "evidence_required": "Android report with Frida bypass + API findings"
+    },
+    {
+      "number": 2,
+      "title": "iOS Assessment",
+      "description": "Binary analysis, keychain storage, transport security.",
+      "detailed_guidance": "Comprehensive iOS evaluation:\n        - Binary analysis: Reverse engineering compiled app\n        - Keychain analysis: Credential storage security\n        - Transport security: HTTPS/certificate pinning\n        - API assessment: Backend API security\n\n        Deliver: iOS report with platform-specific findings.",
+      "evidence_required": "iOS report with platform-specific findings"
+    },
+    {
+      "number": 3,
+      "title": "Mobile API Assessment",
+      "description": "All backend APIs from mobile apps.",
+      "detailed_guidance": "Evaluate backend APIs from mobile apps:\n        - Authentication: Can you bypass auth?\n        - BOLA (Broken Object Level Access): Can you access others' data?\n        - IDOR (Insecure Direct Object References): ID enumeration\n        - Business logic: Rate limiting, transaction limits\n\n        Deliver: API assessment with exploitation evidence.",
+      "evidence_required": "API assessment with BOLA/IDOR + auth findings"
+    },
+    {
+      "number": 4,
+      "title": "USSD Security Analysis",
+      "description": "Session management, input validation, overlay potential.",
+      "detailed_guidance": "Analyze USSD protocols (feature phone fallback):\n        - Session management: How are sessions tracked?\n        - Input validation: Injection vulnerabilities?\n        - Overlay attacks: Can USSD be overlaid by attacker?\n        - SMS interception: Risk of SMS OTP interception\n\n        Deliver: USSD analysis with threat modeling.",
+      "evidence_required": "USSD analysis with threat model"
+    },
+    {
+      "number": 5,
+      "title": "IoT Kiosk Assessment",
+      "description": "Firmware analysis, network comms, physical security.",
+      "detailed_guidance": "Evaluate ATM/kiosk infrastructure:\n        - Firmware analysis: Extract and analyze firmware\n        - Network communications: Protocol analysis\n        - Physical security: Tamper protections\n        - Credential storage: Keys, PINs, certificates\n\n        Deliver: IoT assessment with firmware findings.",
+      "evidence_required": "IoT report with firmware + comm findings"
+    },
+    {
+      "number": 6,
+      "title": "Unified Security Report",
+      "description": "All attack surfaces with African mobile banking impact.",
+      "detailed_guidance": "Create comprehensive 20+ page report:\n        - Executive summary: Key findings and risk\n        - Android findings: App and API issues\n        - iOS findings: App and API issues\n        - USSD findings: Protocol security issues\n        - IoT findings: Firmware and hardware issues\n        - Cross-platform attack chains: Multi-surface exploitation\n        - Impact on African fintech: Business risk\n\n        Deliver: Professional assessment report (20+ pages).",
+      "evidence_required": "Unified report (20+ pages) with cross-platform chains"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Android Assessment",
+      "weight": "15%"
+    },
+    {
+      "category": "iOS Assessment",
+      "weight": "15%"
+    },
+    {
+      "category": "API Assessment",
+      "weight": "15%"
+    },
+    {
+      "category": "USSD Analysis",
+      "weight": "15%"
+    },
+    {
+      "category": "IoT Assessment",
+      "weight": "15%"
+    },
+    {
+      "category": "Report & Business Impact",
+      "weight": "25%"
+    }
+  ],
+  "linked_recipes": [
+    "RM11",
+    "RM12"
+  ],
+  "resources": [
+    {
+      "type": "Documentation",
+      "title": "OCH Mastery Reference Guide",
+      "url": "https://och.dev/mastery-reference"
+    },
+    {
+      "type": "Video",
+      "title": "Mission Overview: Mobile-First Africa — Comprehensive Mobile Assessment",
+      "duration": "20-23 min"
+    },
+    {
+      "type": "Tool",
+      "title": "OCH Mastery Assessment Framework",
+      "url": "https://och.dev/assessment"
+    }
+  ],
+  "reflection_prompt": "How does targeting African mobile platforms differ from North American app assessment? What unique attack vectors exist in USSD-based services unavailable in developed markets?",
+  "quiz": [
+    {
+      "question": "In comprehensive mobile security assessment for African fintech platforms, why must you assess both Android and iOS applications?",
+      "options": [
+        "iOS is more secure, so only Android assessment is necessary",
+        "Each platform has distinct security models, vulnerabilities, and storage mechanisms—a complete assessment requires evaluating both independently",
+        "Mobile assessment is not necessary for fintech",
+        "You can assess either platform and the findings apply to both"
+      ],
+      "correct_index": 1,
+      "explanation": "iOS and Android have fundamentally different security architectures, storage mechanisms, and vulnerability classes. A comprehensive assessment requires platform-specific expertise for each. African fintech users often use both platforms, requiring coverage of both attack surfaces."
+    },
+    {
+      "question": "What makes USSD security analysis unique and critical in African mobile financial services assessment?",
+      "options": [
+        "USSD is only used in developed countries",
+        "USSD provides feature phone access to financial services without internet; assessment must cover session management, injection, and overlay attack vectors",
+        "USSD security is not important",
+        "USSD has no security vulnerabilities"
+      ],
+      "correct_index": 1,
+      "explanation": "USSD is the primary financial service channel for African feature phone users. USSD vulnerabilities can impact millions. Assessment must cover protocol security, overlay attacks, and session management—threat vectors unique to USSD and African mobile infrastructure."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Professional deliverables demonstrating mastery-level capability",
+    "Complete documentation and methodology",
+    "Evidence of technical excellence and strategic thinking",
+    "Leadership and mentorship contributions"
+  ],
+  "mentor_notes": "\nThis Mastery mission requires senior mentor review. Candidates must demonstrate:\n- Professional-grade execution and documentation\n- Deep understanding of African organizational and threat contexts\n- Strategic thinking beyond tactical execution\n- Readiness for commercial red team operations\n- Leadership potential within OCH and broader community\n\nSuccessful completion positions candidate for Mastery portfolio and professional practice.\n        "
+}

@@ -1,0 +1,65 @@
+{
+  "recipe_id": "RI17",
+  "title": "Pivoting Quick Reference",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Post-Exploitation Basics",
+  "pillar_icon": "\ud83d\udd13",
+  "estimated_time": "20 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "SSH",
+    "proxychains",
+    "CrackMapExec"
+  ],
+  "when_to_use": "When compromised host reaches networks you cannot",
+  "linked_missions": [
+    "OI-M11",
+    "OI-M12"
+  ],
+  "step_count": 6,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Set up SSH local port forwarding to access services behind compromised host",
+      "tip": "Start with the most reliable information source for pivoting quick reference",
+      "expected_output": "Accessible local port forwarding SSH connections to internal services"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Create dynamic SSH tunnel (SOCKS proxy) for routing arbitrary traffic through pivot",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "Functional SOCKS proxy enabling access to internal networks"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Use proxychains to route scanning tools through established pivot tunnels",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Successful network scanning through proxychains via compromised host"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Implement pass-the-hash attacks using pth-winexe for Windows lateral movement",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Command execution on Windows systems using stolen NTLM hashes"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Use CrackMapExec for SMB enumeration and exploitation across internal networks",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Enumerated SMB services and compromised additional systems via credentials"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Document every pivot action with timestamps for attack chain documentation",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Comprehensive log of all pivoting activities and system access timeline"
+    }
+  ]
+}

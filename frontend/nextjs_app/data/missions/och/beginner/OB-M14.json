@@ -1,0 +1,136 @@
+{
+  "mission_id": "OB-M14",
+  "title": "Enumeration Deep Dive",
+  "pillar": "Vulnerability Concepts",
+  "module_number": 14,
+  "module_title": "Service Enumeration Methodology",
+  "video_duration": "18 min",
+  "estimated_time": "1.5 hours",
+  "multiday": false,
+  "deadline": "5 days",
+  "prerequisites": [
+    "OB-M04 (scanning basics)",
+    "Nmap, Nikto, Gobuster installed",
+    "Lab network with 3 target hosts"
+  ],
+  "learning_objectives": [
+    "Perform comprehensive service enumeration across multiple hosts",
+    "Apply service-specific enumeration techniques",
+    "Produce structured attack surface analysis"
+  ],
+  "key_topics": [
+    "Multi-host enumeration",
+    "Service-specific techniques (HTTP, SMB, FTP, SSH, DNS)",
+    "Directory enumeration with Gobuster/Nikto",
+    "Banner grabbing and version detection",
+    "Attack surface mapping"
+  ],
+  "scenario": "You have been given access to a lab network with 3 hosts. Your mission: perform thorough enumeration of each host. Discover everything you can about ports, services, versions, OS, shares, and web directories, all without exploitation.",
+  "scenario_context": {
+    "setting": "Lab network with 3 diverse target hosts",
+    "challenge": "Comprehensive enumeration demonstrating methodology",
+    "relevance": "Thorough enumeration is what separates a methodical professional from a random scanner. Every service discovered is a potential attack vector."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Port Discovery",
+      "description": "Scan all 3 hosts using at least 2 scanning techniques. Compare results and document all port states.",
+      "detailed_guidance": "Use SYN scan and connect scan. Compare results. Note any differences — they reveal firewall behaviour. Document open, closed, and filtered ports.",
+      "evidence_required": "Scan results from both techniques plus comparison notes"
+    },
+    {
+      "number": 2,
+      "title": "Service Enumeration",
+      "description": "For every open port, determine exact service and version using banner grabbing and service probes.",
+      "detailed_guidance": "Use nmap -sV for version detection. Manually banner-grab with netcat where possible. Note default configurations, outdated versions, and unusual services.",
+      "evidence_required": "Service enumeration table: host, port, service, version"
+    },
+    {
+      "number": 3,
+      "title": "Web Directory Enumeration",
+      "description": "For any web servers found, perform directory enumeration. Document discovered paths, status codes, and interesting files.",
+      "detailed_guidance": "Use Gobuster with a common wordlist. Check robots.txt manually. Note interesting directories: admin panels, backup files, config files. Record status codes.",
+      "evidence_required": "Directory enumeration results with analysis"
+    },
+    {
+      "number": 4,
+      "title": "Enumeration Summary",
+      "description": "Create a comprehensive report covering all 3 hosts with attack surface analysis.",
+      "detailed_guidance": "For each host: summary of services, potential vulnerabilities (based on versions), interesting findings. Include an attack surface map showing the most promising vectors.",
+      "evidence_required": "Complete enumeration report with attack surface map"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Scanning Methodology",
+      "weight": "20%"
+    },
+    {
+      "category": "Enumeration Completeness",
+      "weight": "30%"
+    },
+    {
+      "category": "Analysis Quality",
+      "weight": "25%"
+    },
+    {
+      "category": "Report Structure",
+      "weight": "25%"
+    }
+  ],
+  "linked_recipes": [
+    "R07",
+    "R22"
+  ],
+  "resources": [
+    {
+      "name": "Enumeration Methodology Flowchart",
+      "type": "PDF"
+    },
+    {
+      "name": "Common Wordlists",
+      "type": "Lab File"
+    },
+    {
+      "name": "Service Enumeration Cheat Sheet",
+      "type": "Document"
+    }
+  ],
+  "reflection_prompt": "One of the hosts is running a service you've never seen before on port 8888. Describe your methodology for identifying and researching an unknown service.",
+  "quiz": [
+    {
+      "question": "Comparing SYN and connect scan results is useful because:",
+      "options": [
+        "One is faster",
+        "Differences reveal firewall rules and filtering behaviour",
+        "Connect scans are more accurate",
+        "SYN scans require root"
+      ],
+      "correct_index": 1,
+      "explanation": "Firewalls may treat SYN and full connect differently. Comparing results reveals filtering rules."
+    },
+    {
+      "question": "Directory enumeration with Gobuster finds:",
+      "options": [
+        "Hidden files on disk",
+        "Web paths and files that aren't linked from the main site",
+        "Database passwords",
+        "Network shares"
+      ],
+      "correct_index": 1,
+      "explanation": "Gobuster brute-forces web paths using wordlists, discovering admin panels, backup files, and other unlisted content."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Multi-host scan comparison",
+    "Service enumeration matrix",
+    "Web directory findings",
+    "Attack surface report"
+  ],
+  "mentor_notes": "Completeness is critical. A submission that misses a major service on any host should lose significant points. The attack surface analysis shows strategic thinking.",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "🔓",
+  "mission_type": "Mandatory"
+}

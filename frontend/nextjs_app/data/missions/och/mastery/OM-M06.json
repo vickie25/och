@@ -1,0 +1,166 @@
+{
+  "mission_id": "OM-M06",
+  "title": "Continental Operations — Infrastructure at Scale",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Adversary Infrastructure at Scale",
+  "pillar_icon": "🌍",
+  "mission_type": "Mandatory",
+  "module_number": 6,
+  "module_title": "Multi-Region Cloud Ops",
+  "video_duration": "20-22 min",
+  "estimated_time": "12-15 hrs",
+  "multiday": true,
+  "deadline": "10 days",
+  "prerequisites": [
+    "Advanced Offensive Track - Mastery Tier Access"
+  ],
+  "learning_objectives": [
+    "Multi-region infrastructure architecture with engagement isolation",
+    "Terraform module development for IaC best practices",
+    "Automated domain and certificate management",
+    "Health monitoring and infrastructure burn detection",
+    "Rapid burn-and-rebuild procedures",
+    "African cloud provider cost analysis and selection",
+    "Infrastructure OPSEC for regional operations"
+  ],
+  "key_topics": [
+    "Infrastructure as Code (Terraform)",
+    "Multi-region deployment patterns",
+    "Cloud provider comparison",
+    "Cost optimization strategies",
+    "Automated domain management",
+    "Monitoring and alerting",
+    "Infrastructure burn procedures",
+    "African cloud ecosystem"
+  ],
+  "scenario": "This Mastery mission requires professional-grade execution in Southern and East African multi-engagement red team operations. Challenge: Build automation-first infrastructure supporting 3 simultaneous engagements across regions with complete isolation. Relevance: Pan-African red team operations require cloud cost optimization and rapid infrastructure deployment",
+  "scenario_context": {
+    "setting": "Southern and East African multi-engagement red team operations",
+    "challenge": "Build automation-first infrastructure supporting 3 simultaneous engagements across regions with complete isolation",
+    "relevance": "Pan-African red team operations require cloud cost optimization and rapid infrastructure deployment"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Architecture Design",
+      "description": "Multi-region infrastructure with engagement isolation.",
+      "detailed_guidance": "Design multi-region infrastructure:\n        - Team server placement: Where to host command and control?\n        - Redirectors: How to proxy traffic through multiple layers?\n        - Engagement isolation: How to separate 3 concurrent operations?\n        - Network isolation: How to prevent cross-engagement contamination?\n\n        Deliver: Architecture document with network diagrams.",
+      "evidence_required": "Architecture with network diagrams + isolation model"
+    },
+    {
+      "number": 2,
+      "title": "Terraform Modules",
+      "description": "Modules: team server, HTTP redirector, DNS redirector, monitoring.",
+      "detailed_guidance": "Develop Terraform modules:\n        - Team server module: Deploy C2 infrastructure\n        - HTTP redirector: Deploy HTTP/HTTPS redirector\n        - DNS redirector: Deploy DNS redirector\n        - Monitoring: Deploy monitoring and alerting\n\n        Deliver: Terraform code, variables, output documentation.",
+      "evidence_required": "Terraform code for multi-region deployment"
+    },
+    {
+      "number": 3,
+      "title": "Domain & Certificate Automation",
+      "description": "Automated domain config and cert management.",
+      "detailed_guidance": "Implement automation:\n        - Domain registration and DNS configuration\n        - SSL certificate provisioning (Let's Encrypt)\n        - Automated renewal and rotation\n        - Integration with infrastructure-as-code\n\n        Deliver: Automation scripts, API integrations, deployment demo.",
+      "evidence_required": "Automation scripts + deployment demo"
+    },
+    {
+      "number": 4,
+      "title": "Monitoring & Alerting",
+      "description": "Health monitoring and burn detection alerting.",
+      "detailed_guidance": "Implement operational monitoring:\n        - Health checks: Is infrastructure responding?\n        - Burn detection: Are redirectors being burned/detected?\n        - Alerting: Notify on infrastructure issues\n        - Metrics: Track uptime and performance\n\n        Deliver: Monitoring configuration, alert examples.",
+      "evidence_required": "Monitoring config + simulated burn alert"
+    },
+    {
+      "number": 5,
+      "title": "Burn & Rebuild Procedure",
+      "description": "Test complete burn-and-rebuild. Measure time.",
+      "detailed_guidance": "Test complete incident response:\n        - Execute full burn procedure: shutdown, decommission, cleanup\n        - Rebuild from scratch using Terraform\n        - Measure time to recovery\n        - Document lessons learned\n\n        Deliver: Burn procedure documentation, timed rebuild evidence.",
+      "evidence_required": "Burn procedure + timed rebuild demo"
+    },
+    {
+      "number": 6,
+      "title": "Cost Analysis",
+      "description": "Compare African cloud providers. Optimise budget.",
+      "detailed_guidance": "Analyze cloud provider options:\n        - Compare: AWS, Azure, Google Cloud in African regions\n        - Cost: Compute, bandwidth, data transfer\n        - Coverage: Which regions support your operations?\n        - Optimization: How to minimize costs?\n\n        Deliver: Cost analysis comparing providers with recommendations.",
+      "evidence_required": "Cost analysis with provider comparison"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Architecture Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Terraform Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Automation Completeness",
+      "weight": "15%"
+    },
+    {
+      "category": "Burn/Rebuild Speed",
+      "weight": "15%"
+    },
+    {
+      "category": "Cost Optimization",
+      "weight": "15%"
+    },
+    {
+      "category": "Africa-Specific Considerations",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "RM07",
+    "RM08"
+  ],
+  "resources": [
+    {
+      "type": "Documentation",
+      "title": "OCH Mastery Reference Guide",
+      "url": "https://och.dev/mastery-reference"
+    },
+    {
+      "type": "Video",
+      "title": "Mission Overview: Continental Operations — Infrastructure at Scale",
+      "duration": "20-22 min"
+    },
+    {
+      "type": "Tool",
+      "title": "OCH Mastery Assessment Framework",
+      "url": "https://och.dev/assessment"
+    }
+  ],
+  "reflection_prompt": "Which African cloud providers offer the best combination of coverage, cost, and OPSEC for regional operations? How would you architect infrastructure to support parallel assessments in Nigeria, Kenya, and South Africa?",
+  "quiz": [
+    {
+      "question": "When designing multi-region infrastructure for concurrent red team engagements across Southern Africa, what is the primary purpose of engagement isolation?",
+      "options": [
+        "To make deployments slower",
+        "To prevent compromise of one engagement from affecting other engagements or exposing the team's operational presence",
+        "To reduce the number of clients you can serve",
+        "Isolation is not necessary if you use the same infrastructure"
+      ],
+      "correct_index": 1,
+      "explanation": "Engagement isolation ensures that if one target detects and compromises your infrastructure, the other engagements remain unaffected. This protects your team's operational presence and prevents cross-contamination between sensitive client assessments."
+    },
+    {
+      "question": "In terms of burn-and-rebuild procedures for African cloud operations, what metric indicates your infrastructure automation is mature?",
+      "options": [
+        "The infrastructure can be rebuilt in 1 minute",
+        "You can completely burn and rebuild infrastructure within 30 minutes with minimal manual steps",
+        "Rebuilding takes exactly 24 hours",
+        "You don't need burn procedures if your infrastructure is expensive"
+      ],
+      "correct_index": 1,
+      "explanation": "Infrastructure-as-code maturity means you can redeploy everything automatically after compromise. The ability to execute complete burn-and-rebuild within 30 minutes provides operational resilience and allows teams to respond quickly to discovered infrastructure compromises."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Professional deliverables demonstrating mastery-level capability",
+    "Complete documentation and methodology",
+    "Evidence of technical excellence and strategic thinking",
+    "Leadership and mentorship contributions"
+  ],
+  "mentor_notes": "\nThis Mastery mission requires senior mentor review. Candidates must demonstrate:\n- Professional-grade execution and documentation\n- Deep understanding of African organizational and threat contexts\n- Strategic thinking beyond tactical execution\n- Readiness for commercial red team operations\n- Leadership potential within OCH and broader community\n\nSuccessful completion positions candidate for Mastery portfolio and professional practice.\n        "
+}

@@ -1,0 +1,202 @@
+{
+  "mission_id": "OA-M19",
+  "title": "Operation Crimson \u2014 Full Red Team Engagement",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Professional Operations",
+  "pillar_icon": "\ud83d\udccb",
+  "mission_type": "Capstone",
+  "module_number": 19,
+  "module_title": "Module 19: Operation Crimson \u2014 Full Red Team Engagement",
+  "video_duration": "15-20 min",
+  "estimated_time": "20+ hrs",
+  "multiday": true,
+  "deadline": "14 days",
+  "prerequisites": [
+    "Intermediate Offensive Track",
+    "Core Cybersecurity Fundamentals"
+  ],
+  "learning_objectives": [
+    "Execute coordinated 14-day multi-stage attack",
+    "Manage complex, long-duration engagement",
+    "Maintain persistence through detection evasion",
+    "Achieve strategic objectives (data theft, sabotage, espionage)",
+    "Produce professional red team engagement report",
+    "Conduct formal debrief with stakeholders"
+  ],
+  "key_topics": [
+    "Engagement planning and client management",
+    "Red team reporting standards",
+    "Incident response simulation",
+    "Remediation and post-engagement support",
+    "Professional communication and debrief"
+  ],
+  "scenario": "Scenario Pan-African Insurance Group (PAIG): 2,000 employees, 4 countries, on-prem AD, Azure cloud, customer web portal. Could a determined adversary steal policyholder data? 14 days. Subtasks Scoring Rubric Linked Recipes: RA02, RA09, RA15, RA25 ________________________________________________________________________________",
+  "scenario_context": {
+    "setting": "Windhoek, Namibia, African digital commerce platform",
+    "challenge": "Execute coordinated 14-day breach simulation for African digital commerce platform in Windhoek, Namibia",
+    "relevance": "Reflects real-world African enterprise security challenges and red team operations across the continent"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Threat Model & Op Plan",
+      "description": "Complete threat model, operational plan, ROE.",
+      "evidence": "Threat model + op plan + ROE (12+ pages)",
+      "detailed_guidance": "Begin by thoroughly reviewing the scenario and understanding all objectives. Document your approach before execution. This is the foundational subtask that enables all following work.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Threat model + op plan + ROE (12+ pages)"
+    },
+    {
+      "number": 2,
+      "title": "Recon & Initial Access",
+      "description": "Comprehensive recon. Achieve initial access.",
+      "evidence": "Recon report + initial access evidence",
+      "detailed_guidance": "Conduct systematic reconnaissance and information gathering. Map the target network, identify services, and document all findings with evidence.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Recon report + initial access evidence"
+    },
+    {
+      "number": 3,
+      "title": "C2 & Post-Exploitation",
+      "description": "Persistent C2. Thorough post-exploitation.",
+      "evidence": "C2 architecture + post-exploitation findings",
+      "detailed_guidance": "Analyze vulnerabilities discovered in reconnaissance. Validate each vulnerability through testing and document the exploitation path.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "C2 architecture + post-exploitation findings"
+    },
+    {
+      "number": 4,
+      "title": "Lateral Movement & Escalation",
+      "description": "Initial foothold to domain-level access.",
+      "evidence": "Attack chain with evidence at each pivot",
+      "detailed_guidance": "Execute the exploitation with careful attention to OPSEC and evasion. Maintain detailed logs of all actions for evidence and reporting.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Attack chain with evidence at each pivot"
+    },
+    {
+      "number": 5,
+      "title": "Objective Completion",
+      "description": "Access policyholder data. Exfiltrate proof.",
+      "evidence": "Objective evidence + exfiltration docs",
+      "detailed_guidance": "Establish persistence mechanisms that survive system reboots and will maintain access throughout the engagement.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Objective evidence + exfiltration docs"
+    },
+    {
+      "number": 6,
+      "title": "Cloud Assessment",
+      "description": "Assess Azure from domain-level access.",
+      "evidence": "Cloud assessment findings",
+      "detailed_guidance": "Perform privilege escalation and lateral movement to achieve the mission objectives. Document each pivot point.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Cloud assessment findings"
+    },
+    {
+      "number": 7,
+      "title": "Complete Red Team Report",
+      "description": "Full professional report.",
+      "evidence": "Red team report (25+ pages)",
+      "detailed_guidance": "Extract evidence and data according to engagement objectives. Ensure proper handling and documentation.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Red team report (25+ pages)"
+    },
+    {
+      "number": 8,
+      "title": "Executive Presentation",
+      "description": "Board presentation.",
+      "evidence": "Slide deck (15 slides) + notes",
+      "detailed_guidance": "Perform cleanup and evidence preservation. Document detection evasion techniques used throughout the engagement.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Slide deck (15 slides) + notes"
+    },
+    {
+      "number": 9,
+      "title": "Cleanup & Closeout",
+      "description": "Document persistence, perform cleanup, verify.",
+      "evidence": "Cleanup log + verification",
+      "detailed_guidance": "Compile findings, evidence, and recommendations into a professional report. Include remediation guidance.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Cleanup log + verification"
+    },
+    {
+      "number": 10,
+      "title": "Lessons Learned",
+      "description": "Personal lessons learned + methodology update.",
+      "evidence": "Lessons learned + updated methodology",
+      "detailed_guidance": "Conduct formal debrief with stakeholders. Present findings, discuss impact, and outline remediation roadmap.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Lessons learned + updated methodology"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Operation Planning",
+      "weight": "10%"
+    },
+    {
+      "category": "Initial Access Realism",
+      "weight": "10%"
+    },
+    {
+      "category": "Lateral Movement",
+      "weight": "15%"
+    },
+    {
+      "category": "Objective Achievement",
+      "weight": "10%"
+    },
+    {
+      "category": "OPSEC Throughout",
+      "weight": "10%"
+    },
+    {
+      "category": "Report Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Executive Communication",
+      "weight": "10%"
+    },
+    {
+      "category": "Cleanup & Ethics",
+      "weight": "5%"
+    },
+    {
+      "category": "Methodology Maturity",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "Operation Crimson \u2014 Full Red Team Engagement"
+  ],
+  "resources": [
+    "OCH Advanced Professional Operations Toolkit",
+    "Engagement Framework Documentation",
+    "OPSEC Guidelines",
+    "Reporting Templates",
+    "Mentor Support Channel"
+  ],
+  "reflection_prompt": "",
+  "quiz": [
+    {
+      "question": "What is the primary objective of OA-M19?",
+      "options": [
+        "To test defensive capabilities",
+        "To simulate a real-world attack scenario",
+        "To achieve the specified mission goals within the engagement scope",
+        "All of the above"
+      ],
+      "correct_index": 2,
+      "explanation": "The mission objectives define the success criteria for this engagement."
+    },
+    {
+      "question": "What should be the first step when beginning this mission?",
+      "options": [
+        "Immediately execute exploits",
+        "Deploy all available tools",
+        "Thoroughly review scenario, objectives, and engagement scope",
+        "Contact the target organization"
+      ],
+      "correct_index": 2,
+      "explanation": "Understanding the engagement scope and objectives is critical before execution."
+    }
+  ],
+  "portfolio_artifacts": [
+    "OA-M19_engagement_plan.md",
+    "OA-M19_evidence_log.txt",
+    "OA-M19_technical_report.md",
+    "OA-M19_client_presentation.pdf"
+  ],
+  "mentor_notes": "For OA-M19 - Operation Crimson \u2014 Full Red Team Engagement: Ensure learner demonstrates proper OPSEC, evidence collection, and professional reporting. This mission is designed to build professional operations expertise. Coordinate with blue team for detection validation where applicable."
+}

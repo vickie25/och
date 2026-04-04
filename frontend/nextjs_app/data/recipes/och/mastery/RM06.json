@@ -1,0 +1,68 @@
+{
+  "recipe_id": "RM06",
+  "title": "EDR Architecture Analysis",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Custom Implant Engineering",
+  "pillar_icon": "\u2699\ufe0f",
+  "estimated_time": "28 min",
+  "difficulty": "Mastery",
+  "tools_required": [
+    "WinDbg (kernel debugging)",
+    "IDA Pro / Ghidra (binary analysis)",
+    "Frida (runtime instrumentation)",
+    "Process Monitor (Sysinternals)",
+    "ETW event capture tools",
+    "Memory analysis tools",
+    "Custom analysis scripts"
+  ],
+  "when_to_use": "Use EDR Architecture Analysis to develop professional-grade edr architecture analysis capabilities at Mastery level. This recipe is part of the Custom Implant Engineering pillar and integrates with linked missions OM-M05.",
+  "linked_missions": [
+    "OM-M05"
+  ],
+  "step_count": 6,
+  "steps": [
+    {
+      "number": 1,
+      "title": "EDR Sensor Architecture Mapping",
+      "instruction": "Map complete EDR architecture: user-mode sensor (process, callbacks, file monitoring), kernel driver (kernel callbacks, filter drivers), cloud backend (telemetry ingestion, alerting). Identify: trusted application whitelists, exclusion paths, evasion-susceptible components. Document communication protocol between sensor and cloud. Use Frida, Process Monitor, and network sniffing to trace sensor behavior.",
+      "tip": "Most EDRs have documented architectures in whitepapers. Supplement public info with dynamic analysis.",
+      "expected_output": "EDR architecture diagram + component interaction map"
+    },
+    {
+      "number": 2,
+      "title": "Kernel Driver Reverse Engineering",
+      "instruction": "Reverse engineer EDR kernel driver: identify callback registration, filter driver chains, telemetry collection routines. Analyze driver with IDA Pro or Ghidra. Identify vulnerability classes: buffer overflows in callback handlers, race conditions in telemetry queuing, privilege escalation paths. Map driver exports and IOCTL handlers.",
+      "tip": "Kernel drivers are complex; focus on attack surface: IOCTLs, callbacks, and inter-process communication.",
+      "expected_output": "Kernel driver analysis with vulnerability assessment"
+    },
+    {
+      "number": 3,
+      "title": "Behavioral Telemetry Analysis",
+      "instruction": "Analyze what behaviors trigger detection. Execute known attack techniques, observe EDR response. Catalog: process injection methods (CreateRemoteThread vs NtMapViewOfSection), file operations (in excluded vs non-excluded directories), registry writes (HKCU vs HKLM). Identify detection thresholds: how many suspicious events trigger alert?",
+      "tip": "Behavioral analysis requires patience and systematic testing. Build matrix: technique vs detection result.",
+      "expected_output": "Behavioral telemetry matrix with detection thresholds"
+    },
+    {
+      "number": 4,
+      "title": "Cloud Telemetry & Alert Correlation",
+      "instruction": "Analyze cloud backend: telemetry ingestion pipeline, alert correlation rules, investigation tools. Identify: alert false-positive thresholds, alert silencing mechanisms, investigation timeline limits (how far back does backend store data?). Interview or research: how does EDR decide between log alert vs immediate response?",
+      "tip": "Cloud backend decisions depend on telemetry quality and rule tuning. Understand alert hierarchy.",
+      "expected_output": "Cloud architecture analysis + alert correlation mapping"
+    },
+    {
+      "number": 5,
+      "title": "Adversary Emulation",
+      "instruction": "Execute multiple adversary personas within EDR: benign business processes, lateral movement, data exfiltration. Document: which behaviors trigger alert immediately, which generate low-confidence alerts, which evade entirely. Measure: time between behavior and alert, alert content, investigation timeline.",
+      "tip": "Adversary emulation tests EDR completeness. Include both noisy (command & control callback) and stealthy (credential dumping) scenarios.",
+      "expected_output": "Adversary emulation report with detection results"
+    },
+    {
+      "number": 6,
+      "title": "Mitigation & Hardening Recommendations",
+      "instruction": "Identify EDR shortcomings and recommend improvements: enhanced behavioral analytics, stronger cloud correlation rules, better kernel driver verification, improved threat hunting capabilities. Provide constructive feedback on architecture. Suggest complementary controls (SIEM integration, network telemetry, hardware-based monitoring).",
+      "tip": "EDR vendors appreciate detailed technical feedback. This report demonstrates mastery of both sides.",
+      "expected_output": "Detailed mitigation recommendations for vendor"
+    }
+  ]
+}

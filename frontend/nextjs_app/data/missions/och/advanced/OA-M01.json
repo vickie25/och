@@ -1,0 +1,157 @@
+{
+  "mission_id": "OA-M01",
+  "title": "Operation Architect",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Red Team Operations",
+  "pillar_icon": "\ud83c\udfaf",
+  "mission_type": "Mandatory",
+  "module_number": 1,
+  "module_title": "Module 1: Operation Architect",
+  "video_duration": "15-20 min",
+  "estimated_time": "5-6 hrs",
+  "multiday": false,
+  "deadline": "72 hours",
+  "prerequisites": [
+    "Intermediate Offensive Track",
+    "Core Cybersecurity Fundamentals"
+  ],
+  "learning_objectives": [
+    "Design a complete red team engagement methodology",
+    "Establish operational security (OPSEC) protocols",
+    "Document red team scope, rules of engagement, and objectives",
+    "Create engagement timeline and checkpoint framework",
+    "Develop incident response capabilities for testing"
+  ],
+  "key_topics": [
+    "Red team engagement planning and scoping",
+    "Rules of engagement (RoE) and OPSEC",
+    "Threat intelligence integration",
+    "Attack chain methodology",
+    "Reporting and remediation recommendations"
+  ],
+  "scenario": "Scenario AfriBank Group, a pan-African financial institution in Nairobi with branches in 6 countries, has commissioned a red team engagement. The board wants to know if a nation-state-level threat actor could access their SWIFT payment systems. Design the complete operation. Subtasks Scoring Rubric Linked Recipes: RA01, RA02 ________________________________________________________________________________",
+  "scenario_context": {
+    "setting": "Nairobi, Kenya, pan-African financial services group",
+    "challenge": "Design red team methodology and infrastructure for testing pan-African financial services group's Nairobi, Kenya operations",
+    "relevance": "Reflects real-world African enterprise security challenges and red team operations across the continent"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Threat Profile Development",
+      "description": "Research relevant APT TTPs. Map to MITRE ATT&CK.",
+      "evidence": "Threat actor profile with ATT&CK mapping",
+      "detailed_guidance": "Begin by thoroughly reviewing the scenario and understanding all objectives. Document your approach before execution. This is the foundational subtask that enables all following work.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Threat actor profile with ATT&CK mapping"
+    },
+    {
+      "number": 2,
+      "title": "Crown Jewel Analysis",
+      "description": "Identify critical assets. Map access paths to SWIFT systems.",
+      "evidence": "Crown jewel analysis with access path diagrams",
+      "detailed_guidance": "Conduct systematic reconnaissance and information gathering. Map the target network, identify services, and document all findings with evidence.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Crown jewel analysis with access path diagrams"
+    },
+    {
+      "number": 3,
+      "title": "Operational Plan",
+      "description": "Complete red team plan: phases, timelines, TTPs, success criteria.",
+      "evidence": "Red team operational plan (8+ pages)",
+      "detailed_guidance": "Analyze vulnerabilities discovered in reconnaissance. Validate each vulnerability through testing and document the exploitation path.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Red team operational plan (8+ pages)"
+    },
+    {
+      "number": 4,
+      "title": "Rules of Engagement",
+      "description": "Draft comprehensive ROE covering scope, deconfliction, emergency.",
+      "evidence": "Complete ROE document",
+      "detailed_guidance": "Execute the exploitation with careful attention to OPSEC and evasion. Maintain detailed logs of all actions for evidence and reporting.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Complete ROE document"
+    },
+    {
+      "number": 5,
+      "title": "Infrastructure Plan",
+      "description": "C2 architecture: redirectors, domain fronting, OPSEC.",
+      "evidence": "C2 infrastructure design with network diagrams",
+      "detailed_guidance": "Establish persistence mechanisms that survive system reboots and will maintain access throughout the engagement.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "C2 infrastructure design with network diagrams"
+    },
+    {
+      "number": 6,
+      "title": "Operator Playbook",
+      "description": "Procedures for each kill chain phase with abort criteria.",
+      "evidence": "Operator playbook with decision trees",
+      "detailed_guidance": "Perform privilege escalation and lateral movement to achieve the mission objectives. Document each pivot point.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Operator playbook with decision trees"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Threat Intelligence Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Operational Planning",
+      "weight": "25%"
+    },
+    {
+      "category": "ROE Completeness",
+      "weight": "15%"
+    },
+    {
+      "category": "Infrastructure Design",
+      "weight": "15%"
+    },
+    {
+      "category": "Playbook Practicality",
+      "weight": "15%"
+    },
+    {
+      "category": "Professional Polish",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "Operation Architect"
+  ],
+  "resources": [
+    "OCH Advanced Red Team Operations Toolkit",
+    "Engagement Framework Documentation",
+    "OPSEC Guidelines",
+    "Reporting Templates",
+    "Mentor Support Channel"
+  ],
+  "reflection_prompt": "",
+  "quiz": [
+    {
+      "question": "What is the primary purpose of defining Rules of Engagement (RoE) in a red team engagement?",
+      "options": [
+        "To restrict the red team from using certain techniques",
+        "To establish boundaries and prevent unintended impact on the target organization",
+        "To limit the client from interfering with the engagement",
+        "To document historical red team activities"
+      ],
+      "correct_index": 1,
+      "explanation": "RoE establish boundaries and constraints to prevent unintended business impact while allowing necessary testing."
+    },
+    {
+      "question": "Which of the following is a critical component of red team OPSEC?",
+      "options": [
+        "Sharing all findings immediately with the target organization",
+        "Using primary team credentials for all activities",
+        "Maintaining compartmentalization between red team members and blue team",
+        "Documenting all activities in plain text email"
+      ],
+      "correct_index": 2,
+      "explanation": "OPSEC requires compartmentalization to prevent red team capabilities from being revealed to defenders."
+    }
+  ],
+  "portfolio_artifacts": [
+    "OA-M01_engagement_plan.md",
+    "OA-M01_evidence_log.txt",
+    "OA-M01_technical_report.md",
+    "OA-M01_client_presentation.pdf"
+  ],
+  "mentor_notes": "For OA-M01 - Operation Architect: Ensure learner demonstrates proper OPSEC, evidence collection, and professional reporting. This mission is designed to build red team operations expertise. Coordinate with blue team for detection validation where applicable."
+}

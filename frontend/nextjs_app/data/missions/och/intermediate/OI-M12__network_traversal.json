@@ -1,0 +1,168 @@
+{
+  "mission_id": "OI-M12",
+  "title": "Network Traversal",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Post-Exploitation Basics",
+  "pillar_icon": "🔓",
+  "mission_type": "Mandatory",
+  "module_number": 12,
+  "module_title": "Pivoting and Lateral Movement Through Network Segmentation",
+  "video_duration": "18 min",
+  "estimated_time": "5-6 hrs",
+  "multiday": true,
+  "deadline": "72 hours",
+  "prerequisites": [
+    "Beginner Offensive Track completed",
+    "Network pivoting concepts",
+    "SSH tunnel and SOCKS proxy setup",
+    "Credential reuse testing",
+    "Internal network exploitation"
+  ],
+  "learning_objectives": [
+    "Establish pivot points through compromised web servers",
+    "Configure SSH tunnels and SOCKS proxies for internal access",
+    "Test credential reuse across network systems",
+    "Exploit internal hosts accessed through pivots",
+    "Document complete lateral movement chain"
+  ],
+  "key_topics": [
+    "SSH dynamic port forwarding (-D flag)",
+    "SSH local port forwarding (-L flag)",
+    "SSH remote port forwarding (-R flag)",
+    "SOCKS proxy configuration and usage",
+    "Internal network scanning through pivots",
+    "Credential reuse strategies",
+    "Internal host exploitation",
+    "Attack chain documentation",
+    "Network segmentation analysis"
+  ],
+  "scenario": "Shell on a web server between DMZ and internal network. Three internal hosts reachable only via pivot. Compromise internal systems.",
+  "scenario_context": {
+    "setting": "DMZ-located web server with network access to internal systems",
+    "challenge": "Pivot through web server to compromise internal network",
+    "relevance": "Common scenario; web servers often bridge DMZ and internal"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Pivot Setup",
+      "description": "SSH tunnel or SOCKS proxy through compromised host.",
+      "detailed_guidance": "Configure SSH SOCKS proxy (-D) or local tunnel (-L) through compromised web server. Verify reachability to internal systems.",
+      "evidence_required": "Pivot configuration and reachability proof"
+    },
+    {
+      "number": 2,
+      "title": "Internal Scanning",
+      "description": "Scan internal network through pivot.",
+      "detailed_guidance": "Use nmap through SOCKS proxy (via proxychains). Enumerate internal hosts and services. Document accessible systems.",
+      "evidence_required": "Internal scan results showing accessible services"
+    },
+    {
+      "number": 3,
+      "title": "Credential Reuse",
+      "description": "Test web server credentials on internal hosts.",
+      "detailed_guidance": "Test SSH, SMB, RDP credentials obtained from web server against internal hosts. Document successful reuse patterns.",
+      "evidence_required": "Credential reuse matrix with results"
+    },
+    {
+      "number": 4,
+      "title": "Internal Host Compromise",
+      "description": "Access 2+ internal hosts.",
+      "detailed_guidance": "Exploit accessible internal systems through pivot. Establish shell access on 2+ internal hosts. Document exploitation path.",
+      "evidence_required": "Internal access evidence (2+ hosts)"
+    },
+    {
+      "number": 5,
+      "title": "Attack Chain Documentation",
+      "description": "Complete attack chain diagram.",
+      "detailed_guidance": "Create visual diagram showing: external entry → web server → pivot → internal systems. Include network topology and access path narrative.",
+      "evidence_required": "Visual chain diagram + detailed narrative"
+    },
+    {
+      "number": 6,
+      "title": "Lateral Movement Report",
+      "description": "Report with segmentation recommendations.",
+      "detailed_guidance": "Write report with attack chain, systems compromised, data accessed, and specific recommendations for network segmentation.",
+      "evidence_required": "Lateral movement report (4-5 pages)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Pivot Technique",
+      "weight": "20%"
+    },
+    {
+      "category": "Internal Scanning",
+      "weight": "15%"
+    },
+    {
+      "category": "Exploitation Success",
+      "weight": "20%"
+    },
+    {
+      "category": "Attack Chain Clarity",
+      "weight": "20%"
+    },
+    {
+      "category": "Report & Recommendations",
+      "weight": "15%"
+    },
+    {
+      "category": "Methodology",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "RI17",
+    "RI18"
+  ],
+  "resources": [
+    {
+      "name": "SSH Tunneling and Port Forwarding Guide",
+      "type": "tutorial"
+    },
+    {
+      "name": "SOCKS Proxy Configuration with Proxychains",
+      "type": "guide"
+    },
+    {
+      "name": "Network Segmentation Assessment Techniques",
+      "type": "reference"
+    }
+  ],
+  "reflection_prompt": "How did network segmentation affect your pivot strategy? What internal access would be invisible without pivoting?",
+  "quiz": [
+    {
+      "question": "What is the primary advantage of SSH SOCKS proxy (-D) over local port forwarding?",
+      "options": [
+        "Faster speed",
+        "Allows scanning multiple internal hosts dynamically",
+        "More secure encryption",
+        "Works with all protocols"
+      ],
+      "correct_index": 1,
+      "explanation": "SOCKS proxy (-D) creates a dynamic tunnel allowing flexible access to multiple internal systems, whereas -L forwards specific ports."
+    },
+    {
+      "question": "Why is credential reuse often successful during lateral movement?",
+      "options": [
+        "Credentials are visible in traffic",
+        "Organizations use same credentials across systems",
+        "Default credentials are rarely changed",
+        "Encryption doesn't protect credentials"
+      ],
+      "correct_index": 1,
+      "explanation": "Many organizations reuse credentials across systems for convenience, making initial compromise highly effective for lateral movement."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Pivot setup configuration and proof",
+    "Internal network scan results",
+    "Credential reuse testing matrix",
+    "Internal host shell access evidence (2+)",
+    "Attack chain diagram (visual + narrative)",
+    "Lateral movement report with segmentation recommendations"
+  ],
+  "mentor_notes": "Assess pivot technique selection and successful internal compromise. Attack chain should clearly show progression. 72-hour deadline accommodates multiple internal exploitations. Segmentation recommendations demonstrate strategic thinking."
+}

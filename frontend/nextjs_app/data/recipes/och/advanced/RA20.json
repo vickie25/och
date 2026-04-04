@@ -1,0 +1,58 @@
+{
+  "recipe_id": "RA20",
+  "title": "Wireless Attack Workflow",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Wireless & Physical",
+  "pillar_icon": "\ud83d\udcf6",
+  "estimated_time": "35 min",
+  "difficulty": "Advanced",
+  "tools_required": [
+    "Aircrack-ng",
+    "Wireshark",
+    "Hcxdumptool",
+    "Hashcat"
+  ],
+  "when_to_use": "Use this recipe when wireless attack workflow is required. This advanced recipe covers professional-grade techniques suitable for experienced red teamers. Applicable to missions: OA-M15.",
+  "linked_missions": [
+    "OA-M15"
+  ],
+  "step_count": 5,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Step 1: Wireless Attack Workflow",
+      "instruction": "Execute step 1 of the Wireless Attack Workflow recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 1 with documented results and artifacts collected."
+    },
+    {
+      "number": 2,
+      "title": "Step 2: Wireless Attack Workflow",
+      "instruction": "Execute step 2 of the Wireless Attack Workflow recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 2 with documented results and artifacts collected."
+    },
+    {
+      "number": 3,
+      "title": "Step 3: Wireless Attack Workflow",
+      "instruction": "Execute step 3 of the Wireless Attack Workflow recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 3 with documented results and artifacts collected."
+    },
+    {
+      "number": 4,
+      "title": "Step 4: Wireless Attack Workflow",
+      "instruction": "Execute step 4 of the Wireless Attack Workflow recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 4 with documented results and artifacts collected."
+    },
+    {
+      "number": 5,
+      "title": "Step 5: Wireless Attack Workflow",
+      "instruction": "Execute step 5 of the Wireless Attack Workflow recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 5 with documented results and artifacts collected."
+    }
+  ]
+}

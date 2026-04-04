@@ -1,0 +1,170 @@
+{
+  "mission_id": "OI-M19",
+  "title": "Full Engagement Simulation",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Pentest Methodology",
+  "pillar_icon": "🎯",
+  "mission_type": "Mandatory — Capstone",
+  "module_number": 19,
+  "module_title": "Complete PTES Penetration Test from Pre-Engagement to Reporting",
+  "video_duration": "19 min",
+  "estimated_time": "6-8 hrs",
+  "multiday": true,
+  "deadline": "5 days",
+  "prerequisites": [
+    "All Intermediate Offensive missions completed",
+    "PTES phases understanding",
+    "Comprehensive pentest skills",
+    "Professional reporting ability",
+    "Executive presentation skills"
+  ],
+  "learning_objectives": [
+    "Execute complete penetration test from pre-engagement through reporting",
+    "Apply PTES phases systematically",
+    "Manage time and scope across 5-day engagement",
+    "Balance thoroughness with practical time constraints",
+    "Deliver professional capstone pentest engagement"
+  ],
+  "key_topics": [
+    "PTES pre-engagement phase",
+    "Reconnaissance and information gathering",
+    "Scanning and enumeration",
+    "Vulnerability assessment",
+    "Exploitation execution",
+    "Post-exploitation and privilege escalation",
+    "Lateral movement and network traversal",
+    "Reporting and recommendations",
+    "Engagement time management"
+  ],
+  "scenario": "Intermediate capstone. Complete pentest engagement from pre-engagement through reporting. Five days to execute every PTES phase.",
+  "scenario_context": {
+    "setting": "Complete simulated pentest engagement with simulated environment",
+    "challenge": "Execute realistic pentest within time and scope constraints",
+    "relevance": "Capstone demonstrates readiness for professional pentest engagements"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Pre-Engagement Package",
+      "description": "Scope, RoE, timeline, comms plan.",
+      "detailed_guidance": "Develop complete pre-engagement documentation: scope definition, rules of engagement, timeline, communication plan, legal agreements.",
+      "evidence_required": "Complete pre-engagement package"
+    },
+    {
+      "number": 2,
+      "title": "Reconnaissance Phase",
+      "description": "Comprehensive passive and active recon.",
+      "detailed_guidance": "Execute complete reconnaissance: OSINT, DNS enumeration, passive and active scanning. Document all findings.",
+      "evidence_required": "Reconnaissance report with findings"
+    },
+    {
+      "number": 3,
+      "title": "Enumeration & Vuln Assessment",
+      "description": "Thorough enumeration and vuln identification.",
+      "detailed_guidance": "Comprehensive enumeration of all services and hosts. Vulnerability assessment identifying exploitable weaknesses.",
+      "evidence_required": "Enumeration and vulnerability assessment report"
+    },
+    {
+      "number": 4,
+      "title": "Exploitation Phase",
+      "description": "Exploit vulnerabilities. Document all attempts.",
+      "detailed_guidance": "Execute exploitation chain. Document successful exploits and failed attempts. Establish footholds.",
+      "evidence_required": "Exploitation log with evidence"
+    },
+    {
+      "number": 5,
+      "title": "Post-Exploitation & Escalation",
+      "description": "PrivEsc, lateral movement, data access.",
+      "detailed_guidance": "Post-exploitation enumeration, privilege escalation, lateral movement, sensitive data discovery.",
+      "evidence_required": "Post-exploitation report with chain documentation"
+    },
+    {
+      "number": 6,
+      "title": "Final Deliverable Package",
+      "description": "Complete pentest report.",
+      "detailed_guidance": "Professional pentest report meeting industry standards: executive summary, methodology, findings, risk matrix, remediation roadmap.",
+      "evidence_required": "Complete report (20+ pages)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Pre-Engagement",
+      "weight": "10%"
+    },
+    {
+      "category": "Recon Thoroughness",
+      "weight": "15%"
+    },
+    {
+      "category": "Exploitation Success",
+      "weight": "20%"
+    },
+    {
+      "category": "Post-Exploitation",
+      "weight": "15%"
+    },
+    {
+      "category": "Report Professionalism",
+      "weight": "25%"
+    },
+    {
+      "category": "Overall Methodology",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "RI27",
+    "RI28"
+  ],
+  "resources": [
+    {
+      "name": "PTES Complete Framework Documentation",
+      "type": "reference"
+    },
+    {
+      "name": "Pentest Engagement Management Guide",
+      "type": "guide"
+    },
+    {
+      "name": "Capstone Project Best Practices",
+      "type": "tutorial"
+    }
+  ],
+  "reflection_prompt": "How did managing a complete engagement differ from individual vulnerability testing? What was your most significant challenge in the 5-day timeframe?",
+  "quiz": [
+    {
+      "question": "What is the primary purpose of the pre-engagement phase?",
+      "options": [
+        "Start exploitation immediately",
+        "Establish scope, rules, timeline, and legal agreement",
+        "Perform reconnaissance",
+        "Execute initial scans"
+      ],
+      "correct_index": 1,
+      "explanation": "Pre-engagement clarifies scope, rules of engagement, timeline, and obtains legal agreement, protecting both pentesters and clients."
+    },
+    {
+      "question": "Why is time management critical in a 5-day pentest?",
+      "options": [
+        "To finish quickly",
+        "To balance thoroughness across all PTES phases within constraints",
+        "To avoid detection",
+        "To maximize exploits"
+      ],
+      "correct_index": 1,
+      "explanation": "Realistic pentests have time constraints. Effective time management ensures coverage of all PTES phases within engagement window."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Pre-engagement package with scope and RoE",
+    "Reconnaissance report with OSINT findings",
+    "Enumeration and vulnerability assessment report",
+    "Exploitation log with evidence",
+    "Post-exploitation report with lateral movement chain",
+    "Complete professional pentest report (20+ pages)",
+    "Executive presentation deck",
+    "Engagement timeline and documentation"
+  ],
+  "mentor_notes": "Capstone requires demonstration of all intermediate skills within realistic constraints. 5-day timeline is tight; time management is critical. Report quality should equal professional standards. This is the final Intermediate mission before Advanced track."
+}

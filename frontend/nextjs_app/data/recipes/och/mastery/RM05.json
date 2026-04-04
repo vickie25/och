@@ -1,0 +1,69 @@
+{
+  "recipe_id": "RM05",
+  "title": "Advanced Evasion Development",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Custom Implant Engineering",
+  "pillar_icon": "\u2699\ufe0f",
+  "estimated_time": "30 min",
+  "difficulty": "Mastery",
+  "tools_required": [
+    "Windows API (kernel, ETW, AMSI)",
+    "Frida (runtime instrumentation)",
+    "Windbg/debuggers",
+    "EDR products (Defender, Crowdstrike)",
+    "Syscall extraction tools",
+    "Python/C for evasion code",
+    "Detection engineering tools"
+  ],
+  "when_to_use": "Use Advanced Evasion Development to develop professional-grade advanced evasion development capabilities at Mastery level. This recipe is part of the Custom Implant Engineering pillar and integrates with linked missions OM-M04, OM-M05.",
+  "linked_missions": [
+    "OM-M04",
+    "OM-M05"
+  ],
+  "step_count": 6,
+  "steps": [
+    {
+      "number": 1,
+      "title": "EDR Architecture Analysis",
+      "instruction": "Analyze target EDR (Windows Defender, Sentinel One, etc.): identify hooks in ntdll, kernel32, advapi32. Map ETW providers (Process Creation, File I/O, Registry, Network). Identify callbacks registered with Windows Kernel via PsSetCreateProcessNotifyRoutine. Document: hook list with target functions, ETW provider GUIDs, kernel callback types. Use Frida to inspect hook chains at runtime.",
+      "tip": "Use WinDbg !ntos.drvobj to list kernel callbacks. ETW providers are queryable via WMI.",
+      "expected_output": "EDR analysis: hook inventory + telemetry mapping"
+    },
+    {
+      "number": 2,
+      "title": "Syscall Implementation",
+      "instruction": "Extract syscall numbers from target OS. Implement direct syscalls (bypass userland hooks) and indirect syscalls (resolve at runtime via function pointer arithmetic). Target critical APIs: CreateProcess, CreateRemoteThread, VirtualAllocEx, WriteProcessMemory, CreateFile. Benchmark: compare hooked vs syscall-based execution time. Demonstrate before/after detection comparison.",
+      "tip": "Syscall numbers vary per Windows version; extract via GetProcAddress + offset analysis or use pre-built tables. Indirect syscalls are stealthier than direct calls.",
+      "expected_output": "Syscall implementation + detection comparison"
+    },
+    {
+      "number": 3,
+      "title": "Unhooking Strategy",
+      "instruction": "Implement userland unhooking: restore ntdll from disk or ntdll backup in memory, remove inline hooks, restore function prologues. Techniques: copy clean ntdll from System32, patch hooks out of loaded module, fork processes to avoid hook detection. Compare with syscall approach: unhooking is noisy, syscalls are stealthier but complex.",
+      "tip": "Unhooking can trigger suspicious memory manipulation alerts. Syscalls are preferred where feasible.",
+      "expected_output": "Unhooking code + technique comparison"
+    },
+    {
+      "number": 4,
+      "title": "ETW Evasion",
+      "instruction": "Patch ETW telemetry providers to disable logging. Target: ProcessCreate (ETW_TRACE_CLASS::Process), FileIO, Registry, Network. Techniques: set provider enabled flag to 0, patch WmiTraceMessage function to no-op, disable ETW via registry. Demonstrate: disable ETW, execute behavior, verify no logs appear in Event Viewer.",
+      "tip": "ETW patches are deep kernel tampering; some EDRs monitor ETW modifications specifically. Document residual detection vectors.",
+      "expected_output": "ETW evasion code + telemetry validation"
+    },
+    {
+      "number": 5,
+      "title": "Integrated Kill Chain Testing",
+      "instruction": "Execute full kill chain (exploitation, injection, post-exploitation) with all evasion layers enabled: syscalls + unhooking + ETW patching. Monitor Windows Event Viewer, EDR console, and kernel debugger for any alerts. Achieve zero EDR alerts across multiple test runs. Document what still triggers detection.",
+      "tip": "Integration testing reveals gaps. Test each evasion in isolation first, then combined. Some EDRs use behavioral analysis that evades per-technique but triggers combined.",
+      "expected_output": "Kill chain evidence + EDR console screenshots"
+    },
+    {
+      "number": 6,
+      "title": "Detection Engineering Report",
+      "instruction": "Write report for EDR vendor recommending detection improvements. Identify current gaps in telemetry, suggest additional instrumentation points, recommend behavioral patterns that would catch your evasion. Provide constructive feedback on architecture improvements. Show that better detection is technically feasible.",
+      "tip": "Detection engineering report demonstrates you understand both offense and defense. Vendors take these seriously.",
+      "expected_output": "Detection engineering report for EDR improvement"
+    }
+  ]
+}

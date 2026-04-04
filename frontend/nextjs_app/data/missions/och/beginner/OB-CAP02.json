@@ -1,0 +1,156 @@
+{
+  "mission_id": "OB-CAP02",
+  "title": "Operation First Contact",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar": "Capstone",
+  "pillar_icon": "🏆",
+  "module_number": 22,
+  "module_title": "Capstone: External Assessment Simulation",
+  "video_duration": "10 min",
+  "mission_type": "Capstone (Optional)",
+  "estimated_time": "2-4 hours",
+  "multiday": true,
+  "deadline": "10 days",
+  "prerequisites": [
+    "All 20 mandatory Beginner missions completed",
+    "OB-CAP01 recommended but not required",
+    "Lab environment with 3 target servers",
+    "All scanning tools verified"
+  ],
+  "learning_objectives": [
+    "Execute a complete external assessment simulation",
+    "Combine scanning, enumeration, and vulnerability mapping systematically",
+    "Produce a professional client-ready assessment report"
+  ],
+  "key_topics": [
+    "Full assessment methodology",
+    "Pre-engagement documentation",
+    "Multi-host scanning and enumeration",
+    "Vulnerability mapping and prioritisation",
+    "Professional report writing",
+    "Remediation roadmap development"
+  ],
+  "scenario": "Following the passive recon phase, the financial services company has authorised active scanning and enumeration of their external-facing lab environment (3 servers). Your objective: discover everything about their attack surface through authorised scanning. Enumerate all services, map vulnerabilities, and produce a professional assessment report.",
+  "scenario_context": {
+    "setting": "Financial services company's external-facing lab environment (3 servers)",
+    "challenge": "Complete external assessment from pre-engagement to final report",
+    "relevance": "External assessments are the most common engagement type for junior pentesters. This capstone simulates the full workflow."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Pre-Engagement Setup",
+      "description": "Complete authorisation documentation, define scope, configure scanning tools, and verify lab connectivity.",
+      "detailed_guidance": "Reuse skills from OB-M17. Complete scope document. Verify all tools. Confirm connectivity to all 3 targets. Document everything before starting.",
+      "evidence_required": "Authorisation docs, scope, and connectivity proof"
+    },
+    {
+      "number": 2,
+      "title": "Host Discovery & Port Scanning",
+      "description": "Discover all live hosts and perform comprehensive port scanning using multiple techniques.",
+      "detailed_guidance": "Apply OB-M15 skills at scale. Host discovery. Multiple scan types. Compare results. Document all findings per host.",
+      "evidence_required": "Host discovery and port scan results with analysis"
+    },
+    {
+      "number": 3,
+      "title": "Service Enumeration & Fingerprinting",
+      "description": "Enumerate all discovered services: versions, configurations, default credentials, directory structures.",
+      "detailed_guidance": "Apply OB-M14 skills. Full service enumeration per host. Web directory enumeration. SMB/FTP enumeration where applicable. Document everything.",
+      "evidence_required": "Complete service enumeration report per host"
+    },
+    {
+      "number": 4,
+      "title": "Vulnerability Mapping",
+      "description": "Cross-reference all discovered services with CVE databases. Assess exploitability and prioritise.",
+      "detailed_guidance": "Apply OB-M13 skills. For each service version: search NVD, check ExploitDB. Assess exploitability. Prioritise by risk considering client context.",
+      "evidence_required": "Vulnerability assessment matrix with priorities"
+    },
+    {
+      "number": 5,
+      "title": "Professional Assessment Report",
+      "description": "Compile a client-ready assessment report with executive summary, methodology, findings, risk ratings, and remediation roadmap.",
+      "detailed_guidance": "Structure: Cover page, Executive Summary, Scope & Methodology, Host-by-Host Findings, Vulnerability Summary, Risk Ratings, Remediation Roadmap, Appendices. Client-ready quality.",
+      "evidence_required": "Complete external assessment report (PDF)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Scope Compliance",
+      "weight": "15%"
+    },
+    {
+      "category": "Scanning Thoroughness",
+      "weight": "20%"
+    },
+    {
+      "category": "Enumeration Quality",
+      "weight": "25%"
+    },
+    {
+      "category": "Vulnerability Analysis",
+      "weight": "20%"
+    },
+    {
+      "category": "Report Professionalism",
+      "weight": "20%"
+    }
+  ],
+  "linked_recipes": [
+    "R07",
+    "R08",
+    "R22",
+    "R24",
+    "R25"
+  ],
+  "resources": [
+    {
+      "name": "Assessment Report Template",
+      "type": "Template"
+    },
+    {
+      "name": "External Assessment Methodology Guide",
+      "type": "PDF"
+    },
+    {
+      "name": "Lab Target Configuration Guide",
+      "type": "Lab File"
+    },
+    {
+      "name": "Remediation Roadmap Template",
+      "type": "Template"
+    }
+  ],
+  "reflection_prompt": "You complete the assessment and find that one server has a critical vulnerability that is actively being exploited in the wild. The client's remediation timeline is 30 days. What do you recommend for the interim?",
+  "quiz": [
+    {
+      "question": "A professional assessment report should always begin with:",
+      "options": [
+        "Technical findings",
+        "An executive summary that communicates risk in business terms",
+        "Nmap output",
+        "Methodology details"
+      ],
+      "correct_index": 1,
+      "explanation": "The executive summary is the most-read section. It must communicate risk clearly for non-technical decision-makers."
+    },
+    {
+      "question": "A remediation roadmap is valuable because:",
+      "options": [
+        "It guarantees security",
+        "It prioritises fixes by risk and effort, giving the client a clear action plan",
+        "It's legally required",
+        "It replaces patching"
+      ],
+      "correct_index": 1,
+      "explanation": "A roadmap helps clients allocate limited resources effectively, addressing the highest risks first with clear timelines."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Pre-engagement documentation",
+    "Scanning and enumeration results",
+    "Vulnerability assessment matrix",
+    "Complete assessment report with remediation roadmap"
+  ],
+  "mentor_notes": "This is the culminating assessment. Evaluate as a professional deliverable that would be sent to a real client. The report quality is the primary scoring factor. Scope compliance must be perfect."
+}

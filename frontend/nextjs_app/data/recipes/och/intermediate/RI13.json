@@ -1,0 +1,76 @@
+{
+  "recipe_id": "RI13",
+  "title": "Metasploit Basic Workflow",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Exploitation Fundamentals",
+  "pillar_icon": "\ud83d\udca5",
+  "estimated_time": "20 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "Metasploit Framework"
+  ],
+  "when_to_use": "When using Metasploit for authorised exploitation",
+  "linked_missions": [
+    "OI-M09"
+  ],
+  "step_count": 8,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Start Metasploit Framework console with msfconsole",
+      "tip": "Start with the most reliable information source for metasploit basic workflow",
+      "expected_output": "Metasploit console ready with available modules and database connected"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Search for appropriate exploit modules matching target service and version",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "List of applicable exploit modules with descriptions and options"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Load selected exploit module using 'use' command",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Exploit module loaded and ready for configuration"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Review all configurable options with 'show options' command",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Complete list of required and optional parameters for the exploit"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Set RHOSTS variable to target IP address or CIDR range",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Target hosts configured and ready for exploitation"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Select appropriate payload matching target architecture (Meterpreter, reverse shell)",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Payload selected matching target operating system and architecture"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Configure LHOST and LHOST with attacker IP and listening port for reverse connection",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Listener configured and exploit parameters ready"
+    },
+    {
+      "number": 8,
+      "title": "Step 8",
+      "instruction": "Execute exploit and establish session with target system",
+      "tip": "Follow standard best practices for step 8",
+      "expected_output": "Active Meterpreter or shell session on compromised target system"
+    }
+  ]
+}

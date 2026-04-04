@@ -1,0 +1,83 @@
+{
+  "recipe_id": "R22",
+  "title": "Enumeration Methodology Flowchart",
+  "pillar": "Beginner Tooling",
+  "pillar_icon": "🛠️",
+  "estimated_time": "20 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Nmap",
+    "Nikto",
+    "Gobuster",
+    "smbclient",
+    "enum4linux"
+  ],
+  "when_to_use": "During the enumeration phase of any assessment",
+  "linked_missions": [
+    "OB-M14",
+    "OB-M15",
+    "OB-M16",
+    "OB-CAP02"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Port Scan",
+      "instruction": "Start: Port scan target (nmap -sV -sC target)",
+      "tip": "This gives you the service map. Every subsequent step branches from these results",
+      "expected_output": "Service map created"
+    },
+    {
+      "number": 2,
+      "title": "Branch by Service",
+      "instruction": "For each open port, branch to service-specific enumeration:",
+      "tip": "Use a systematic approach — go port by port, never skip one",
+      "expected_output": "Enumeration plan created"
+    },
+    {
+      "number": 3,
+      "title": "HTTP/HTTPS Enumeration",
+      "instruction": "HTTP/HTTPS (80/443): run Nikto, Gobuster, check robots.txt",
+      "tip": "Try multiple wordlists with Gobuster. Check both / and common app paths (/api, /admin, /wp-admin)",
+      "expected_output": "Web enumeration complete"
+    },
+    {
+      "number": 4,
+      "title": "SMB Enumeration",
+      "instruction": "SMB (445): use smbclient -L, enum4linux",
+      "tip": "Anonymous access is common. Check for readable shares, user lists, and policy information",
+      "expected_output": "SMB enumeration complete"
+    },
+    {
+      "number": 5,
+      "title": "FTP Enumeration",
+      "instruction": "FTP (21): check anonymous login, list files",
+      "tip": "Try anonymous:anonymous login first. If it works, list and download everything accessible",
+      "expected_output": "FTP enumeration complete"
+    },
+    {
+      "number": 6,
+      "title": "SSH Enumeration",
+      "instruction": "SSH (22): note version, check for known CVEs",
+      "tip": "Old SSH versions may be vulnerable. Note the version and cross-reference with CVE databases",
+      "expected_output": "SSH version documented"
+    },
+    {
+      "number": 7,
+      "title": "DNS Enumeration",
+      "instruction": "DNS (53): attempt zone transfer with dig axfr",
+      "tip": "Zone transfers expose all DNS records. Rarely possible but always worth trying",
+      "expected_output": "DNS enumeration attempted"
+    },
+    {
+      "number": 8,
+      "title": "Document Everything",
+      "instruction": "Document all findings per port per host in a structured table",
+      "tip": "Create a matrix: hosts × ports × findings. This becomes the foundation of your report",
+      "expected_output": "Enumeration matrix complete"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 8
+}

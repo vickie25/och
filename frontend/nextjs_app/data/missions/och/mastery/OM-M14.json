@@ -1,0 +1,166 @@
+{
+  "mission_id": "OM-M14",
+  "title": "The Multiplier — Mentorship Program Design",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Red Team Leadership & Practice",
+  "pillar_icon": "👑",
+  "mission_type": "Mandatory",
+  "module_number": 14,
+  "module_title": "Program Leadership",
+  "video_duration": "17-19 min",
+  "estimated_time": "8-10 hrs",
+  "multiday": true,
+  "deadline": "7 days",
+  "prerequisites": [
+    "Advanced Offensive Track - Mastery Tier Access"
+  ],
+  "learning_objectives": [
+    "Program architecture design with tiered advancement",
+    "Learning path development for diverse backgrounds",
+    "Training material creation and instructional design",
+    "Community contribution planning",
+    "Success measurement and assessment frameworks",
+    "Personal commitment to mentorship",
+    "African-focused curriculum development"
+  ],
+  "key_topics": [
+    "Program design",
+    "Learning paths",
+    "Training development",
+    "Assessment methods",
+    "Community engagement",
+    "Mentorship principles",
+    "African talent pipeline",
+    "Knowledge transfer"
+  ],
+  "scenario": "This Mastery mission requires professional-grade execution in African cyber talent development ecosystem. Challenge: Design comprehensive mentorship and training program to develop next generation of African red teamers. Relevance: OCH mission includes building African cyber capacity; Mastery graduates lead mentorship initiatives",
+  "scenario_context": {
+    "setting": "African cyber talent development ecosystem",
+    "challenge": "Design comprehensive mentorship and training program to develop next generation of African red teamers",
+    "relevance": "OCH mission includes building African cyber capacity; Mastery graduates lead mentorship initiatives"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Program Architecture",
+      "description": "Tiers, milestones, assessment criteria, graduation.",
+      "detailed_guidance": "For this subtask in the context of The Multiplier — Mentorship Program Design:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Program architecture (8+ pages)"
+    },
+    {
+      "number": 2,
+      "title": "Learning Path Design",
+      "description": "Paths for 3 profiles: grad, IT transitioner, SOC analyst.",
+      "detailed_guidance": "For this subtask in the context of The Multiplier — Mentorship Program Design:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "3 learning paths with monthly milestones"
+    },
+    {
+      "number": 3,
+      "title": "Training Material Creation",
+      "description": "One complete module from your expertise area.",
+      "detailed_guidance": "For this subtask in the context of The Multiplier — Mentorship Program Design:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Training module: slides, lab guide, assessment"
+    },
+    {
+      "number": 4,
+      "title": "Community Contribution Plan",
+      "description": "Annual plan: writing, speaking, open-source, mentorship.",
+      "detailed_guidance": "For this subtask in the context of The Multiplier — Mentorship Program Design:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Annual plan with quarterly deliverables"
+    },
+    {
+      "number": 5,
+      "title": "Program Measurement",
+      "description": "Success metrics and assessment methods.",
+      "detailed_guidance": "For this subtask in the context of The Multiplier — Mentorship Program Design:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Measurement framework with KPIs"
+    },
+    {
+      "number": 6,
+      "title": "Personal Commitment Statement",
+      "description": "Your covenant with the community.",
+      "detailed_guidance": "For this subtask in the context of The Multiplier — Mentorship Program Design:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Commitment statement (1 page)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Program Design",
+      "weight": "20%"
+    },
+    {
+      "category": "Learning Path Practicality",
+      "weight": "20%"
+    },
+    {
+      "category": "Training Material",
+      "weight": "15%"
+    },
+    {
+      "category": "Contribution Plan",
+      "weight": "15%"
+    },
+    {
+      "category": "Measurement Framework",
+      "weight": "15%"
+    },
+    {
+      "category": "Personal Authenticity",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "RM14",
+    "RM15"
+  ],
+  "resources": [
+    {
+      "type": "Documentation",
+      "title": "OCH Mastery Reference Guide",
+      "url": "https://och.dev/mastery-reference"
+    },
+    {
+      "type": "Video",
+      "title": "Mission Overview: The Multiplier — Mentorship Program Design",
+      "duration": "17-19 min"
+    },
+    {
+      "type": "Tool",
+      "title": "OCH Mastery Assessment Framework",
+      "url": "https://och.dev/assessment"
+    }
+  ],
+  "reflection_prompt": "What would an ideal mentorship program look like for African red team candidates? How would you structure learning paths for people from diverse technical backgrounds?",
+  "quiz": [
+    {
+      "question": "When designing a mentorship program for African red team candidates, why is tiered advancement with clear milestones important?",
+      "options": [
+        "Tiered advancement is unnecessary if mentors are skilled",
+        "Clear milestones provide candidates with measurable progress, accountability, and structured progression—essential for sustainable talent development in emerging African cybersecurity ecosystem",
+        "All candidates progress at the same rate regardless of capability",
+        "Mentorship programs should have no structure"
+      ],
+      "correct_index": 1,
+      "explanation": "Tiered advancement creates clear pathways for African talent development. Measurable milestones provide candidates with progress visibility, enable mentors to identify gaps, and allow organizations to graduate candidates at different paces based on demonstrated capability."
+    },
+    {
+      "question": "In your annual community contribution plan, what distinguishes high-impact contributions from token engagement?",
+      "options": [
+        "Impact and engagement are the same",
+        "High-impact contributions directly develop African cyber talent (mentoring individuals, creating training materials, speaking at regional conferences) versus generic activities",
+        "Community contribution is only for marketing purposes",
+        "Individual impact is impossible to measure"
+      ],
+      "correct_index": 1,
+      "explanation": "Meaningful mentorship requires specific commitments: mentoring named individuals with documented progress, creating training materials used by others, speaking at African cybersecurity conferences, and open-source contributions. These are measurable and impactful versus generic 'giving back.'"
+    }
+  ],
+  "portfolio_artifacts": [
+    "Professional deliverables demonstrating mastery-level capability",
+    "Complete documentation and methodology",
+    "Evidence of technical excellence and strategic thinking",
+    "Leadership and mentorship contributions"
+  ],
+  "mentor_notes": "\nThis Mastery mission requires senior mentor review. Candidates must demonstrate:\n- Professional-grade execution and documentation\n- Deep understanding of African organizational and threat contexts\n- Strategic thinking beyond tactical execution\n- Readiness for commercial red team operations\n- Leadership potential within OCH and broader community\n\nSuccessful completion positions candidate for Mastery portfolio and professional practice.\n        "
+}

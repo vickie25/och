@@ -1,0 +1,69 @@
+{
+  "recipe_id": "RM07",
+  "title": "Infrastructure-as-Code Deployment",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Adversary Infrastructure at Scale",
+  "pillar_icon": "\ud83c\udf0d",
+  "estimated_time": "32 min",
+  "difficulty": "Mastery",
+  "tools_required": [
+    "Terraform (IaC)",
+    "AWS / Azure / DigitalOcean (cloud providers)",
+    "Ansible (configuration management)",
+    "Certbot / Let's Encrypt (TLS automation)",
+    "Domain registrars (Namecheap, etc)",
+    "Monitoring (Prometheus, Grafana)",
+    "Custom deployment scripts"
+  ],
+  "when_to_use": "Use Infrastructure-as-Code Deployment to develop professional-grade infrastructure-as-code deployment capabilities at Mastery level. This recipe is part of the Adversary Infrastructure at Scale pillar and integrates with linked missions OM-M06, OM-M13.",
+  "linked_missions": [
+    "OM-M06",
+    "OM-M13"
+  ],
+  "step_count": 6,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Multi-Region Architecture Design",
+      "instruction": "Design resilient infrastructure spanning 3+ African cloud regions or international providers. Architecture includes: team server (C2 backend), HTTP/HTTPS redirectors, DNS redirectors, monitoring/alerting, engagement isolation. Document isolation model: separate VPC per engagement, credential isolation, log separation. Include network diagrams, firewall rules, data flow.",
+      "tip": "Multi-region architecture prevents single point of failure. Engagement isolation prevents compromise from cascading.",
+      "expected_output": "Architecture design (8+ pages) with network diagrams"
+    },
+    {
+      "number": 2,
+      "title": "Terraform Infrastructure Code",
+      "instruction": "Write production-grade Terraform modules for: VPC creation, EC2/droplet instances, security groups, load balancers, database setup. Modules: team_server (internal), http_redirector (external), dns_redirector (external), monitoring_stack. Include variables for multi-region parameterization. Code must be version-controlled and reviewed.",
+      "tip": "Terraform code should be idempotent and reviewed like production code. Use separate terraform workspaces per engagement.",
+      "expected_output": "Complete Terraform codebase for multi-region deployment"
+    },
+    {
+      "number": 3,
+      "title": "Domain & Certificate Automation",
+      "instruction": "Automate domain registration (via API), DNS configuration, and TLS certificate provisioning. Script: register random domain, configure DNS records (A, CNAME, MX), provision Let's Encrypt certificate, deploy certificate to redirectors. Automation must support rapid domain rotation on burn. Measure: time from domain registration to live redirector.",
+      "tip": "Domain automation reduces operator burden and enables rapid pivoting. Use DNS API integrations for automation.",
+      "expected_output": "Automation scripts + deployment demo"
+    },
+    {
+      "number": 4,
+      "title": "Monitoring & Alerting",
+      "instruction": "Implement health monitoring: team server availability, redirector response times, certificate expiration tracking, traffic anomalies. Alerting for: team server downtime, failed redirector health checks, unusual traffic patterns (potential detected redirector), certificate expiration. Use Prometheus/Grafana or CloudWatch for visualization.",
+      "tip": "Monitoring enables burn detection: sustained unusual traffic patterns suggest discovered infrastructure.",
+      "expected_output": "Monitoring configuration + sample dashboards"
+    },
+    {
+      "number": 5,
+      "title": "Burn & Rebuild Procedure",
+      "instruction": "Test complete burn-and-rebuild procedure: destroy all infrastructure, rebuild fresh with new domains and certificates, verify C2 connectivity. Measure time from \"burn decision\" to \"new infrastructure live\". Target: <30 minutes for complete rebuild. Document: runbook, prerequisite checklist, verification steps.",
+      "tip": "Burn procedures must be tested before engagements. Timing matters when detection is imminent.",
+      "expected_output": "Burn procedure documentation + timed rebuild demo"
+    },
+    {
+      "number": 6,
+      "title": "Cost Analysis & Provider Comparison",
+      "instruction": "Compare African and international cloud providers: pricing, data residency, VPN/proxy requirements, billing transparency. Build cost model: team server (always-on), redirectors (variable), data transfer. Optimize: spot instances, reserved capacity, cross-region transfer costs. Document: pricing breakdown, provider comparison, cost-saving strategies.",
+      "tip": "Infrastructure costs add up quickly. Optimize for engagement duration: 2-week engagement vs 6-month engagement have different optimal architectures.",
+      "expected_output": "Cost analysis with provider comparison matrix"
+    }
+  ]
+}

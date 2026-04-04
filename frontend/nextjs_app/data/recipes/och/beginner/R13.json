@@ -1,0 +1,70 @@
+{
+  "recipe_id": "R13",
+  "title": "Bash One-Liner Patterns",
+  "pillar": "Linux & CLI",
+  "pillar_icon": "🐧",
+  "estimated_time": "15 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Bash shell"
+  ],
+  "when_to_use": "When automating repetitive recon or analysis tasks during engagements",
+  "linked_missions": [
+    "OB-M07",
+    "OB-M08"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Search-Sort-Deduplicate",
+      "instruction": "cat file | grep 'term' | sort | uniq — search, sort, deduplicate",
+      "tip": "sort must come before uniq — uniq only removes adjacent duplicates",
+      "expected_output": "Sorted unique results"
+    },
+    {
+      "number": 2,
+      "title": "Search Across Files",
+      "instruction": "find . -name '*.log' | xargs grep 'error' — search across files",
+      "tip": "xargs converts stdin to arguments. Use -print0 and -0 for filenames with spaces",
+      "expected_output": "Cross-file search results"
+    },
+    {
+      "number": 3,
+      "title": "Extract Port Numbers",
+      "instruction": "nmap output | grep 'open' | cut -d'/' -f1 — extract open port numbers",
+      "tip": "cut splits on delimiter (-d) and selects field (-f). Powerful for structured output parsing",
+      "expected_output": "Port number list"
+    },
+    {
+      "number": 4,
+      "title": "Append to File",
+      "instruction": "echo 'result' >> output.txt — append to file",
+      "tip": ">> appends. > overwrites. Always use >> when building results over time",
+      "expected_output": "Data appended"
+    },
+    {
+      "number": 5,
+      "title": "Chain on Success",
+      "instruction": "command1 && command2 — chain on success",
+      "tip": "&& only runs command2 if command1 succeeds. Perfect for dependent operations",
+      "expected_output": "Chained execution"
+    },
+    {
+      "number": 6,
+      "title": "Chain on Failure",
+      "instruction": "command1 || command2 — chain on failure",
+      "tip": "|| runs command2 only if command1 fails. Useful for fallback commands",
+      "expected_output": "Fallback execution"
+    },
+    {
+      "number": 7,
+      "title": "Loop Through File",
+      "instruction": "for i in $(cat list.txt); do echo $i; done — loop through a file",
+      "tip": "Replace echo with any command: nmap, whois, dig. Automate repetitive tasks",
+      "expected_output": "Looped execution"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 7
+}

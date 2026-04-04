@@ -1,0 +1,157 @@
+{
+  "mission_id": "OI-M15",
+  "title": "Crack the Vault",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Password Attacks",
+  "pillar_icon": "🔑",
+  "mission_type": "Mandatory",
+  "module_number": 15,
+  "module_title": "Hash Cracking and Password Attack Methodology",
+  "video_duration": "15 min",
+  "estimated_time": "3-4 hrs",
+  "multiday": false,
+  "deadline": null,
+  "prerequisites": [
+    "Beginner Offensive Track completed",
+    "Hash types and identification",
+    "Hashcat and John the Ripper usage",
+    "Wordlist creation with CeWL",
+    "Password policy analysis"
+  ],
+  "learning_objectives": [
+    "Accurately identify hash types for proper cracking",
+    "Execute wordlist-based attacks with standard dictionaries",
+    "Create custom wordlists targeting specific organizations",
+    "Apply rule-based attacks for password variations",
+    "Analyse password patterns and produce security assessments"
+  ],
+  "key_topics": [
+    "Hash type identification and forensics",
+    "Wordlist creation and optimization",
+    "CeWL for custom wordlist generation",
+    "Hashcat and John the Ripper",
+    "Rule-based password cracking",
+    "Best64 and dive rules",
+    "Rainbow tables and GPU cracking",
+    "Password policy analysis",
+    "Password hygiene assessments"
+  ],
+  "scenario": "Captured hashes from previous missions. Crack them, build custom wordlists, and produce a password hygiene assessment.",
+  "scenario_context": {
+    "setting": "Collection of hashes from multiple penetration tests",
+    "challenge": "Crack diverse hash types and assess organizational password policies",
+    "relevance": "Password cracking is critical for breach assessment and security improvement"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Hash Identification",
+      "description": "Identify each hash type.",
+      "detailed_guidance": "Analyse hash format, length, character set. Use hash-identifier tool. Create identification table documenting type per hash.",
+      "evidence_required": "Hash identification table"
+    },
+    {
+      "number": 2,
+      "title": "Standard Wordlist Attack",
+      "description": "Crack with rockyou.txt.",
+      "detailed_guidance": "Use Hashcat or John with rockyou.txt wordlist. Document success rate. Create results table with hash and cracked password.",
+      "evidence_required": "Cracking results table"
+    },
+    {
+      "number": 3,
+      "title": "Custom Wordlist Creation",
+      "description": "CeWL from target website.",
+      "detailed_guidance": "Use CeWL to generate custom wordlist from target website. Combine with standard lists. Test against remaining uncracked hashes.",
+      "evidence_required": "Custom wordlist + cracking results"
+    },
+    {
+      "number": 4,
+      "title": "Rule-Based Attacks",
+      "description": "Hashcat rules: best64, dive.",
+      "detailed_guidance": "Apply rule-based attacks using best64.rule and dive.rule. Iterate through remaining uncracked hashes. Document rule effectiveness.",
+      "evidence_required": "Rule attack results and analysis"
+    },
+    {
+      "number": 5,
+      "title": "Password Hygiene Report",
+      "description": "Statistics and recommendations.",
+      "detailed_guidance": "Analyse cracked passwords for patterns: length, complexity, reuse, dictionary words. Create executive assessment with recommendations.",
+      "evidence_required": "Password hygiene assessment report"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Cracking Success Rate",
+      "weight": "20%"
+    },
+    {
+      "category": "Technique Variety",
+      "weight": "20%"
+    },
+    {
+      "category": "Custom Wordlist Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Analysis Depth",
+      "weight": "20%"
+    },
+    {
+      "category": "Recommendations",
+      "weight": "20%"
+    }
+  ],
+  "linked_recipes": [
+    "RI22",
+    "RI23"
+  ],
+  "resources": [
+    {
+      "name": "Hashcat and John the Ripper Guide",
+      "type": "reference"
+    },
+    {
+      "name": "CeWL Custom Wordlist Creation",
+      "type": "tutorial"
+    },
+    {
+      "name": "Hash Type Forensics and Identification",
+      "type": "guide"
+    }
+  ],
+  "reflection_prompt": "What password patterns did you discover? How would you advise the organization to strengthen password policies?",
+  "quiz": [
+    {
+      "question": "Why is custom wordlist creation valuable in password cracking?",
+      "options": [
+        "Generic wordlists are slow",
+        "Target-specific wordlists increase crack rate and efficiency",
+        "Required by cracking tools",
+        "Provides better encryption"
+      ],
+      "correct_index": 1,
+      "explanation": "Custom wordlists tailored to the organization (using CeWL on their website) significantly increase success rates by targeting likely passwords."
+    },
+    {
+      "question": "What is the primary advantage of rule-based attacks?",
+      "options": [
+        "Faster execution",
+        "Generate password variations automatically from base wordlist",
+        "Bypass all encryption",
+        "Eliminates need for wordlists"
+      ],
+      "correct_index": 1,
+      "explanation": "Rules apply transformations to base passwords (e.g., capitalization, numbers, special chars), covering common password variations efficiently."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Hash type identification table",
+    "Standard wordlist attack results",
+    "Custom wordlist and cracking results",
+    "Rule-based attack results and analysis",
+    "Complete password hygiene assessment report",
+    "Password policy recommendations"
+  ],
+  "mentor_notes": "Assess hash identification accuracy and cracking strategy. Custom wordlist quality shows targeting capability. Analysis should drive organizational recommendations. Success rate less important than methodology."
+}

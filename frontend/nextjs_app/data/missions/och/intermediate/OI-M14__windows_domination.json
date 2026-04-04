@@ -1,0 +1,166 @@
+{
+  "mission_id": "OI-M14",
+  "title": "Windows Domination",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Privilege Escalation",
+  "pillar_icon": "⬆️",
+  "mission_type": "Mandatory",
+  "module_number": 14,
+  "module_title": "Windows Privilege Escalation Techniques and Exploitation",
+  "video_duration": "17 min",
+  "estimated_time": "4-5 hrs",
+  "multiday": true,
+  "deadline": "48 hours",
+  "prerequisites": [
+    "Beginner Offensive Track completed",
+    "Windows privilege escalation concepts",
+    "WinPEAS and PowerUp familiarity",
+    "Service exploitation knowledge",
+    "Token impersonation concepts",
+    "Windows registry analysis"
+  ],
+  "learning_objectives": [
+    "Execute automated enumeration on Windows systems",
+    "Exploit service permission weaknesses",
+    "Abuse registry and group policy configurations",
+    "Perform token impersonation attacks",
+    "Compare Windows vs Linux escalation approaches",
+    "Provide Windows hardening recommendations"
+  ],
+  "key_topics": [
+    "WinPEAS script and output analysis",
+    "PowerUp and privilege escalation vectors",
+    "Unquoted service paths exploitation",
+    "Weak service permissions",
+    "AlwaysInstallElevated registry exploitation",
+    "Token impersonation (SeImpersonate, Potato attacks)",
+    "Windows registry misconfigurations",
+    "Service account abuse",
+    "Potato attack variations"
+  ],
+  "scenario": "Three Windows machines with different escalation vectors. Standard user access. Escalate to SYSTEM/Admin on all three.",
+  "scenario_context": {
+    "setting": "Three Windows systems with common misconfigurations",
+    "challenge": "Achieve SYSTEM-level access on multiple machines",
+    "relevance": "Windows environments use similar escalation patterns"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Automated Enumeration",
+      "description": "WinPEAS + PowerUp per machine.",
+      "detailed_guidance": "Run WinPEAS and PowerUp scripts on each machine. Analyse output. Identify top privilege escalation vectors. Annotate key findings.",
+      "evidence_required": "Annotated output per machine"
+    },
+    {
+      "number": 2,
+      "title": "Machine 1: Service Exploitation",
+      "description": "Unquoted paths or weak permissions.",
+      "detailed_guidance": "Identify vulnerable service (unquoted path or weak permissions). Create malicious binary. Replace legitimate binary or place in path. Trigger service.",
+      "evidence_required": "SYSTEM shell evidence + exploitation steps"
+    },
+    {
+      "number": 3,
+      "title": "Machine 2: Registry/Policy Exploit",
+      "description": "AlwaysInstallElevated or registry vector.",
+      "detailed_guidance": "Check registry for AlwaysInstallElevated or other vulnerable settings. Create malicious MSI or exploit registry setting. Achieve SYSTEM access.",
+      "evidence_required": "SYSTEM shell evidence + registry configuration documented"
+    },
+    {
+      "number": 4,
+      "title": "Machine 3: Token Impersonation",
+      "description": "SeImpersonate + Potato attack.",
+      "detailed_guidance": "Check for SeImpersonate token. Use Potato attack (RoguePotato, JuicyPotato, etc.) to impersonate SYSTEM. Achieve SYSTEM access.",
+      "evidence_required": "SYSTEM shell evidence + Potato attack methodology"
+    },
+    {
+      "number": 5,
+      "title": "Cross-Platform Comparison",
+      "description": "Linux vs Windows PrivEsc analysis.",
+      "detailed_guidance": "Compare escalation vectors across Windows and Linux. Document different approaches, tool usage, and relative difficulty.",
+      "evidence_required": "Cross-platform comparison document"
+    },
+    {
+      "number": 6,
+      "title": "Hardening Recommendations",
+      "description": "Specific hardening per vulnerability.",
+      "detailed_guidance": "For each vulnerability type, provide Windows-specific remediation and hardening guidance.",
+      "evidence_required": "Windows hardening guide with specific recommendations"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Escalation Success",
+      "weight": "25%"
+    },
+    {
+      "category": "Methodology",
+      "weight": "20%"
+    },
+    {
+      "category": "Enumeration Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Cross-Platform Analysis",
+      "weight": "15%"
+    },
+    {
+      "category": "Hardening Recommendations",
+      "weight": "20%"
+    }
+  ],
+  "linked_recipes": [
+    "RI20",
+    "RI21"
+  ],
+  "resources": [
+    {
+      "name": "WinPEAS and PowerUp Tools Guide",
+      "type": "tutorial"
+    },
+    {
+      "name": "Windows Service Exploitation Techniques",
+      "type": "guide"
+    },
+    {
+      "name": "Token Impersonation and Potato Attacks Reference",
+      "type": "reference"
+    }
+  ],
+  "reflection_prompt": "How do Windows escalation vectors differ from Linux? What patterns do you see across the three machines?",
+  "quiz": [
+    {
+      "question": "Why do unquoted service paths lead to privilege escalation?",
+      "options": [
+        "Quotes are optional in Windows",
+        "Windows searches path for executables without quotes, allowing DLL hijacking",
+        "Services always run as SYSTEM",
+        "Unquoted paths are encrypted"
+      ],
+      "correct_index": 1,
+      "explanation": "If a service path isn't quoted and contains spaces, Windows searches the path for a matching executable, allowing attackers to place malicious binaries in earlier paths."
+    },
+    {
+      "question": "What privilege does SeImpersonate token enable?",
+      "options": [
+        "Limited to current user",
+        "Allows impersonation of any user the system has tokens for",
+        "Only affects network access",
+        "Requires SYSTEM first"
+      ],
+      "correct_index": 1,
+      "explanation": "SeImpersonate allows a process to impersonate security tokens, enabling privilege escalation attacks like Potato attacks to SYSTEM level."
+    }
+  ],
+  "portfolio_artifacts": [
+    "WinPEAS and PowerUp outputs (annotated, per machine)",
+    "Machine 1: Service exploitation proof and methodology",
+    "Machine 2: Registry/policy exploitation proof",
+    "Machine 3: Token impersonation and Potato attack proof",
+    "Cross-platform PrivEsc comparison analysis",
+    "Windows hardening recommendations guide"
+  ],
+  "mentor_notes": "All 3 machines must be escalated to SYSTEM/Admin. WinPEAS/PowerUp analysis should be thorough. Comparison should show platform understanding. 48-hour deadline is tight for three escalations."
+}

@@ -1,0 +1,82 @@
+{
+  "track": "Offensive",
+  "tier": "Mastery",
+  "total_missions": 15,
+  "missions": [
+    {
+      "id": "OM-M01",
+      "title": "The Unknown — Vulnerability Research Campaign",
+      "file": "OM-M01.json"
+    },
+    {
+      "id": "OM-M02",
+      "title": "Breaking Barriers — Modern Exploit Development",
+      "file": "OM-M02.json"
+    },
+    {
+      "id": "OM-M03",
+      "title": "Forge the Weapon — Exploit Weaponization",
+      "file": "OM-M03.json"
+    },
+    {
+      "id": "OM-M04",
+      "title": "Build Your Own — Custom Implant from Scratch",
+      "file": "OM-M04.json"
+    },
+    {
+      "id": "OM-M05",
+      "title": "Invisible Operator — Advanced Evasion Suite",
+      "file": "OM-M05.json"
+    },
+    {
+      "id": "OM-M06",
+      "title": "Continental Operations — Infrastructure at Scale",
+      "file": "OM-M06.json"
+    },
+    {
+      "id": "OM-M07",
+      "title": "The Long War — OPSEC Framework",
+      "file": "OM-M07.json"
+    },
+    {
+      "id": "OM-M08",
+      "title": "Critical Infrastructure — OT Security Assessment",
+      "file": "OM-M08.json"
+    },
+    {
+      "id": "OM-M09",
+      "title": "Mobile-First Africa — Comprehensive Mobile Assessment",
+      "file": "OM-M09.json"
+    },
+    {
+      "id": "OM-M10",
+      "title": "Serverless Siege — Cloud-Native Red Team",
+      "file": "OM-M10.json"
+    },
+    {
+      "id": "OM-M11",
+      "title": "The Practice — Red Team Business Plan",
+      "file": "OM-M11.json"
+    },
+    {
+      "id": "OM-M12",
+      "title": "Operations Commander — Program Management",
+      "file": "OM-M12.json"
+    },
+    {
+      "id": "OM-M13",
+      "title": "Operation Eclipse — The Grand Capstone",
+      "file": "OM-M13.json"
+    },
+    {
+      "id": "OM-M14",
+      "title": "The Multiplier — Mentorship Program Design",
+      "file": "OM-M14.json"
+    },
+    {
+      "id": "OM-M15",
+      "title": "Identity Eclipse — The Final Portfolio",
+      "file": "OM-M15.json"
+    }
+  ]
+}

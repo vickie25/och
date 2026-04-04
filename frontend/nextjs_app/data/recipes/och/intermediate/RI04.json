@@ -1,0 +1,74 @@
+{
+  "recipe_id": "RI04",
+  "title": "Service Enumeration Cheatsheet",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Deep Enumeration",
+  "pillar_icon": "\ud83d\udd0e",
+  "estimated_time": "20 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "enum4linux",
+    "smbclient",
+    "snmpwalk",
+    "dig",
+    "dnsrecon"
+  ],
+  "when_to_use": "After port scanning reveals open services",
+  "linked_missions": [
+    "OI-M03",
+    "OI-M04"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Run enum4linux to enumerate SMB shares, users, groups, and system information",
+      "tip": "Start with the most reliable information source for service enumeration cheatsheet",
+      "expected_output": "Lists of SMB shares, domain users, groups, system uptime, and NETBIOS information"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Use smbclient to list available SMB shares without authentication",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "Enumeration of accessible SMB shares and their permissions"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Execute SNMP walk to enumerate SNMP OIDs and system information if SNMP is open",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "System information, running processes, network interfaces discovered via SNMP"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Attempt DNS zone transfer to obtain authoritative DNS records",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Complete DNS zone file if zone transfer is misconfigured"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Perform DNS brute force to discover additional subdomains and hosts",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "List of discovered subdomains not visible through other methods"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Check for NFS shares and their mount points using showmount",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "List of exported NFS shares and their access restrictions"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Enumerate SMTP users using SMTP user enumeration techniques",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "List of valid email addresses and users on the SMTP server"
+    }
+  ]
+}

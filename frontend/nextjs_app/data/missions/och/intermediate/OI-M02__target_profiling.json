@@ -1,0 +1,153 @@
+{
+  "mission_id": "OI-M02",
+  "title": "Target Profiling",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Advanced Reconnaissance",
+  "pillar_icon": "🔍",
+  "mission_type": "Mandatory",
+  "module_number": 2,
+  "module_title": "Technology Stack Fingerprinting and Defence Analysis",
+  "video_duration": "14 min",
+  "estimated_time": "2-3 hrs",
+  "multiday": false,
+  "deadline": null,
+  "prerequisites": [
+    "Beginner Offensive Track completed",
+    "Web application basics",
+    "WhatWeb and Wappalyzer familiarity",
+    "HTTP header analysis knowledge"
+  ],
+  "learning_objectives": [
+    "Accurately fingerprint web application technologies and frameworks",
+    "Identify and classify defensive mechanisms including WAFs",
+    "Map infrastructure components and their relationships",
+    "Produce actionable technology intelligence for exploitation planning"
+  ],
+  "key_topics": [
+    "WhatWeb automated fingerprinting",
+    "Wappalyzer technology detection",
+    "HTTP header analysis techniques",
+    "WAF detection and classification",
+    "Infrastructure mapping (CDN, DNS, hosting)",
+    "Hidden asset discovery (robots.txt, sitemaps, JS)",
+    "Technology profiling documentation",
+    "Defence evasion considerations"
+  ],
+  "scenario": "Before active testing, the team lead wants a complete technology profile of the web application target — every technology, every layer, every defence.",
+  "scenario_context": {
+    "setting": "Pre-engagement phase of internal web application assessment",
+    "challenge": "Build comprehensive technology inventory while identifying defensive controls",
+    "relevance": "Essential first step before exploitation; determines tool selection and approach modifications"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Web Technology Fingerprinting",
+      "description": "Use WhatWeb, Wappalyzer, and manual header analysis.",
+      "detailed_guidance": "Run WhatWeb against target with all plugins enabled. Use Wappalyzer browser extension. Manually inspect HTTP response headers, cookies, error messages. Correlate findings.",
+      "evidence_required": "Complete technology stack profile with tool outputs"
+    },
+    {
+      "number": 2,
+      "title": "WAF & Defence Detection",
+      "description": "Determine WAF presence and identify defensive measures.",
+      "detailed_guidance": "Use WAFW00F and manual testing. Test with known attack patterns. Document response behaviours indicating WAF. Identify other defensive controls (rate limiting, IP blocking, CSP).",
+      "evidence_required": "WAF detection results + complete defences documented"
+    },
+    {
+      "number": 3,
+      "title": "Infrastructure Mapping",
+      "description": "Map hosting provider, CDN, DNS infrastructure, related domains.",
+      "detailed_guidance": "Identify hosting provider via WHOIS and IP analysis. Detect CDN usage via traceroute and DNS queries. Map related domains and subdomains. Create infrastructure diagram.",
+      "evidence_required": "Infrastructure map diagram with annotations"
+    },
+    {
+      "number": 4,
+      "title": "Hidden Asset Discovery",
+      "description": "Analyse robots.txt, sitemap.xml, source comments, JS files, error pages.",
+      "detailed_guidance": "Download and analyse all discoverable configuration files. Mine JavaScript for API endpoints, environment info, debug statements. Collect error page fingerprints.",
+      "evidence_required": "Hidden asset inventory with risk assessment"
+    },
+    {
+      "number": 5,
+      "title": "Technology Profile Dossier",
+      "description": "Compile all findings into a Target Technology Profile.",
+      "detailed_guidance": "Create professional dossier summarizing tech stack, versions, defences, and infrastructure. Highlight attack-relevant technology combinations. Include recommendations for testing approach.",
+      "evidence_required": "Complete technology dossier (5+ pages)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Fingerprinting Accuracy",
+      "weight": "25%"
+    },
+    {
+      "category": "Completeness",
+      "weight": "25%"
+    },
+    {
+      "category": "Analysis Depth",
+      "weight": "20%"
+    },
+    {
+      "category": "Dossier Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Attack Surface Insight",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "RI02",
+    "RI03"
+  ],
+  "resources": [
+    {
+      "name": "WhatWeb Complete Plugin Guide",
+      "type": "reference"
+    },
+    {
+      "name": "WAF Detection Techniques",
+      "type": "guide"
+    },
+    {
+      "name": "Infrastructure Reconnaissance Tools",
+      "type": "toolkit"
+    }
+  ],
+  "reflection_prompt": "What hidden attack surface did you discover through JavaScript mining or error pages? How would different technology stacks require different exploitation strategies?",
+  "quiz": [
+    {
+      "question": "Which tool is most effective for identifying WordPress plugin versions that may have known vulnerabilities?",
+      "options": [
+        "WAFW00F",
+        "WhatWeb",
+        "Wappalyzer",
+        "Manual header inspection"
+      ],
+      "correct_index": 2,
+      "explanation": "Wappalyzer is specifically designed to detect third-party technologies and their versions, making it excellent for identifying outdated plugins."
+    },
+    {
+      "question": "What does detection of a WAF imply for your exploitation strategy?",
+      "options": [
+        "Stop testing immediately",
+        "Modify payloads and test evasion techniques",
+        "Exploit faster before WAF detects",
+        "None, WAF doesn't affect exploitation"
+      ],
+      "correct_index": 1,
+      "explanation": "WAF detection means you need to adjust your approach, use encoding/obfuscation, and potentially test evasion techniques before executing exploits."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Technology fingerprinting report",
+    "WAF and defence analysis document",
+    "Infrastructure mapping diagram",
+    "Hidden assets inventory",
+    "Complete technology profile dossier"
+  ],
+  "mentor_notes": "Evaluate accuracy of tech identification and depth of defence analysis. The dossier should guide subsequent exploitation phases. Check for strategic insights about technology combinations and their implications."
+}

@@ -1,0 +1,137 @@
+{
+  "track": "Offensive",
+  "tier": "Advanced",
+  "total_recipes": 26,
+  "recipes": [
+    {
+      "id": "RA01",
+      "file": "RA01.json",
+      "title": "Red Team Engagement Planning"
+    },
+    {
+      "id": "RA02",
+      "file": "RA02.json",
+      "title": "Advanced Initial Access Playbook"
+    },
+    {
+      "id": "RA03",
+      "file": "RA03.json",
+      "title": "Spear-Phishing Pretext Design"
+    },
+    {
+      "id": "RA04",
+      "file": "RA04.json",
+      "title": "Stack Buffer Overflow Workflow"
+    },
+    {
+      "id": "RA05",
+      "file": "RA05.json",
+      "title": "Vulnerability Chaining Framework"
+    },
+    {
+      "id": "RA06",
+      "file": "RA06.json",
+      "title": "Evasion Development Workflow"
+    },
+    {
+      "id": "RA07",
+      "file": "RA07.json",
+      "title": "Network Evasion Toolkit"
+    },
+    {
+      "id": "RA08",
+      "file": "RA08.json",
+      "title": "C2 Infrastructure Deployment"
+    },
+    {
+      "id": "RA09",
+      "file": "RA09.json",
+      "title": "AD Attack Path Workflow"
+    },
+    {
+      "id": "RA10",
+      "file": "RA10.json",
+      "title": "AD Persistence Playbook"
+    },
+    {
+      "id": "RA11",
+      "file": "RA11.json",
+      "title": "Kerberos Attack Deep Reference"
+    },
+    {
+      "id": "RA12",
+      "file": "RA12.json",
+      "title": "Cloud Attack Methodology"
+    },
+    {
+      "id": "RA13",
+      "file": "RA13.json",
+      "title": "Container Attack Methodology"
+    },
+    {
+      "id": "RA14",
+      "file": "RA14.json",
+      "title": "Kubernetes Enumeration Checklist"
+    },
+    {
+      "id": "RA15",
+      "file": "RA15.json",
+      "title": "Data Exfiltration Workflow"
+    },
+    {
+      "id": "RA16",
+      "file": "RA16.json",
+      "title": "Operational Logging Best Practices"
+    },
+    {
+      "id": "RA17",
+      "file": "RA17.json",
+      "title": "Advanced Web Attack Methodology"
+    },
+    {
+      "id": "RA18",
+      "file": "RA18.json",
+      "title": "API Security Testing Workflow"
+    },
+    {
+      "id": "RA19",
+      "file": "RA19.json",
+      "title": "JWT Attack Reference"
+    },
+    {
+      "id": "RA20",
+      "file": "RA20.json",
+      "title": "Wireless Attack Workflow"
+    },
+    {
+      "id": "RA21",
+      "file": "RA21.json",
+      "title": "Physical Assessment Checklist"
+    },
+    {
+      "id": "RA22",
+      "file": "RA22.json",
+      "title": "Social Engineering Pretext Library"
+    },
+    {
+      "id": "RA23",
+      "file": "RA23.json",
+      "title": "Threat Intel Operationalization"
+    },
+    {
+      "id": "RA24",
+      "file": "RA24.json",
+      "title": "Purple Team Exercise Framework"
+    },
+    {
+      "id": "RA25",
+      "file": "RA25.json",
+      "title": "Red Team Report Template"
+    },
+    {
+      "id": "RA26",
+      "file": "RA26.json",
+      "title": "Professional Readiness Assessment"
+    }
+  ]
+}

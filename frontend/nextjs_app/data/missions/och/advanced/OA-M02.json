@@ -1,0 +1,157 @@
+{
+  "mission_id": "OA-M02",
+  "title": "Operation First Contact",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Red Team Operations",
+  "pillar_icon": "\ud83c\udfaf",
+  "mission_type": "Mandatory",
+  "module_number": 2,
+  "module_title": "Module 2: Operation First Contact",
+  "video_duration": "15-20 min",
+  "estimated_time": "6-8 hrs",
+  "multiday": true,
+  "deadline": "5 days",
+  "prerequisites": [
+    "Intermediate Offensive Track",
+    "Core Cybersecurity Fundamentals"
+  ],
+  "learning_objectives": [
+    "Execute reconnaissance and information gathering",
+    "Identify and exploit initial access vectors",
+    "Document attacker methodologies from threat intelligence",
+    "Establish initial foothold with minimal detection",
+    "Create persistence mechanisms for follow-up operations"
+  ],
+  "key_topics": [
+    "Red team engagement planning and scoping",
+    "Rules of engagement (RoE) and OPSEC",
+    "Threat intelligence integration",
+    "Attack chain methodology",
+    "Reporting and remediation recommendations"
+  ],
+  "scenario": "Scenario MineralTech Corp in Botswana has mature email filtering, EDR, and security-aware employees. Standard phishing will fail. Design and simulate advanced initial access. Subtasks Scoring Rubric Linked Recipes: RA02, RA03 ________________________________________________________________________________ 3.2 Advanced Exploitation",
+  "scenario_context": {
+    "setting": "Johannesburg, South Africa, East African telecommunications provider",
+    "challenge": "Identify and exploit initial access vector against East African telecommunications provider in Johannesburg, South Africa",
+    "relevance": "Reflects real-world African enterprise security challenges and red team operations across the continent"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Target Reconnaissance",
+      "description": "Deep OSINT on employees. Identify high-value targets.",
+      "evidence": "Target dossiers for 5 employees",
+      "detailed_guidance": "Begin by thoroughly reviewing the scenario and understanding all objectives. Document your approach before execution. This is the foundational subtask that enables all following work.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Target dossiers for 5 employees"
+    },
+    {
+      "number": 2,
+      "title": "Pretext Development",
+      "description": "3 distinct pretext scenarios that bypass phishing awareness.",
+      "evidence": "3 pretext scenario documents",
+      "detailed_guidance": "Conduct systematic reconnaissance and information gathering. Map the target network, identify services, and document all findings with evidence.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "3 pretext scenario documents"
+    },
+    {
+      "number": 3,
+      "title": "Payload Engineering",
+      "description": "Payloads evading email gateways: HTML smuggling, macro-free.",
+      "evidence": "Payload artifacts + evasion testing docs",
+      "detailed_guidance": "Analyze vulnerabilities discovered in reconnaissance. Validate each vulnerability through testing and document the exploitation path.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Payload artifacts + evasion testing docs"
+    },
+    {
+      "number": 4,
+      "title": "Infrastructure Setup",
+      "description": "Phishing infrastructure: domains, landing pages, redirectors.",
+      "evidence": "Infrastructure docs with OPSEC analysis",
+      "detailed_guidance": "Execute the exploitation with careful attention to OPSEC and evasion. Maintain detailed logs of all actions for evidence and reporting.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Infrastructure docs with OPSEC analysis"
+    },
+    {
+      "number": 5,
+      "title": "Campaign Simulation",
+      "description": "Complete campaign plan with timing and decision trees.",
+      "evidence": "Campaign execution plan",
+      "detailed_guidance": "Establish persistence mechanisms that survive system reboots and will maintain access throughout the engagement.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Campaign execution plan"
+    },
+    {
+      "number": 6,
+      "title": "Detection Analysis",
+      "description": "What artifacts remain? What could blue team detect?",
+      "evidence": "Detection analysis with IOC listing",
+      "detailed_guidance": "Perform privilege escalation and lateral movement to achieve the mission objectives. Document each pivot point.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Detection analysis with IOC listing"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "OSINT & Targeting",
+      "weight": "15%"
+    },
+    {
+      "category": "Pretext Creativity",
+      "weight": "20%"
+    },
+    {
+      "category": "Payload Sophistication",
+      "weight": "20%"
+    },
+    {
+      "category": "OPSEC Quality",
+      "weight": "15%"
+    },
+    {
+      "category": "Campaign Realism",
+      "weight": "15%"
+    },
+    {
+      "category": "Detection Analysis",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "Operation First Contact"
+  ],
+  "resources": [
+    "OCH Advanced Red Team Operations Toolkit",
+    "Engagement Framework Documentation",
+    "OPSEC Guidelines",
+    "Reporting Templates",
+    "Mentor Support Channel"
+  ],
+  "reflection_prompt": "",
+  "quiz": [
+    {
+      "question": "What is the typical first step in a red team engagement's attack chain?",
+      "options": [
+        "Escalate privileges immediately",
+        "Perform reconnaissance and initial access",
+        "Deploy C2 infrastructure",
+        "Extract sensitive data"
+      ],
+      "correct_index": 1,
+      "explanation": "Initial access requires reconnaissance to identify vulnerabilities and attack vectors."
+    },
+    {
+      "question": "Which threat intelligence source would be most valuable for identifying zero-day vulnerabilities in a target organization?",
+      "options": [
+        "Public CVE databases only",
+        "Commercial threat feeds including dark web monitoring",
+        "Only internal network scanning",
+        "Social media monitoring exclusively"
+      ],
+      "correct_index": 1,
+      "explanation": "Commercial threat feeds with dark web monitoring provide early warning of emerging exploits."
+    }
+  ],
+  "portfolio_artifacts": [
+    "OA-M02_engagement_plan.md",
+    "OA-M02_evidence_log.txt",
+    "OA-M02_technical_report.md",
+    "OA-M02_client_presentation.pdf"
+  ],
+  "mentor_notes": "For OA-M02 - Operation First Contact: Ensure learner demonstrates proper OPSEC, evidence collection, and professional reporting. This mission is designed to build red team operations expertise. Coordinate with blue team for detection validation where applicable."
+}

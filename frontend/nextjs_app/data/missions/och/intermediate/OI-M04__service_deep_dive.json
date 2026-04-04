@@ -1,0 +1,161 @@
+{
+  "mission_id": "OI-M04",
+  "title": "Service Deep Dive",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Deep Enumeration",
+  "pillar_icon": "🔎",
+  "mission_type": "Mandatory",
+  "module_number": 4,
+  "module_title": "Multi-Service Enumeration and Attack Path Identification",
+  "video_duration": "17 min",
+  "estimated_time": "4-5 hrs",
+  "multiday": true,
+  "deadline": "48 hours",
+  "prerequisites": [
+    "Beginner Offensive Track completed",
+    "SMB, SNMP, DNS, NFS enumeration tools",
+    "Service-specific exploitation knowledge",
+    "Network analysis fundamentals"
+  ],
+  "learning_objectives": [
+    "Execute comprehensive enumeration of diverse network services",
+    "Cross-reference findings from multiple services to identify attack paths",
+    "Prioritize vulnerabilities based on exploitability and impact",
+    "Create actionable exploitation roadmaps"
+  ],
+  "key_topics": [
+    "SMB enumeration and share discovery",
+    "SNMP community string testing and walks",
+    "DNS zone transfer attempts and brute-forcing",
+    "NFS share enumeration and mounting",
+    "RPC service discovery and analysis",
+    "Service interdependencies and trust relationships",
+    "Attack path analysis methodologies",
+    "Cross-service correlation techniques"
+  ],
+  "scenario": "5 hosts running SMB, SNMP, DNS, NFS, and a web application. Ports are open — enumerate each service thoroughly and identify attack paths.",
+  "scenario_context": {
+    "setting": "Internal network segment with multiple services on diverse hosts",
+    "challenge": "Correlate findings across services to identify exploitation sequences",
+    "relevance": "Realistic internal pentest scenario common in enterprise networks"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "SMB Enumeration",
+      "description": "Extract share listings, user accounts, password policies, OS versions.",
+      "detailed_guidance": "Use enum4linux, impacket tools, and rpcclient for comprehensive SMB enumeration. Extract share listings, identify null sessions, enumerate users and groups. Document OS and patch levels.",
+      "evidence_required": "Complete SMB enumeration output with user and share inventory"
+    },
+    {
+      "number": 2,
+      "title": "SNMP Harvesting",
+      "description": "Test default community strings. Full SNMP walks.",
+      "detailed_guidance": "Attempt common community strings (public, private, etc.). Conduct full SNMP walks on successful connections. Extract system info, ARP tables, routing tables.",
+      "evidence_required": "SNMP walk results with intelligence summary extracted"
+    },
+    {
+      "number": 3,
+      "title": "DNS Intelligence",
+      "description": "Attempt zone transfers. Subdomain brute-forcing.",
+      "detailed_guidance": "Try zone transfers using dig and nslookup. Conduct subdomain brute-forcing if zone transfer fails. Map internal DNS records and document infrastructure.",
+      "evidence_required": "DNS enumeration results + internal network topology map"
+    },
+    {
+      "number": 4,
+      "title": "NFS & Additional Services",
+      "description": "Enumerate NFS shares, RPC services.",
+      "detailed_guidance": "Use showmount to enumerate NFS exports. Test mount access. Enumerate RPC services with rpcinfo. Document accessible shares and available services.",
+      "evidence_required": "NFS/RPC enumeration results with data inventory"
+    },
+    {
+      "number": 5,
+      "title": "Consolidated Report",
+      "description": "Unified report with cross-referenced findings.",
+      "detailed_guidance": "Create comprehensive enumeration report combining all service findings. Identify relationships between systems. Highlight critical information.",
+      "evidence_required": "Comprehensive enumeration report (5+ pages)"
+    },
+    {
+      "number": 6,
+      "title": "Attack Path Identification",
+      "description": "Top 3 attack paths with justification.",
+      "detailed_guidance": "Analyse cross-service dependencies. Identify 3 most promising exploitation sequences. Justify selection based on feasibility and impact. Create attack chain diagrams.",
+      "evidence_required": "Attack path analysis document with visual chains"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Enumeration Depth",
+      "weight": "25%"
+    },
+    {
+      "category": "Cross-Service Correlation",
+      "weight": "20%"
+    },
+    {
+      "category": "Attack Path Logic",
+      "weight": "20%"
+    },
+    {
+      "category": "Report Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Time Management",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "RI04",
+    "RI05"
+  ],
+  "resources": [
+    {
+      "name": "enum4linux Complete Guide",
+      "type": "tutorial"
+    },
+    {
+      "name": "SNMP Enumeration Techniques",
+      "type": "guide"
+    },
+    {
+      "name": "DNS and NFS Exploitation Reference",
+      "type": "reference"
+    }
+  ],
+  "reflection_prompt": "How did findings from one service inform your approach to another? What hidden dependencies did you discover between systems?",
+  "quiz": [
+    {
+      "question": "What is the primary value of SNMP community string enumeration in a pentest?",
+      "options": [
+        "Direct code execution",
+        "Device management and network topology discovery",
+        "Password harvesting",
+        "Malware deployment"
+      ],
+      "correct_index": 1,
+      "explanation": "SNMP provides network topology, device inventory, and routing information, which is critical for understanding network structure and identifying targets."
+    },
+    {
+      "question": "How can an NFS share enumeration lead to lateral movement?",
+      "options": [
+        "NFS contains plaintext passwords",
+        "Mounted shares can contain SSH keys or credential files",
+        "NFS allows direct shell access",
+        "NFS inherently provides admin access"
+      ],
+      "correct_index": 1,
+      "explanation": "Accessible NFS shares may contain home directories, SSH keys, and credential files that enable lateral movement to other systems."
+    }
+  ],
+  "portfolio_artifacts": [
+    "SMB enumeration output with annotations",
+    "SNMP walk results and analysis",
+    "DNS zone transfer/brute-force results",
+    "NFS share inventory and mount attempts",
+    "Consolidated enumeration report",
+    "Attack path analysis with diagrams"
+  ],
+  "mentor_notes": "Evaluate depth of enumeration per service and quality of cross-service correlation. The attack paths should be technically sound and justified. Time management is critical with 48-hour deadline."
+}

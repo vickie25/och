@@ -1,0 +1,157 @@
+{
+  "mission_id": "OA-M05",
+  "title": "Ghost Protocol",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Evasion & Anti-Detection",
+  "pillar_icon": "\ud83d\udc7b",
+  "mission_type": "Mandatory",
+  "module_number": 5,
+  "module_title": "Module 5: Ghost Protocol",
+  "video_duration": "15-20 min",
+  "estimated_time": "8-10 hrs",
+  "multiday": true,
+  "deadline": "7 days",
+  "prerequisites": [
+    "Intermediate Offensive Track",
+    "Core Cybersecurity Fundamentals"
+  ],
+  "learning_objectives": [
+    "Analyze endpoint detection and response (EDR) capabilities",
+    "Develop evasion techniques for EDR bypass",
+    "Implement living-off-the-land tactics",
+    "Create obfuscated payloads resistant to detection",
+    "Verify evasion effectiveness against EDR"
+  ],
+  "key_topics": [
+    "Endpoint Detection and Response (EDR) evasion",
+    "AMSI and PowerShell evasion",
+    "Signature-based detection bypass",
+    "Behavior-based detection evasion",
+    "Living-off-the-land tactics"
+  ],
+  "scenario": "Scenario Target runs CrowdStrike Falcon (simulated). Standard payloads are instantly detected. Develop evasion capabilities achieving execution without detection. Subtasks Scoring Rubric Linked Recipes: RA06, RA07 ________________________________________________________________________________",
+  "scenario_context": {
+    "setting": "Cairo, Egypt, Pan-African logistics network",
+    "challenge": "Evade endpoint detection on Pan-African logistics network's Cairo, Egypt systems",
+    "relevance": "Reflects real-world African enterprise security challenges and red team operations across the continent"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Detection Analysis",
+      "description": "Submit standard payloads. Document what gets detected and why.",
+      "evidence": "Detection analysis matrix",
+      "detailed_guidance": "Begin by thoroughly reviewing the scenario and understanding all objectives. Document your approach before execution. This is the foundational subtask that enables all following work.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Detection analysis matrix"
+    },
+    {
+      "number": 2,
+      "title": "Custom Shellcode Loader",
+      "description": "Loader evading static analysis.",
+      "evidence": "Custom loader source + evasion docs",
+      "detailed_guidance": "Conduct systematic reconnaissance and information gathering. Map the target network, identify services, and document all findings with evidence.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Custom loader source + evasion docs"
+    },
+    {
+      "number": 3,
+      "title": "Obfuscation Layer",
+      "description": "Encryption and runtime decryption for payload delivery.",
+      "evidence": "Obfuscated payload + encryption docs",
+      "detailed_guidance": "Analyze vulnerabilities discovered in reconnaissance. Validate each vulnerability through testing and document the exploitation path.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Obfuscated payload + encryption docs"
+    },
+    {
+      "number": 4,
+      "title": "Process Injection",
+      "description": "2+ process injection techniques.",
+      "evidence": "Process injection code + comparison",
+      "detailed_guidance": "Execute the exploitation with careful attention to OPSEC and evasion. Maintain detailed logs of all actions for evidence and reporting.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Process injection code + comparison"
+    },
+    {
+      "number": 5,
+      "title": "Full Evasion Chain",
+      "description": "Complete chain: delivery, execution, persistence without detection.",
+      "evidence": "Evasion chain docs + test results",
+      "detailed_guidance": "Establish persistence mechanisms that survive system reboots and will maintain access throughout the engagement.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Evasion chain docs + test results"
+    },
+    {
+      "number": 6,
+      "title": "Detection Engineering Report",
+      "description": "Help blue team detect your techniques.",
+      "evidence": "Detection engineering recommendations",
+      "detailed_guidance": "Perform privilege escalation and lateral movement to achieve the mission objectives. Document each pivot point.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Detection engineering recommendations"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Evasion Success",
+      "weight": "25%"
+    },
+    {
+      "category": "Technical Depth",
+      "weight": "20%"
+    },
+    {
+      "category": "Code Quality",
+      "weight": "15%"
+    },
+    {
+      "category": "Detection Analysis",
+      "weight": "15%"
+    },
+    {
+      "category": "Blue Team Report",
+      "weight": "15%"
+    },
+    {
+      "category": "OPSEC Awareness",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "Ghost Protocol"
+  ],
+  "resources": [
+    "OCH Advanced Evasion & Anti-Detection Toolkit",
+    "Engagement Framework Documentation",
+    "OPSEC Guidelines",
+    "Reporting Templates",
+    "Mentor Support Channel"
+  ],
+  "reflection_prompt": "",
+  "quiz": [
+    {
+      "question": "What does AMSI primarily detect?",
+      "options": [
+        "Physical intrusions into data centers",
+        "Malicious behavior in PowerShell and other Windows scripting engines",
+        "Network-based attacks only",
+        "All binary executables"
+      ],
+      "correct_index": 1,
+      "explanation": "AMSI (Antimalware Scan Interface) detects malicious scripts in PowerShell and VBScript by scanning behavior and code patterns."
+    },
+    {
+      "question": "Which of the following is a \"living-off-the-land\" technique?",
+      "options": [
+        "Using exclusively external tools from the internet",
+        "Using only open-source software",
+        "Using built-in Windows tools like PowerShell and WMI without introducing new binaries",
+        "Using only network protocols"
+      ],
+      "correct_index": 2,
+      "explanation": "Living-off-the-land uses legitimate system tools to avoid introducing suspicious binaries that trigger detection."
+    }
+  ],
+  "portfolio_artifacts": [
+    "OA-M05_engagement_plan.md",
+    "OA-M05_evidence_log.txt",
+    "OA-M05_technical_report.md",
+    "OA-M05_client_presentation.pdf"
+  ],
+  "mentor_notes": "For OA-M05 - Ghost Protocol: Ensure learner demonstrates proper OPSEC, evidence collection, and professional reporting. This mission is designed to build evasion & anti-detection expertise. Coordinate with blue team for detection validation where applicable."
+}

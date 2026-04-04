@@ -1,0 +1,157 @@
+{
+  "mission_id": "OA-M06",
+  "title": "Silent Channel",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Evasion & Anti-Detection",
+  "pillar_icon": "\ud83d\udc7b",
+  "mission_type": "Mandatory",
+  "module_number": 6,
+  "module_title": "Module 6: Silent Channel",
+  "video_duration": "15-20 min",
+  "estimated_time": "5-6 hrs",
+  "multiday": false,
+  "deadline": "72 hours",
+  "prerequisites": [
+    "Intermediate Offensive Track",
+    "Core Cybersecurity Fundamentals"
+  ],
+  "learning_objectives": [
+    "Design covert command and control channels",
+    "Implement encrypted communication protocols",
+    "Establish resilient C2 infrastructure",
+    "Avoid detection by network monitoring systems",
+    "Document C2 operational procedures"
+  ],
+  "key_topics": [
+    "Endpoint Detection and Response (EDR) evasion",
+    "AMSI and PowerShell evasion",
+    "Signature-based detection bypass",
+    "Behavior-based detection evasion",
+    "Living-off-the-land tactics"
+  ],
+  "scenario": "Scenario Red team foothold inside financial services network. Only DNS, HTTPS (through SSL-inspecting proxy), and SMTP allowed. Establish reliable covert communications. Subtasks Scoring Rubric Linked Recipes: RA07, RA08 ________________________________________________________________________________ 3.4 Advanced AD Attacks",
+  "scenario_context": {
+    "setting": "Kigali, Rwanda, African Union strategic partner",
+    "challenge": "Establish covert C2 channel within African Union strategic partner's Kigali, Rwanda network",
+    "relevance": "Reflects real-world African enterprise security challenges and red team operations across the continent"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Network Assessment",
+      "description": "Map network controls: allowed, inspected, logged.",
+      "evidence": "Network control assessment",
+      "detailed_guidance": "Begin by thoroughly reviewing the scenario and understanding all objectives. Document your approach before execution. This is the foundational subtask that enables all following work.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Network control assessment"
+    },
+    {
+      "number": 2,
+      "title": "DNS Tunnel Setup",
+      "description": "DNS tunnel for low-bandwidth command execution.",
+      "evidence": "DNS tunnel config + data transfer proof",
+      "detailed_guidance": "Conduct systematic reconnaissance and information gathering. Map the target network, identify services, and document all findings with evidence.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "DNS tunnel config + data transfer proof"
+    },
+    {
+      "number": 3,
+      "title": "HTTPS Channel",
+      "description": "HTTPS C2 blending with legitimate proxy traffic.",
+      "evidence": "HTTPS C2 config + traffic analysis",
+      "detailed_guidance": "Analyze vulnerabilities discovered in reconnaissance. Validate each vulnerability through testing and document the exploitation path.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "HTTPS C2 config + traffic analysis"
+    },
+    {
+      "number": 4,
+      "title": "Data Exfiltration",
+      "description": "Exfiltrate 10MB through each channel. Compare.",
+      "evidence": "Exfiltration comparison: speed, reliability, detection",
+      "detailed_guidance": "Execute the exploitation with careful attention to OPSEC and evasion. Maintain detailed logs of all actions for evidence and reporting.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Exfiltration comparison: speed, reliability, detection"
+    },
+    {
+      "number": 5,
+      "title": "Channel Resilience",
+      "description": "Test resilience: DNS rate-limiting, domain blocking.",
+      "evidence": "Resilience results + fallback procedures",
+      "detailed_guidance": "Establish persistence mechanisms that survive system reboots and will maintain access throughout the engagement.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Resilience results + fallback procedures"
+    },
+    {
+      "number": 6,
+      "title": "Network Defense Report",
+      "description": "Blue team recommendations for detecting covert channels.",
+      "evidence": "Covert channel detection guide",
+      "detailed_guidance": "Perform privilege escalation and lateral movement to achieve the mission objectives. Document each pivot point.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Covert channel detection guide"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Channel Establishment",
+      "weight": "20%"
+    },
+    {
+      "category": "Stealth Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Exfiltration Success",
+      "weight": "15%"
+    },
+    {
+      "category": "Resilience Testing",
+      "weight": "15%"
+    },
+    {
+      "category": "Detection Report",
+      "weight": "20%"
+    },
+    {
+      "category": "OPSEC",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "Silent Channel"
+  ],
+  "resources": [
+    "OCH Advanced Evasion & Anti-Detection Toolkit",
+    "Engagement Framework Documentation",
+    "OPSEC Guidelines",
+    "Reporting Templates",
+    "Mentor Support Channel"
+  ],
+  "reflection_prompt": "",
+  "quiz": [
+    {
+      "question": "What is the primary objective of OA-M06?",
+      "options": [
+        "To test defensive capabilities",
+        "To simulate a real-world attack scenario",
+        "To achieve the specified mission goals within the engagement scope",
+        "All of the above"
+      ],
+      "correct_index": 2,
+      "explanation": "The mission objectives define the success criteria for this engagement."
+    },
+    {
+      "question": "What should be the first step when beginning this mission?",
+      "options": [
+        "Immediately execute exploits",
+        "Deploy all available tools",
+        "Thoroughly review scenario, objectives, and engagement scope",
+        "Contact the target organization"
+      ],
+      "correct_index": 2,
+      "explanation": "Understanding the engagement scope and objectives is critical before execution."
+    }
+  ],
+  "portfolio_artifacts": [
+    "OA-M06_engagement_plan.md",
+    "OA-M06_evidence_log.txt",
+    "OA-M06_technical_report.md",
+    "OA-M06_client_presentation.pdf"
+  ],
+  "mentor_notes": "For OA-M06 - Silent Channel: Ensure learner demonstrates proper OPSEC, evidence collection, and professional reporting. This mission is designed to build evasion & anti-detection expertise. Coordinate with blue team for detection validation where applicable."
+}

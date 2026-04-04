@@ -1,0 +1,75 @@
+{
+  "recipe_id": "R05",
+  "title": "Passive Recon Checklist",
+  "pillar": "Reconnaissance",
+  "pillar_icon": "🔍",
+  "estimated_time": "30 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "whois",
+    "dig",
+    "Shodan",
+    "Google",
+    "LinkedIn",
+    "Have I Been Pwned"
+  ],
+  "when_to_use": "At the start of every engagement before any active scanning",
+  "linked_missions": [
+    "OB-M03",
+    "OB-CAP01"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "WHOIS Lookup",
+      "instruction": "WHOIS lookup on target domain (whois target.com)",
+      "tip": "Note registrar, creation date, expiry, and nameservers. Privacy-protected WHOIS still reveals registrar info",
+      "expected_output": "WHOIS data documented"
+    },
+    {
+      "number": 2,
+      "title": "DNS Enumeration",
+      "instruction": "DNS enumeration: dig target.com ANY, MX, NS, TXT records",
+      "tip": "TXT records often contain SPF, DKIM, and verification strings that reveal services in use",
+      "expected_output": "Complete DNS record table"
+    },
+    {
+      "number": 3,
+      "title": "Google Dorking",
+      "instruction": "Google dorking: site:target.com filetype:pdf, site:target.com inurl:admin",
+      "tip": "Try multiple dork combinations. Check cached versions for recently removed content",
+      "expected_output": "Google dorking results documented"
+    },
+    {
+      "number": 4,
+      "title": "LinkedIn Enumeration",
+      "instruction": "LinkedIn employee enumeration: search company name, note roles",
+      "tip": "Focus on IT, security, and executive roles. Note email patterns from profiles",
+      "expected_output": "Employee list with roles"
+    },
+    {
+      "number": 5,
+      "title": "Shodan Search",
+      "instruction": "Shodan search for target IP range",
+      "tip": "Shodan free tier is limited but still useful. Check for exposed services, banners, and certificates",
+      "expected_output": "Shodan findings documented"
+    },
+    {
+      "number": 6,
+      "title": "Breach Check",
+      "instruction": "Check Have I Been Pwned for domain email breaches",
+      "tip": "A breached email means credentials may be available. Note which breaches and their dates",
+      "expected_output": "Breach exposure report"
+    },
+    {
+      "number": 7,
+      "title": "Document Everything",
+      "instruction": "Screenshot and document every finding with timestamps",
+      "tip": "Timestamps prove when you found information — essential for legal protection and report accuracy",
+      "expected_output": "Timestamped evidence collection"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 7
+}

@@ -1,0 +1,183 @@
+{
+  "mission_id": "OM-M04",
+  "title": "Build Your Own — Custom Implant from Scratch",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Custom Implant Engineering",
+  "pillar_icon": "⚙️",
+  "mission_type": "Mandatory",
+  "module_number": 4,
+  "module_title": "Implant Architecture & Development",
+  "video_duration": "25-28 min",
+  "estimated_time": "25-35 hrs",
+  "multiday": true,
+  "deadline": "21 days",
+  "prerequisites": [
+    "Advanced Offensive Track - Mastery Tier Access"
+  ],
+  "learning_objectives": [
+    "Implant architecture design covering core, modules, and C2 protocol",
+    "Custom C2 protocol development with encryption and anti-replay",
+    "Modular architecture for extensibility without recompilation",
+    "Core functionality: check-in, tasking loop, command execution",
+    "Advanced evasion: sleep obfuscation and detection bypass",
+    "Operator-side server component development",
+    "Code quality and peer review preparation"
+  ],
+  "key_topics": [
+    "Implant architecture patterns",
+    "C2 protocol design",
+    "Modular plugin systems",
+    "Evasion techniques",
+    "Code obfuscation",
+    "Operator interfaces",
+    "OPSEC in implant design"
+  ],
+  "scenario": "This Mastery mission requires professional-grade execution in Pan-African corporate network with modern security stack. Challenge: Design and build custom implant from architecture through deployment against Windows 10+ with Defender and EDR. Relevance: African enterprises increasingly deploy EDR; custom implants bypass vendor-specific signatures",
+  "scenario_context": {
+    "setting": "Pan-African corporate network with modern security stack",
+    "challenge": "Design and build custom implant from architecture through deployment against Windows 10+ with Defender and EDR",
+    "relevance": "African enterprises increasingly deploy EDR; custom implants bypass vendor-specific signatures"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Architecture Design",
+      "description": "Complete implant architecture: core, modules, C2 protocol, OPSEC.",
+      "detailed_guidance": "Design multi-region infrastructure:\n        - Team server placement: Where to host command and control?\n        - Redirectors: How to proxy traffic through multiple layers?\n        - Engagement isolation: How to separate 3 concurrent operations?\n        - Network isolation: How to prevent cross-engagement contamination?\n\n        Deliver: Architecture document with network diagrams.",
+      "evidence_required": "Architecture document with diagrams (8+ pages)"
+    },
+    {
+      "number": 2,
+      "title": "Core Development",
+      "description": "Check-in, tasking loop, 3 basic commands.",
+      "detailed_guidance": "Develop core implant functionality:\n        - Check-in: Implant identifies itself to C2\n        - Tasking loop: Receive, execute, report results\n        - 3 basic commands: e.g., execute, file operations, process listing\n        - Build instructions: How to compile for Windows\n\n        Deliver: Source code, build documentation, test evidence.",
+      "evidence_required": "Core source + build instructions + test evidence"
+    },
+    {
+      "number": 3,
+      "title": "Secure C2 Protocol",
+      "description": "Encrypted comms: authentication, anti-replay, configurable jitter.",
+      "detailed_guidance": "Design and implement C2 protocol:\n        - Encryption: Use AES-256 or equivalent\n        - Authentication: Ensure mutual authentication\n        - Anti-replay: Prevent replay attacks\n        - Configurability: Allow jitter, callback intervals\n\n        Deliver: Protocol specification, implementation code, test suite.",
+      "evidence_required": "C2 protocol implementation + specification"
+    },
+    {
+      "number": 4,
+      "title": "Module Development",
+      "description": "3 modules: file ops, process listing/injection, screenshot.",
+      "detailed_guidance": "Implement 3 modules:\n        1. File operations: Read, write, delete, directory listing\n        2. Process management: List processes, inject code\n        3. Screenshot: Capture desktop and send to C2\n\n        Deliver: Module source code, module loader, integration tests.",
+      "evidence_required": "3 module source codes + integration tests"
+    },
+    {
+      "number": 5,
+      "title": "Evasion Layer",
+      "description": "Sleep obfuscation + one additional evasion technique.",
+      "detailed_guidance": "Implement evasion techniques:\n        - Sleep obfuscation: Hide thread waits from detection\n        - Additional technique: JMP RET sled, stack spoofing, or equivalent\n        - Measure effectiveness: Test against Windows Defender\n\n        Deliver: Evasion code, detection testing results, bypass proof.",
+      "evidence_required": "Evasion code + detection testing vs Defender"
+    },
+    {
+      "number": 6,
+      "title": "Server Component",
+      "description": "Operator-side handler with basic interface.",
+      "detailed_guidance": "Develop operator-side C2 server:\n        - Listener: Accept implant connections\n        - Task dispatch: Send commands to implants\n        - Result collection: Receive output from implants\n        - Basic UI: Menu-driven interface or web dashboard\n\n        Deliver: Server source code, usage instructions, interaction demo.",
+      "evidence_required": "Server code + interaction demo"
+    },
+    {
+      "number": 7,
+      "title": "Operator Manual",
+      "description": "Complete operator manual for the implant.",
+      "detailed_guidance": "Write comprehensive operator guide:\n        - Deployment procedures with step-by-step instructions\n        - Usage patterns and common workflows\n        - OPSEC guidelines for operator behavior\n        - Configuration and customization\n        - Troubleshooting and recovery procedures\n\n        Deliver: 5+ page manual with screenshots and examples.",
+      "evidence_required": "Operator manual: deployment, usage, OPSEC"
+    },
+    {
+      "number": 8,
+      "title": "Peer Review Preparation",
+      "description": "Package for code review with self-assessment.",
+      "detailed_guidance": "Package for code review:\n        - Code organization and documentation\n        - Self-assessment: What you're proud of, what needs work\n        - Improvement roadmap: Future enhancement plans\n        - Known limitations and design tradeoffs\n\n        Deliver: Review package with improvement prioritization.",
+      "evidence_required": "Code review package + improvement roadmap"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Architecture Quality",
+      "weight": "15%"
+    },
+    {
+      "category": "Core Functionality",
+      "weight": "15%"
+    },
+    {
+      "category": "C2 Protocol Security",
+      "weight": "15%"
+    },
+    {
+      "category": "Module Quality",
+      "weight": "10%"
+    },
+    {
+      "category": "Evasion Effectiveness",
+      "weight": "15%"
+    },
+    {
+      "category": "Code Quality & Docs",
+      "weight": "15%"
+    },
+    {
+      "category": "Operational Readiness",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "RM04",
+    "RM05"
+  ],
+  "resources": [
+    {
+      "type": "Documentation",
+      "title": "OCH Mastery Reference Guide",
+      "url": "https://och.dev/mastery-reference"
+    },
+    {
+      "type": "Video",
+      "title": "Mission Overview: Build Your Own — Custom Implant from Scratch",
+      "duration": "25-28 min"
+    },
+    {
+      "type": "Tool",
+      "title": "OCH Mastery Assessment Framework",
+      "url": "https://och.dev/assessment"
+    }
+  ],
+  "reflection_prompt": "How would your implant architecture change if targeting diverse African networks (limited bandwidth, air-gapped, etc.)? What telemetry would indicate your custom implant is being detected by specific EDR vendors?",
+  "quiz": [
+    {
+      "question": "In custom implant architecture, what is the primary purpose of modular design with plugins?",
+      "options": [
+        "To make the implant larger in file size",
+        "To allow operators to load only necessary functionality without recompiling the entire implant, improving flexibility and OPSEC",
+        "To guarantee the implant will never be detected",
+        "To eliminate the need for C2 communication"
+      ],
+      "correct_index": 1,
+      "explanation": "Modular architecture allows operators to customize implants for specific targets (load only Android malware components, or only cloud tools) without recompilation. This reduces artifact size, improves flexibility, and enhances OPSEC by avoiding unnecessary code on the target."
+    },
+    {
+      "question": "When designing a C2 protocol for a custom implant deployed in African enterprise networks, what anti-replay mechanism would best prevent defender replay attacks?",
+      "options": [
+        "No protection is necessary",
+        "Include timestamps or sequence numbers that are validated server-side to prevent old commands from being replayed",
+        "Send the same authentication token every time for simplicity",
+        "Use the implant's hostname as the only identifier"
+      ],
+      "correct_index": 1,
+      "explanation": "Anti-replay mechanisms prevent defenders from capturing legitimate implant traffic and replaying it. Timestamps, nonces, or sequence numbers ensure that old commands can't be reused, providing protection against network-level attacks and EDR replay detection."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Professional deliverables demonstrating mastery-level capability",
+    "Complete documentation and methodology",
+    "Evidence of technical excellence and strategic thinking",
+    "Leadership and mentorship contributions"
+  ],
+  "mentor_notes": "\nThis Mastery mission requires senior mentor review. Candidates must demonstrate:\n- Professional-grade execution and documentation\n- Deep understanding of African organizational and threat contexts\n- Strategic thinking beyond tactical execution\n- Readiness for commercial red team operations\n- Leadership potential within OCH and broader community\n\nSuccessful completion positions candidate for Mastery portfolio and professional practice.\n        "
+}

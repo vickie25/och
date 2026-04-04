@@ -1,0 +1,28 @@
+{
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "total_missions": 20,
+  "notes": "Includes 1 capstone mission (OI-M19). 10 missions have multi-day deadlines (48hrs, 72hrs, or 5 days).",
+  "missions": [
+    {"id": "OI-M01", "file": "OI-M01.json"},
+    {"id": "OI-M02", "file": "OI-M02.json"},
+    {"id": "OI-M03", "file": "OI-M03.json"},
+    {"id": "OI-M04", "file": "OI-M04.json"},
+    {"id": "OI-M05", "file": "OI-M05.json"},
+    {"id": "OI-M06", "file": "OI-M06.json"},
+    {"id": "OI-M07", "file": "OI-M07.json"},
+    {"id": "OI-M08", "file": "OI-M08.json"},
+    {"id": "OI-M09", "file": "OI-M09.json"},
+    {"id": "OI-M10", "file": "OI-M10.json"},
+    {"id": "OI-M11", "file": "OI-M11.json"},
+    {"id": "OI-M12", "file": "OI-M12.json"},
+    {"id": "OI-M13", "file": "OI-M13.json"},
+    {"id": "OI-M14", "file": "OI-M14.json"},
+    {"id": "OI-M15", "file": "OI-M15.json"},
+    {"id": "OI-M16", "file": "OI-M16.json"},
+    {"id": "OI-M17", "file": "OI-M17.json"},
+    {"id": "OI-M18", "file": "OI-M18.json"},
+    {"id": "OI-M19", "file": "OI-M19.json"},
+    {"id": "OI-M20", "file": "OI-M20.json"}
+  ]
+}

@@ -1,0 +1,157 @@
+{
+  "mission_id": "OI-M13",
+  "title": "Root the Box",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Privilege Escalation",
+  "pillar_icon": "⬆️",
+  "mission_type": "Mandatory",
+  "module_number": 13,
+  "module_title": "Linux Privilege Escalation Without Kernel Exploits",
+  "video_duration": "16 min",
+  "estimated_time": "4-5 hrs",
+  "multiday": false,
+  "deadline": null,
+  "prerequisites": [
+    "Beginner Offensive Track completed",
+    "Linux privilege escalation concepts",
+    "GTFOBins familiarity",
+    "SUID binary exploitation knowledge",
+    "Cron job analysis",
+    "Sudo misconfiguration detection"
+  ],
+  "learning_objectives": [
+    "Identify and exploit SUID binaries for privilege escalation",
+    "Find and hijack vulnerable cron jobs",
+    "Exploit sudo misconfigurations",
+    "Compare escalation techniques and trade-offs",
+    "Provide remediation guidance for each vector"
+  ],
+  "key_topics": [
+    "SUID binary identification and exploitation",
+    "GTFOBins technique matching",
+    "Cron job enumeration and analysis",
+    "Cron job hijacking techniques",
+    "Sudo configuration analysis",
+    "Sudo bypass techniques",
+    "Privilege escalation methodology",
+    "Remediation and hardening"
+  ],
+  "scenario": "Three Linux machines, three different PrivEsc vulnerabilities. Low-privilege SSH access. Escalate to root on all three — no kernel exploits allowed.",
+  "scenario_context": {
+    "setting": "Three Linux systems with common misconfigurations",
+    "challenge": "Exploit configuration weaknesses to achieve root without kernel exploits",
+    "relevance": "Most real Linux PrivEsc relies on misconfigurations, not kernel exploits"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Machine 1: SUID Escalation",
+      "description": "GTFOBins + SUID binary exploitation.",
+      "detailed_guidance": "Find SUID binaries using 'find / -perm -4000'. Check GTFOBins for exploitation techniques. Exploit SUID binary to gain root shell.",
+      "evidence_required": "Root shell evidence + exploitation methodology"
+    },
+    {
+      "number": 2,
+      "title": "Machine 2: Cron Job Hijacking",
+      "description": "Find and exploit vulnerable cron job.",
+      "detailed_guidance": "Check /etc/crontab and cron.d for writable scripts. Identify cron jobs run by root. Modify or hijack script. Wait for execution or force trigger.",
+      "evidence_required": "Root shell evidence + cron exploit documentation"
+    },
+    {
+      "number": 3,
+      "title": "Machine 3: Sudo Misconfiguration",
+      "description": "Exploit sudo misconfig via GTFOBins.",
+      "detailed_guidance": "Check sudo -l for commands user can run without password. Find GTFOBins bypass for allowed command. Exploit to escalate.",
+      "evidence_required": "Root shell evidence + sudo exploit path documentation"
+    },
+    {
+      "number": 4,
+      "title": "Technique Comparison",
+      "description": "Compare all three methods.",
+      "detailed_guidance": "Create matrix comparing: attack vector, detection difficulty, reliability, remediation, applicability. Analysis of strengths/weaknesses.",
+      "evidence_required": "Technique comparison matrix"
+    },
+    {
+      "number": 5,
+      "title": "Remediation Guide",
+      "description": "Specific remediation per vulnerability.",
+      "detailed_guidance": "For each vulnerability type, provide specific remediation steps and hardening commands. Document defensive controls.",
+      "evidence_required": "Remediation guide with commands"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Escalation Success (3/3)",
+      "weight": "30%"
+    },
+    {
+      "category": "Methodology Documentation",
+      "weight": "20%"
+    },
+    {
+      "category": "Technique Understanding",
+      "weight": "20%"
+    },
+    {
+      "category": "Comparison Quality",
+      "weight": "15%"
+    },
+    {
+      "category": "Remediation Accuracy",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "RI19",
+    "RI20"
+  ],
+  "resources": [
+    {
+      "name": "GTFOBins: GTFOBins.github.io",
+      "type": "reference"
+    },
+    {
+      "name": "Linux SUID Binary Exploitation Techniques",
+      "type": "guide"
+    },
+    {
+      "name": "Sudo Misconfiguration Detection and Exploitation",
+      "type": "tutorial"
+    }
+  ],
+  "reflection_prompt": "Which privilege escalation vector was most common in your assessments? How would you prioritize remediation?",
+  "quiz": [
+    {
+      "question": "Why are SUID binaries exploitable for privilege escalation?",
+      "options": [
+        "They run with owner's permissions (often root)",
+        "They're installed by default",
+        "They encrypt credentials",
+        "They're unpatched"
+      ],
+      "correct_index": 0,
+      "explanation": "SUID binaries run with the file owner's permissions. If owned by root and exploitable, they lead to root privilege escalation."
+    },
+    {
+      "question": "What makes cron job hijacking effective for privilege escalation?",
+      "options": [
+        "Cron jobs are visible to all users",
+        "Cron jobs run with owner's privileges (often root)",
+        "Cron jobs don't check permissions",
+        "All of the above"
+      ],
+      "correct_index": 1,
+      "explanation": "If a cron job script is writable by an unprivileged user and runs as root, modifying the script provides automatic root-level command execution."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Machine 1: SUID exploitation proof and methodology",
+    "Machine 2: Cron hijacking proof and documentation",
+    "Machine 3: Sudo escalation proof and exploit path",
+    "Technique comparison matrix",
+    "Remediation guide with specific commands",
+    "Complete privilege escalation documentation"
+  ],
+  "mentor_notes": "Assess technical success (3/3 escalations required) and depth of understanding. Comparison matrix should show analytical thinking. Remediation guide quality indicates system hardening knowledge. No kernel exploits allowed."
+}

@@ -1,0 +1,145 @@
+{
+  "mission_id": "OA-M15",
+  "title": "Airspace Dominance",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Wireless & Physical",
+  "pillar_icon": "\ud83d\udcf6",
+  "mission_type": "Mandatory",
+  "module_number": 15,
+  "module_title": "Module 15: Airspace Dominance",
+  "video_duration": "15-20 min",
+  "estimated_time": "4-5 hrs",
+  "multiday": false,
+  "deadline": "\u2014",
+  "prerequisites": [
+    "Intermediate Offensive Track",
+    "Core Cybersecurity Fundamentals"
+  ],
+  "learning_objectives": [
+    "Study specific adversary group TTPs (Tactics, Techniques, Procedures)",
+    "Emulate adversary tools and malware families",
+    "Execute campaigns using known adversary methodologies",
+    "Validate defensive detections against emulated threats",
+    "Document adversary emulation results"
+  ],
+  "key_topics": [
+    "Wireless security (Wi-Fi, Bluetooth, cellular)",
+    "Physical security assessment",
+    "Credential acquisition from physical access",
+    "Badge cloning and access control bypass",
+    "Physical+wireless+network attack chains"
+  ],
+  "scenario": "Scenario Corporate campus with 3 wireless networks: WPA2-Enterprise, WPA2-PSK guest, and IoT. Assess wireless security from the parking lot. Subtasks Scoring Rubric Linked Recipes: RA20, RA21 ________________________________________________________________________________",
+  "scenario_context": {
+    "setting": "Lusaka, Zambia, Pan-African logistics network",
+    "challenge": "Emulate specific adversary group TTPs against Pan-African logistics network in Lusaka, Zambia",
+    "relevance": "Reflects real-world African enterprise security challenges and red team operations across the continent"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Wireless Reconnaissance",
+      "description": "Map all networks: SSIDs, encryption, channels, clients.",
+      "evidence": "Wireless environment map",
+      "detailed_guidance": "Begin by thoroughly reviewing the scenario and understanding all objectives. Document your approach before execution. This is the foundational subtask that enables all following work.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Wireless environment map"
+    },
+    {
+      "number": 2,
+      "title": "WPA2-PSK Cracking",
+      "description": "Capture guest handshake and crack PSK.",
+      "evidence": "Handshake capture + cracking results",
+      "detailed_guidance": "Conduct systematic reconnaissance and information gathering. Map the target network, identify services, and document all findings with evidence.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Handshake capture + cracking results"
+    },
+    {
+      "number": 3,
+      "title": "PMKID Attack",
+      "description": "Attempt PMKID extraction against available networks.",
+      "evidence": "PMKID results + method comparison",
+      "detailed_guidance": "Analyze vulnerabilities discovered in reconnaissance. Validate each vulnerability through testing and document the exploitation path.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "PMKID results + method comparison"
+    },
+    {
+      "number": 4,
+      "title": "Rogue AP Demonstration",
+      "description": "Evil Twin with captive portal for guest network.",
+      "evidence": "Rogue AP setup + credential capture (lab)",
+      "detailed_guidance": "Execute the exploitation with careful attention to OPSEC and evasion. Maintain detailed logs of all actions for evidence and reporting.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Rogue AP setup + credential capture (lab)"
+    },
+    {
+      "number": 5,
+      "title": "Wireless Security Assessment",
+      "description": "Comprehensive wireless assessment.",
+      "evidence": "Wireless security assessment report",
+      "detailed_guidance": "Establish persistence mechanisms that survive system reboots and will maintain access throughout the engagement.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Wireless security assessment report"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Reconnaissance Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Attack Execution",
+      "weight": "25%"
+    },
+    {
+      "category": "Rogue AP Demo",
+      "weight": "20%"
+    },
+    {
+      "category": "Assessment Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Remediation Recommendations",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "Airspace Dominance"
+  ],
+  "resources": [
+    "OCH Advanced Wireless & Physical Toolkit",
+    "Engagement Framework Documentation",
+    "OPSEC Guidelines",
+    "Reporting Templates",
+    "Mentor Support Channel"
+  ],
+  "reflection_prompt": "",
+  "quiz": [
+    {
+      "question": "What is the primary objective of OA-M15?",
+      "options": [
+        "To test defensive capabilities",
+        "To simulate a real-world attack scenario",
+        "To achieve the specified mission goals within the engagement scope",
+        "All of the above"
+      ],
+      "correct_index": 2,
+      "explanation": "The mission objectives define the success criteria for this engagement."
+    },
+    {
+      "question": "What should be the first step when beginning this mission?",
+      "options": [
+        "Immediately execute exploits",
+        "Deploy all available tools",
+        "Thoroughly review scenario, objectives, and engagement scope",
+        "Contact the target organization"
+      ],
+      "correct_index": 2,
+      "explanation": "Understanding the engagement scope and objectives is critical before execution."
+    }
+  ],
+  "portfolio_artifacts": [
+    "OA-M15_engagement_plan.md",
+    "OA-M15_evidence_log.txt",
+    "OA-M15_technical_report.md",
+    "OA-M15_client_presentation.pdf"
+  ],
+  "mentor_notes": "For OA-M15 - Airspace Dominance: Ensure learner demonstrates proper OPSEC, evidence collection, and professional reporting. This mission is designed to build wireless & physical expertise. Coordinate with blue team for detection validation where applicable."
+}

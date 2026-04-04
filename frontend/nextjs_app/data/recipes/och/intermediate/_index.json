@@ -1,0 +1,123 @@
+{
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "total_recipes": 29,
+  "recipes": [
+    {
+      "id": "RI01",
+      "file": "RI01.json"
+    },
+    {
+      "id": "RI02",
+      "file": "RI02.json"
+    },
+    {
+      "id": "RI03",
+      "file": "RI03.json"
+    },
+    {
+      "id": "RI04",
+      "file": "RI04.json"
+    },
+    {
+      "id": "RI05",
+      "file": "RI05.json"
+    },
+    {
+      "id": "RI06",
+      "file": "RI06.json"
+    },
+    {
+      "id": "RI07",
+      "file": "RI07.json"
+    },
+    {
+      "id": "RI08",
+      "file": "RI08.json"
+    },
+    {
+      "id": "RI09",
+      "file": "RI09.json"
+    },
+    {
+      "id": "RI10",
+      "file": "RI10.json"
+    },
+    {
+      "id": "RI11",
+      "file": "RI11.json"
+    },
+    {
+      "id": "RI12",
+      "file": "RI12.json"
+    },
+    {
+      "id": "RI13",
+      "file": "RI13.json"
+    },
+    {
+      "id": "RI14",
+      "file": "RI14.json"
+    },
+    {
+      "id": "RI15",
+      "file": "RI15.json"
+    },
+    {
+      "id": "RI16",
+      "file": "RI16.json"
+    },
+    {
+      "id": "RI17",
+      "file": "RI17.json"
+    },
+    {
+      "id": "RI18",
+      "file": "RI18.json"
+    },
+    {
+      "id": "RI19",
+      "file": "RI19.json"
+    },
+    {
+      "id": "RI20",
+      "file": "RI20.json"
+    },
+    {
+      "id": "RI21",
+      "file": "RI21.json"
+    },
+    {
+      "id": "RI22",
+      "file": "RI22.json"
+    },
+    {
+      "id": "RI23",
+      "file": "RI23.json"
+    },
+    {
+      "id": "RI24",
+      "file": "RI24.json"
+    },
+    {
+      "id": "RI25",
+      "file": "RI25.json"
+    },
+    {
+      "id": "RI26",
+      "file": "RI26.json"
+    },
+    {
+      "id": "RI27",
+      "file": "RI27.json"
+    },
+    {
+      "id": "RI28",
+      "file": "RI28.json"
+    },
+    {
+      "id": "RI29",
+      "file": "RI29.json"
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "recipe_id": "RM14",
+  "title": "Engagement Management Framework",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Red Team Leadership & Practice",
+  "pillar_icon": "\ud83d\udc51",
+  "estimated_time": "32 min",
+  "difficulty": "Mastery",
+  "tools_required": [
+    "Project management tools (Jira, Asana)",
+    "Dashboard tools (Grafana, custom)",
+    "Knowledge management (Confluence, Obsidian)",
+    "Evidence preservation (encrypted storage)",
+    "Team communication (Slack, Signal)",
+    "Incident response playbooks",
+    "Development frameworks"
+  ],
+  "when_to_use": "Use Engagement Management Framework to develop professional-grade engagement management framework capabilities at Mastery level. This recipe is part of the Red Team Leadership & Practice pillar and integrates with linked missions OM-M11, OM-M12, OM-M14.",
+  "linked_missions": [
+    "OM-M11",
+    "OM-M12",
+    "OM-M14"
+  ],
+  "step_count": 6,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Resource Allocation & Skill Mapping",
+      "instruction": "Design system for allocating 5 operators across 3 simultaneous engagements with skill requirements: engagement A needs cloud expert + infrastructure specialist, engagement B needs mobile specialist + data analyst, engagement C needs operations lead + 2 junior developers. Resolve conflicts: operator needed for two engagements. Include: skill matrix, availability tracking, burn-out prevention (no operator >80% utilization).",
+      "tip": "Resource allocation is complex; good tools make bad allocation transparent.",
+      "expected_output": "Resource allocation matrix with skill mapping"
+    },
+    {
+      "number": 2,
+      "title": "Engagement Dashboard Design",
+      "instruction": "Design dashboard tracking: engagement health (on-schedule vs behind), findings count by severity, client communication status (outstanding issues, action items), team resource utilization, budget burn (hours vs budget), quality metrics (findings per day, remediation rate). Dashboard provides real-time visibility to leadership.",
+      "tip": "Dashboard alerts leadership to problems early: behind schedule, quality issues, budget overruns.",
+      "expected_output": "Dashboard design with metrics and visualization"
+    },
+    {
+      "number": 3,
+      "title": "Quality Assurance Process",
+      "instruction": "Implement QA: all findings validated by senior reviewer before reporting (no trivial findings, no false positives), report grammar/accuracy check, evidence standard (reproducible findings with clear steps), peer review of methodology (did we test comprehensively?), client satisfaction validation (did we answer their questions?). QA reduces rework and client complaints.",
+      "tip": "QA is investment that pays back in reputation. One bad finding in a report damages credibility.",
+      "expected_output": "QA process with checklists"
+    },
+    {
+      "number": 4,
+      "title": "Engagement Incident Response Playbook",
+      "instruction": "Design IR for engagement incidents: scope violation (penetration tester accidentally damaged application), customer data exposure, operator identified/tracked, tool malfunction causing false findings. Playbook: detection, notification, containment, customer communication, post-mortem. Include: decision authority, communication chain, documentation requirements.",
+      "tip": "Engagement incidents are different from security incidents; they impact client relationship directly.",
+      "expected_output": "Engagement IR playbook with decision trees"
+    },
+    {
+      "number": 5,
+      "title": "Knowledge Management System",
+      "instruction": "Build knowledge management: TTP database (documented attack techniques, bypasses, exploits, with context), playbook library (reusable assessment procedures per application type), lessons learned repository (what worked, what failed, why?). Organize by: domain (web, cloud, mobile), attack phase (recon, exploitation, persistence). Make searchable and quickly accessible.",
+      "tip": "KM system prevents reinventing the wheel. Over time, it becomes your competitive advantage.",
+      "expected_output": "KM system design with taxonomy"
+    },
+    {
+      "number": 6,
+      "title": "Team Development Plans",
+      "instruction": "Create individual development plans for 4 operators: skills to develop (certifications, technical depth), mentorship assignments (who learns from whom?), project assignments (growth stretch projects), community contributions (speaking, writing, open-source). Development plan shows career path and investment in individuals.",
+      "tip": "Development plans reduce turnover and increase loyalty. People want to grow.",
+      "expected_output": "4 individual development plans"
+    }
+  ]
+}

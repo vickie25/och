@@ -1,0 +1,71 @@
+{
+  "recipe_id": "R26",
+  "title": "Bug Bounty Platform Orientation",
+  "pillar": "Ethics & Legality",
+  "pillar_icon": "⚖️",
+  "estimated_time": "20 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Web browser",
+    "HackerOne",
+    "Bugcrowd"
+  ],
+  "when_to_use": "When preparing to participate in bug bounty programmes",
+  "linked_missions": [
+    "OB-M18"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Create Accounts",
+      "instruction": "Create accounts on HackerOne and Bugcrowd",
+      "tip": "Use a professional username. Your bug bounty profile becomes part of your professional reputation",
+      "expected_output": "Accounts created"
+    },
+    {
+      "number": 2,
+      "title": "Read Programme Policies",
+      "instruction": "Read 3 different programme policies (scope, rules, rewards)",
+      "tip": "Pay special attention to: what's in scope, what testing methods are prohibited, and reward structures",
+      "expected_output": "3 policies reviewed"
+    },
+    {
+      "number": 3,
+      "title": "Note Differences",
+      "instruction": "Note the differences: some allow automated scanning, some do not",
+      "tip": "Violating programme rules can get you banned from the platform entirely. Read carefully",
+      "expected_output": "Policy differences documented"
+    },
+    {
+      "number": 4,
+      "title": "Read Disclosed Reports",
+      "instruction": "Read 3 disclosed reports to understand good report format",
+      "tip": "Look for reports with high signal ratings. Note the structure, detail level, and communication style",
+      "expected_output": "3 reports studied"
+    },
+    {
+      "number": 5,
+      "title": "Identify Beginner Programme",
+      "instruction": "Identify a programme with a wide scope for beginners",
+      "tip": "Look for programmes marked 'beginner friendly' or with wide web application scope. Avoid narrow scopes initially",
+      "expected_output": "Beginner programme identified"
+    },
+    {
+      "number": 6,
+      "title": "Bookmark Scope",
+      "instruction": "Bookmark the programme's scope page for reference",
+      "tip": "Check scope before every testing session. Programmes update their scope regularly",
+      "expected_output": "Scope bookmarked"
+    },
+    {
+      "number": 7,
+      "title": "Scope Compliance",
+      "instruction": "Never test outside the defined scope of any programme",
+      "tip": "Out-of-scope testing is unauthorised access. It can result in legal action, not just platform ban",
+      "expected_output": "Scope commitment understood"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 7
+}

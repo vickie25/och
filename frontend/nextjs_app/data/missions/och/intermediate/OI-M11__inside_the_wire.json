@@ -1,0 +1,167 @@
+{
+  "mission_id": "OI-M11",
+  "title": "Inside the Wire",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Post-Exploitation Basics",
+  "pillar_icon": "🔓",
+  "mission_type": "Mandatory",
+  "module_number": 11,
+  "module_title": "Linux Post-Exploitation and Data Discovery",
+  "video_duration": "17 min",
+  "estimated_time": "4-5 hrs",
+  "multiday": true,
+  "deadline": "48 hours",
+  "prerequisites": [
+    "Beginner Offensive Track completed",
+    "Linux command line proficiency",
+    "LinPEAS tool familiarity",
+    "Linux file system knowledge",
+    "Credential harvesting techniques"
+  ],
+  "learning_objectives": [
+    "Assess compromised system for critical information",
+    "Execute comprehensive post-exploitation enumeration",
+    "Discover and extract credentials from system configurations",
+    "Map internal network from compromised host",
+    "Identify sensitive data for exfiltration"
+  ],
+  "key_topics": [
+    "System information gathering (id, uname, whoami)",
+    "Process and service enumeration",
+    "LinPEAS output analysis",
+    "Configuration file mining for credentials",
+    "SSH key discovery and usage",
+    "Database connection strings",
+    "Network interface and routing analysis",
+    "Sensitive file identification and data discovery"
+  ],
+  "scenario": "Low-privilege shell on a Linux server. Perform comprehensive post-exploitation: enumeration, credential hunting, network recon, data discovery.",
+  "scenario_context": {
+    "setting": "Compromised Linux web server with limited privileges",
+    "challenge": "Maximize intelligence extraction from limited access point",
+    "relevance": "Linux is dominant in cloud/server infrastructure; essential skill"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Situational Assessment",
+      "description": "Identity, permissions, network, processes.",
+      "detailed_guidance": "Run: id, whoami, uname -a, hostname, ifconfig, ps aux, sudo -l. Document current user permissions and system configuration.",
+      "evidence_required": "Situational assessment report"
+    },
+    {
+      "number": 2,
+      "title": "Automated Enumeration",
+      "description": "Run LinPEAS. Annotate top findings.",
+      "detailed_guidance": "Execute LinPEAS script on target. Parse output. Identify top privilege escalation candidates, misconfigurations, and critical findings.",
+      "evidence_required": "LinPEAS output with annotations"
+    },
+    {
+      "number": 3,
+      "title": "Credential Hunting",
+      "description": "History, config files, SSH keys, DB strings.",
+      "detailed_guidance": "Search shell history, .bashrc, .profile, /etc/config files for credentials. Find SSH keys, DB connection strings. Document all credentials found.",
+      "evidence_required": "Credential discovery report (sanitized)"
+    },
+    {
+      "number": 4,
+      "title": "Network Reconnaissance",
+      "description": "Internal networks from compromised host.",
+      "detailed_guidance": "Run: netstat -tlnp, ss -tlnp, arp -a, route, traceroute. Identify internal networks and accessible systems from this host.",
+      "evidence_required": "Internal network map from compromised host perspective"
+    },
+    {
+      "number": 5,
+      "title": "Data Discovery",
+      "description": "User files, backups, database dumps.",
+      "detailed_guidance": "Search for sensitive data: /home/*, /var/backups, /opt, database files, source code repositories. Create inventory.",
+      "evidence_required": "Sensitive data inventory with risk assessment"
+    },
+    {
+      "number": 6,
+      "title": "Post-Exploitation Report",
+      "description": "Professional report of all findings.",
+      "detailed_guidance": "Comprehensive report summarizing: system assessment, findings, credentials discovered, network topology, accessible data, and lateral movement opportunities.",
+      "evidence_required": "Complete post-exploitation report (4-5 pages)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Enumeration Thoroughness",
+      "weight": "20%"
+    },
+    {
+      "category": "Finding Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Credential Discovery",
+      "weight": "15%"
+    },
+    {
+      "category": "Network Recon",
+      "weight": "15%"
+    },
+    {
+      "category": "Report Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Ethics Compliance",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "RI16",
+    "RI17"
+  ],
+  "resources": [
+    {
+      "name": "LinPEAS Script and Output Analysis",
+      "type": "guide"
+    },
+    {
+      "name": "Linux Credential Hunting Techniques",
+      "type": "reference"
+    },
+    {
+      "name": "Post-Exploitation Enumeration Checklists",
+      "type": "tutorial"
+    }
+  ],
+  "reflection_prompt": "What hidden credentials did you discover and how would they enable further compromise? What network topology did you uncover?",
+  "quiz": [
+    {
+      "question": "What is the primary value of examining shell history files (.bash_history)?",
+      "options": [
+        "Sees executed commands including potential credentials",
+        "Shows system performance metrics",
+        "Identifies installed packages",
+        "Reveals firewall rules"
+      ],
+      "correct_index": 0,
+      "explanation": "Shell history often contains credentials passed as command arguments, which is a critical discovery vector."
+    },
+    {
+      "question": "How can SSH keys discovered during post-exploitation enable lateral movement?",
+      "options": [
+        "They're only useful for the local user",
+        "Can be used to SSH to other systems the user accessed",
+        "Provide root access directly",
+        "Are automatically encrypted"
+      ],
+      "correct_index": 1,
+      "explanation": "SSH keys in a user's home directory can be used to authenticate to other systems, enabling lateral movement."
+    }
+  ],
+  "portfolio_artifacts": [
+    "System situational assessment report",
+    "Annotated LinPEAS output",
+    "Credential discovery report (sanitized)",
+    "Internal network topology map",
+    "Sensitive data inventory",
+    "Complete post-exploitation report"
+  ],
+  "mentor_notes": "Assess thoroughness of enumeration and quality of findings. Credential discovery should be careful and sanitized. 48-hour deadline is reasonable. Ethics compliance is critical when handling sensitive data."
+}

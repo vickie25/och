@@ -1,0 +1,62 @@
+{
+  "recipe_id": "R03",
+  "title": "Kill Chain Mapping Exercise",
+  "pillar": "Offensive Mindset",
+  "pillar_icon": "🧠",
+  "estimated_time": "25 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Spreadsheet or table editor"
+  ],
+  "when_to_use": "When analysing any incident or attack scenario",
+  "linked_missions": [
+    "OB-M02"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Select a Breach Report",
+      "instruction": "Read a public breach report (e.g., from Krebs on Security or Mandiant)",
+      "tip": "Start with well-documented incidents — they provide the most detail for mapping",
+      "expected_output": "Selected and read breach report"
+    },
+    {
+      "number": 2,
+      "title": "List Attacker Actions",
+      "instruction": "List every attacker action mentioned in the report",
+      "tip": "Be exhaustive — even minor actions (port scanning, credential testing) count",
+      "expected_output": "Complete list of attacker actions"
+    },
+    {
+      "number": 3,
+      "title": "Create Kill Chain Table",
+      "instruction": "Create a 7-column table using Kill Chain phases: Recon, Weaponise, Deliver, Exploit, Install, C2, Actions",
+      "tip": "Some actions may span multiple phases — place them in the primary phase",
+      "expected_output": "7-column mapping table"
+    },
+    {
+      "number": 4,
+      "title": "Map Actions to Phases",
+      "instruction": "Map each action to the correct phase",
+      "tip": "Common confusion: Delivery vs Exploitation. Delivery is how the payload reaches the target; Exploitation is when it executes",
+      "expected_output": "All actions mapped to phases"
+    },
+    {
+      "number": 5,
+      "title": "Identify Detection Points",
+      "instruction": "Identify which phase was first detected and which went undetected",
+      "tip": "Most organisations detect late (C2 or Actions phase). Earlier detection = better security posture",
+      "expected_output": "Detection gap analysis"
+    },
+    {
+      "number": 6,
+      "title": "Suggest Improvements",
+      "instruction": "Suggest one detection improvement per undetected phase",
+      "tip": "Be specific: 'implement email attachment sandboxing' is better than 'improve email security'",
+      "expected_output": "Detection recommendations per phase"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 6
+}

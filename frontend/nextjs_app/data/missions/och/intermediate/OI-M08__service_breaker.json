@@ -1,0 +1,166 @@
+{
+  "mission_id": "OI-M08",
+  "title": "Service Breaker",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Network Attacks",
+  "pillar_icon": "🌐",
+  "mission_type": "Mandatory",
+  "module_number": 8,
+  "module_title": "Exploiting Multiple Services for Lateral Movement",
+  "video_duration": "17 min",
+  "estimated_time": "4-5 hrs",
+  "multiday": true,
+  "deadline": "48 hours",
+  "prerequisites": [
+    "Beginner Offensive Track completed",
+    "Service exploitation basics (FTP, SMB, SSH, Telnet)",
+    "Version detection and CVE matching",
+    "Lateral movement concepts",
+    "Post-exploitation fundamentals"
+  ],
+  "learning_objectives": [
+    "Identify exploitable services on network hosts",
+    "Execute exploitation chains across multiple servers",
+    "Perform lateral movement using compromised systems",
+    "Document attack progression and evidence"
+  ],
+  "key_topics": [
+    "FTP enumeration and exploitation",
+    "SMB null session exploitation",
+    "SSH version-specific exploits",
+    "Telnet authentication bypass",
+    "Service chaining and dependency analysis",
+    "Cross-host credential reuse",
+    "Lateral movement strategies",
+    "Evidence collection and documentation"
+  ],
+  "scenario": "4 servers with vulnerable services. Gain access to each through its exposed service, then chain them for lateral movement.",
+  "scenario_context": {
+    "setting": "Network of interconnected servers with varying service configurations",
+    "challenge": "Chain exploits across multiple services to achieve full network compromise",
+    "relevance": "Demonstrates how initial foothold can lead to full infrastructure compromise"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "FTP Server Access",
+      "description": "Test anonymous access, default creds, version CVEs.",
+      "detailed_guidance": "Enumerate FTP service. Test anonymous login. Try default credentials. Check for known version vulnerabilities. Identify accessible files and directory structure.",
+      "evidence_required": "FTP access evidence with file listing"
+    },
+    {
+      "number": 2,
+      "title": "SMB Exploitation",
+      "description": "Exploit null sessions, default shares, known vulns.",
+      "detailed_guidance": "Test SMB null session access. Enumerate shares. Try known exploits (MS17-010, etc.). Document access path.",
+      "evidence_required": "SMB exploitation log with share access"
+    },
+    {
+      "number": 3,
+      "title": "SSH/Telnet Access",
+      "description": "Credential-based and version-specific exploits.",
+      "detailed_guidance": "Identify SSH/Telnet versions. Test for known vulnerabilities. Attempt credential reuse from previous compromises. Gain shell access.",
+      "evidence_required": "Access evidence with shell proof"
+    },
+    {
+      "number": 4,
+      "title": "Vulnerability Chaining",
+      "description": "Lateral movement between servers.",
+      "detailed_guidance": "Use credentials/access from first service to compromise second server. Chain exploits across all 4 servers. Map interdependencies.",
+      "evidence_required": "Attack chain diagram showing service relationships"
+    },
+    {
+      "number": 5,
+      "title": "Access Log & Evidence",
+      "description": "Comprehensive access log with timestamps.",
+      "detailed_guidance": "Document every access point, timestamp, credentials used, data accessed. Create detailed progression timeline.",
+      "evidence_required": "Complete access log with timeline"
+    },
+    {
+      "number": 6,
+      "title": "Findings Report",
+      "description": "Professional findings report.",
+      "detailed_guidance": "Write findings report with executive summary, methodology, findings per service, and remediation. Include chain diagram.",
+      "evidence_required": "Pentest findings report (4-5 pages)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Exploitation Success",
+      "weight": "20%"
+    },
+    {
+      "category": "Methodology",
+      "weight": "20%"
+    },
+    {
+      "category": "Chain Identification",
+      "weight": "15%"
+    },
+    {
+      "category": "Evidence Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Report Professionalism",
+      "weight": "15%"
+    },
+    {
+      "category": "Ethics Compliance",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "RI11",
+    "RI12"
+  ],
+  "resources": [
+    {
+      "name": "Common Service Vulnerabilities and Exploits",
+      "type": "reference"
+    },
+    {
+      "name": "FTP and SMB Exploitation Techniques",
+      "type": "guide"
+    },
+    {
+      "name": "SSH Version Fingerprinting and CVE Matching",
+      "type": "tutorial"
+    }
+  ],
+  "reflection_prompt": "How did compromising one service enable access to others? What patterns indicate services share infrastructure?",
+  "quiz": [
+    {
+      "question": "Why is credential reuse a critical vulnerability in lateral movement?",
+      "options": [
+        "It slows exploitation",
+        "Systems often share credentials across services",
+        "Reused credentials are logged",
+        "It prevents privilege escalation"
+      ],
+      "correct_index": 1,
+      "explanation": "When the same credentials are used across multiple systems, compromising one service grants access to others automatically."
+    },
+    {
+      "question": "What is the primary goal of service chaining in a network attack?",
+      "options": [
+        "Encrypt all traffic",
+        "Achieve complete infrastructure compromise through sequential exploitation",
+        "Test IDS effectiveness",
+        "Minimize detection"
+      ],
+      "correct_index": 1,
+      "explanation": "Service chaining uses initial access to pivot through the network, progressively compromising more critical systems."
+    }
+  ],
+  "portfolio_artifacts": [
+    "FTP enumeration and access proof",
+    "SMB exploitation results",
+    "SSH/Telnet shell access evidence",
+    "Attack chain diagram",
+    "Comprehensive access timeline log",
+    "Professional findings report"
+  ],
+  "mentor_notes": "Assess logical progression of exploits and quality of chain documentation. Report should show understanding of infrastructure relationships. 48-hour deadline requires efficient testing."
+}

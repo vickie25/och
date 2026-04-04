@@ -1,0 +1,136 @@
+{
+  "mission_id": "OB-M16",
+  "title": "Tool Range Day",
+  "pillar": "Beginner Tooling",
+  "module_number": 16,
+  "module_title": "Security Tool Proficiency",
+  "video_duration": "18 min",
+  "estimated_time": "2 hours",
+  "multiday": false,
+  "deadline": "7 days",
+  "prerequisites": [
+    "Kali Linux with all default tools",
+    "Lab target available",
+    "OB-M14 and OB-M15 completed"
+  ],
+  "learning_objectives": [
+    "Verify and operate essential Kali Linux security tools",
+    "Compare tool capabilities and outputs against the same target",
+    "Select appropriate tools for different engagement scenarios"
+  ],
+  "key_topics": [
+    "Kali Linux tool ecosystem",
+    "Nmap vs Nikto comparison",
+    "Wireshark traffic capture during scanning",
+    "Tool selection methodology",
+    "Scenario-based tool matching"
+  ],
+  "scenario": "A proper operator knows their tools. Set up your Kali environment and verify every essential tool works. Then use 3 different tools against the lab target to understand their distinct capabilities and when to choose each one.",
+  "scenario_context": {
+    "setting": "Kali Linux tool validation and comparison",
+    "challenge": "Master tool selection and understand capability differences",
+    "relevance": "Using the wrong tool wastes time and may miss findings. Understanding each tool's strengths is essential for effective engagements."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Environment Verification",
+      "description": "Verify all tools from the checklist are installed and working (Nmap, Burp Suite, Wireshark, Python3, Netcat, Nikto, Gobuster).",
+      "detailed_guidance": "Run each tool's version/help command. Verify it launches and basic functions work. Screenshot each verification.",
+      "evidence_required": "Tool verification screenshots for all 7 tools"
+    },
+    {
+      "number": 2,
+      "title": "Nmap vs Nikto Comparison",
+      "description": "Run both against the lab web server. Compare what each discovers and their different approaches.",
+      "detailed_guidance": "Nmap focuses on ports and services; Nikto focuses on web vulnerabilities and misconfigurations. Run both. Compare findings. Note what each catches that the other misses.",
+      "evidence_required": "Both tool outputs plus comparison report"
+    },
+    {
+      "number": 3,
+      "title": "Wireshark Capture",
+      "description": "Capture traffic while running one scan. Identify scan patterns in the packet capture.",
+      "detailed_guidance": "Start Wireshark capture. Run an Nmap scan. Stop capture. Analyse: what does a scan look like at the packet level? Identify SYN patterns, response patterns.",
+      "evidence_required": "PCAP file plus analysis of scan traffic patterns"
+    },
+    {
+      "number": 4,
+      "title": "Tool Selection Report",
+      "description": "Given 5 scenarios (web app, network, wireless, password, forensics), recommend which tools to use and justify.",
+      "detailed_guidance": "For each scenario: primary tool, secondary tool, justification. Consider: what the tool does, what it misses, when it's inappropriate. Be specific.",
+      "evidence_required": "Scenario-to-tool mapping document"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Technical Execution",
+      "weight": "25%"
+    },
+    {
+      "category": "Tool Understanding",
+      "weight": "30%"
+    },
+    {
+      "category": "Comparison Quality",
+      "weight": "25%"
+    },
+    {
+      "category": "Scenario Reasoning",
+      "weight": "20%"
+    }
+  ],
+  "linked_recipes": [
+    "R22",
+    "R23"
+  ],
+  "resources": [
+    {
+      "name": "Kali Tool Reference Card",
+      "type": "PDF"
+    },
+    {
+      "name": "Tool Comparison Matrix",
+      "type": "Template"
+    },
+    {
+      "name": "Scenario-Based Selection Guide",
+      "type": "Document"
+    }
+  ],
+  "reflection_prompt": "A new tool gets released that claims to replace Nmap, Nikto, and Gobuster all in one. Would you adopt it immediately? What criteria would you use to evaluate a new tool?",
+  "quiz": [
+    {
+      "question": "Nikto differs from Nmap in that it specifically:",
+      "options": [
+        "Scans faster",
+        "Tests for known web server vulnerabilities and misconfigurations",
+        "Works without a network",
+        "Requires paid license"
+      ],
+      "correct_index": 1,
+      "explanation": "Nikto is a web server scanner that checks for thousands of known vulnerabilities, misconfigurations, and interesting files — something Nmap doesn't do."
+    },
+    {
+      "question": "Capturing scan traffic with Wireshark helps you understand:",
+      "options": [
+        "How to use Wireshark",
+        "What your scans look like to defenders and IDS systems",
+        "How to crack passwords",
+        "Network speed"
+      ],
+      "correct_index": 1,
+      "explanation": "Understanding how your tools look on the wire helps you anticipate detection and adjust your approach on real engagements."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Tool verification evidence",
+    "Nmap vs Nikto comparison",
+    "PCAP analysis",
+    "Scenario tool selection guide"
+  ],
+  "mentor_notes": "All 7 tools must be verified. The comparison and scenario reasoning are where students demonstrate real understanding versus just running commands.",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "🛠️",
+  "mission_type": "Mandatory"
+}

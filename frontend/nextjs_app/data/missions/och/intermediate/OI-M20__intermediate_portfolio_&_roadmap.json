@@ -1,0 +1,156 @@
+{
+  "mission_id": "OI-M20",
+  "title": "Intermediate Portfolio & Roadmap",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Pentest Methodology",
+  "pillar_icon": "🎯",
+  "mission_type": "Mandatory",
+  "module_number": 20,
+  "module_title": "Portfolio Development and Advanced Skill Progression Planning",
+  "video_duration": "15 min",
+  "estimated_time": "3-4 hrs",
+  "multiday": false,
+  "deadline": null,
+  "prerequisites": [
+    "All 19 Intermediate missions completed",
+    "Comprehensive portfolio material available",
+    "Self-assessment ability",
+    "Strategic career planning"
+  ],
+  "learning_objectives": [
+    "Conduct honest self-assessment across all intermediate domains",
+    "Curate best mission outputs into portfolio artifacts",
+    "Refine personal penetration testing methodology",
+    "Develop specific advanced skill development plan",
+    "Update professional identity and career positioning"
+  ],
+  "key_topics": [
+    "Self-assessment across technical domains",
+    "Portfolio curation and presentation",
+    "Penetration testing methodology refinement",
+    "Advanced skill identification and planning",
+    "Professional identity development",
+    "Career progression and specialization",
+    "Continuous improvement planning",
+    "Knowledge gap identification"
+  ],
+  "scenario": "Consolidate learning before advancing. Build portfolio, assess skills, refine methodology, create advanced preparation plan.",
+  "scenario_context": {
+    "setting": "Reflection point between Intermediate and Advanced tracks",
+    "challenge": "Honestly assess capabilities and plan advancement",
+    "relevance": "Structured reflection drives continuous improvement"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Skills Self-Assessment",
+      "description": "Honest assessment across all domains.",
+      "detailed_guidance": "Rate proficiency (beginner/intermediate/advanced) across: reconnaissance, enumeration, exploitation, post-exploitation, privesc, web apps, AD, reporting. Document strengths and gaps.",
+      "evidence_required": "Skills matrix with proficiency ratings"
+    },
+    {
+      "number": 2,
+      "title": "Portfolio Curation",
+      "description": "5 best mission outputs with summaries.",
+      "detailed_guidance": "Select 5 best mission deliverables representing diverse skills. Write brief summaries highlighting key accomplishments and technical achievements.",
+      "evidence_required": "5 portfolio summaries with supporting materials"
+    },
+    {
+      "number": 3,
+      "title": "Methodology Refinement",
+      "description": "Refine personal pentest checklist.",
+      "detailed_guidance": "Create personal penetration testing checklist/framework incorporating lessons learned. Document phases, tools, techniques, and decision points.",
+      "evidence_required": "Refined methodology document"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Preparation Plan",
+      "description": "Specific study plan with milestones.",
+      "detailed_guidance": "Identify key skills for Advanced track. Create 3-month study plan with specific topics, resources, milestones, and estimated hours.",
+      "evidence_required": "Advanced preparation plan with timeline"
+    },
+    {
+      "number": 5,
+      "title": "Professional Identity Update",
+      "description": "Updated identity statement.",
+      "detailed_guidance": "Write updated professional summary reflecting Intermediate mastery. Define specialization goals and unique value proposition.",
+      "evidence_required": "Updated professional identity statement"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Self-Awareness",
+      "weight": "25%"
+    },
+    {
+      "category": "Portfolio Quality",
+      "weight": "25%"
+    },
+    {
+      "category": "Planning Specificity",
+      "weight": "20%"
+    },
+    {
+      "category": "Methodology Reflection",
+      "weight": "15%"
+    },
+    {
+      "category": "Identity Growth",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "RI28",
+    "RI29"
+  ],
+  "resources": [
+    {
+      "name": "Professional Portfolio Development",
+      "type": "guide"
+    },
+    {
+      "name": "Penetration Testing Specialization Paths",
+      "type": "reference"
+    },
+    {
+      "name": "Advanced Skill Development Planning",
+      "type": "tutorial"
+    }
+  ],
+  "reflection_prompt": "What has been your most significant learning from the Intermediate track? Where will you focus in the Advanced track? How has your understanding of offensive security evolved?",
+  "quiz": [
+    {
+      "question": "Why is honest self-assessment important at this progression point?",
+      "options": [
+        "Shows humility",
+        "Identifies genuine gaps to inform advanced planning",
+        "Required for certification",
+        "Proves competence"
+      ],
+      "correct_index": 1,
+      "explanation": "Honest assessment of skills and gaps enables targeted advanced training, accelerating proficiency in weak areas."
+    },
+    {
+      "question": "What is the value of a personal methodology document?",
+      "options": [
+        "Shows organizational skill",
+        "Codifies your approach for consistency and improvement",
+        "Required for employment",
+        "Reduces learning time"
+      ],
+      "correct_index": 1,
+      "explanation": "Personal methodology provides consistency, enables refinement, and serves as foundation for advanced techniques."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Skills self-assessment matrix",
+    "5 portfolio item summaries",
+    "Personal penetration testing methodology document",
+    "3-month advanced preparation plan with milestones",
+    "Updated professional identity statement",
+    "Strengths/weaknesses analysis",
+    "Advanced specialization goals document"
+  ],
+  "mentor_notes": "This mission is reflective and developmental. Assess honesty of self-assessment. Portfolio should represent best work. Preparation plan should be ambitious but achievable. Professional statement should demonstrate growth. Final stepping stone to Advanced track."
+}

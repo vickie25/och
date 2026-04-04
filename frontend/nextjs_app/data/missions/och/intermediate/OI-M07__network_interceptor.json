@@ -1,0 +1,156 @@
+{
+  "mission_id": "OI-M07",
+  "title": "Network Interceptor",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Network Attacks",
+  "pillar_icon": "🌐",
+  "mission_type": "Mandatory",
+  "module_number": 7,
+  "module_title": "Man-in-the-Middle Attacks and Network Credential Capture",
+  "video_duration": "16 min",
+  "estimated_time": "3-4 hrs",
+  "multiday": false,
+  "deadline": null,
+  "prerequisites": [
+    "Beginner Offensive Track completed",
+    "Network protocol knowledge (ARP, DNS, HTTP)",
+    "Packet capture and analysis",
+    "Linux networking tools",
+    "Lab environment with multiple hosts"
+  ],
+  "learning_objectives": [
+    "Execute ARP spoofing to intercept network traffic",
+    "Capture and extract credentials from network protocols",
+    "Demonstrate NTLM hash capture using Responder",
+    "Perform DNS spoofing for credential harvesting",
+    "Analyze detection and mitigation strategies"
+  ],
+  "key_topics": [
+    "ARP spoofing mechanics and tools (arpspoof, bettercap)",
+    "Traffic interception and packet sniffing",
+    "HTTP credential capture",
+    "Responder NBNS/LLMNR poisoning",
+    "NTLM hash capture and cracking",
+    "DNS spoofing techniques",
+    "Phishing page hosting",
+    "MitM detection and prevention"
+  ],
+  "scenario": "On the corporate LAN during an internal pentest. Demonstrate MitM attacks: ARP spoofing, credential capture, Responder hash capture, DNS spoofing.",
+  "scenario_context": {
+    "setting": "Internal corporate network with unencrypted protocols",
+    "challenge": "Demonstrate network-layer attacks to highlight protocol security issues",
+    "relevance": "Many organizations rely on network segmentation; shows internal threat model"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "ARP Spoofing Setup",
+      "description": "Configure ARP spoofing in the lab.",
+      "detailed_guidance": "Set up arpspoof between victim and gateway. Verify traffic redirects through attacker machine using tcpdump. Document ARP table changes.",
+      "evidence_required": "ARP spoof setup with traffic capture proof"
+    },
+    {
+      "number": 2,
+      "title": "Credential Capture",
+      "description": "Capture HTTP credentials.",
+      "detailed_guidance": "While ARP spoofing is active, capture traffic with Wireshark/tcpdump. Identify HTTP authentication packets. Extract base64-encoded credentials.",
+      "evidence_required": "Captured HTTP credentials with PCAP evidence"
+    },
+    {
+      "number": 3,
+      "title": "Responder Hash Capture",
+      "description": "Run Responder. Capture NTLM hashes.",
+      "detailed_guidance": "Deploy Responder on network to poison LLMNR and NBNS queries. Capture NTLM hashes from Windows hosts. Document hash types.",
+      "evidence_required": "Responder output with NTLM hashes captured"
+    },
+    {
+      "number": 4,
+      "title": "DNS Spoofing Demo",
+      "description": "Redirect victim to cloned page.",
+      "detailed_guidance": "Use dnsspoof or bettercap to intercept DNS queries and redirect to attacker-hosted phishing page. Document victim's interaction.",
+      "evidence_required": "DNS spoof evidence with screenshots"
+    },
+    {
+      "number": 5,
+      "title": "Detection Analysis",
+      "description": "How could these be detected and prevented?",
+      "detailed_guidance": "Analyse logs for MitM indicators (ARP storms, DNS anomalies, NTLM failures). Document detection mechanisms and prevention strategies.",
+      "evidence_required": "Detection analysis report with IDS/monitoring recommendations"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Technical Execution",
+      "weight": "25%"
+    },
+    {
+      "category": "Credential Capture",
+      "weight": "20%"
+    },
+    {
+      "category": "Attack Chain Documentation",
+      "weight": "20%"
+    },
+    {
+      "category": "Detection Analysis",
+      "weight": "20%"
+    },
+    {
+      "category": "Safety & Ethics",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "RI10",
+    "RI11"
+  ],
+  "resources": [
+    {
+      "name": "arpspoof and bettercap Configuration Guide",
+      "type": "tutorial"
+    },
+    {
+      "name": "Responder Hash Capture and Cracking",
+      "type": "guide"
+    },
+    {
+      "name": "DNS Spoofing Techniques and Tools",
+      "type": "reference"
+    }
+  ],
+  "reflection_prompt": "How would organizations segment networks to mitigate MitM attacks? What encryption protocols prevent these attacks?",
+  "quiz": [
+    {
+      "question": "Why is ARP spoofing effective on local networks?",
+      "options": [
+        "ARP has no authentication mechanism",
+        "Switches block legitimate ARP",
+        "Routers don't validate ARP",
+        "All of the above"
+      ],
+      "correct_index": 0,
+      "explanation": "ARP protocol lacks authentication, allowing attackers to send gratuitous ARP replies that update victim ARP tables."
+    },
+    {
+      "question": "What is the primary target of Responder LLMNR poisoning?",
+      "options": [
+        "HTTPS traffic",
+        "Windows hosts performing name resolution failures",
+        "Linux systems",
+        "Mobile devices"
+      ],
+      "correct_index": 1,
+      "explanation": "When normal name resolution fails, Windows hosts fall back to LLMNR, which Responder poisons to capture NTLM hashes."
+    }
+  ],
+  "portfolio_artifacts": [
+    "ARP spoofing configuration and proof",
+    "Captured HTTP credentials (sanitized)",
+    "Responder hash capture output",
+    "DNS spoofing evidence with screenshots",
+    "Detection analysis report",
+    "MitM mitigation recommendations"
+  ],
+  "mentor_notes": "Verify lab setup is isolated and ethical. Assess technical understanding of network protocols. Detection analysis should show depth of security thinking. Ethics compliance is critical."
+}

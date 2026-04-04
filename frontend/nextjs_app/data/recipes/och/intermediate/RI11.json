@@ -1,0 +1,74 @@
+{
+  "recipe_id": "RI11",
+  "title": "Service Exploitation Quick Reference",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Network Attacks",
+  "pillar_icon": "\ud83c\udf10",
+  "estimated_time": "20 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "ftp",
+    "smbclient",
+    "Hydra",
+    "searchsploit",
+    "Metasploit"
+  ],
+  "when_to_use": "When exploiting vulnerable network services",
+  "linked_missions": [
+    "OI-M07",
+    "OI-M08"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Test FTP service for anonymous login without credentials",
+      "tip": "Start with the most reliable information source for service exploitation quick reference",
+      "expected_output": "Confirmed anonymous FTP access with listing of accessible files and directories"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Enumerate SMB shares using null session without requiring credentials",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "List of available shares and permissions confirming null session vulnerability"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Perform SSH brute force attack using Hydra with credential wordlists",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Valid SSH credentials discovered through brute force attack"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Check cirt.net/passwords for known default credentials on identified services",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Matched default credentials for specific service versions"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Use searchsploit to identify known exploits for discovered service versions",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "List of available exploits with descriptions and references"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Search Metasploit for suitable exploit modules matching target services",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Applicable Metasploit modules with relevant exploit code and payloads"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Document all access gained including usernames, permissions, and data accessed",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Comprehensive access log showing all compromised accounts and their capabilities"
+    }
+  ]
+}

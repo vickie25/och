@@ -1,0 +1,128 @@
+{
+  "mission_id": "OB-M18",
+  "title": "Report Writer",
+  "pillar": "Ethics & Legality",
+  "module_number": 18,
+  "module_title": "Professional Vulnerability Reporting",
+  "video_duration": "12 min",
+  "estimated_time": "1-1.5 hours",
+  "multiday": false,
+  "deadline": "5 days",
+  "prerequisites": [
+    "OB-M10 (DVWA familiarity)",
+    "Word processor or Markdown editor"
+  ],
+  "learning_objectives": [
+    "Write professional vulnerability reports following industry standards",
+    "Document proof-of-concept with clear reproduction steps",
+    "Provide actionable remediation recommendations"
+  ],
+  "key_topics": [
+    "Vulnerability report structure",
+    "CVSS scoring in context",
+    "Proof of concept documentation",
+    "Remediation recommendations",
+    "Professional writing for security",
+    "Bug bounty report standards"
+  ],
+  "scenario": "During a lab exercise, you discovered a simulated vulnerability in the practice web application. Write a professional vulnerability report as if submitting to a real bug bounty programme. This is about communication, not exploitation.",
+  "scenario_context": {
+    "setting": "Lab vulnerability requiring professional documentation",
+    "challenge": "Write a client-ready vulnerability report",
+    "relevance": "The report is the primary deliverable of a penetration test. A technically brilliant finding with a poor report has no value."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Vulnerability Documentation",
+      "description": "Write a complete report following the template format: title, summary, impact, steps to reproduce, severity, remediation.",
+      "detailed_guidance": "Title should be descriptive. Summary in one paragraph. Impact in business terms. CVSS score with justification. Steps to reproduce must be detailed enough for someone else to follow.",
+      "evidence_required": "Full vulnerability report following template"
+    },
+    {
+      "number": 2,
+      "title": "Proof of Concept",
+      "description": "Create clear PoC documentation with step-by-step reproduction instructions and annotated screenshots.",
+      "detailed_guidance": "Every step should be numbered. Include exact URLs, payloads, and expected results. Annotate screenshots to highlight the vulnerability. Anyone should be able to reproduce from your instructions.",
+      "evidence_required": "PoC document with annotated screenshots"
+    },
+    {
+      "number": 3,
+      "title": "Remediation Recommendation",
+      "description": "Research and recommend specific remediation steps with references to security best practices.",
+      "detailed_guidance": "Go beyond 'fix the vulnerability'. Recommend specific code changes, configurations, or architectural improvements. Reference OWASP, CWE, or vendor documentation.",
+      "evidence_required": "Remediation recommendation with references"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Report Completeness",
+      "weight": "30%"
+    },
+    {
+      "category": "PoC Clarity",
+      "weight": "30%"
+    },
+    {
+      "category": "Remediation Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Professional Tone",
+      "weight": "20%"
+    }
+  ],
+  "linked_recipes": [
+    "R25",
+    "R26"
+  ],
+  "resources": [
+    {
+      "name": "Vulnerability Report Template",
+      "type": "Template"
+    },
+    {
+      "name": "OWASP Reporting Guidelines",
+      "type": "PDF"
+    },
+    {
+      "name": "Sample Bug Bounty Reports",
+      "type": "Examples"
+    }
+  ],
+  "reflection_prompt": "You find a vulnerability that allows access to 100,000 customer records. The company's bug bounty programme offers $500. Do you report it? What ethical considerations guide your decision?",
+  "quiz": [
+    {
+      "question": "The most important part of a vulnerability report is:",
+      "options": [
+        "The title",
+        "Clear, reproducible steps that allow anyone to verify the finding",
+        "The CVSS score",
+        "The remediation"
+      ],
+      "correct_index": 1,
+      "explanation": "If a finding can't be reproduced, it can't be verified or fixed. Clear reproduction steps are the foundation of a useful report."
+    },
+    {
+      "question": "Remediation recommendations should:",
+      "options": [
+        "Just say 'patch the system'",
+        "Provide specific, actionable steps with references to best practices",
+        "Be left to the client",
+        "Focus only on code changes"
+      ],
+      "correct_index": 1,
+      "explanation": "Specific, referenced remediation guidance helps clients fix issues quickly and correctly, adding value to the engagement."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Professional vulnerability report",
+    "Annotated PoC documentation",
+    "Remediation recommendations"
+  ],
+  "mentor_notes": "Report quality is the deliverable. A well-written report for a simple finding scores higher than a poorly documented critical finding. Check that PoC steps are reproducible.",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "⚖️",
+  "mission_type": "Mandatory"
+}

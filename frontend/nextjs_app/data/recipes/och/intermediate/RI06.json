@@ -1,0 +1,71 @@
+{
+  "recipe_id": "RI06",
+  "title": "SQLi Testing Methodology",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Web Application Attacks",
+  "pillar_icon": "\ud83d\udd78\ufe0f",
+  "estimated_time": "25 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "Browser",
+    "Burp Suite",
+    "sqlmap"
+  ],
+  "when_to_use": "When testing web applications for SQLi",
+  "linked_missions": [
+    "OI-M05"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Test form inputs and URL parameters with basic SQL injection payloads like ' OR 1=1-- -",
+      "tip": "Start with the most reliable information source for sqli testing methodology",
+      "expected_output": "Application behavior changes indicating potential SQL injection vulnerability"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Analyse error messages to determine database type (MySQL, MSSQL, PostgreSQL, Oracle)",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "Identified database type from error messages or application responses"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Test database column count using ORDER BY clause with incrementing numbers",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Confirmed number of columns in the vulnerable query"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Use UNION SELECT to extract data from database tables in structured format",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Retrieved data displayed in application output confirming UNION injection works"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Extract database version, user, and schema information using version functions",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Confirmed database version, current user, and available databases"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Use sqlmap to automate SQLi exploitation and database enumeration",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Complete database enumeration including tables, columns, and dumped data"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Document every injection attempt with full payloads and screenshots",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Comprehensive documentation of SQLi vulnerability with technical proof of concept"
+    }
+  ]
+}

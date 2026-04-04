@@ -1,0 +1,137 @@
+{
+  "mission_id": "OB-M02",
+  "title": "Kill Chain Autopsy",
+  "pillar": "Offensive Mindset",
+  "module_number": 2,
+  "module_title": "Attack Frameworks & Methodology",
+  "video_duration": "15 min",
+  "estimated_time": "1-2 hours",
+  "multiday": false,
+  "deadline": "5 days",
+  "prerequisites": [
+    "OB-M01 completed",
+    "Basic understanding of adversarial thinking",
+    "Web browser for research"
+  ],
+  "learning_objectives": [
+    "Apply the Cyber Kill Chain framework to a real-world incident",
+    "Construct forensic attack timelines from incident data",
+    "Identify detection gaps across kill chain phases"
+  ],
+  "key_topics": [
+    "Lockheed Martin Cyber Kill Chain",
+    "MITRE ATT&CK framework basics",
+    "Incident timeline reconstruction",
+    "Detection gap analysis",
+    "Kill chain phase mapping",
+    "Defender response assessment"
+  ],
+  "scenario": "A logistics company in Nairobi suffered a ransomware attack last month. The incident report has been declassified for training. Your job is to dissect the attack using the Cyber Kill Chain framework and produce a forensic timeline showing exactly how the adversary moved through each phase.",
+  "scenario_context": {
+    "setting": "Logistics company in Nairobi, Kenya",
+    "challenge": "Reconstruct a ransomware attack using framework analysis",
+    "relevance": "Ransomware attacks on African businesses are increasing rapidly. Understanding kill chain phases helps both attackers and defenders map real-world intrusions."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Incident Report Review",
+      "description": "Read the provided incident summary. Identify and annotate all attacker actions.",
+      "detailed_guidance": "Go through the report line by line. Highlight every action the attacker took. Note timestamps, tools mentioned, and targets affected. Don't skip any detail.",
+      "evidence_required": "Annotated incident report with highlighted attacker actions"
+    },
+    {
+      "number": 2,
+      "title": "Kill Chain Phase Mapping",
+      "description": "Map every attacker action to a Kill Chain phase. Include timestamps where available.",
+      "detailed_guidance": "Create a 7-column table: Reconnaissance, Weaponisation, Delivery, Exploitation, Installation, Command & Control, Actions on Objectives. Map each attacker action to the correct phase.",
+      "evidence_required": "Kill Chain mapping table with phase, action, timestamp, and evidence columns"
+    },
+    {
+      "number": 3,
+      "title": "Detection Gap Analysis",
+      "description": "For each phase, identify whether the organisation detected the activity. Suggest missing detection capabilities.",
+      "detailed_guidance": "For each of the 7 phases: was it detected? If yes, how? If no, what detection capability was missing? Think about logs, alerts, network monitoring, endpoint detection.",
+      "evidence_required": "Detection gap analysis with recommended controls per phase"
+    },
+    {
+      "number": 4,
+      "title": "Timeline Visualisation",
+      "description": "Create a visual timeline of the attack from initial access to impact, including attacker actions and defender responses.",
+      "detailed_guidance": "Use any visual format: flowchart, Gantt-style chart, or annotated timeline. Show the progression, dwell time between phases, and where defenders could have intervened.",
+      "evidence_required": "Attack timeline diagram or flowchart"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Kill Chain Accuracy",
+      "weight": "30%"
+    },
+    {
+      "category": "Analysis Depth",
+      "weight": "25%"
+    },
+    {
+      "category": "Detection Recommendations",
+      "weight": "25%"
+    },
+    {
+      "category": "Timeline Clarity",
+      "weight": "20%"
+    }
+  ],
+  "linked_recipes": [
+    "R03",
+    "R04"
+  ],
+  "resources": [
+    {
+      "name": "Cyber Kill Chain Reference Card",
+      "type": "PDF"
+    },
+    {
+      "name": "Sample Incident Report (Nairobi Logistics)",
+      "type": "Document"
+    },
+    {
+      "name": "MITRE ATT&CK Navigator",
+      "type": "Tool"
+    }
+  ],
+  "reflection_prompt": "The logistics company had no security team and relied entirely on an antivirus product. How would you prioritise building their detection capability from zero with a limited budget?",
+  "quiz": [
+    {
+      "question": "The Cyber Kill Chain has how many phases?",
+      "options": [
+        "5",
+        "7",
+        "10",
+        "12"
+      ],
+      "correct_index": 1,
+      "explanation": "The Lockheed Martin Cyber Kill Chain has 7 phases: Reconnaissance, Weaponisation, Delivery, Exploitation, Installation, C2, Actions on Objectives."
+    },
+    {
+      "question": "Detection gap analysis is valuable because:",
+      "options": [
+        "It finds vulnerabilities",
+        "It identifies where defenders had no visibility into attacker activity",
+        "It replaces antivirus",
+        "It only works for ransomware"
+      ],
+      "correct_index": 1,
+      "explanation": "Detection gap analysis reveals blind spots in an organisation's ability to see attacker activity at each phase."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Annotated incident report",
+    "Kill Chain mapping table",
+    "Detection gap analysis",
+    "Attack timeline visualisation"
+  ],
+  "mentor_notes": "Evaluate the student's ability to correctly map actions to phases. Common errors: confusing Delivery with Exploitation, or missing the C2 phase. The timeline visualisation quality is a good indicator of analytical maturity.",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "🧠",
+  "mission_type": "Mandatory"
+}

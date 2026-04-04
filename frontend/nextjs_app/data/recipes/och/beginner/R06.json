@@ -1,0 +1,70 @@
+{
+  "recipe_id": "R06",
+  "title": "Google Dorking Essentials",
+  "pillar": "Reconnaissance",
+  "pillar_icon": "🔍",
+  "estimated_time": "15 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Google Search"
+  ],
+  "when_to_use": "During passive reconnaissance to discover exposed documents and admin interfaces",
+  "linked_missions": [
+    "OB-M03",
+    "OB-CAP01"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Site-Specific Search",
+      "instruction": "site:target.com — limit results to one domain",
+      "tip": "This is your starting point for all dorking. Note total result count as a baseline",
+      "expected_output": "Domain-specific results"
+    },
+    {
+      "number": 2,
+      "title": "File Type Discovery",
+      "instruction": "filetype:pdf site:target.com — find specific file types",
+      "tip": "Try pdf, doc, xls, txt, sql, bak. Backup files and database dumps are gold",
+      "expected_output": "Exposed files identified"
+    },
+    {
+      "number": 3,
+      "title": "Directory Listing",
+      "instruction": "intitle:index of site:target.com — find directory listings",
+      "tip": "Open directory listings expose file structures and often contain sensitive files",
+      "expected_output": "Open directories found"
+    },
+    {
+      "number": 4,
+      "title": "Admin Page Discovery",
+      "instruction": "inurl:admin site:target.com — find admin pages",
+      "tip": "Also try: inurl:login, inurl:dashboard, inurl:config, inurl:setup",
+      "expected_output": "Admin interfaces discovered"
+    },
+    {
+      "number": 5,
+      "title": "Credential Hunting",
+      "instruction": "intext:password filetype:txt — find exposed credentials",
+      "tip": "Be ethical: document findings but never use discovered credentials without authorisation",
+      "expected_output": "Credential exposure findings"
+    },
+    {
+      "number": 6,
+      "title": "Cached Version",
+      "instruction": "cache:target.com — view Google's cached version",
+      "tip": "Cached versions may show content that's been recently removed — useful for historical analysis",
+      "expected_output": "Cached content reviewed"
+    },
+    {
+      "number": 7,
+      "title": "Document Results",
+      "instruction": "Document all dorks used and interesting results",
+      "tip": "Create a reusable dork list for future engagements. Build your personal dorking playbook",
+      "expected_output": "Dorking results documented"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 7
+}

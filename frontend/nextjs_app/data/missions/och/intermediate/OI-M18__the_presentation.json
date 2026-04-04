@@ -1,0 +1,156 @@
+{
+  "mission_id": "OI-M18",
+  "title": "The Presentation",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Professional Reporting",
+  "pillar_icon": "📋",
+  "mission_type": "Mandatory",
+  "module_number": 18,
+  "module_title": "Effective Pentest Findings Presentation to Diverse Audiences",
+  "video_duration": "14 min",
+  "estimated_time": "2-3 hrs",
+  "multiday": false,
+  "deadline": null,
+  "prerequisites": [
+    "Beginner Offensive Track completed",
+    "Complete pentest report available",
+    "Public speaking fundamentals",
+    "Executive communication skills",
+    "Technical presentation abilities"
+  ],
+  "learning_objectives": [
+    "Create compelling executive presentations focused on business impact",
+    "Develop detailed technical presentations for engineering teams",
+    "Anticipate and prepare answers to difficult questions",
+    "Create compelling attack narratives",
+    "Deliver professional presentations with confidence"
+  ],
+  "key_topics": [
+    "Executive presentation design (10 slides, business focus)",
+    "Technical presentation design (detailed, remediation-focused)",
+    "Q&A preparation and anticipation",
+    "Attack narrative storytelling",
+    "Slide design and visual communication",
+    "Presenter notes and delivery",
+    "Audience-specific customization",
+    "Handling challenging questions"
+  ],
+  "scenario": "CTO wants presentations: 30 min for executives, 1 hour for engineers. Prepare both and anticipate tough questions.",
+  "scenario_context": {
+    "setting": "Post-pentest findings presentation to mixed audiences",
+    "challenge": "Tailor message to executive and technical audiences",
+    "relevance": "Presentation skill determines buy-in for remediation"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Executive Presentation",
+      "description": "10-slide deck focused on business impact.",
+      "detailed_guidance": "Create 10-slide presentation: title, overview, key findings (business impact), risk timeline, recommendations, budget/timeline. Heavy visuals, minimal text.",
+      "evidence_required": "Executive slide deck (10 slides, professional design)"
+    },
+    {
+      "number": 2,
+      "title": "Technical Presentation",
+      "description": "Detailed deck with remediation steps.",
+      "detailed_guidance": "Create 20+ slide technical presentation covering: methodology, findings (technical detail), exploitation demos, remediation steps, timeline.",
+      "evidence_required": "Technical slide deck (20+ slides, detailed)"
+    },
+    {
+      "number": 3,
+      "title": "Q&A Preparation",
+      "description": "5 questions per audience with responses.",
+      "detailed_guidance": "Prepare 5 tough questions per audience (10 total). Write substantive answers demonstrating expertise and anticipating concerns.",
+      "evidence_required": "Q&A document (10 questions with answers)"
+    },
+    {
+      "number": 4,
+      "title": "Attack Narrative",
+      "description": "1-page compelling attack story.",
+      "detailed_guidance": "Write 1-page narrative describing the complete attack story from initial access through compromise. Make it compelling and understandable.",
+      "evidence_required": "Attack narrative (1 page)"
+    },
+    {
+      "number": 5,
+      "title": "Delivery Practice Notes",
+      "description": "Detailed delivery notes.",
+      "detailed_guidance": "Create detailed delivery notes for both presentations: timing per slide, key points, speaking notes, emphasis, transitions.",
+      "evidence_required": "Delivery notes for executive and technical presentations"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Executive Deck",
+      "weight": "25%"
+    },
+    {
+      "category": "Technical Deck",
+      "weight": "25%"
+    },
+    {
+      "category": "Q&A Preparation",
+      "weight": "20%"
+    },
+    {
+      "category": "Narrative Clarity",
+      "weight": "15%"
+    },
+    {
+      "category": "Professional Polish",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "RI26",
+    "RI27"
+  ],
+  "resources": [
+    {
+      "name": "Executive Presentation Design Principles",
+      "type": "guide"
+    },
+    {
+      "name": "Technical Presentation Best Practices",
+      "type": "tutorial"
+    },
+    {
+      "name": "Storytelling in Security Presentations",
+      "type": "reference"
+    }
+  ],
+  "reflection_prompt": "How would you handle a question you couldn't answer in the presentation? What audience reaction would indicate successful communication?",
+  "quiz": [
+    {
+      "question": "What should dominate an executive presentation?",
+      "options": [
+        "Technical details and tool usage",
+        "Business impact, timeline, and budget",
+        "Exploitation methodology",
+        "System architecture"
+      ],
+      "correct_index": 1,
+      "explanation": "Executives care about business impact, remediation cost, timeline, and risk reduction. Technical details distract from key messages."
+    },
+    {
+      "question": "Why is attack narrative storytelling valuable?",
+      "options": [
+        "It entertains the audience",
+        "Makes complex attacks understandable and memorable",
+        "Reduces presentation time",
+        "Emphasizes tool usage"
+      ],
+      "correct_index": 1,
+      "explanation": "Narrative storytelling makes technical attacks relatable and memorable, helping audiences understand the severity of findings."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Executive presentation (10 slides, professional design)",
+    "Technical presentation (20+ slides, detailed)",
+    "Q&A document (10 questions with comprehensive answers)",
+    "Attack narrative (1 compelling page)",
+    "Delivery notes for both presentations",
+    "Speaker notes and timing documentation"
+  ],
+  "mentor_notes": "Evaluate presentation quality and audience-appropriate customization. Executive deck should be visually compelling with minimal text. Technical deck should enable remediation. Q&A should demonstrate expertise. Narrative clarity is important."
+}

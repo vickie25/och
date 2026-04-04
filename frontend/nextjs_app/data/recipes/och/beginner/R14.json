@@ -1,0 +1,71 @@
+{
+  "recipe_id": "R14",
+  "title": "Bash Script Template",
+  "pillar": "Scripting Basics",
+  "pillar_icon": "📜",
+  "estimated_time": "15 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Text editor",
+    "Bash shell"
+  ],
+  "when_to_use": "When building any reusable Bash automation script",
+  "linked_missions": [
+    "OB-M08",
+    "OB-M12"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Shebang Line",
+      "instruction": "Start with shebang: #!/bin/bash",
+      "tip": "This tells the system to use Bash. Without it, the script may run with a different shell",
+      "expected_output": "Script file with shebang"
+    },
+    {
+      "number": 2,
+      "title": "Usage Function",
+      "instruction": "Add usage function: usage() { echo 'Usage: $0 -t target'; exit 1; }",
+      "tip": "Always provide a usage message. Users shouldn't have to read the code to use the tool",
+      "expected_output": "Help function added"
+    },
+    {
+      "number": 3,
+      "title": "Parse Arguments",
+      "instruction": "Parse arguments: while getopts 't:h' opt; do case $opt in t) TARGET=$OPTARG;; h) usage;; esac; done",
+      "tip": "The colon after 't:' means -t requires a value. No colon for flags like -h",
+      "expected_output": "Argument parsing working"
+    },
+    {
+      "number": 4,
+      "title": "Validate Input",
+      "instruction": "Validate input: [ -z \"$TARGET\" ] && usage",
+      "tip": "Always validate. Never assume the user provides correct input. Fail gracefully with helpful messages",
+      "expected_output": "Input validation added"
+    },
+    {
+      "number": 5,
+      "title": "Create Output Directory",
+      "instruction": "Create output directory: mkdir -p output/$(date +%Y%m%d)",
+      "tip": "-p creates parent directories and doesn't error if it exists. Timestamped dirs prevent overwrites",
+      "expected_output": "Output directory created"
+    },
+    {
+      "number": 6,
+      "title": "Define Functions",
+      "instruction": "Add your functions: recon(), enumerate(), report()",
+      "tip": "Each function should do one thing well. Name them clearly. Pass parameters explicitly",
+      "expected_output": "Core functions defined"
+    },
+    {
+      "number": 7,
+      "title": "Execute and Redirect",
+      "instruction": "Call functions in order and redirect output to files",
+      "tip": "Use tee to both display and save: command | tee output.txt. Helps with real-time monitoring",
+      "expected_output": "Working script with output files"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 7
+}

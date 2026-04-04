@@ -1,0 +1,63 @@
+{
+  "recipe_id": "R16",
+  "title": "OWASP Top 10 Flashcards",
+  "pillar": "Web Fundamentals",
+  "pillar_icon": "🕸️",
+  "estimated_time": "20 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Index cards, Anki, or text editor"
+  ],
+  "when_to_use": "Foundational knowledge for all web application security work",
+  "linked_missions": [
+    "OB-M09",
+    "OB-M10"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Create Cards",
+      "instruction": "Write each OWASP Top 10 category on a card (or digital equivalent)",
+      "tip": "Use the OWASP 2021 version as the current standard",
+      "expected_output": "10 category cards created"
+    },
+    {
+      "number": 2,
+      "title": "Add Descriptions",
+      "instruction": "Add a one-sentence description of the vulnerability class",
+      "tip": "Keep it concise. If you can't explain it in one sentence, you don't understand it yet",
+      "expected_output": "Descriptions added"
+    },
+    {
+      "number": 3,
+      "title": "Add Examples",
+      "instruction": "Add one real-world example (e.g., SQLi: attacker extracts database through login form)",
+      "tip": "Real examples make abstract concepts concrete and memorable",
+      "expected_output": "Examples added"
+    },
+    {
+      "number": 4,
+      "title": "Add Risk Levels",
+      "instruction": "Add risk level: Critical, High, Medium",
+      "tip": "Risk depends on context. Injection is critical in most cases; cryptographic failures depend on the data",
+      "expected_output": "Risk levels assigned"
+    },
+    {
+      "number": 5,
+      "title": "Add Defences",
+      "instruction": "Add the primary defence (e.g., SQLi: parameterised queries)",
+      "tip": "Know the primary defence cold. This shows you understand not just the attack but the fix",
+      "expected_output": "Primary defences listed"
+    },
+    {
+      "number": 6,
+      "title": "Daily Review",
+      "instruction": "Review daily until you can name and explain all 10 from memory",
+      "tip": "Use spaced repetition (Anki). You should be able to recite all 10 in under 2 minutes",
+      "expected_output": "All 10 memorised"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 6
+}

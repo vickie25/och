@@ -1,0 +1,157 @@
+{
+  "mission_id": "OA-M04",
+  "title": "Chain Reaction",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Advanced Exploitation",
+  "pillar_icon": "\ud83d\udca5",
+  "mission_type": "Mandatory",
+  "module_number": 4,
+  "module_title": "Module 4: Chain Reaction",
+  "video_duration": "15-20 min",
+  "estimated_time": "6-8 hrs",
+  "multiday": true,
+  "deadline": "5 days",
+  "prerequisites": [
+    "Intermediate Offensive Track",
+    "Core Cybersecurity Fundamentals"
+  ],
+  "learning_objectives": [
+    "Chain multiple exploits into coordinated attack",
+    "Escalate privileges progressively",
+    "Establish lateral movement pathways",
+    "Maintain persistence through privilege boundary crossing",
+    "Document attack chain with evidence"
+  ],
+  "key_topics": [
+    "Exploit development and debugging",
+    "Vulnerability analysis and validation",
+    "Shellcode creation and payload generation",
+    "Exploit mitigation bypass techniques",
+    "Multi-stage exploitation chains"
+  ],
+  "scenario": "Scenario A web application has no single critical vulnerability \u2014 but SSRF, misconfigured internal API, and exposed debug endpoint may chain to RCE. Subtasks Scoring Rubric Linked Recipes: RA05, RA06 ________________________________________________________________________________ 3.3 Evasion & Anti-Detection",
+  "scenario_context": {
+    "setting": "Lagos, Nigeria, West African tech startup hub",
+    "challenge": "Chain exploits to escalate privileges and establish foothold in West African tech startup hub's Lagos, Nigeria network",
+    "relevance": "Reflects real-world African enterprise security challenges and red team operations across the continent"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Vulnerability Mapping",
+      "description": "Document every vulnerability including low/informational.",
+      "evidence": "Complete vulnerability inventory",
+      "detailed_guidance": "Begin by thoroughly reviewing the scenario and understanding all objectives. Document your approach before execution. This is the foundational subtask that enables all following work.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Complete vulnerability inventory"
+    },
+    {
+      "number": 2,
+      "title": "Chain Identification",
+      "description": "Identify 2+ vulnerability chains with step-by-step mapping.",
+      "evidence": "Chain analysis with logic diagrams",
+      "detailed_guidance": "Conduct systematic reconnaissance and information gathering. Map the target network, identify services, and document all findings with evidence.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Chain analysis with logic diagrams"
+    },
+    {
+      "number": 3,
+      "title": "Chain Exploitation",
+      "description": "Exploit the most promising chain to achieve RCE.",
+      "evidence": "Chain exploitation log with per-step evidence",
+      "detailed_guidance": "Analyze vulnerabilities discovered in reconnaissance. Validate each vulnerability through testing and document the exploitation path.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Chain exploitation log with per-step evidence"
+    },
+    {
+      "number": 4,
+      "title": "Automated PoC",
+      "description": "Python script automating the complete chain.",
+      "evidence": "Python PoC + usage documentation",
+      "detailed_guidance": "Execute the exploitation with careful attention to OPSEC and evasion. Maintain detailed logs of all actions for evidence and reporting.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Python PoC + usage documentation"
+    },
+    {
+      "number": 5,
+      "title": "LOLBins Post-Exploitation",
+      "description": "Post-exploitation using only living-off-the-land binaries.",
+      "evidence": "LOLBins-only post-exploitation log",
+      "detailed_guidance": "Establish persistence mechanisms that survive system reboots and will maintain access throughout the engagement.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "LOLBins-only post-exploitation log"
+    },
+    {
+      "number": 6,
+      "title": "Technical Advisory",
+      "description": "Advisory for vendor engineering team.",
+      "evidence": "Technical advisory with chain diagram",
+      "detailed_guidance": "Perform privilege escalation and lateral movement to achieve the mission objectives. Document each pivot point.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Technical advisory with chain diagram"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Chain Creativity",
+      "weight": "20%"
+    },
+    {
+      "category": "Exploitation Success",
+      "weight": "25%"
+    },
+    {
+      "category": "PoC Quality",
+      "weight": "15%"
+    },
+    {
+      "category": "LOLBins Usage",
+      "weight": "15%"
+    },
+    {
+      "category": "Advisory Quality",
+      "weight": "15%"
+    },
+    {
+      "category": "Methodology",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "Chain Reaction"
+  ],
+  "resources": [
+    "OCH Advanced Advanced Exploitation Toolkit",
+    "Engagement Framework Documentation",
+    "OPSEC Guidelines",
+    "Reporting Templates",
+    "Mentor Support Channel"
+  ],
+  "reflection_prompt": "",
+  "quiz": [
+    {
+      "question": "What is the primary advantage of chaining multiple exploits?",
+      "options": [
+        "It makes the attack slower and easier to detect",
+        "It demonstrates full attack chain from initial access to objective achievement",
+        "It requires less technical skill",
+        "It eliminates the need for privilege escalation"
+      ],
+      "correct_index": 1,
+      "explanation": "Exploit chains demonstrate complete attack paths from initial compromise to objective achievement."
+    },
+    {
+      "question": "In a privilege escalation attack, what is the goal of lateral movement?",
+      "options": [
+        "To exit the system completely",
+        "To access different systems or accounts to progress toward mission objectives",
+        "To improve network speed",
+        "To alert security teams"
+      ],
+      "correct_index": 1,
+      "explanation": "Lateral movement provides access to additional systems and accounts necessary to achieve engagement objectives."
+    }
+  ],
+  "portfolio_artifacts": [
+    "OA-M04_engagement_plan.md",
+    "OA-M04_evidence_log.txt",
+    "OA-M04_technical_report.md",
+    "OA-M04_client_presentation.pdf"
+  ],
+  "mentor_notes": "For OA-M04 - Chain Reaction: Ensure learner demonstrates proper OPSEC, evidence collection, and professional reporting. This mission is designed to build advanced exploitation expertise. Coordinate with blue team for detection validation where applicable."
+}

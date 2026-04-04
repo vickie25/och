@@ -1,0 +1,72 @@
+{
+  "recipe_id": "RI01",
+  "title": "Advanced OSINT Workflow",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Advanced Reconnaissance",
+  "pillar_icon": "\ud83d\udd0d",
+  "estimated_time": "30 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "theHarvester",
+    "Recon-ng",
+    "SpiderFoot",
+    "crt.sh"
+  ],
+  "when_to_use": "At the start of any external assessment",
+  "linked_missions": [
+    "OI-M01"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Run theHarvester to enumerate email addresses and subdomains from public sources",
+      "tip": "Start with the most reliable information source for advanced osint workflow",
+      "expected_output": "List of email addresses, subdomains, and associated IPs from the target domain"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Import results to Recon-ng workspace for centralized data management",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "Recon-ng workspace populated with imported contacts, hosts, and domain data"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Run Recon-ng modules such as recon/domains-hosts/hackertarget for additional discovery",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Additional hosts and domains discovered through Recon-ng's automated modules"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Check crt.sh for certificate transparency records to identify subdomains",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "List of valid subdomains from SSL certificate records"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Search GitHub using target.com-related keywords like password, api_key, or secret",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Leaked credentials, API keys, or configuration files publicly available on GitHub"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Run SpiderFoot scan to correlate discovered information and identify relationships",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Correlation analysis linking infrastructure, people, and services together"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Compile all findings into a structured OSINT report with data relationships",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Comprehensive OSINT report showing complete intelligence picture of the target"
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "recipe_id": "RI22",
+  "title": "Password Attack Workflow",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Password Attacks",
+  "pillar_icon": "\ud83d\udd11",
+  "estimated_time": "25 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "Hashcat",
+    "John",
+    "CeWL",
+    "Hydra",
+    "CrackMapExec"
+  ],
+  "when_to_use": "When captured hashes need cracking",
+  "linked_missions": [
+    "OI-M15"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Identify hash type using hashid utility to determine cracking mode",
+      "tip": "Start with the most reliable information source for password attack workflow",
+      "expected_output": "Identified hash type with Hashcat/John mode numbers for cracking"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Attempt password cracking using John with rockyou wordlist dictionary",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "Cracked passwords recovered from hash file via dictionary attack"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Use Hashcat with matching hash mode and wordlist for GPU-accelerated cracking",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Additional cracked passwords using Hashcat's superior performance"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Generate custom wordlist using CeWL crawling target website for domain context",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Custom wordlist containing target-specific words and potential password patterns"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Apply mutation rules like best64 to expand dictionary with variations",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Expanded wordlist with rule-based mutations increasing crack rate"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Perform online password spraying using Hydra or CrackMapExec against services",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Valid credentials discovered through account spraying attempts"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Document all cracked credentials with success rates for reporting",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Comprehensive password cracking report with success metrics and recovered credentials"
+    }
+  ]
+}

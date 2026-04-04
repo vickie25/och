@@ -1,0 +1,138 @@
+{
+  "mission_id": "OB-M04",
+  "title": "First Authorised Scan",
+  "pillar": "Reconnaissance",
+  "module_number": 4,
+  "module_title": "Active Reconnaissance",
+  "video_duration": "16 min",
+  "estimated_time": "1-2 hours",
+  "multiday": false,
+  "deadline": "5 days",
+  "prerequisites": [
+    "OB-M03 completed",
+    "Kali Linux VM or equivalent",
+    "Lab target available",
+    "Nmap installed"
+  ],
+  "learning_objectives": [
+    "Perform authorised active reconnaissance within a defined scope",
+    "Use Nmap for host discovery and service enumeration",
+    "Produce professional active recon documentation"
+  ],
+  "key_topics": [
+    "Scope documentation and authorisation",
+    "Ping sweeps and host discovery",
+    "TCP/UDP port scanning",
+    "Service and version detection",
+    "Scope compliance discipline",
+    "Active recon reporting"
+  ],
+  "scenario": "Following your passive recon report, the NGO has authorised limited active reconnaissance against their staging server in a lab environment. Your scope is defined: identify live hosts, open ports, and running services. Stay within scope at all times.",
+  "scenario_context": {
+    "setting": "NGO staging server in controlled lab environment",
+    "challenge": "Active scanning within strict scope boundaries",
+    "relevance": "Scope compliance is non-negotiable in professional penetration testing. African organisations increasingly require formal authorisation documentation."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Authorisation & Scope Documentation",
+      "description": "Document your authorisation scope: target IPs, permitted techniques, time window, and emergency contacts.",
+      "detailed_guidance": "Use the provided template. Fill in every field. This document protects you legally. Include: authorised IP ranges, permitted scan types, time window, out-of-scope systems, escalation contacts.",
+      "evidence_required": "Completed scope document using the provided template"
+    },
+    {
+      "number": 2,
+      "title": "Host Discovery",
+      "description": "Perform ping sweeps to identify live hosts on the target network segment.",
+      "detailed_guidance": "Use nmap -sn to discover live hosts. Try different discovery methods if ICMP is blocked. Document every command used and its output.",
+      "evidence_required": "Host discovery output with live hosts identified"
+    },
+    {
+      "number": 3,
+      "title": "Port Scanning & Service Detection",
+      "description": "Scan discovered hosts for open ports and identify running services with version information.",
+      "detailed_guidance": "Use nmap -sV -sC for service detection. Consider different scan types: SYN scan, connect scan. Save output in multiple formats (-oN, -oX). Note any unexpected services.",
+      "evidence_required": "Scan output showing open ports, services, and versions"
+    },
+    {
+      "number": 4,
+      "title": "Active Recon Report",
+      "description": "Compile a brief professional report covering methodology, scope compliance, and all findings.",
+      "detailed_guidance": "Report structure: Scope Confirmation, Methodology, Host Discovery Results, Service Enumeration Results, Initial Observations, Recommendations for Next Phase.",
+      "evidence_required": "Active recon report with scan evidence attached"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Scope Compliance",
+      "weight": "25%"
+    },
+    {
+      "category": "Scanning Technique",
+      "weight": "25%"
+    },
+    {
+      "category": "Enumeration Depth",
+      "weight": "25%"
+    },
+    {
+      "category": "Documentation Quality",
+      "weight": "25%"
+    }
+  ],
+  "linked_recipes": [
+    "R07",
+    "R08"
+  ],
+  "resources": [
+    {
+      "name": "Scope Document Template",
+      "type": "Template"
+    },
+    {
+      "name": "Nmap Command Reference",
+      "type": "PDF"
+    },
+    {
+      "name": "Active Recon Report Template",
+      "type": "Template"
+    }
+  ],
+  "reflection_prompt": "During your scan, you accidentally discover a host outside your authorised scope responding to your packets. What do you do? Walk through every decision point.",
+  "quiz": [
+    {
+      "question": "The most important step before active scanning is:",
+      "options": [
+        "Installing Nmap",
+        "Getting written authorisation and defining scope",
+        "Learning Metasploit",
+        "Setting up a VPN"
+      ],
+      "correct_index": 1,
+      "explanation": "Without written authorisation, any scanning could be illegal regardless of intent."
+    },
+    {
+      "question": "nmap -sn performs:",
+      "options": [
+        "Full port scan",
+        "Host discovery without port scanning",
+        "Vulnerability scan",
+        "DNS enumeration"
+      ],
+      "correct_index": 1,
+      "explanation": "The -sn flag tells Nmap to perform host discovery only, without scanning ports."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Scope document",
+    "Host discovery results",
+    "Service enumeration data",
+    "Active recon report"
+  ],
+  "mentor_notes": "Scope compliance is the most critical element. A technically perfect scan that goes out of scope should fail. Check that the student documented authorisation before scanning.",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "🔍",
+  "mission_type": "Mandatory"
+}

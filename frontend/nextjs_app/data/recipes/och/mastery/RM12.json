@@ -1,0 +1,69 @@
+{
+  "recipe_id": "RM12",
+  "title": "Cloud-Native Attack Methodology",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Specialist Domains",
+  "pillar_icon": "\ud83c\udfaf",
+  "estimated_time": "32 min",
+  "difficulty": "Mastery",
+  "tools_required": [
+    "AWS CLI, awscli, AWS Lambda tools",
+    "Azure CLI, Terraform (Azure)",
+    "GCP SDK, gcloud",
+    "Cloud exploitation frameworks (CloudMapper, ScoutSuite)",
+    "Container tools (Docker, kubectl, ECS)",
+    "Lambda enumeration tools",
+    "GitHub Actions analysis tools"
+  ],
+  "when_to_use": "Use Cloud-Native Attack Methodology to develop professional-grade cloud-native attack methodology capabilities at Mastery level. This recipe is part of the Specialist Domains pillar and integrates with linked missions OM-M09, OM-M10.",
+  "linked_missions": [
+    "OM-M09",
+    "OM-M10"
+  ],
+  "step_count": 6,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Cloud Architecture Enumeration",
+      "instruction": "Comprehensive enumeration of cloud-native architecture: map all functions (AWS Lambda, Azure Functions), APIs (API Gateway, OpenAPI specs), containers (ECS/EKS/GKE), databases (RDS, DynamoDB, Cosmos), IAM roles and policies. Document: exposure surface (publicly accessible endpoints), authentication mechanisms, privilege levels. Use ScoutSuite or CloudMapper for visualization.",
+      "tip": "Cloud enumeration requires valid credentials (from initial compromise). Use IAM user privileges to scope enumeration.",
+      "expected_output": "Architecture map with attack surface inventory"
+    },
+    {
+      "number": 2,
+      "title": "Serverless Exploitation",
+      "instruction": "Exploit serverless functions: Lambda injection attacks (execute arbitrary Python/Node code), environment variable harvesting (steal secrets, API keys, credentials), privilege escalation via overpermissioned IAM roles. Demonstrate: break out of Lambda sandbox, enumerate other functions, access RDS/S3. Chain to gain persistent access.",
+      "tip": "Lambda functions are stateless but have temporary credentials; extract and reuse them.",
+      "expected_output": "Lambda exploitation + privilege escalation demonstration"
+    },
+    {
+      "number": 3,
+      "title": "CI/CD Pipeline Compromise",
+      "instruction": "Compromise CI/CD pipelines: GitHub Actions workflow injection (add malicious steps), secret extraction from workflow logs, artifact manipulation (inject backdoors into build outputs), supply chain attack (poison dependencies). Demonstrate: workflow modification, secret exfiltration, package publication with backdoor.",
+      "tip": "CI/CD pipelines have powerful privileges; compromise here impacts all downstream users.",
+      "expected_output": "CI/CD compromise with supply chain impact"
+    },
+    {
+      "number": 4,
+      "title": "Container Environment Assessment",
+      "instruction": "Analyze ECS task definitions and IAM roles: excessive permissions, secrets in environment variables, shared task roles, container escape paths. Attack container: privilege escalation, lateral movement to other containers, compromise underlying EC2 instance. Demonstrate: container breakout, node compromise, cluster dominance.",
+      "tip": "Container security is layered: container isolation + host security + orchestration policies.",
+      "expected_output": "Container findings + escape/pivot analysis"
+    },
+    {
+      "number": 5,
+      "title": "Cross-Service Attack Chain",
+      "instruction": "Chain exploits across services for maximum impact: compromise Lambda -> harvest credentials -> pivot to RDS -> extract customer data -> modify CI/CD -> persist backdoor. Each step provides access to higher-value targets. Document: privilege escalation path, data exposure potential, persistence mechanisms.",
+      "tip": "Cloud security is only as strong as the weakest service. One misconfigured Lambda can compromise entire organization.",
+      "expected_output": "Cross-service attack chain documentation"
+    },
+    {
+      "number": 6,
+      "title": "Cloud-Native Security Assessment Report",
+      "instruction": "Comprehensive assessment (15+ pages): architecture review, enumerated services, exploitation results, privilege escalation chains, data exposure, persistence capabilities. Include: remediation guidance (least privilege, secrets rotation, monitoring), architectural recommendations (service segmentation, API gateways, WAF). Compare security posture to cloud provider best practices.",
+      "tip": "Cloud reports must address shared responsibility model: what client controls vs what provider controls.",
+      "expected_output": "Assessment report (15+ pages) with remediation"
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "track": "Offensive",
+  "tier": "Advanced",
+  "total_missions": 20,
+  "missions": [
+    {
+      "id": "OA-M01",
+      "file": "OA-M01.json"
+    },
+    {
+      "id": "OA-M02",
+      "file": "OA-M02.json"
+    },
+    {
+      "id": "OA-M03",
+      "file": "OA-M03.json"
+    },
+    {
+      "id": "OA-M04",
+      "file": "OA-M04.json"
+    },
+    {
+      "id": "OA-M05",
+      "file": "OA-M05.json"
+    },
+    {
+      "id": "OA-M06",
+      "file": "OA-M06.json"
+    },
+    {
+      "id": "OA-M07",
+      "file": "OA-M07.json"
+    },
+    {
+      "id": "OA-M08",
+      "file": "OA-M08.json"
+    },
+    {
+      "id": "OA-M09",
+      "file": "OA-M09.json"
+    },
+    {
+      "id": "OA-M10",
+      "file": "OA-M10.json"
+    },
+    {
+      "id": "OA-M11",
+      "file": "OA-M11.json"
+    },
+    {
+      "id": "OA-M12",
+      "file": "OA-M12.json"
+    },
+    {
+      "id": "OA-M13",
+      "file": "OA-M13.json"
+    },
+    {
+      "id": "OA-M14",
+      "file": "OA-M14.json"
+    },
+    {
+      "id": "OA-M15",
+      "file": "OA-M15.json"
+    },
+    {
+      "id": "OA-M16",
+      "file": "OA-M16.json"
+    },
+    {
+      "id": "OA-M17",
+      "file": "OA-M17.json"
+    },
+    {
+      "id": "OA-M18",
+      "file": "OA-M18.json"
+    },
+    {
+      "id": "OA-M19",
+      "file": "OA-M19.json"
+    },
+    {
+      "id": "OA-M20",
+      "file": "OA-M20.json"
+    }
+  ]
+}

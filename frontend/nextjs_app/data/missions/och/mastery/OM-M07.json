@@ -1,0 +1,166 @@
+{
+  "mission_id": "OM-M07",
+  "title": "The Long War — OPSEC Framework",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Adversary Infrastructure at Scale",
+  "pillar_icon": "🌍",
+  "mission_type": "Mandatory",
+  "module_number": 7,
+  "module_title": "Operational Security",
+  "video_duration": "18-20 min",
+  "estimated_time": "10-12 hrs",
+  "multiday": true,
+  "deadline": "7 days",
+  "prerequisites": [
+    "Advanced Offensive Track - Mastery Tier Access"
+  ],
+  "learning_objectives": [
+    "OPSEC threat modeling for pan-African operations",
+    "Standard operating procedures for daily operations and infrastructure management",
+    "OPSEC audit framework with automated monitoring",
+    "Incident response playbooks for OPSEC failures",
+    "Tabletop exercises for team readiness",
+    "OPSEC training materials for operator onboarding",
+    "Multi-country containment and separation strategies"
+  ],
+  "key_topics": [
+    "Threat modeling",
+    "Standard operating procedures",
+    "OPSEC audit practices",
+    "Incident response",
+    "Risk assessment",
+    "Team training",
+    "International legal considerations",
+    "Cross-border operational risk"
+  ],
+  "scenario": "This Mastery mission requires professional-grade execution in 90-day concurrent red team engagements across Southern Africa. Challenge: Develop OPSEC framework preventing cross-engagement contamination and operator exposure. Relevance: Extended African operations require sophisticated OPSEC to prevent attribution and collateral incidents",
+  "scenario_context": {
+    "setting": "90-day concurrent red team engagements across Southern Africa",
+    "challenge": "Develop OPSEC framework preventing cross-engagement contamination and operator exposure",
+    "relevance": "Extended African operations require sophisticated OPSEC to prevent attribution and collateral incidents"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "OPSEC Threat Model",
+      "description": "What could go wrong, who is looking, consequences.",
+      "detailed_guidance": "Develop comprehensive threat model:\n        - Adversaries: Who is trying to find you?\n        - Capabilities: What can they detect?\n        - Consequences: What happens if you're discovered?\n        - Risk matrix: Probability vs impact\n\n        Deliver: OPSEC threat model with risk scoring.",
+      "evidence_required": "OPSEC threat model with risk matrix"
+    },
+    {
+      "number": 2,
+      "title": "Standard Operating Procedures",
+      "description": "SOPs for daily ops, infrastructure, inter-operator comms.",
+      "detailed_guidance": "Write SOPs covering:\n        - Daily operations: Checklists for team members\n        - Infrastructure management: Deployment, monitoring, rebuilding\n        - Inter-operator communication: Secure and insecure channels\n        - Client interaction: Briefings, reports, escalation\n        - Off-hours procedures: What happens when not actively operating?\n\n        Deliver: Comprehensive SOP document.",
+      "evidence_required": "SOP document covering all scenarios"
+    },
+    {
+      "number": 3,
+      "title": "OPSEC Audit Framework",
+      "description": "Daily checklists, weekly reviews, automated monitoring.",
+      "detailed_guidance": "Create audit processes:\n        - Daily checklists: What to verify each day\n        - Weekly reviews: Larger scale OPSEC assessment\n        - Monthly assessments: Strategic OPSEC review\n        - Automated monitoring: What can be monitored programmatically?\n\n        Deliver: Audit framework with templates and automation.",
+      "evidence_required": "Audit framework with templates"
+    },
+    {
+      "number": 4,
+      "title": "Incident Response Playbook",
+      "description": "OPSEC IR: detection, assessment, containment, decision.",
+      "detailed_guidance": "Develop OPSEC incident procedures:\n        - Detection: How do you know you've been compromised?\n        - Assessment: How bad is it? What's exposed?\n        - Containment: Immediate actions to limit damage\n        - Decision tree: Escalation and notification procedures\n\n        Deliver: Playbook with decision trees and response options.",
+      "evidence_required": "OPSEC IR playbook with decision trees"
+    },
+    {
+      "number": 5,
+      "title": "Tabletop Exercise",
+      "description": "Simulate major OPSEC failure during live engagement.",
+      "detailed_guidance": "Simulate realistic OPSEC failure:\n        - Scenario: Major OPSEC failure during engagement\n        - Facilitator guides team through response\n        - Document decisions and outcomes\n        - Debrief: What went well? What would you do differently?\n\n        Deliver: Scenario, facilitator guide, debrief notes.",
+      "evidence_required": "Tabletop scenario + facilitator guide"
+    },
+    {
+      "number": 6,
+      "title": "OPSEC Training Material",
+      "description": "Onboarding material for new operators.",
+      "detailed_guidance": "Create onboarding for new operators:\n        - OPSEC fundamentals: Principles and objectives\n        - Threat landscape: Who targets your operations?\n        - Procedures: SOPs and checklists\n        - Practical examples: Real-world scenarios\n        - Assessment: Questions to verify understanding\n\n        Deliver: Training deck with assessment questions.",
+      "evidence_required": "Training deck + assessment questions"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Threat Model Quality",
+      "weight": "15%"
+    },
+    {
+      "category": "SOP Completeness",
+      "weight": "20%"
+    },
+    {
+      "category": "Audit Framework",
+      "weight": "15%"
+    },
+    {
+      "category": "Incident Response",
+      "weight": "20%"
+    },
+    {
+      "category": "Tabletop Design",
+      "weight": "15%"
+    },
+    {
+      "category": "Training Quality",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "RM08",
+    "RM09"
+  ],
+  "resources": [
+    {
+      "type": "Documentation",
+      "title": "OCH Mastery Reference Guide",
+      "url": "https://och.dev/mastery-reference"
+    },
+    {
+      "type": "Video",
+      "title": "Mission Overview: The Long War — OPSEC Framework",
+      "duration": "18-20 min"
+    },
+    {
+      "type": "Tool",
+      "title": "OCH Mastery Assessment Framework",
+      "url": "https://och.dev/assessment"
+    }
+  ],
+  "reflection_prompt": "What OPSEC failures would have the highest impact on concurrent African engagements? How would international borders affect your OPSEC procedures and risk containment?",
+  "quiz": [
+    {
+      "question": "What is the primary objective of OPSEC threat modeling for 90-day concurrent red team engagements across multiple African countries?",
+      "options": [
+        "To identify ways to operate faster and with less caution",
+        "To identify what could go wrong, who might detect you, and what the consequences would be—enabling you to develop mitigating controls",
+        "OPSEC threat modeling is unnecessary for professional teams",
+        "To prove that detection is impossible"
+      ],
+      "correct_index": 1,
+      "explanation": "OPSEC threat modeling identifies adversaries, their capabilities, detection mechanisms, and consequences. This enables the team to develop and implement specific controls that reduce risk. Pan-African operations have complex threat models requiring this structured approach."
+    },
+    {
+      "question": "In OPSEC incident response, what is the critical difference between operational containment and strategic escalation?",
+      "options": [
+        "They are the same thing",
+        "Operational containment stops immediate operational damage, while escalation decides whether to abandon the engagement or notify the client",
+        "Escalation happens first, then containment",
+        "Neither is necessary if you follow SOPs perfectly"
+      ],
+      "correct_index": 1,
+      "explanation": "When OPSEC fails, immediate containment prevents further damage and loss of control. Strategic escalation involves leadership decisions about continuing operations or client notification, requiring judgment that goes beyond immediate response procedures."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Professional deliverables demonstrating mastery-level capability",
+    "Complete documentation and methodology",
+    "Evidence of technical excellence and strategic thinking",
+    "Leadership and mentorship contributions"
+  ],
+  "mentor_notes": "\nThis Mastery mission requires senior mentor review. Candidates must demonstrate:\n- Professional-grade execution and documentation\n- Deep understanding of African organizational and threat contexts\n- Strategic thinking beyond tactical execution\n- Readiness for commercial red team operations\n- Leadership potential within OCH and broader community\n\nSuccessful completion positions candidate for Mastery portfolio and professional practice.\n        "
+}

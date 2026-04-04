@@ -1,0 +1,153 @@
+{
+  "mission_id": "OI-M01",
+  "title": "Deep Recon Operation",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Advanced Reconnaissance",
+  "pillar_icon": "🔍",
+  "mission_type": "Mandatory",
+  "module_number": 1,
+  "module_title": "Mastering External Attack Surface Discovery",
+  "video_duration": "15 min",
+  "estimated_time": "3-4 hrs",
+  "multiday": false,
+  "deadline": null,
+  "prerequisites": [
+    "Beginner Offensive Track completed",
+    "theHarvester familiarity",
+    "Recon-ng basics",
+    "OSINT methodology"
+  ],
+  "learning_objectives": [
+    "Execute comprehensive OSINT sweeps using automated tools",
+    "Mine Certificate Transparency logs for subdomain discovery",
+    "Identify and assess cloud asset exposure",
+    "Correlate multi-source intelligence into attack surface maps"
+  ],
+  "key_topics": [
+    "theHarvester and Recon-ng deployment",
+    "Certificate Transparency hunting",
+    "GitHub/GitLab/Pastebin reconnaissance",
+    "Cloud asset discovery (S3, Azure, CDN)",
+    "OSINT source correlation",
+    "Attack surface mapping",
+    "False positive filtering",
+    "Intelligence reporting standards"
+  ],
+  "scenario": "A fintech company in Johannesburg has engaged your team for a comprehensive external assessment. The CTO is confident their attack surface is minimal. Your job: prove them wrong using advanced OSINT techniques.",
+  "scenario_context": {
+    "setting": "External pentest of fintech startup in Johannesburg with defensive CTO",
+    "challenge": "Discover comprehensive external attack surface despite organizational confidence in security posture",
+    "relevance": "Applies to any organization underestimating external exposure, common in African tech sector"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Automated OSINT Sweep",
+      "description": "Use theHarvester and Recon-ng to enumerate subdomains, emails, IP ranges.",
+      "detailed_guidance": "Deploy theHarvester against target domain using multiple sources (Google, Bing, LinkedIn). Configure Recon-ng with API keys for enhanced coverage. Document all unique findings across tools.",
+      "evidence_required": "Tool outputs with annotated findings"
+    },
+    {
+      "number": 2,
+      "title": "Certificate Transparency Mining",
+      "description": "Query crt.sh and CT log sources. Map subdomains to IPs.",
+      "detailed_guidance": "Use crt.sh API to retrieve all certs for target domain and wildcards. Cross-reference with other CT logs. Build subdomain-to-IP mapping with temporal analysis.",
+      "evidence_required": "CT log results + subdomain-to-IP mapping document"
+    },
+    {
+      "number": 3,
+      "title": "Code Repository Search",
+      "description": "Search GitHub, GitLab, Pastebin for leaked credentials or config files.",
+      "detailed_guidance": "Conduct targeted searches using employee names, domain name variations, common terms. Evaluate sensitivity of each finding. Document all discovered assets.",
+      "evidence_required": "Repository search results with sensitive findings documented"
+    },
+    {
+      "number": 4,
+      "title": "Cloud Asset Discovery",
+      "description": "Probe for exposed S3 buckets, Azure blobs, misconfigured CDNs.",
+      "detailed_guidance": "Test common bucket naming patterns. Use cloud enumeration tools. Document access levels and data exposure. Assess compliance implications.",
+      "evidence_required": "Cloud asset enumeration results with access assessment"
+    },
+    {
+      "number": 5,
+      "title": "Correlated Intelligence Report",
+      "description": "Cross-reference all findings into unified attack surface map.",
+      "detailed_guidance": "Consolidate findings from all sources. Identify relationships between assets. Prioritize by risk. Create visual attack surface diagram.",
+      "evidence_required": "Attack surface report with risk ratings and visual map"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Tool Proficiency",
+      "weight": "20%"
+    },
+    {
+      "category": "Discovery Completeness",
+      "weight": "25%"
+    },
+    {
+      "category": "Correlation Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Report Professionalism",
+      "weight": "20%"
+    },
+    {
+      "category": "Methodology Documentation",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "RI01",
+    "RI02"
+  ],
+  "resources": [
+    {
+      "name": "theHarvester Documentation",
+      "type": "guide"
+    },
+    {
+      "name": "Recon-ng Framework Setup",
+      "type": "tutorial"
+    },
+    {
+      "name": "CT Log Mining Techniques",
+      "type": "reference"
+    }
+  ],
+  "reflection_prompt": "How did your OSINT discoveries challenge the organization's assumptions about their security posture? What patterns emerge when correlating data from multiple sources?",
+  "quiz": [
+    {
+      "question": "Which Certificate Transparency log source is most reliable for comprehensive subdomain discovery?",
+      "options": [
+        "Google CT Transparency Logs",
+        "crt.sh aggregator",
+        "Manual CT log queries",
+        "All equally reliable"
+      ],
+      "correct_index": 1,
+      "explanation": "crt.sh aggregates multiple CT logs, providing comprehensive coverage. While other sources exist, crt.sh is the standard aggregation point."
+    },
+    {
+      "question": "What is the primary risk of exposed S3 buckets in cloud asset discovery?",
+      "options": [
+        "Computational cost",
+        "Unauthorized data access and exfiltration",
+        "Network latency",
+        "API rate limiting"
+      ],
+      "correct_index": 1,
+      "explanation": "Exposed S3 buckets can lead to unauthorized access and data exfiltration. This is a critical exposure that must be identified and reported."
+    }
+  ],
+  "portfolio_artifacts": [
+    "OSINT scan outputs with annotations",
+    "Subdomain enumeration report",
+    "Cloud asset discovery results",
+    "Attack surface map (visual + document)",
+    "Intelligence correlation analysis"
+  ],
+  "mentor_notes": "Assess not just tool usage but the intelligence analyst's ability to think critically about data quality and correlation. Check for completeness of source coverage and reasonable assessment of false positives."
+}

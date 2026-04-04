@@ -1,0 +1,74 @@
+{
+  "recipe_id": "RA02",
+  "title": "Advanced Initial Access Playbook",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Red Team Operations",
+  "pillar_icon": "\ud83c\udfaf",
+  "estimated_time": "30 min",
+  "difficulty": "Advanced",
+  "tools_required": [
+    "theHarvester",
+    "Shodan",
+    "SpiderFoot",
+    "Burp Suite"
+  ],
+  "when_to_use": "Use this recipe when advanced initial access playbook is required. This advanced recipe covers professional-grade techniques suitable for experienced red teamers. Applicable to missions: OA-M01, OA-M02, OA-M19.",
+  "linked_missions": [
+    "OA-M01",
+    "OA-M02",
+    "OA-M19"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Step 1: Advanced Initial Access Playbook",
+      "instruction": "Execute step 1 of the Advanced Initial Access Playbook recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 1 with documented results and artifacts collected."
+    },
+    {
+      "number": 2,
+      "title": "Step 2: Advanced Initial Access Playbook",
+      "instruction": "Execute step 2 of the Advanced Initial Access Playbook recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 2 with documented results and artifacts collected."
+    },
+    {
+      "number": 3,
+      "title": "Step 3: Advanced Initial Access Playbook",
+      "instruction": "Execute step 3 of the Advanced Initial Access Playbook recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 3 with documented results and artifacts collected."
+    },
+    {
+      "number": 4,
+      "title": "Step 4: Advanced Initial Access Playbook",
+      "instruction": "Execute step 4 of the Advanced Initial Access Playbook recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 4 with documented results and artifacts collected."
+    },
+    {
+      "number": 5,
+      "title": "Step 5: Advanced Initial Access Playbook",
+      "instruction": "Execute step 5 of the Advanced Initial Access Playbook recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 5 with documented results and artifacts collected."
+    },
+    {
+      "number": 6,
+      "title": "Step 6: Advanced Initial Access Playbook",
+      "instruction": "Execute step 6 of the Advanced Initial Access Playbook recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 6 with documented results and artifacts collected."
+    },
+    {
+      "number": 7,
+      "title": "Step 7: Advanced Initial Access Playbook",
+      "instruction": "Execute step 7 of the Advanced Initial Access Playbook recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 7 with documented results and artifacts collected."
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "recipe_id": "RM03",
+  "title": "Exploit Weaponization Process",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Zero-Day Research & Development",
+  "pillar_icon": "\ud83d\udd2c",
+  "estimated_time": "32 min",
+  "difficulty": "Mastery",
+  "tools_required": [
+    "Custom C2 framework (Cobalt Strike/Havoc)",
+    "Python/C development",
+    "Shellcode crafting tools (nasm, msfvenom)",
+    "Encoder/obfuscator tools",
+    "Testing framework (pytest, gtest)",
+    "Version control (git)",
+    "Documentation tools"
+  ],
+  "when_to_use": "Use Exploit Weaponization Process to develop professional-grade exploit weaponization process capabilities at Mastery level. This recipe is part of the Zero-Day Research & Development pillar and integrates with linked missions OM-M02, OM-M03.",
+  "linked_missions": [
+    "OM-M02",
+    "OM-M03"
+  ],
+  "step_count": 6,
+  "steps": [
+    {
+      "number": 1,
+      "title": "PoC Baseline Documentation",
+      "instruction": "Document starting PoC: reliability percentage, failure modes (crashes, hangs, incomplete execution), side effects (resource leaks, disk artifacts, network signatures). Establish baseline metrics: 100 runs, measure mean time to success, variance. This baseline quantifies the problem you're solving.",
+      "tip": "Baseline is critical for measuring progress. Record environment: OS version, CPU, RAM, compiler flags. Reproducibility requires exact environment control.",
+      "expected_output": "PoC baseline document with reliability metrics"
+    },
+    {
+      "number": 2,
+      "title": "Target Validation Module",
+      "instruction": "Build pre-exploitation checks: version detection, architecture detection, protection flags, required dependencies. Code early abort on version mismatch, incompatible architecture, or missing prerequisites. Implement environment hardness checks (disk space, memory, network access). Graceful failure is critical in operator hands.",
+      "tip": "Validation logic prevents operator-side failures in field. Check everything: version string parsing, registry checks (Windows), procfs parsing (Linux).",
+      "expected_output": "Validation module with comprehensive test coverage"
+    },
+    {
+      "number": 3,
+      "title": "Reliability Engineering",
+      "instruction": "Improve exploit reliability to >95% across 100 runs. Techniques: retry logic with exponential backoff, race condition mitigation via timing tuning, graceful degradation for partial failures. Profile execution: measure timing per phase, identify variance sources. Document every reliability improvement with metrics.",
+      "tip": "Race conditions often hide in heap operations; add sleep calls between allocation and exploitation. Test timing sensitivity by varying sleep values.",
+      "expected_output": "100-run reliability test; demonstrate 95%+ success rate"
+    },
+    {
+      "number": 4,
+      "title": "C2 Framework Integration",
+      "instruction": "Integrate exploit with C2 framework (Cobalt Strike, Havoc, custom framework). Post-exploitation payload receives beacon/implant via socket, named pipe, or shared memory. Implement callback verification: implant verifies C2 channel is live before destruction of exploit process. Demonstrate complete chain from exploitation to command execution.",
+      "tip": "C2 integration timing is critical: exploit must stage payload injection before exiting. Use in-memory injection; avoid disk artifacts.",
+      "expected_output": "Working integration: exploitation + callback + command execution"
+    },
+    {
+      "number": 5,
+      "title": "Operator Documentation",
+      "instruction": "Write 5+ page operator manual: prerequisites (target version, architecture), step-by-step usage, configuration options, success indicators, failure troubleshooting, known limitations, abort conditions. Include example command lines and expected output. Document failure modes and recovery procedures.",
+      "tip": "Operators may be in high-pressure environments; documentation must be crystal clear. Include \"what can go wrong\" section.",
+      "expected_output": "Comprehensive operator manual (5+ pages)"
+    },
+    {
+      "number": 6,
+      "title": "Safety & Ethics Review",
+      "instruction": "Develop risk matrix: operational risk (detection likelihood, fingerprinting), technical risk (reliability failure consequence), compliance risk (legal jurisdiction). Conduct ethical boundary analysis: appropriate targets, legitimate engagements only, ROE compliance. Document assumptions about authorized use. Include kill switch logic and artifact cleanup.",
+      "tip": "Safety engineering is not optional; consider cascading failures (failed exploit -> noise -> detection). Design for operator safety.",
+      "expected_output": "Safety review document with risk assessment"
+    }
+  ]
+}

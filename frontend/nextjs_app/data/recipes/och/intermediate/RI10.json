@@ -1,0 +1,72 @@
+{
+  "recipe_id": "RI10",
+  "title": "MitM Lab Exercise",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Network Attacks",
+  "pillar_icon": "\ud83c\udf10",
+  "estimated_time": "25 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "arpspoof",
+    "Bettercap",
+    "Wireshark",
+    "Responder"
+  ],
+  "when_to_use": "During internal pentests when MitM is in scope",
+  "linked_missions": [
+    "OI-M07"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Enable IP forwarding on attacker machine to intercept and relay traffic",
+      "tip": "Start with the most reliable information source for mitm lab exercise",
+      "expected_output": "Confirmed IP forwarding enabled allowing traffic to pass through attacker system"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Execute ARP spoofing attack to position attacker between victim and gateway",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "Confirmed ARP spoofing active with victim traffic routing through attacker"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Capture network traffic using Wireshark to analyze protocols and data",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Packet capture containing victim traffic showing unencrypted communications"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Filter captured traffic to identify credentials in HTTP, FTP, and Telnet protocols",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Extracted plaintext credentials from unencrypted network communications"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Use Bettercap as alternative framework for advanced MitM attack orchestration",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Confirmed successful attack using Bettercap with captured credentials"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Run Responder to capture NTLMv2 hashes and credentials from network services",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Captured NTLM hashes from authentication attempts and NTLMv1/v2 credentials"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Analyse all captured data and document security implications",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Report detailing intercepted credentials, protocols used, and security findings"
+    }
+  ]
+}

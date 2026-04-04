@@ -1,0 +1,136 @@
+{
+  "mission_id": "OB-M19",
+  "title": "Lab Builder",
+  "pillar": "Mission Readiness",
+  "module_number": 19,
+  "module_title": "Personal Lab Environment Setup",
+  "video_duration": "20 min",
+  "estimated_time": "2 hours",
+  "multiday": false,
+  "deadline": "7 days",
+  "prerequisites": [
+    "Computer capable of running VMs (4GB+ RAM)",
+    "Internet access for downloads"
+  ],
+  "learning_objectives": [
+    "Build a complete offensive security lab from scratch",
+    "Configure isolated networking between VMs",
+    "Verify all essential tools are operational"
+  ],
+  "key_topics": [
+    "Hypervisor installation (VirtualBox/VMware)",
+    "Kali Linux setup and configuration",
+    "Vulnerable target deployment (DVWA, Metasploitable)",
+    "Host-Only networking configuration",
+    "Tool verification procedures",
+    "Lab documentation"
+  ],
+  "scenario": "No lab, no learning. Build your personal offensive security lab from scratch and verify everything works. This lab will be your foundation for every mission going forward in both Beginner and Intermediate tracks.",
+  "scenario_context": {
+    "setting": "Personal lab build from scratch",
+    "challenge": "Complete lab setup with verified connectivity and tools",
+    "relevance": "Every offensive professional maintains a personal lab. It's where you practice, test tools, and develop skills without risk."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Environment Setup",
+      "description": "Install VirtualBox/VMware, create a Kali VM, and create at least one vulnerable target (DVWA or Metasploitable).",
+      "detailed_guidance": "Download VirtualBox from virtualbox.org. Download Kali ISO from kali.org. Create VM: 2+ CPUs, 4GB RAM, 40GB disk. Install Kali. Download and import Metasploitable 2 or deploy DVWA via Docker.",
+      "evidence_required": "Screenshots of hypervisor, Kali VM, and target VM running"
+    },
+    {
+      "number": 2,
+      "title": "Network Configuration",
+      "description": "Configure Host-Only networking between VMs. Verify connectivity with ping.",
+      "detailed_guidance": "Create a Host-Only network in VirtualBox. Assign both VMs to this network. Verify they can ping each other. Verify they cannot reach the internet (isolation).",
+      "evidence_required": "Network config screenshots and successful ping output"
+    },
+    {
+      "number": 3,
+      "title": "Tool Verification",
+      "description": "Verify Nmap, Burp Suite, Wireshark, Python3, and Netcat all work. Run a basic Nmap scan against your target.",
+      "detailed_guidance": "Check each tool's version. Run a basic Nmap scan against the target. Verify Burp proxy starts. Capture a packet in Wireshark. Run a Python script. Test Netcat connectivity.",
+      "evidence_required": "Tool verification screenshots plus Nmap results"
+    },
+    {
+      "number": 4,
+      "title": "Lab Documentation",
+      "description": "Document complete lab setup: VM specs, network config, IPs, snapshots, tools verified.",
+      "detailed_guidance": "Create a document with: VM specifications, network topology diagram, IP addresses, snapshot names, tools verified, any known issues. This is your lab reference document.",
+      "evidence_required": "Complete lab documentation (PDF)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Setup Completeness",
+      "weight": "30%"
+    },
+    {
+      "category": "Network Configuration",
+      "weight": "25%"
+    },
+    {
+      "category": "Tool Verification",
+      "weight": "25%"
+    },
+    {
+      "category": "Documentation",
+      "weight": "20%"
+    }
+  ],
+  "linked_recipes": [
+    "R27",
+    "R23"
+  ],
+  "resources": [
+    {
+      "name": "Lab Setup Video Tutorial",
+      "type": "Video"
+    },
+    {
+      "name": "VirtualBox Networking Guide",
+      "type": "PDF"
+    },
+    {
+      "name": "Kali Linux Quick Start",
+      "type": "Guide"
+    }
+  ],
+  "reflection_prompt": "Your lab has been working perfectly for a month. One day, Kali won't boot. You have no snapshot. What lessons does this teach about operational resilience?",
+  "quiz": [
+    {
+      "question": "Host-Only networking is preferred for labs because:",
+      "options": [
+        "It's faster",
+        "It isolates vulnerable VMs from the real network while allowing them to communicate",
+        "It provides internet access",
+        "It's required by VirtualBox"
+      ],
+      "correct_index": 1,
+      "explanation": "Host-Only networking creates an isolated network where VMs can communicate but can't reach the internet or your LAN, keeping vulnerable targets safe."
+    },
+    {
+      "question": "VM snapshots before testing are important because:",
+      "options": [
+        "They save disk space",
+        "They allow you to restore to a known-good state after testing breaks something",
+        "They improve performance",
+        "They're required by Kali"
+      ],
+      "correct_index": 1,
+      "explanation": "Snapshots let you restore VMs to a clean state, essential when testing can corrupt or change the target environment."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Lab environment documentation",
+    "Network topology diagram",
+    "Tool verification evidence",
+    "Lab reference document"
+  ],
+  "mentor_notes": "The lab must actually work. Evaluate by checking that all screenshots show working systems. The documentation quality indicates operational maturity.",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "🚀",
+  "mission_type": "Mandatory"
+}

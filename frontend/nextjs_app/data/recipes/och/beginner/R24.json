@@ -1,0 +1,71 @@
+{
+  "recipe_id": "R24",
+  "title": "Pre-Engagement Legal Checklist",
+  "pillar": "Ethics & Legality",
+  "pillar_icon": "⚖️",
+  "estimated_time": "15 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Word processor",
+    "secure file storage"
+  ],
+  "when_to_use": "Before every penetration testing engagement without exception",
+  "linked_missions": [
+    "OB-M17",
+    "OB-CAP02"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Written Authorisation",
+      "instruction": "Obtain signed written authorisation from the asset owner",
+      "tip": "Verbal authorisation is not enough. Get it in writing, signed by someone with authority to authorise testing",
+      "expected_output": "Signed authorisation obtained"
+    },
+    {
+      "number": 2,
+      "title": "Define Scope",
+      "instruction": "Define scope: exact IP ranges, domains, and URLs to be tested",
+      "tip": "Be specific. '192.168.1.0/24' is better than 'the internal network'. Ambiguity creates legal risk",
+      "expected_output": "Scope document completed"
+    },
+    {
+      "number": 3,
+      "title": "Document Exclusions",
+      "instruction": "List explicitly out-of-scope systems",
+      "tip": "Production databases, backup systems, and third-party services are commonly excluded. Document each one",
+      "expected_output": "Exclusions listed"
+    },
+    {
+      "number": 4,
+      "title": "Agree on Testing Window",
+      "instruction": "Agree on permitted testing hours and notification requirements",
+      "tip": "Some clients want testing only during business hours. Others want off-hours. Always confirm and document",
+      "expected_output": "Testing window agreed"
+    },
+    {
+      "number": 5,
+      "title": "Emergency Contacts",
+      "instruction": "Establish emergency contacts for both teams",
+      "tip": "Include: client IT lead, client executive sponsor, your team lead, and an after-hours emergency number",
+      "expected_output": "Contact list completed"
+    },
+    {
+      "number": 6,
+      "title": "Data Handling Rules",
+      "instruction": "Confirm data handling rules: how will discovered data be stored and destroyed?",
+      "tip": "Encrypt all findings. Define retention period. Document destruction method. This protects both parties",
+      "expected_output": "Data handling rules agreed"
+    },
+    {
+      "number": 7,
+      "title": "Secure Storage",
+      "instruction": "Store all authorisation documents in a secure, versioned location",
+      "tip": "Use encrypted storage. Keep copies accessible during testing. Archive after engagement completion",
+      "expected_output": "Documents securely stored"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 7
+}

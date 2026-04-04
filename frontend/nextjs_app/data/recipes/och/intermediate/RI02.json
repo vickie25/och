@@ -1,0 +1,74 @@
+{
+  "recipe_id": "RI02",
+  "title": "Infrastructure Fingerprint Workflow",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Advanced Reconnaissance",
+  "pillar_icon": "\ud83d\udd0d",
+  "estimated_time": "20 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "WhatWeb",
+    "wafw00f",
+    "Wappalyzer",
+    "curl",
+    "dig"
+  ],
+  "when_to_use": "Before active testing to profile the target stack",
+  "linked_missions": [
+    "OI-M01",
+    "OI-M02"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Run WhatWeb in verbose mode to identify web technologies and versions",
+      "tip": "Start with the most reliable information source for infrastructure fingerprint workflow",
+      "expected_output": "Detailed list of web frameworks, CMS versions, JavaScript libraries, and analytics platforms"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Run wafw00f to detect Web Application Firewall presence and type",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "WAF detection results confirming presence/absence and WAF product name if detected"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Analyse HTTP response headers using curl to identify server software and configurations",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "HTTP headers showing server type, frameworks, security headers, and custom configurations"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Check robots.txt and sitemap.xml for directory enumeration hints",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Enumeration of intended and unintended accessible directories and resources"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Run Wappalyzer browser extension to identify technologies from web interface",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Browser-based technology detection confirming server-side findings"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Perform DNS mapping using dig ANY to identify DNS records and email servers",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Complete DNS records including A, MX, TXT, CNAME records and DMARC/SPF policies"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Compile all findings into a technology profile document",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Structured technology profile document detailing the complete technology stack"
+    }
+  ]
+}

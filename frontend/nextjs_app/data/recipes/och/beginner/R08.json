@@ -1,0 +1,72 @@
+{
+  "recipe_id": "R08",
+  "title": "Active Recon Starter Workflow",
+  "pillar": "Reconnaissance",
+  "pillar_icon": "🔍",
+  "estimated_time": "20 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Nmap",
+    "terminal",
+    "text editor"
+  ],
+  "when_to_use": "When moving from passive to active reconnaissance with proper authorisation",
+  "linked_missions": [
+    "OB-M04",
+    "OB-CAP02"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Confirm Authorisation",
+      "instruction": "Confirm written authorisation exists and is stored securely",
+      "tip": "Never proceed without this step. Keep a copy accessible during testing",
+      "expected_output": "Authorisation confirmed and stored"
+    },
+    {
+      "number": 2,
+      "title": "Define Scope",
+      "instruction": "Define scope: target IPs, domains, ports, timeframe",
+      "tip": "Write it down. Refer to it before every command. Scope creep is a legal liability",
+      "expected_output": "Written scope document"
+    },
+    {
+      "number": 3,
+      "title": "Ping Sweep",
+      "instruction": "Ping sweep the target range: nmap -sn [range]",
+      "tip": "If ICMP is blocked, try TCP SYN discovery: nmap -sn -PS22,80,443 [range]",
+      "expected_output": "Live hosts identified"
+    },
+    {
+      "number": 4,
+      "title": "Record Live Hosts",
+      "instruction": "Identify live hosts and record their IPs",
+      "tip": "Create a target list file. Use -iL flag in subsequent scans to load it automatically",
+      "expected_output": "Target list file created"
+    },
+    {
+      "number": 5,
+      "title": "Quick Port Scan",
+      "instruction": "For each live host, perform a quick port scan: nmap -F [host]",
+      "tip": "-F scans the 100 most common ports. Fast initial sweep before deeper scanning",
+      "expected_output": "Quick scan results per host"
+    },
+    {
+      "number": 6,
+      "title": "Log Everything",
+      "instruction": "Record all findings with timestamps in your engagement log",
+      "tip": "Use a consistent log format. Include: timestamp, command, target, result summary",
+      "expected_output": "Timestamped engagement log"
+    },
+    {
+      "number": 7,
+      "title": "Stay in Scope",
+      "instruction": "Never scan outside the authorised scope",
+      "tip": "If you discover something interesting outside scope, note it and discuss with the client — never scan it",
+      "expected_output": "Scope compliance confirmed"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 7
+}

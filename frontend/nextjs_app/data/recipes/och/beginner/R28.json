@@ -1,0 +1,62 @@
+{
+  "recipe_id": "R28",
+  "title": "Skills Self-Assessment Framework",
+  "pillar": "Mission Readiness",
+  "pillar_icon": "🚀",
+  "estimated_time": "15 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Spreadsheet or notebook"
+  ],
+  "when_to_use": "At the end of each learning tier and monthly for ongoing development",
+  "linked_missions": [
+    "OB-M20"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "List All Skills",
+      "instruction": "List all skills from the track curriculum",
+      "tip": "Use the mission titles and key topics as your skills checklist. Be comprehensive",
+      "expected_output": "Complete skills list"
+    },
+    {
+      "number": 2,
+      "title": "Self-Rate",
+      "instruction": "Rate each 1-5: 1=Heard of it, 2=Understand concept, 3=Can do with guidance, 4=Can do independently, 5=Can teach others",
+      "tip": "Be brutally honest. Overrating yourself prevents growth. Underrating leads to imposter syndrome. Aim for accuracy",
+      "expected_output": "Self-ratings assigned"
+    },
+    {
+      "number": 3,
+      "title": "Identify Strengths",
+      "instruction": "Identify your top 3 strongest skills",
+      "tip": "These are your differentiators. Build on them. They'll form the foundation of your professional identity",
+      "expected_output": "Top 3 strengths identified"
+    },
+    {
+      "number": 4,
+      "title": "Identify Gaps",
+      "instruction": "Identify your 3 biggest gaps",
+      "tip": "These are your growth priorities. Don't be discouraged — everyone has gaps. The goal is awareness",
+      "expected_output": "Top 3 gaps identified"
+    },
+    {
+      "number": 5,
+      "title": "Create Action Plan",
+      "instruction": "For each gap, write one action to close it in the next 30 days",
+      "tip": "Be specific: 'Complete TryHackMe Nmap room' not 'Get better at scanning'. Specific actions get done",
+      "expected_output": "30-day action plan"
+    },
+    {
+      "number": 6,
+      "title": "Monthly Review",
+      "instruction": "Revisit this assessment monthly to track growth",
+      "tip": "Compare month-over-month. Celebrate improvements. Adjust priorities as you grow",
+      "expected_output": "Review schedule set"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 6
+}

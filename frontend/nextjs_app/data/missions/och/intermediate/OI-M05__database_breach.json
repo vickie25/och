@@ -1,0 +1,167 @@
+{
+  "mission_id": "OI-M05",
+  "title": "Database Breach",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Web Application Attacks",
+  "pillar_icon": "🕸️",
+  "mission_type": "Mandatory",
+  "module_number": 5,
+  "module_title": "SQL Injection Exploitation and Database Extraction",
+  "video_duration": "18 min",
+  "estimated_time": "4-5 hrs",
+  "multiday": true,
+  "deadline": "72 hours",
+  "prerequisites": [
+    "Beginner Offensive Track completed",
+    "SQL injection fundamentals",
+    "sqlmap tool experience",
+    "Database query knowledge",
+    "Manual SQL crafting skills"
+  ],
+  "learning_objectives": [
+    "Identify SQL injection vulnerabilities through manual testing",
+    "Execute manual SQLi exploitation to extract database information",
+    "Deploy sqlmap for automated comprehensive database extraction",
+    "Assess WAF bypass techniques for injection payloads",
+    "Demonstrate business impact of database access"
+  ],
+  "key_topics": [
+    "SQL injection types: Union, Error-based, Blind, Time-based",
+    "Manual injection payload crafting",
+    "sqlmap configuration and optimization",
+    "Database reconnaissance and enumeration",
+    "Data extraction methodologies",
+    "WAF detection and bypass techniques",
+    "DBMS-specific exploitation (MySQL, MSSQL, PostgreSQL)",
+    "Impact assessment and reporting"
+  ],
+  "scenario": "A banking application contains SQL injection. Find it, exploit it manually and with sqlmap, extract data, and write the board-level report.",
+  "scenario_context": {
+    "setting": "Banking/financial application with sensitive customer data",
+    "challenge": "Exploit SQLi to demonstrate data breach capability and compliance violation",
+    "relevance": "Financial sector heavily regulated; demonstrates GDPR/PCI-DSS implications"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Vulnerability Discovery",
+      "description": "Manually test all inputs for SQLi.",
+      "detailed_guidance": "Test all input fields (login, search, filters) with SQLi test strings. Identify injection points. Document injection type (Union, Error, Blind, Time-based).",
+      "evidence_required": "Injection point documentation with type and evidence"
+    },
+    {
+      "number": 2,
+      "title": "Manual Exploitation",
+      "description": "Exploit without sqlmap. Extract DB version, names, tables.",
+      "detailed_guidance": "Craft manual SQL injection payloads. Extract database version, list databases, enumerate tables and columns. Document each query and result.",
+      "evidence_required": "Manual exploitation log with successful queries"
+    },
+    {
+      "number": 3,
+      "title": "Automated Exploitation",
+      "description": "Use sqlmap for comprehensive extraction.",
+      "detailed_guidance": "Deploy sqlmap with appropriate options. Extract full database schema. Dump table data. Document sqlmap commands and results.",
+      "evidence_required": "sqlmap output with data summary"
+    },
+    {
+      "number": 4,
+      "title": "WAF Bypass Attempt",
+      "description": "Try at least 3 bypass techniques.",
+      "detailed_guidance": "If WAF blocks requests, test: case variations, encoding, comments, multiple payloads. Document success rate per technique.",
+      "evidence_required": "WAF bypass log with techniques and results"
+    },
+    {
+      "number": 5,
+      "title": "Impact Assessment",
+      "description": "What could an attacker do with this access?",
+      "detailed_guidance": "Assess data exposed (PII, financial, credentials). Calculate potential breach cost. Identify compliance violations (GDPR, PCI-DSS). Quantify business risk.",
+      "evidence_required": "Impact assessment with business risk quantification"
+    },
+    {
+      "number": 6,
+      "title": "Professional Report",
+      "description": "Complete finding report per OCH template.",
+      "detailed_guidance": "Write executive summary, technical details, CVSS score, remediation steps, compliance implications. Use professional formatting.",
+      "evidence_required": "Professional vulnerability report (3-4 pages)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Exploitation Skill",
+      "weight": "20%"
+    },
+    {
+      "category": "Manual vs Automated Balance",
+      "weight": "15%"
+    },
+    {
+      "category": "WAF Bypass Creativity",
+      "weight": "15%"
+    },
+    {
+      "category": "Impact Analysis",
+      "weight": "15%"
+    },
+    {
+      "category": "Report Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Methodology",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "RI06",
+    "RI07"
+  ],
+  "resources": [
+    {
+      "name": "SQL Injection Payloads and Techniques",
+      "type": "reference"
+    },
+    {
+      "name": "sqlmap Complete Guide",
+      "type": "tutorial"
+    },
+    {
+      "name": "Database Extraction Strategies",
+      "type": "guide"
+    }
+  ],
+  "reflection_prompt": "How did your manual exploitation approach differ from sqlmap's automated approach? What data is most critical to prioritize in a real breach scenario?",
+  "quiz": [
+    {
+      "question": "When should you choose Error-based SQL injection over Union-based?",
+      "options": [
+        "When Union-based doesn't work",
+        "For faster data extraction",
+        "When error messages reveal database info",
+        "Union-based is always better"
+      ],
+      "correct_index": 2,
+      "explanation": "Error-based SQLi is useful when error messages are verbose and reveal database structure. Union-based requires knowing column count and types."
+    },
+    {
+      "question": "What is sqlmap's primary advantage over manual exploitation?",
+      "options": [
+        "Better security bypass",
+        "Comprehensive database enumeration and automation",
+        "Guaranteed to bypass WAF",
+        "Works on all database types"
+      ],
+      "correct_index": 1,
+      "explanation": "sqlmap automates the enumeration and extraction process, handling different DBMS types and using multiple techniques automatically."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Injection point discovery documentation",
+    "Manual exploitation queries and results",
+    "sqlmap execution output and data dump",
+    "WAF bypass technique testing log",
+    "Impact assessment report",
+    "Professional vulnerability report"
+  ],
+  "mentor_notes": "Assess balance between manual understanding and tool usage. Impact assessment must demonstrate business/compliance understanding. 72-hour deadline is tight; check time management and prioritization."
+}

@@ -1,0 +1,156 @@
+{
+  "mission_id": "OI-M10",
+  "title": "Manual Operator",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Exploitation Fundamentals",
+  "pillar_icon": "💥",
+  "mission_type": "Mandatory",
+  "module_number": 10,
+  "module_title": "Manual Exploitation Without Automated Frameworks",
+  "video_duration": "16 min",
+  "estimated_time": "4-5 hrs",
+  "multiday": false,
+  "deadline": null,
+  "prerequisites": [
+    "Beginner Offensive Track completed",
+    "Public exploit understanding",
+    "Payload generation with msfvenom",
+    "Reverse shell fundamentals",
+    "Manual vulnerability research"
+  ],
+  "learning_objectives": [
+    "Research and analyse public exploits for vulnerabilities",
+    "Modify existing exploits for lab environments",
+    "Generate custom payloads with msfvenom",
+    "Execute manual exploitation without Metasploit",
+    "Stabilize and interact with shell access"
+  ],
+  "key_topics": [
+    "Exploit-db and public exploit sources",
+    "Code analysis and modification",
+    "msfvenom payload generation",
+    "Reverse shell creation and stabilization",
+    "TTY shell upgrade techniques",
+    "Manual exploitation workflow",
+    "Multi-format payload generation",
+    "Custom payload crafting"
+  ],
+  "scenario": "Metasploit is flagged by EDR. Gain access using only manual techniques — public exploits, custom payloads, reverse shells.",
+  "scenario_context": {
+    "setting": "Environment with EDR/AV detection of Metasploit framework",
+    "challenge": "Bypass detection by using manual exploitation techniques",
+    "relevance": "Many organizations detect Metasploit; manual skills essential"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Exploit Research",
+      "description": "Find, read, and analyse public exploits.",
+      "detailed_guidance": "Search Exploit-db and GitHub for vulnerabilities matching target services. Read and understand exploit code. Document key mechanisms.",
+      "evidence_required": "Exploit research log with code analysis"
+    },
+    {
+      "number": 2,
+      "title": "Exploit Modification",
+      "description": "Modify a public exploit for the lab.",
+      "detailed_guidance": "Take a public exploit and modify for lab environment (IP, ports, paths). Document all changes. Create diff showing modifications.",
+      "evidence_required": "Modified code with diff and explanation"
+    },
+    {
+      "number": 3,
+      "title": "Custom Payload Generation",
+      "description": "msfvenom: 3+ payload formats.",
+      "detailed_guidance": "Generate payloads in multiple formats (elf, exe, shell). Use different payload types (reverse_tcp, reverse_https). Document generation commands.",
+      "evidence_required": "Payload generation commands and output"
+    },
+    {
+      "number": 4,
+      "title": "Manual Exploitation",
+      "description": "Shell on 2+ targets, manual only.",
+      "detailed_guidance": "Use modified exploits to gain shell access on 2+ machines. No Metasploit framework. Document exploitation commands and output.",
+      "evidence_required": "Shell access evidence on 2+ targets"
+    },
+    {
+      "number": 5,
+      "title": "Shell Stabilisation",
+      "description": "Upgrade to interactive TTY.",
+      "detailed_guidance": "Convert raw shell to interactive TTY. Techniques: python/bash -i, socat, SSH. Document upgrade process.",
+      "evidence_required": "Stabilised shell evidence with upgrade proof"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Research Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Code Understanding",
+      "weight": "20%"
+    },
+    {
+      "category": "Exploitation Success",
+      "weight": "25%"
+    },
+    {
+      "category": "Payload Crafting",
+      "weight": "20%"
+    },
+    {
+      "category": "Documentation",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "RI14",
+    "RI15"
+  ],
+  "resources": [
+    {
+      "name": "Exploit-db Search and Analysis",
+      "type": "guide"
+    },
+    {
+      "name": "msfvenom Payload Generation Reference",
+      "type": "reference"
+    },
+    {
+      "name": "Reverse Shell Stabilization Techniques",
+      "type": "tutorial"
+    }
+  ],
+  "reflection_prompt": "How did modifying public exploits deepen your understanding of vulnerabilities? What was most challenging about manual exploitation?",
+  "quiz": [
+    {
+      "question": "When modifying a public exploit, what is the most critical element to update?",
+      "options": [
+        "Author comments",
+        "Target IP address and port configuration",
+        "Exploit description",
+        "License information"
+      ],
+      "correct_index": 1,
+      "explanation": "Target configuration (IP, port, target service details) must be modified for the exploit to work on your lab environment."
+    },
+    {
+      "question": "Why is shell stabilization important in manual exploitation?",
+      "options": [
+        "Aesthetic preference",
+        "Interactive TTY enables command execution and job control",
+        "Improves exploitation speed",
+        "Required for privilege escalation"
+      ],
+      "correct_index": 1,
+      "explanation": "Interactive TTY shells allow proper signal handling, command history, and background job management, making post-exploitation more practical."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Exploit research and analysis log",
+    "Modified exploit code with diff",
+    "msfvenom payload generation commands",
+    "Manual shell access evidence (2+ targets)",
+    "TTY shell stabilization proof",
+    "Complete manual exploitation documentation"
+  ],
+  "mentor_notes": "Assess understanding of exploit mechanics, not just successful execution. Code modification should show comprehension. Payload crafting creativity shows adaptability. Shell stabilization demonstrates practical skill."
+}

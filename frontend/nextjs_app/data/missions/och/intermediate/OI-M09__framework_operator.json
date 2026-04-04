@@ -1,0 +1,167 @@
+{
+  "mission_id": "OI-M09",
+  "title": "Framework Operator",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Exploitation Fundamentals",
+  "pillar_icon": "💥",
+  "mission_type": "Mandatory",
+  "module_number": 9,
+  "module_title": "Metasploit Framework Exploitation and Post-Exploitation",
+  "video_duration": "18 min",
+  "estimated_time": "4-5 hrs",
+  "multiday": true,
+  "deadline": "72 hours",
+  "prerequisites": [
+    "Beginner Offensive Track completed",
+    "Metasploit framework basics",
+    "Module selection and configuration",
+    "Payload generation knowledge",
+    "Post-exploitation enumeration"
+  ],
+  "learning_objectives": [
+    "Select appropriate Metasploit modules for identified vulnerabilities",
+    "Configure and execute exploits successfully",
+    "Handle exploitation failures and troubleshoot",
+    "Perform post-exploitation enumeration on compromised systems",
+    "Document comprehensive campaign results"
+  ],
+  "key_topics": [
+    "Metasploit module categories and selection",
+    "Exploit configuration and payload selection",
+    "Session management and meterpreter usage",
+    "Exploitation troubleshooting",
+    "Post-exploitation with Metasploit modules",
+    "System enumeration (sysinfo, file system, network)",
+    "Credential harvesting within Metasploit",
+    "Campaign documentation"
+  ],
+  "scenario": "Three vulnerable machines with known Metasploit exploits. Gain access to each, then perform post-exploitation enumeration.",
+  "scenario_context": {
+    "setting": "Lab environment with intentionally vulnerable systems",
+    "challenge": "Successfully exploit multiple machines and extract maximum intelligence",
+    "relevance": "Metasploit is industry-standard framework; essential skill"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Target Analysis & Module Selection",
+      "description": "Match targets to Metasploit modules.",
+      "detailed_guidance": "Identify vulnerable services on each target. Research matching Metasploit exploits. Create selection matrix showing target, service, vulnerability, and module.",
+      "evidence_required": "Module selection matrix"
+    },
+    {
+      "number": 2,
+      "title": "Exploitation — Machine 1",
+      "description": "Configure and execute exploit.",
+      "detailed_guidance": "Configure module with target details and payload. Execute exploit. Establish meterpreter session. Document command sequence and output.",
+      "evidence_required": "Exploitation log with session proof"
+    },
+    {
+      "number": 3,
+      "title": "Exploitation — Machine 2",
+      "description": "Different module/technique.",
+      "detailed_guidance": "Use different exploit/module than Machine 1. Handle any failures. Document troubleshooting steps taken. Successful session establishment.",
+      "evidence_required": "Exploitation log with troubleshooting notes"
+    },
+    {
+      "number": 4,
+      "title": "Exploitation — Machine 3",
+      "description": "May require payload encoding.",
+      "detailed_guidance": "Final target may have AV/IDS. Use payload encoding. Test different encoders if initial fails. Establish session.",
+      "evidence_required": "Exploitation log with encoding techniques"
+    },
+    {
+      "number": 5,
+      "title": "Post-Exploitation Demo",
+      "description": "Sysinfo, file access, network info per machine.",
+      "detailed_guidance": "On each compromised machine, execute post-exploitation commands: sysinfo, ifconfig, route, netstat, hashdump. Document findings.",
+      "evidence_required": "Post-exploitation evidence per machine"
+    },
+    {
+      "number": 6,
+      "title": "Campaign Report",
+      "description": "Comprehensive campaign report.",
+      "detailed_guidance": "Write report with module selection matrix, exploitation timeline, post-exploitation findings, and recommendations per target.",
+      "evidence_required": "Complete campaign report (4-5 pages)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Module Selection",
+      "weight": "15%"
+    },
+    {
+      "category": "Exploitation Execution",
+      "weight": "25%"
+    },
+    {
+      "category": "Post-Exploitation",
+      "weight": "20%"
+    },
+    {
+      "category": "Troubleshooting Documentation",
+      "weight": "15%"
+    },
+    {
+      "category": "Report Quality",
+      "weight": "15%"
+    },
+    {
+      "category": "Methodology",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "RI13",
+    "RI14"
+  ],
+  "resources": [
+    {
+      "name": "Metasploit Module Browser and Selection",
+      "type": "reference"
+    },
+    {
+      "name": "Meterpreter Command Reference and Usage",
+      "type": "guide"
+    },
+    {
+      "name": "Post-Exploitation Enumeration with Metasploit",
+      "type": "tutorial"
+    }
+  ],
+  "reflection_prompt": "How did different vulnerabilities require different exploitation approaches? What post-exploitation data was most valuable?",
+  "quiz": [
+    {
+      "question": "What is the primary advantage of meterpreter sessions over basic shell access?",
+      "options": [
+        "Faster execution",
+        "Built-in post-exploitation modules and stability",
+        "Better encryption",
+        "Works through firewalls"
+      ],
+      "correct_index": 1,
+      "explanation": "Meterpreter provides a rich environment with built-in post-exploitation capabilities like hashdump, file system access, and process manipulation."
+    },
+    {
+      "question": "When should you use payload encoding in Metasploit?",
+      "options": [
+        "Always for security",
+        "When AV/IDS may detect the payload",
+        "Never, it's unreliable",
+        "Only for remote exploits"
+      ],
+      "correct_index": 1,
+      "explanation": "Payload encoding obfuscates exploits to bypass antivirus and IDS detection when direct payload delivery would be blocked."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Module selection matrix",
+    "Machine 1 exploitation log",
+    "Machine 2 exploitation log with troubleshooting",
+    "Machine 3 exploitation log with encoding techniques",
+    "Post-exploitation enumeration output (per machine)",
+    "Comprehensive campaign report"
+  ],
+  "mentor_notes": "Evaluate module selection logic and successful exploitation rate. Troubleshooting documentation shows deeper understanding. Post-exploitation should extract meaningful intelligence. 72-hour deadline is reasonable for three targets."
+}

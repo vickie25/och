@@ -1,0 +1,166 @@
+{
+  "mission_id": "OM-M12",
+  "title": "Operations Commander — Program Management",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Red Team Leadership & Practice",
+  "pillar_icon": "👑",
+  "mission_type": "Mandatory",
+  "module_number": 12,
+  "module_title": "Red Team Operations",
+  "video_duration": "18-20 min",
+  "estimated_time": "10-12 hrs",
+  "multiday": true,
+  "deadline": "7 days",
+  "prerequisites": [
+    "Advanced Offensive Track - Mastery Tier Access"
+  ],
+  "learning_objectives": [
+    "Resource allocation and skill mapping across concurrent engagements",
+    "Engagement dashboard design and metrics tracking",
+    "Quality assurance processes for finding validation and reporting",
+    "Incident response playbooks for engagement issues",
+    "Knowledge management system for TTP database and lessons learned",
+    "Team development planning and skill progression",
+    "Multi-country coordination and time zone management"
+  ],
+  "key_topics": [
+    "Resource management",
+    "Project management",
+    "Quality assurance",
+    "Risk management",
+    "Knowledge management",
+    "Team development",
+    "Metrics and reporting",
+    "Multi-country operations"
+  ],
+  "scenario": "This Mastery mission requires professional-grade execution in Professional red team managing 5 operators across 3 simultaneous African engagements. Challenge: Develop complete operations management framework for concurrent multi-country red team engagements. Relevance: Scaling red team operations requires sophisticated resource management and quality assurance processes",
+  "scenario_context": {
+    "setting": "Professional red team managing 5 operators across 3 simultaneous African engagements",
+    "challenge": "Develop complete operations management framework for concurrent multi-country red team engagements",
+    "relevance": "Scaling red team operations requires sophisticated resource management and quality assurance processes"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Resource Allocation Plan",
+      "description": "5 operators across 3 engagements with conflict resolution.",
+      "detailed_guidance": "For this subtask in the context of Operations Commander — Program Management:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Resource matrix with skill mapping"
+    },
+    {
+      "number": 2,
+      "title": "Engagement Dashboard",
+      "description": "Track progress, findings, risks, client satisfaction.",
+      "detailed_guidance": "For this subtask in the context of Operations Commander — Program Management:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Dashboard design with metrics"
+    },
+    {
+      "number": 3,
+      "title": "Quality Assurance Process",
+      "description": "Finding validation, report review, evidence standards.",
+      "detailed_guidance": "For this subtask in the context of Operations Commander — Program Management:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "QA process with checklists"
+    },
+    {
+      "number": 4,
+      "title": "Incident Response Playbook",
+      "description": "Scope violations, accidental damage, operator safety.",
+      "detailed_guidance": "Develop OPSEC incident procedures:\n        - Detection: How do you know you've been compromised?\n        - Assessment: How bad is it? What's exposed?\n        - Containment: Immediate actions to limit damage\n        - Decision tree: Escalation and notification procedures\n\n        Deliver: Playbook with decision trees and response options.",
+      "evidence_required": "Engagement IR playbook"
+    },
+    {
+      "number": 5,
+      "title": "Knowledge Management System",
+      "description": "TTP database, playbooks, lessons learned repository.",
+      "detailed_guidance": "For this subtask in the context of Operations Commander — Program Management:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "KM design with taxonomy"
+    },
+    {
+      "number": 6,
+      "title": "Team Development Plan",
+      "description": "Development plans for 4 operators: skills, certs, mentorship.",
+      "detailed_guidance": "For this subtask in the context of Operations Commander — Program Management:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "4 individual development plans"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Resource Management",
+      "weight": "15%"
+    },
+    {
+      "category": "Dashboard Design",
+      "weight": "15%"
+    },
+    {
+      "category": "QA Process",
+      "weight": "20%"
+    },
+    {
+      "category": "Incident Handling",
+      "weight": "15%"
+    },
+    {
+      "category": "Knowledge Management",
+      "weight": "15%"
+    },
+    {
+      "category": "Team Development",
+      "weight": "20%"
+    }
+  ],
+  "linked_recipes": [
+    "RM14",
+    "RM15"
+  ],
+  "resources": [
+    {
+      "type": "Documentation",
+      "title": "OCH Mastery Reference Guide",
+      "url": "https://och.dev/mastery-reference"
+    },
+    {
+      "type": "Video",
+      "title": "Mission Overview: Operations Commander — Program Management",
+      "duration": "18-20 min"
+    },
+    {
+      "type": "Tool",
+      "title": "OCH Mastery Assessment Framework",
+      "url": "https://och.dev/assessment"
+    }
+  ],
+  "reflection_prompt": "How would you prioritize resources during a critical incident affecting multiple African engagements? What metrics would indicate your red team is operating at the highest level?",
+  "quiz": [
+    {
+      "question": "When managing concurrent red team engagements across multiple African countries with limited operators, what is the primary purpose of resource allocation planning?",
+      "options": [
+        "To maximize operator workload regardless of quality",
+        "To match operator skills to engagement requirements while ensuring no single operator bottleneck exists and quality standards are maintained",
+        "Resource allocation is unnecessary if you have enough staff",
+        "All operators should work on all engagements equally"
+      ],
+      "correct_index": 1,
+      "explanation": "Resource allocation matches specific operator expertise to engagement requirements. Effective allocation prevents bottlenecks, ensures quality, and enables you to serve multiple clients simultaneously with diverse needs. This is critical for scaling operations across Africa."
+    },
+    {
+      "question": "In knowledge management systems for red teams, why is a TTP (Tactics, Techniques, Procedures) database considered essential for professional operations?",
+      "options": [
+        "TTP databases are academic exercises with no practical value",
+        "TTPs capture operational tradecraft, enabling teams to reuse techniques across clients, avoid duplicate work, and continuously improve based on lessons learned",
+        "Individual operators should maintain separate TTP knowledge",
+        "Knowledge management slows teams down"
+      ],
+      "correct_index": 1,
+      "explanation": "Professional red teams maintain centralized TTP databases documenting what works, what doesn't, and lessons learned from each engagement. This institutional knowledge accelerates future operations, prevents repeating mistakes, and improves team effectiveness across concurrent engagements."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Professional deliverables demonstrating mastery-level capability",
+    "Complete documentation and methodology",
+    "Evidence of technical excellence and strategic thinking",
+    "Leadership and mentorship contributions"
+  ],
+  "mentor_notes": "\nThis Mastery mission requires senior mentor review. Candidates must demonstrate:\n- Professional-grade execution and documentation\n- Deep understanding of African organizational and threat contexts\n- Strategic thinking beyond tactical execution\n- Readiness for commercial red team operations\n- Leadership potential within OCH and broader community\n\nSuccessful completion positions candidate for Mastery portfolio and professional practice.\n        "
+}

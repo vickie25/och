@@ -1,0 +1,157 @@
+{
+  "mission_id": "OA-M13",
+  "title": "Server-Side Assault",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Advanced Web Exploitation",
+  "pillar_icon": "\ud83d\udd78\ufe0f",
+  "mission_type": "Mandatory",
+  "module_number": 13,
+  "module_title": "Module 13: Server-Side Assault",
+  "video_duration": "15-20 min",
+  "estimated_time": "6-8 hrs",
+  "multiday": true,
+  "deadline": "5 days",
+  "prerequisites": [
+    "Intermediate Offensive Track",
+    "Core Cybersecurity Fundamentals"
+  ],
+  "learning_objectives": [
+    "Design credential harvesting campaigns",
+    "Implement phishing and social engineering attacks",
+    "Create credible lures and pretext scenarios",
+    "Harvest credentials at scale",
+    "Analyze credential acquisition effectiveness"
+  ],
+  "key_topics": [
+    "OWASP Top 10 vulnerability exploitation",
+    "API security and exploitation",
+    "Authentication and session management bypass",
+    "Server-side request forgery (SSRF)",
+    "Web-based privilege escalation"
+  ],
+  "scenario": "Scenario Python/Flask app with Jinja2, Java microservice API, internal services via API gateway. Find and chain server-side vulnerabilities to achieve RCE. Subtasks Scoring Rubric Linked Recipes: RA17, RA18 ________________________________________________________________________________",
+  "scenario_context": {
+    "setting": "Dar es Salaam, Tanzania, Southern African mining conglomerate",
+    "challenge": "Execute credential harvesting campaign against Southern African mining conglomerate in Dar es Salaam, Tanzania",
+    "relevance": "Reflects real-world African enterprise security challenges and red team operations across the continent"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "SSTI Discovery & Exploitation",
+      "description": "Test Flask for SSTI. Escalate to RCE.",
+      "evidence": "SSTI chain: detection, payload, RCE evidence",
+      "detailed_guidance": "Begin by thoroughly reviewing the scenario and understanding all objectives. Document your approach before execution. This is the foundational subtask that enables all following work.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "SSTI chain: detection, payload, RCE evidence"
+    },
+    {
+      "number": 2,
+      "title": "SSRF Exploitation",
+      "description": "SSRF to access internal services and cloud metadata.",
+      "evidence": "SSRF log: services discovered + metadata",
+      "detailed_guidance": "Conduct systematic reconnaissance and information gathering. Map the target network, identify services, and document all findings with evidence.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "SSRF log: services discovered + metadata"
+    },
+    {
+      "number": 3,
+      "title": "Deserialization Attack",
+      "description": "Exploit Java microservice deserialization.",
+      "evidence": "Deserialization: gadget chain, RCE evidence",
+      "detailed_guidance": "Analyze vulnerabilities discovered in reconnaissance. Validate each vulnerability through testing and document the exploitation path.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Deserialization: gadget chain, RCE evidence"
+    },
+    {
+      "number": 4,
+      "title": "Attack Chain Integration",
+      "description": "Chain findings for maximum impact.",
+      "evidence": "Complete chain documentation with diagram",
+      "detailed_guidance": "Execute the exploitation with careful attention to OPSEC and evasion. Maintain detailed logs of all actions for evidence and reporting.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Complete chain documentation with diagram"
+    },
+    {
+      "number": 5,
+      "title": "Automated PoC Suite",
+      "description": "PoC scripts for each finding.",
+      "evidence": "PoC scripts + usage docs",
+      "detailed_guidance": "Establish persistence mechanisms that survive system reboots and will maintain access throughout the engagement.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "PoC scripts + usage docs"
+    },
+    {
+      "number": 6,
+      "title": "AppSec Report",
+      "description": "Comprehensive application security assessment.",
+      "evidence": "AppSec report with developer remediation",
+      "detailed_guidance": "Perform privilege escalation and lateral movement to achieve the mission objectives. Document each pivot point.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "AppSec report with developer remediation"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "SSTI Exploitation",
+      "weight": "15%"
+    },
+    {
+      "category": "SSRF Exploitation",
+      "weight": "15%"
+    },
+    {
+      "category": "Deserialization",
+      "weight": "15%"
+    },
+    {
+      "category": "Chain Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "PoC Quality",
+      "weight": "15%"
+    },
+    {
+      "category": "Report Quality",
+      "weight": "20%"
+    }
+  ],
+  "linked_recipes": [
+    "Server-Side Assault"
+  ],
+  "resources": [
+    "OCH Advanced Advanced Web Exploitation Toolkit",
+    "Engagement Framework Documentation",
+    "OPSEC Guidelines",
+    "Reporting Templates",
+    "Mentor Support Channel"
+  ],
+  "reflection_prompt": "",
+  "quiz": [
+    {
+      "question": "What is the primary objective of OA-M13?",
+      "options": [
+        "To test defensive capabilities",
+        "To simulate a real-world attack scenario",
+        "To achieve the specified mission goals within the engagement scope",
+        "All of the above"
+      ],
+      "correct_index": 2,
+      "explanation": "The mission objectives define the success criteria for this engagement."
+    },
+    {
+      "question": "What should be the first step when beginning this mission?",
+      "options": [
+        "Immediately execute exploits",
+        "Deploy all available tools",
+        "Thoroughly review scenario, objectives, and engagement scope",
+        "Contact the target organization"
+      ],
+      "correct_index": 2,
+      "explanation": "Understanding the engagement scope and objectives is critical before execution."
+    }
+  ],
+  "portfolio_artifacts": [
+    "OA-M13_engagement_plan.md",
+    "OA-M13_evidence_log.txt",
+    "OA-M13_technical_report.md",
+    "OA-M13_client_presentation.pdf"
+  ],
+  "mentor_notes": "For OA-M13 - Server-Side Assault: Ensure learner demonstrates proper OPSEC, evidence collection, and professional reporting. This mission is designed to build advanced web exploitation expertise. Coordinate with blue team for detection validation where applicable."
+}

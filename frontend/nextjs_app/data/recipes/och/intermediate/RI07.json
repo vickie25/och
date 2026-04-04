@@ -1,0 +1,70 @@
+{
+  "recipe_id": "RI07",
+  "title": "SQLi WAF Bypass Techniques",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Web Application Attacks",
+  "pillar_icon": "\ud83d\udd78\ufe0f",
+  "estimated_time": "20 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "Burp Suite",
+    "sqlmap tamper scripts"
+  ],
+  "when_to_use": "When basic SQLi payloads are blocked",
+  "linked_missions": [
+    "OI-M05"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Attempt SQL injection with case variation (mixed uppercase/lowercase keywords)",
+      "tip": "Start with the most reliable information source for sqli waf bypass techniques",
+      "expected_output": "WAF bypass confirmation if mixed-case payloads bypass filters"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Test comment injection techniques using SQL comment syntax to obfuscate queries",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "Confirmed bypass if comments are effective at evading pattern matching"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Apply URL encoding to payload characters to obscure malicious strings",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Double-encoded payload successfully bypassing simple string filters"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Test double encoding where already encoded strings are encoded again",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Confirmation that double-encoded payloads bypass multi-layer filtering"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Utilize inline MySQL comments (/*! MySQL-specific */) to obfuscate SQL keywords",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Working SQLi payload using inline comment syntax specific to database type"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Use sqlmap with tamper scripts like space2comment to automate WAF evasion",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Successful SQLi exploitation using automated tamper script obfuscation"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Test and document each successful bypass technique with screenshots",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Documented report of all working WAF bypass techniques with proof-of-concept payloads"
+    }
+  ]
+}

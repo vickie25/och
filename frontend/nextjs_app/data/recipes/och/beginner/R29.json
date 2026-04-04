@@ -1,0 +1,71 @@
+{
+  "recipe_id": "R29",
+  "title": "6-Month Career Plan Template",
+  "pillar": "Mission Readiness",
+  "pillar_icon": "🚀",
+  "estimated_time": "20 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Calendar",
+    "task manager",
+    "portfolio platform"
+  ],
+  "when_to_use": "After completing Beginner track to plan the path toward professional readiness",
+  "linked_missions": [
+    "OB-M20"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Month 1-2: Intermediate Track",
+      "instruction": "Month 1-2: Complete OCH Intermediate Offensive Track",
+      "tip": "Build on beginner skills with hands-on exploitation. This is where theory becomes practice",
+      "expected_output": "Intermediate track timeline"
+    },
+    {
+      "number": 2,
+      "title": "Month 3: CTF Competitions",
+      "instruction": "Month 3: Participate in 2+ CTF competitions (PicoCTF, TryHackMe)",
+      "tip": "CTFs build speed and creative thinking. Start with beginner-friendly platforms",
+      "expected_output": "CTF participation planned"
+    },
+    {
+      "number": 3,
+      "title": "Month 4: Certification Prep",
+      "instruction": "Month 4: Begin eJPT certification preparation",
+      "tip": "eJPT is the best entry-level cert for offensive security. It's practical and affordable",
+      "expected_output": "Certification study plan"
+    },
+    {
+      "number": 4,
+      "title": "Month 5: Practical Machines",
+      "instruction": "Month 5: Complete 10+ HackTheBox or VulnHub machines",
+      "tip": "Write up every machine you complete. These writeups become portfolio pieces",
+      "expected_output": "Machine challenge plan"
+    },
+    {
+      "number": 5,
+      "title": "Month 6: Portfolio Building",
+      "instruction": "Month 6: Build portfolio with 5 published writeups",
+      "tip": "Publish on your blog, Medium, or GitHub. Quality over quantity. One excellent writeup beats five rushed ones",
+      "expected_output": "Portfolio publication plan"
+    },
+    {
+      "number": 6,
+      "title": "Ongoing Activities",
+      "instruction": "Ongoing: Contribute to community forums, attend local meetups",
+      "tip": "Community involvement builds network and reputation. Both are essential for career growth in Africa's cyber community",
+      "expected_output": "Community engagement plan"
+    },
+    {
+      "number": 7,
+      "title": "Monthly Review",
+      "instruction": "Review and adjust plan at the end of each month",
+      "tip": "Plans change. Life happens. The key is to review, adjust, and keep moving forward. Consistency beats intensity",
+      "expected_output": "Review cycle established"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 7
+}

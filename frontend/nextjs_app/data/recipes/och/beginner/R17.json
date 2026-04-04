@@ -1,0 +1,70 @@
+{
+  "recipe_id": "R17",
+  "title": "DVWA Navigation Guide",
+  "pillar": "Web Fundamentals",
+  "pillar_icon": "🕸️",
+  "estimated_time": "20 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "DVWA (installed in lab)",
+    "web browser"
+  ],
+  "when_to_use": "When exploring web vulnerabilities in a safe lab environment",
+  "linked_missions": [
+    "OB-M10"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Start & Login",
+      "instruction": "Start DVWA and log in with default credentials (admin/password)",
+      "tip": "If credentials don't work, check DVWA documentation for your version",
+      "expected_output": "Logged into DVWA"
+    },
+    {
+      "number": 2,
+      "title": "Set Security Level",
+      "instruction": "Set security level to LOW via DVWA Security tab",
+      "tip": "Start at LOW to understand the vulnerability. Increase to MEDIUM and HIGH later to learn defences",
+      "expected_output": "Security set to LOW"
+    },
+    {
+      "number": 3,
+      "title": "Navigate Modules",
+      "instruction": "Navigate to each module: SQLi, XSS Reflected, Command Injection",
+      "tip": "Read the Help section for each module — it explains what the vulnerability is and how it works",
+      "expected_output": "Modules accessed"
+    },
+    {
+      "number": 4,
+      "title": "Normal Usage First",
+      "instruction": "For each module, first use it normally to understand intended function",
+      "tip": "Understanding normal behaviour is essential — you can't spot anomalies without a baseline",
+      "expected_output": "Normal behaviour documented"
+    },
+    {
+      "number": 5,
+      "title": "Test Unexpected Input",
+      "instruction": "Then enter unexpected input: single quotes, angle brackets, semicolons",
+      "tip": "Start simple: ' (single quote) for SQLi, <b>test</b> for XSS, ;ls for command injection",
+      "expected_output": "Responses to unexpected input"
+    },
+    {
+      "number": 6,
+      "title": "Screenshot Responses",
+      "instruction": "Observe and screenshot the response for each input type",
+      "tip": "Compare normal and abnormal responses side by side. The difference reveals the vulnerability",
+      "expected_output": "Comparison screenshots"
+    },
+    {
+      "number": 7,
+      "title": "Isolation Warning",
+      "instruction": "Never run DVWA on a network-connected machine without isolation",
+      "tip": "DVWA is intentionally vulnerable. On a network, it's a real security risk. Always use host-only networking",
+      "expected_output": "Security awareness confirmed"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 7
+}

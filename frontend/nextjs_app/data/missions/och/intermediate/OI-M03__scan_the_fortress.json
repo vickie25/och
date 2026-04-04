@@ -1,0 +1,153 @@
+{
+  "mission_id": "OI-M03",
+  "title": "Scan the Fortress",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Deep Enumeration",
+  "pillar_icon": "🔎",
+  "mission_type": "Mandatory",
+  "module_number": 3,
+  "module_title": "Advanced Port Scanning and Firewall Evasion",
+  "video_duration": "16 min",
+  "estimated_time": "3-4 hrs",
+  "multiday": false,
+  "deadline": null,
+  "prerequisites": [
+    "Beginner Offensive Track completed",
+    "Nmap fundamentals",
+    "Firewall evasion concepts",
+    "Network packet analysis basics"
+  ],
+  "learning_objectives": [
+    "Apply multiple firewall evasion techniques to bypass network defences",
+    "Execute comprehensive port discovery including high-range enumeration",
+    "Deploy NSE scripts for service-specific deep enumeration",
+    "Document and justify scanning methodology choices"
+  ],
+  "key_topics": [
+    "Nmap scan types (SYN, UDP, ACK, etc.)",
+    "Firewall evasion techniques (fragmentation, decoys, timing)",
+    "Idle scan and other advanced methods",
+    "NSE script selection and execution",
+    "Service version detection and enumeration",
+    "High-port and full-range scanning",
+    "Scan optimization and stealth",
+    "Evasion effectiveness assessment"
+  ],
+  "scenario": "A government ministry in Gaborone has deployed firewalls, IDS, and rate limiting. Standard scans return mostly filtered ports. Use advanced Nmap techniques to enumerate what is behind the defences.",
+  "scenario_context": {
+    "setting": "Government agency network with robust defensive posture in Gaborone",
+    "challenge": "Circumvent firewall rules and IDS detection to identify actual network topology",
+    "relevance": "African government systems increasingly deploy sophisticated defences; requires technical ingenuity"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Baseline Scan",
+      "description": "Run a standard Nmap scan and document filtered results.",
+      "detailed_guidance": "Execute basic SYN scan against target range. Document all 'filtered' ports. This establishes baseline and demonstrates need for evasion.",
+      "evidence_required": "Standard scan output with filtered port count documented"
+    },
+    {
+      "number": 2,
+      "title": "Evasion Techniques",
+      "description": "Use at least 3 evasion techniques to bypass the firewall.",
+      "detailed_guidance": "Test 3+ techniques: packet fragmentation, decoys, slow timing, ACK scans, null scans, and FIN scans. Document which techniques yield results.",
+      "evidence_required": "Evasion scan outputs with technique explanations and results comparison"
+    },
+    {
+      "number": 3,
+      "title": "Full Port Discovery",
+      "description": "Identify ALL open ports including high-range.",
+      "detailed_guidance": "Once evasion technique succeeds, execute full-range scan (1-65535) or targeted high-port scans. Document all open/open-filtered ports.",
+      "evidence_required": "Complete port listing with baseline comparison showing improvement"
+    },
+    {
+      "number": 4,
+      "title": "NSE Deep Enumeration",
+      "description": "Run targeted NSE scripts against every service.",
+      "detailed_guidance": "For each open port, run relevant NSE scripts for service enumeration, version detection, vulnerability discovery. Document findings per service.",
+      "evidence_required": "Annotated NSE output with key intelligence highlighted"
+    },
+    {
+      "number": 5,
+      "title": "Scan Methodology Report",
+      "description": "Document what worked, what failed, and why.",
+      "detailed_guidance": "Create detailed report explaining baseline results, each evasion technique attempted, success rates, and final methodology. Include timing analysis and stealth assessment.",
+      "evidence_required": "Comprehensive scan methodology report with analysis"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Evasion Creativity",
+      "weight": "20%"
+    },
+    {
+      "category": "Discovery Completeness",
+      "weight": "25%"
+    },
+    {
+      "category": "NSE Usage",
+      "weight": "20%"
+    },
+    {
+      "category": "Methodology Documentation",
+      "weight": "20%"
+    },
+    {
+      "category": "Analysis Quality",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "RI03",
+    "RI04"
+  ],
+  "resources": [
+    {
+      "name": "Nmap Evasion and Spoofing Guide",
+      "type": "reference"
+    },
+    {
+      "name": "NSE Script Selection for Network Enumeration",
+      "type": "guide"
+    },
+    {
+      "name": "Firewall Detection and Bypassing Techniques",
+      "type": "tutorial"
+    }
+  ],
+  "reflection_prompt": "Which evasion technique was most effective and why? How do you balance thoroughness against detection risk in a monitored environment?",
+  "quiz": [
+    {
+      "question": "Why are fragmentation-based evasion techniques effective against stateless firewalls?",
+      "options": [
+        "They consume CPU",
+        "Firewall rules can't reassemble packets before inspection",
+        "They slow IDS engines",
+        "They encrypt traffic"
+      ],
+      "correct_index": 1,
+      "explanation": "Stateless firewalls inspect individual packets without reassembly. Fragmented packets bypass rules checking on assembled data."
+    },
+    {
+      "question": "What is the primary advantage of ACK scans in firewall evasion?",
+      "options": [
+        "Faster than SYN scans",
+        "Can determine open vs closed ports",
+        "Appears as part of established connection",
+        "Bypasses rate limiting"
+      ],
+      "correct_index": 2,
+      "explanation": "ACK scans appear as responses to established connections, often bypassing stateful firewall rules that allow response traffic."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Baseline scan results",
+    "Evasion technique test results (3+)",
+    "Complete port enumeration list",
+    "NSE script outputs and findings",
+    "Scan methodology report with analysis"
+  ],
+  "mentor_notes": "Evaluate creativity in evasion technique selection and actual improvement achieved. Assessment should consider not just ports found, but quality of methodology documentation and understanding of why techniques work."
+}

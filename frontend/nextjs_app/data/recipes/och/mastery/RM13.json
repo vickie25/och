@@ -1,0 +1,68 @@
+{
+  "recipe_id": "RM13",
+  "title": "Red Team Practice Business Plan",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Red Team Leadership & Practice",
+  "pillar_icon": "\ud83d\udc51",
+  "estimated_time": "35 min",
+  "difficulty": "Mastery",
+  "tools_required": [
+    "Market research platforms",
+    "Financial modeling software",
+    "Business planning templates",
+    "Legal templates (contracts)",
+    "Sales & proposal software",
+    "Project management tools"
+  ],
+  "when_to_use": "Use Red Team Practice Business Plan to develop professional-grade red team practice business plan capabilities at Mastery level. This recipe is part of the Red Team Leadership & Practice pillar and integrates with linked missions OM-M10, OM-M11.",
+  "linked_missions": [
+    "OM-M10",
+    "OM-M11"
+  ],
+  "step_count": 6,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Southern African Cybersecurity Market Analysis",
+      "instruction": "Research Southern African market: demand drivers (regulatory compliance, increasing breaches, cloud migration), competitive landscape (red team practices, consultancies), pricing benchmarks (day rates, retainer models), customer segments (enterprises, financial services, government). Identify: market size, growth rate, underserved niches. Use real data: analyst reports, vendor websites, interviews.",
+      "tip": "African market is growing rapidly. Differentiation could be: local expertise, regulatory knowledge, African-specific threats.",
+      "expected_output": "Market analysis with data-supported insights"
+    },
+    {
+      "number": 2,
+      "title": "Red Team Service Catalog Design",
+      "instruction": "Design service offerings: penetration testing (3 tiers: web, internal, infrastructure), red team exercises (2-week to 6-week operations), threat assessments (cloud, OT, mobile), training services. Define for each: scope, deliverables, timeline, SLA, pricing. Example: \"Infrastructure Red Team - 4 weeks, $50K, deliverable: strategic report + remediation roadmap\".",
+      "tip": "Service design should reflect your strengths and market gaps. Specialization commands premium pricing.",
+      "expected_output": "Service catalog with offerings, deliverables, pricing"
+    },
+    {
+      "number": 3,
+      "title": "Engagement Templates",
+      "instruction": "Create professional templates: proposal (describe scope, value, pricing), engagement letter (legal terms, NDA, liability), ROE (rules of engagement for red team operations), report template (findings, remediation, executive summary), executive presentation slides. Each document reflects professionalism and legal protection.",
+      "tip": "Templates set expectations and reduce legal risk. Have lawyer review before using with clients.",
+      "expected_output": "5 complete professional documents"
+    },
+    {
+      "number": 4,
+      "title": "Team Structure & Operations Plan",
+      "instruction": "Design team structure (year 1): leadership (founder/operator), senior red teamers (3 FTE), junior developers (2 FTE), operations manager. Document: hiring criteria, training pipeline, certification requirements (e.g., OSCP), skill development paths. Include: onboarding procedures, mentorship structure, career progression. Project growth to year 3: team doubling, specialization emergence.",
+      "tip": "Red team quality depends on team quality. Invest heavily in hiring and mentorship.",
+      "expected_output": "Org chart + growth projections + hiring plan"
+    },
+    {
+      "number": 5,
+      "title": "Financial Model",
+      "instruction": "Build 3-year financial model: revenue (based on engagements + training), costs (salaries, cloud infrastructure, tools, office, legal), assumptions (utilization rate, average engagement value, pricing growth). Project: year 1 breakeven scenario, year 2-3 profitability, margin improvement. Include sensitivity analysis: if market pricing drops 20%, profitability timeline shifts?",
+      "tip": "Conservative assumptions are safer than optimistic ones. Document every assumption.",
+      "expected_output": "Financial model with documented assumptions"
+    },
+    {
+      "number": 6,
+      "title": "Go-to-Market Strategy",
+      "instruction": "Plan first 10 clients and how to acquire them: partnerships (ecosystem integrators, resellers), direct sales (target list of enterprises), reputation (speaking, publications, open-source tools), networking events. 90-day action plan: first engagement target, sales activities, marketing channels. Measure: deal pipeline, close rate, customer satisfaction.",
+      "tip": "First clients are hardest. Plan to achieve them through reputation + relationships, not marketing spend.",
+      "expected_output": "GTM strategy + 90-day action plan"
+    }
+  ]
+}

@@ -1,0 +1,232 @@
+{
+  "mission_id": "OM-M13",
+  "title": "Operation Eclipse — The Grand Capstone",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Red Team Leadership & Practice",
+  "pillar_icon": "👑",
+  "mission_type": "Grand Capstone",
+  "module_number": 13,
+  "module_title": "The Masterwork",
+  "video_duration": "25-30 min",
+  "estimated_time": "40+ hrs",
+  "multiday": true,
+  "deadline": "30 days",
+  "prerequisites": [
+    "Advanced Offensive Track - Mastery Tier Access"
+  ],
+  "learning_objectives": [
+    "Strategic operation planning and threat modeling",
+    "Comprehensive reconnaissance and OSINT across attack surfaces",
+    "Multi-stage initial access execution",
+    "Internal network campaign and domain dominance",
+    "Cloud environment assessment from domain-level access",
+    "Mobile and application security assessment",
+    "Specialist assessments (OT, physical, infrastructure)",
+    "Professional red team report development (40+ pages)",
+    "Executive communication to non-technical stakeholders",
+    "Infrastructure cleanup and decommissioning",
+    "Portfolio masterpiece creation",
+    "Identity and leadership development"
+  ],
+  "key_topics": [
+    "Strategic planning",
+    "Reconnaissance methodology",
+    "Multi-domain attack chains",
+    "Report writing",
+    "Executive communication",
+    "Cleanup and decommissioning",
+    "Leadership principles",
+    "Pan-African operations",
+    "Nation-state tradecraft"
+  ],
+  "scenario": "This Mastery mission requires professional-grade execution in Pan-African enterprise undergoing advanced red team assessment. Challenge: Execute complete red team operation spanning 30 days: reconnaissance through cloud, OT, mobile, and objective achievement. Relevance: The defining mission of OCH Mastery tier; demonstrates mastery across all offensive domains",
+  "scenario_context": {
+    "setting": "Pan-African enterprise undergoing advanced red team assessment",
+    "challenge": "Execute complete red team operation spanning 30 days: reconnaissance through cloud, OT, mobile, and objective achievement",
+    "relevance": "The defining mission of OCH Mastery tier; demonstrates mastery across all offensive domains"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Threat Intel & Op Plan",
+      "description": "Threat model, adversary profile, operational plan, ROE, infrastructure.",
+      "detailed_guidance": "For this subtask in the context of Operation Eclipse — The Grand Capstone:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Op plan + ROE + infra design (20+ pages)"
+    },
+    {
+      "number": 2,
+      "title": "Recon & OSINT Campaign",
+      "description": "All attack surfaces: external, cloud, mobile, human.",
+      "detailed_guidance": "For this subtask in the context of Operation Eclipse — The Grand Capstone:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Recon report with initial access vector analysis"
+    },
+    {
+      "number": 3,
+      "title": "Initial Access & C2",
+      "description": "Realistic vector. Resilient multi-channel C2.",
+      "detailed_guidance": "For this subtask in the context of Operation Eclipse — The Grand Capstone:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Initial access evidence + C2 architecture + OPSEC log"
+    },
+    {
+      "number": 4,
+      "title": "Internal Campaign — AD & Network",
+      "description": "Foothold to domain dominance. Complete chain.",
+      "detailed_guidance": "For this subtask in the context of Operation Eclipse — The Grand Capstone:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Internal campaign with evidence per pivot"
+    },
+    {
+      "number": 5,
+      "title": "Cloud Campaign",
+      "description": "AWS + Azure assessment from domain-level access.",
+      "detailed_guidance": "For this subtask in the context of Operation Eclipse — The Grand Capstone:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Cloud report with cross-environment paths"
+    },
+    {
+      "number": 6,
+      "title": "Mobile & Application Assessment",
+      "description": "Customer app + SaaS with CI/CD pipeline analysis.",
+      "detailed_guidance": "For this subtask in the context of Operation Eclipse — The Grand Capstone:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "AppSec report with CI/CD findings"
+    },
+    {
+      "number": 7,
+      "title": "Specialist Assessment — OT/Physical",
+      "description": "Data centre SCADA + physical security design.",
+      "detailed_guidance": "For this subtask in the context of Operation Eclipse — The Grand Capstone:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "OT report + physical assessment plan"
+    },
+    {
+      "number": 8,
+      "title": "Objective Achievement",
+      "description": "Access source code + financial records (simulated).",
+      "detailed_guidance": "For this subtask in the context of Operation Eclipse — The Grand Capstone:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Objective evidence package"
+    },
+    {
+      "number": 9,
+      "title": "Professional Red Team Report",
+      "description": "The portfolio masterpiece.",
+      "detailed_guidance": "For this subtask in the context of Operation Eclipse — The Grand Capstone:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Red team report (40+ pages)"
+    },
+    {
+      "number": 10,
+      "title": "Executive Board Presentation",
+      "description": "20 slides for non-technical stakeholders.",
+      "detailed_guidance": "For this subtask in the context of Operation Eclipse — The Grand Capstone:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Presentation + notes + Q&A prep"
+    },
+    {
+      "number": 11,
+      "title": "Cleanup, Verification & Closeout",
+      "description": "All persistence removed and verified.",
+      "detailed_guidance": "For this subtask in the context of Operation Eclipse — The Grand Capstone:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Cleanup log + verification + infra decommission"
+    },
+    {
+      "number": 12,
+      "title": "Mastery Portfolio & Identity",
+      "description": "Final portfolio + identity statement + letter to next generation.",
+      "detailed_guidance": "For this subtask in the context of Operation Eclipse — The Grand Capstone:\n\n    1. Understand the requirement clearly and document your approach\n    2. Execute the task methodically with evidence collection\n    3. Document findings with sufficient detail for peer review\n    4. Consider African-specific contexts and implications\n    5. Ensure all deliverables meet professional standards\n    6. Prepare materials for senior mentor evaluation",
+      "evidence_required": "Portfolio + Identity Statement + Letter"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Operation Planning & Leadership",
+      "weight": "10%"
+    },
+    {
+      "category": "Initial Access & OPSEC",
+      "weight": "8%"
+    },
+    {
+      "category": "Internal Campaign",
+      "weight": "12%"
+    },
+    {
+      "category": "Cloud Campaign",
+      "weight": "8%"
+    },
+    {
+      "category": "Cross-Domain Integration",
+      "weight": "10%"
+    },
+    {
+      "category": "Objective Achievement",
+      "weight": "10%"
+    },
+    {
+      "category": "Report Quality (masterpiece)",
+      "weight": "18%"
+    },
+    {
+      "category": "Executive Communication",
+      "weight": "8%"
+    },
+    {
+      "category": "Cleanup & Ethics",
+      "weight": "6%"
+    },
+    {
+      "category": "Portfolio & Identity",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "RM01",
+    "RM07",
+    "RM09",
+    "RM15"
+  ],
+  "resources": [
+    {
+      "type": "Documentation",
+      "title": "OCH Mastery Reference Guide",
+      "url": "https://och.dev/mastery-reference"
+    },
+    {
+      "type": "Video",
+      "title": "Mission Overview: Operation Eclipse — The Grand Capstone",
+      "duration": "25-30 min"
+    },
+    {
+      "type": "Tool",
+      "title": "OCH Mastery Assessment Framework",
+      "url": "https://och.dev/assessment"
+    }
+  ],
+  "reflection_prompt": "How did you balance speed versus stealth across your 30-day campaign? What would you do differently if operating against a nation-state level adversary?",
+  "quiz": [
+    {
+      "question": "In the 30-day Operation Eclipse capstone, what distinguishes strategic operation planning from standard red team assessments?",
+      "options": [
+        "There is no difference",
+        "Strategic planning requires threat modeling, adversary profiling, multi-domain attack planning, and executive-level objectives—transforming the assessment into a simulated nation-state operation",
+        "Standard assessments are more thorough than strategic operations",
+        "Operation planning eliminates the need for technical execution"
+      ],
+      "correct_index": 1,
+      "explanation": "The Operation Eclipse capstone simulates advanced nation-state red team operations. This requires strategic planning: understanding the target organization deeply, developing threat profiles, planning multi-domain attack sequences, and defining executive-level objectives. This transforms a standard assessment into a sophisticated operation."
+    },
+    {
+      "question": "What is the relationship between technical execution in the internal domain campaign and strategic objectives in Operation Eclipse?",
+      "options": [
+        "They are unrelated; technical execution happens independently of objectives",
+        "Technical execution directly enables strategic objectives; each pivot and compromise must advance toward executive-level goals (accessing source code, financial data, etc.)",
+        "Strategic objectives are irrelevant to technical work",
+        "Objectives are determined only after technical execution is complete"
+      ],
+      "correct_index": 1,
+      "explanation": "In Operation Eclipse, every technical action—initial access, lateral movement, privilege escalation—must advance toward predefined strategic objectives. This discipline transforms technical skill into strategic impact, demonstrating mastery-level red team capabilities."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Professional deliverables demonstrating mastery-level capability",
+    "Complete documentation and methodology",
+    "Evidence of technical excellence and strategic thinking",
+    "Leadership and mentorship contributions"
+  ],
+  "mentor_notes": "\nThis Mastery mission requires senior mentor review. Candidates must demonstrate:\n- Professional-grade execution and documentation\n- Deep understanding of African organizational and threat contexts\n- Strategic thinking beyond tactical execution\n- Readiness for commercial red team operations\n- Leadership potential within OCH and broader community\n\nSuccessful completion positions candidate for Mastery portfolio and professional practice.\n        "
+}

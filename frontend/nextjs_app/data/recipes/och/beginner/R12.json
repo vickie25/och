@@ -1,0 +1,90 @@
+{
+  "recipe_id": "R12",
+  "title": "First 20 Linux Commands",
+  "pillar": "Linux & CLI",
+  "pillar_icon": "🐧",
+  "estimated_time": "20 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Linux terminal (Kali, Parrot, or any distro)"
+  ],
+  "when_to_use": "Foundational skill for all terminal-based offensive work",
+  "linked_missions": [
+    "OB-M07"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "pwd",
+      "instruction": "pwd — print working directory",
+      "tip": "Always know where you are. Run pwd whenever you're unsure",
+      "expected_output": "Current directory displayed"
+    },
+    {
+      "number": 2,
+      "title": "ls -la",
+      "instruction": "ls -la — list all files with details (including hidden)",
+      "tip": "The -a flag shows hidden files (dotfiles). The -l flag shows permissions, ownership, and size",
+      "expected_output": "Detailed file listing"
+    },
+    {
+      "number": 3,
+      "title": "cd",
+      "instruction": "cd /path — change directory",
+      "tip": "cd ~ goes home. cd - goes to previous directory. cd .. goes up one level",
+      "expected_output": "Directory changed"
+    },
+    {
+      "number": 4,
+      "title": "cat",
+      "instruction": "cat file.txt — read file contents",
+      "tip": "For large files, use less or head/tail instead. cat is best for small files",
+      "expected_output": "File contents displayed"
+    },
+    {
+      "number": 5,
+      "title": "grep",
+      "instruction": "grep 'pattern' file — search within files",
+      "tip": "Add -i for case-insensitive, -r for recursive directory search, -n for line numbers",
+      "expected_output": "Matching lines shown"
+    },
+    {
+      "number": 6,
+      "title": "find",
+      "instruction": "find / -name 'file' — locate files by name",
+      "tip": "Use 2>/dev/null to suppress permission errors. -type f for files only, -type d for directories",
+      "expected_output": "File paths found"
+    },
+    {
+      "number": 7,
+      "title": "chmod",
+      "instruction": "chmod 755 file — change file permissions",
+      "tip": "755 = owner rwx, group rx, others rx. 600 = owner rw only. Know the common patterns",
+      "expected_output": "Permissions changed"
+    },
+    {
+      "number": 8,
+      "title": "File Operations",
+      "instruction": "cp, mv, rm — copy, move, delete files",
+      "tip": "rm -rf is irreversible. Always double-check paths before deletion. Use -i for confirmation prompts",
+      "expected_output": "File operations performed"
+    },
+    {
+      "number": 9,
+      "title": "man",
+      "instruction": "man command — read manual page for any command",
+      "tip": "Press / to search within man pages. Press q to quit. man is your offline documentation",
+      "expected_output": "Manual page viewed"
+    },
+    {
+      "number": 10,
+      "title": "history",
+      "instruction": "history — view command history",
+      "tip": "Use !number to re-run a command. Ctrl+R for reverse search. Clear with history -c on ops",
+      "expected_output": "Command history displayed"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 10
+}

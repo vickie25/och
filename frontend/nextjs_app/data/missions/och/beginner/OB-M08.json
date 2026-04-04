@@ -1,0 +1,128 @@
+{
+  "mission_id": "OB-M08",
+  "title": "One-Liner Arsenal",
+  "pillar": "Linux & CLI",
+  "module_number": 8,
+  "module_title": "Bash Automation for Offensive Ops",
+  "video_duration": "14 min",
+  "estimated_time": "1 hour",
+  "multiday": false,
+  "deadline": "5 days",
+  "prerequisites": [
+    "OB-M07 completed",
+    "Bash shell access",
+    "Sample log files available"
+  ],
+  "learning_objectives": [
+    "Build reusable Bash one-liners for common offensive tasks",
+    "Understand pipe-based command composition",
+    "Test and validate command-line automation"
+  ],
+  "key_topics": [
+    "Bash pipe composition",
+    "Text processing (grep, awk, cut, sort, uniq)",
+    "Log parsing for offensive purposes",
+    "One-liner documentation and reusability",
+    "Edge case handling in CLI operations"
+  ],
+  "scenario": "Your team does the same recon steps on every engagement. It is time to automate. Build an arsenal of 6 working command-line one-liners that can be reused on future engagements.",
+  "scenario_context": {
+    "setting": "Pre-engagement automation setup",
+    "challenge": "Build a reusable one-liner toolkit",
+    "relevance": "Efficient operators automate repetitive tasks. Having a tested arsenal of one-liners saves time during time-sensitive engagements."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Build 6 One-Liners",
+      "description": "Create one-liners for: extract unique IPs from a log, find SUID binaries, list listening ports, extract emails from text, count error lines in logs, find recently modified files.",
+      "detailed_guidance": "Each one-liner should be a single pipe chain. Use grep, awk, cut, sort, uniq, find, netstat/ss as appropriate. Test each against real data.",
+      "evidence_required": "All 6 one-liners with working output screenshots"
+    },
+    {
+      "number": 2,
+      "title": "Document Each",
+      "description": "For each one-liner, explain what it does, how each pipe stage works, and when you would use it in a pentest.",
+      "detailed_guidance": "Break down each pipe stage. Example: 'cat access.log' reads the file, '| grep -oE \"[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\"' extracts IPs, '| sort | uniq -c | sort -rn' counts and ranks them.",
+      "evidence_required": "Documentation file explaining each command"
+    },
+    {
+      "number": 3,
+      "title": "Stress Test",
+      "description": "Run each against sample data. Verify they work and handle edge cases (empty files, special characters).",
+      "detailed_guidance": "Test each with: normal data, empty files, files with special characters, large files. Document any failures and how you fixed them.",
+      "evidence_required": "Test results showing correct execution"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Command Correctness",
+      "weight": "35%"
+    },
+    {
+      "category": "Explanation Quality",
+      "weight": "25%"
+    },
+    {
+      "category": "Practical Relevance",
+      "weight": "25%"
+    },
+    {
+      "category": "Edge Case Handling",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "R13",
+    "R14"
+  ],
+  "resources": [
+    {
+      "name": "Bash One-Liner Reference",
+      "type": "PDF"
+    },
+    {
+      "name": "Sample Log Files for Testing",
+      "type": "Lab File"
+    },
+    {
+      "name": "Text Processing Cheat Sheet",
+      "type": "Document"
+    }
+  ],
+  "reflection_prompt": "You're on an engagement and need to quickly extract all IP addresses that connected to a compromised web server. Write the command and explain why speed matters in incident response.",
+  "quiz": [
+    {
+      "question": "The 'sort | uniq -c | sort -rn' pattern is used to:",
+      "options": [
+        "Delete duplicates",
+        "Count occurrences of each unique line and rank by frequency",
+        "Encrypt data",
+        "Search for patterns"
+      ],
+      "correct_index": 1,
+      "explanation": "This common pattern: sorts for grouping, counts unique occurrences, then sorts numerically in reverse to show most frequent first."
+    },
+    {
+      "question": "Testing one-liners with empty files is important because:",
+      "options": [
+        "Empty files are common on servers",
+        "Commands may produce errors or unexpected output with no input",
+        "It's required by the rubric",
+        "Empty files contain hidden data"
+      ],
+      "correct_index": 1,
+      "explanation": "Many commands behave differently or produce errors when given no input. Robust one-liners should handle edge cases gracefully."
+    }
+  ],
+  "portfolio_artifacts": [
+    "6-command one-liner arsenal",
+    "Command documentation",
+    "Stress test results"
+  ],
+  "mentor_notes": "Each one-liner must actually work — no theoretical commands. The documentation quality shows understanding. Edge case handling separates good from great submissions.",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "🐧",
+  "mission_type": "Mandatory"
+}

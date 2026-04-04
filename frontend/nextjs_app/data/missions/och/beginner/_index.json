@@ -1,0 +1,32 @@
+{
+  "track": "Offensive",
+  "tier": "Beginner",
+  "total_missions": 20,
+  "total_capstones": 2,
+  "missions": [
+    {"id": "OB-M01", "file": "OB-M01.json"},
+    {"id": "OB-M02", "file": "OB-M02.json"},
+    {"id": "OB-M03", "file": "OB-M03.json"},
+    {"id": "OB-M04", "file": "OB-M04.json"},
+    {"id": "OB-M05", "file": "OB-M05.json"},
+    {"id": "OB-M06", "file": "OB-M06.json"},
+    {"id": "OB-M07", "file": "OB-M07.json"},
+    {"id": "OB-M08", "file": "OB-M08.json"},
+    {"id": "OB-M09", "file": "OB-M09.json"},
+    {"id": "OB-M10", "file": "OB-M10.json"},
+    {"id": "OB-M11", "file": "OB-M11.json"},
+    {"id": "OB-M12", "file": "OB-M12.json"},
+    {"id": "OB-M13", "file": "OB-M13.json"},
+    {"id": "OB-M14", "file": "OB-M14.json"},
+    {"id": "OB-M15", "file": "OB-M15.json"},
+    {"id": "OB-M16", "file": "OB-M16.json"},
+    {"id": "OB-M17", "file": "OB-M17.json"},
+    {"id": "OB-M18", "file": "OB-M18.json"},
+    {"id": "OB-M19", "file": "OB-M19.json"},
+    {"id": "OB-M20", "file": "OB-M20.json"}
+  ],
+  "capstones": [
+    {"id": "OB-CAP01", "file": "OB-CAP01.json"},
+    {"id": "OB-CAP02", "file": "OB-CAP02.json"}
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "recipe_id": "R27",
+  "title": "Lab Setup Guide",
+  "pillar": "Mission Readiness",
+  "pillar_icon": "🚀",
+  "estimated_time": "30 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "VirtualBox or VMware",
+    "Kali Linux ISO"
+  ],
+  "when_to_use": "Before starting any hands-on offensive security practice",
+  "linked_missions": [
+    "OB-M19"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Install Hypervisor",
+      "instruction": "Download and install VirtualBox (virtualbox.org) or VMware",
+      "tip": "VirtualBox is free and works on all platforms. VMware is faster but requires a license for full features",
+      "expected_output": "Hypervisor installed"
+    },
+    {
+      "number": 2,
+      "title": "Download Kali",
+      "instruction": "Download Kali Linux ISO from kali.org/get-kali",
+      "tip": "Use the installer ISO, not the live ISO, for a persistent installation with better performance",
+      "expected_output": "Kali ISO downloaded"
+    },
+    {
+      "number": 3,
+      "title": "Create Kali VM",
+      "instruction": "Create new VM: 2 CPUs, 4GB RAM minimum, 40GB disk",
+      "tip": "4GB RAM is minimum. 8GB is recommended for running multiple tools simultaneously",
+      "expected_output": "Kali VM created"
+    },
+    {
+      "number": 4,
+      "title": "Install & Update",
+      "instruction": "Install Kali, update: sudo apt update && sudo apt upgrade",
+      "tip": "Run updates after every fresh install. Many tools receive critical patches regularly",
+      "expected_output": "Kali installed and updated"
+    },
+    {
+      "number": 5,
+      "title": "Deploy Target",
+      "instruction": "Download Metasploitable 2 or DVWA Docker image",
+      "tip": "Metasploitable has multiple services. DVWA focuses on web. Ideally deploy both for variety",
+      "expected_output": "Target VM deployed"
+    },
+    {
+      "number": 6,
+      "title": "Configure Network",
+      "instruction": "Set both VMs to Host-Only network adapter",
+      "tip": "Host-Only isolates VMs from your real network. Critical for security when running vulnerable targets",
+      "expected_output": "Network configured"
+    },
+    {
+      "number": 7,
+      "title": "Test & Snapshot",
+      "instruction": "Test connectivity: ping from Kali to target, then take clean snapshots",
+      "tip": "Snapshots are your safety net. Take one after initial setup and after each major configuration change",
+      "expected_output": "Connectivity verified, snapshots taken"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 7
+}

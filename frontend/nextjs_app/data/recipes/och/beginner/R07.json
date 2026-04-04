@@ -1,0 +1,72 @@
+{
+  "recipe_id": "R07",
+  "title": "Nmap Quick Start",
+  "pillar": "Beginner Tooling",
+  "pillar_icon": "🛠️",
+  "estimated_time": "20 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Nmap (pre-installed in Kali Linux)"
+  ],
+  "when_to_use": "During active reconnaissance and enumeration phases",
+  "linked_missions": [
+    "OB-M04",
+    "OB-M14",
+    "OB-M15",
+    "OB-CAP02"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Basic Scan",
+      "instruction": "Basic scan: nmap [target]",
+      "tip": "Default scan checks the 1000 most common ports. Good for quick initial assessment",
+      "expected_output": "Open ports listed"
+    },
+    {
+      "number": 2,
+      "title": "Service Detection",
+      "instruction": "Service detection: nmap -sV [target]",
+      "tip": "-sV probes open ports to determine service version. Essential for vulnerability research",
+      "expected_output": "Service versions identified"
+    },
+    {
+      "number": 3,
+      "title": "OS Detection",
+      "instruction": "OS detection: nmap -O [target]",
+      "tip": "Requires root/sudo. May not always be accurate. Use alongside service banners for confirmation",
+      "expected_output": "OS fingerprint detected"
+    },
+    {
+      "number": 4,
+      "title": "Default Scripts",
+      "instruction": "Default scripts: nmap -sC [target]",
+      "tip": "-sC runs default NSE scripts which can reveal additional info like SSL certs, HTTP titles, and DNS names",
+      "expected_output": "Script output with additional findings"
+    },
+    {
+      "number": 5,
+      "title": "Combined Scan",
+      "instruction": "Combined: nmap -sV -sC -O [target]",
+      "tip": "This is the 'gold standard' initial scan. Add -p- for all ports on important targets",
+      "expected_output": "Comprehensive scan results"
+    },
+    {
+      "number": 6,
+      "title": "Save Output",
+      "instruction": "Save output: nmap -oN results.txt [target]",
+      "tip": "Also use -oX for XML (importable into other tools) and -oA for all formats simultaneously",
+      "expected_output": "Saved scan files"
+    },
+    {
+      "number": 7,
+      "title": "Authorisation Check",
+      "instruction": "Always verify you have authorisation before scanning",
+      "tip": "This is not optional. Scanning without authorisation is illegal. Always confirm scope before every scan",
+      "expected_output": "Authorisation verified"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 7
+}

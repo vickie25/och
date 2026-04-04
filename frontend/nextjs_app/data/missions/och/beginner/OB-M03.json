@@ -1,0 +1,138 @@
+{
+  "mission_id": "OB-M03",
+  "title": "Digital Footprint Audit",
+  "pillar": "Reconnaissance",
+  "module_number": 3,
+  "module_title": "Passive Reconnaissance",
+  "video_duration": "18 min",
+  "estimated_time": "1.5-2 hours",
+  "multiday": false,
+  "deadline": "5 days",
+  "prerequisites": [
+    "OB-M01 and OB-M02 completed",
+    "Web browser",
+    "Access to WHOIS, dig, Shodan (free tier)"
+  ],
+  "learning_objectives": [
+    "Perform structured passive reconnaissance using OSINT techniques",
+    "Enumerate domain, personnel, and technology information without active scanning",
+    "Produce a professional passive recon report"
+  ],
+  "key_topics": [
+    "WHOIS enumeration",
+    "DNS record analysis (A, MX, NS, TXT, CNAME)",
+    "Google dorking techniques",
+    "LinkedIn and social media OSINT",
+    "Shodan passive intelligence",
+    "Technology stack fingerprinting",
+    "Breach database checking"
+  ],
+  "scenario": "An NGO in Gaborone is about to launch a new donor portal. Before going live, they have hired you to assess their digital footprint using only passive techniques. They want to know what an attacker could learn without touching their systems.",
+  "scenario_context": {
+    "setting": "NGO in Gaborone preparing to launch a donor portal",
+    "challenge": "Complete passive reconnaissance with zero active scanning",
+    "relevance": "Many African organisations have significant digital footprints they are unaware of. Donor portals handle sensitive financial data and are attractive targets."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Domain Intelligence",
+      "description": "Perform WHOIS and DNS enumeration on the provided domain. Document registrar info, nameservers, MX records, and subdomains.",
+      "detailed_guidance": "Run whois on the domain. Use dig for A, MX, NS, TXT, CNAME records. Check for subdomains using passive tools like crt.sh. Document everything with timestamps.",
+      "evidence_required": "WHOIS results, DNS records table, subdomain list"
+    },
+    {
+      "number": 2,
+      "title": "People & Email Discovery",
+      "description": "Using OSINT, find employee emails, LinkedIn profiles, and organisational structure data.",
+      "detailed_guidance": "Search LinkedIn for the organisation. Note employee names, roles, email patterns. Check Have I Been Pwned for domain breaches. Use tools like theHarvester if available.",
+      "evidence_required": "Email list, LinkedIn summaries, org structure notes"
+    },
+    {
+      "number": 3,
+      "title": "Technology Stack Fingerprinting",
+      "description": "Without touching the target, identify web technologies, CMS, hosting provider, and visible technology stack.",
+      "detailed_guidance": "Use Wappalyzer, BuiltWith, or Netcraft. Check HTTP headers visible in cached versions. Identify CDN, CMS, frameworks, hosting provider. Check Shodan for any exposed services.",
+      "evidence_required": "Technology stack summary with sources"
+    },
+    {
+      "number": 4,
+      "title": "Exposure Report",
+      "description": "Compile findings into a structured Passive Recon Report with executive summary, methodology, findings, and risk ratings.",
+      "detailed_guidance": "Structure: Executive Summary, Methodology, Domain Intelligence, Personnel Exposure, Technology Stack, Risk Assessment, Recommendations. Rate each finding by risk level.",
+      "evidence_required": "Complete passive recon report (PDF format)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "OSINT Methodology",
+      "weight": "25%"
+    },
+    {
+      "category": "Finding Completeness",
+      "weight": "30%"
+    },
+    {
+      "category": "Evidence Quality",
+      "weight": "25%"
+    },
+    {
+      "category": "Report Professionalism",
+      "weight": "20%"
+    }
+  ],
+  "linked_recipes": [
+    "R05",
+    "R06"
+  ],
+  "resources": [
+    {
+      "name": "Passive Recon Methodology Guide",
+      "type": "PDF"
+    },
+    {
+      "name": "OSINT Tool Reference Sheet",
+      "type": "Document"
+    },
+    {
+      "name": "Sample Passive Recon Report",
+      "type": "Template"
+    }
+  ],
+  "reflection_prompt": "You discover that the NGO's donor database has been exposed in a previous breach. How do you communicate this to the client responsibly, and what immediate actions do you recommend?",
+  "quiz": [
+    {
+      "question": "Passive reconnaissance means:",
+      "options": [
+        "Scanning target systems quietly",
+        "Gathering information without directly interacting with the target",
+        "Using Nmap with stealth flags",
+        "Only using Google"
+      ],
+      "correct_index": 1,
+      "explanation": "Passive recon gathers information from public sources without sending any traffic to the target systems."
+    },
+    {
+      "question": "WHOIS data is useful because:",
+      "options": [
+        "It reveals passwords",
+        "It shows domain registration details, ownership, and contact information",
+        "It bypasses firewalls",
+        "It only works on .com domains"
+      ],
+      "correct_index": 1,
+      "explanation": "WHOIS provides registration details that can reveal ownership, hosting, and organisational information."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Domain intelligence report",
+    "Personnel exposure analysis",
+    "Technology fingerprint",
+    "Complete passive recon report"
+  ],
+  "mentor_notes": "Evaluate thoroughness of OSINT coverage. Strong submissions will go beyond basic WHOIS and find subdomains, email patterns, breach data. Report quality matters — this is a client deliverable.",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "🔍",
+  "mission_type": "Mandatory"
+}

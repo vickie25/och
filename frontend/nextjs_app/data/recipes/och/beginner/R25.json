@@ -1,0 +1,71 @@
+{
+  "recipe_id": "R25",
+  "title": "Vulnerability Report Template",
+  "pillar": "Ethics & Legality",
+  "pillar_icon": "⚖️",
+  "estimated_time": "15 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Word processor or Markdown editor"
+  ],
+  "when_to_use": "When documenting any discovered vulnerability for reporting",
+  "linked_missions": [
+    "OB-M17",
+    "OB-M18",
+    "OB-CAP02"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Title",
+      "instruction": "Title: Clear, descriptive vulnerability name",
+      "tip": "Good: 'SQL Injection in Login Form Parameter'. Bad: 'SQL Injection'. Be specific",
+      "expected_output": "Descriptive title written"
+    },
+    {
+      "number": 2,
+      "title": "Summary",
+      "instruction": "Summary: One paragraph describing the finding",
+      "tip": "What is it, where is it, and why does it matter? Keep it under 100 words",
+      "expected_output": "Summary paragraph written"
+    },
+    {
+      "number": 3,
+      "title": "Severity",
+      "instruction": "Severity: CVSS score with justification",
+      "tip": "Don't just state the score. Explain why: 'Network attack vector, no authentication required, complete data access'",
+      "expected_output": "Justified severity rating"
+    },
+    {
+      "number": 4,
+      "title": "Impact",
+      "instruction": "Impact: What an attacker could achieve if exploited",
+      "tip": "Write in business terms: 'could access all customer records' not 'could dump the database'",
+      "expected_output": "Business impact described"
+    },
+    {
+      "number": 5,
+      "title": "Steps to Reproduce",
+      "instruction": "Steps to Reproduce: Detailed, numbered, reproducible instructions",
+      "tip": "Test your steps yourself. If you can't reproduce from your own instructions, rewrite them",
+      "expected_output": "Numbered reproduction steps"
+    },
+    {
+      "number": 6,
+      "title": "Proof of Concept",
+      "instruction": "Proof of Concept: Screenshots, HTTP requests, or script output",
+      "tip": "Annotate screenshots with arrows and highlights. Redact sensitive data. Show, don't just tell",
+      "expected_output": "Annotated PoC evidence"
+    },
+    {
+      "number": 7,
+      "title": "Remediation",
+      "instruction": "Remediation: Specific recommended fix with references",
+      "tip": "Reference OWASP, CWE, or vendor docs. 'Implement parameterised queries per OWASP SQLi Prevention Cheat Sheet'",
+      "expected_output": "Referenced remediation recommendation"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 7
+}

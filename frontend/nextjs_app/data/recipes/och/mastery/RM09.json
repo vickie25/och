@@ -1,0 +1,69 @@
+{
+  "recipe_id": "RM09",
+  "title": "OPSEC Incident Response",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Adversary Infrastructure at Scale",
+  "pillar_icon": "\ud83c\udf0d",
+  "estimated_time": "28 min",
+  "difficulty": "Mastery",
+  "tools_required": [
+    "Threat intelligence feeds",
+    "Log analysis tools (ELK, Splunk)",
+    "Network monitoring (tcpdump, Zeek)",
+    "Incident response frameworks",
+    "Communication tools",
+    "Evidence preservation",
+    "Decision support tools"
+  ],
+  "when_to_use": "Use OPSEC Incident Response to develop professional-grade opsec incident response capabilities at Mastery level. This recipe is part of the Adversary Infrastructure at Scale pillar and integrates with linked missions OM-M07, OM-M13.",
+  "linked_missions": [
+    "OM-M07",
+    "OM-M13"
+  ],
+  "step_count": 6,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Detection Mechanisms & Early Warning",
+      "instruction": "Implement multi-layer detection: automated alerts (certificate reputation warnings, traffic anomalies, team server error rates), human review (log analysis, threat intel cross-referencing), operator reports (suspicious network activity, strange team server behavior). Design early warning system: what signals indicate potential detection?",
+      "tip": "Early detection buys time. Invest in threat intelligence feeds for malware signatures and C2 domains.",
+      "expected_output": "Detection framework + signal definitions"
+    },
+    {
+      "number": 2,
+      "title": "Rapid Assessment Protocol",
+      "instruction": "Upon detection signal, execute rapid assessment: confirm alert legitimacy (avoid false positives), determine scope (single component vs entire infrastructure?), estimate exposure (was operator identified?), timeline (how much was observed?). Assessment must complete in <1 hour. Decision point: is engagement salvageable or total loss?",
+      "tip": "Assessment answers critical question: do we burn now or investigate further? Wrong choice has high cost.",
+      "expected_output": "Assessment template with decision criteria"
+    },
+    {
+      "number": 3,
+      "title": "Containment Strategy",
+      "instruction": "Design containment for various scenarios: team server detected (burn team server + redirect to new), redirector detected (retire + spin up new), C2 malware detected (retire malware variant + recompile), operator identified (safe house relocation + comms change). Containment: rapid, minimal noise, preserves engagement viability where possible.",
+      "tip": "Containment must be rehearsed. When under pressure, you execute what you practiced.",
+      "expected_output": "Containment runbooks for each scenario"
+    },
+    {
+      "number": 4,
+      "title": "Decision Framework",
+      "instruction": "Build decision tree: given detection scenario and assessment results, what action: abort engagement, pivot infrastructure, scale down operations, accelerate objectives? Criteria: operator safety, engagement success probability, mission importance, risk tolerance. Document: decision authority, escalation path, communication protocol.",
+      "tip": "Decision framework should account for incomplete information. Design for worst-case assessment.",
+      "expected_output": "Decision tree with criteria and authorities"
+    },
+    {
+      "number": 5,
+      "title": "Communication & Coordination",
+      "instruction": "Establish secure communication protocol for incident response: operator notification (encrypted channels), team coordination (command structure), client notification (if appropriate for authorized engagement), evidence preservation (log evidence immediately). Include backup communication channels (air-gapped comms, dead drops if necessary).",
+      "tip": "Communication failures cascade; design redundancy.",
+      "expected_output": "Communication protocol with examples"
+    },
+    {
+      "number": 6,
+      "title": "Post-Incident Review & Improvement",
+      "instruction": "After any incident (detected or false alarm), conduct thorough review: detection accuracy, assessment quality, containment effectiveness, decision logic, communication clarity. Update threat model, SOPs, training based on lessons. Build continuous improvement loop.",
+      "tip": "Incidents are expensive; extract maximum learning.",
+      "expected_output": "Post-incident review template + lessons learned capture"
+    }
+  ]
+}

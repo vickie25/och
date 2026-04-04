@@ -1,0 +1,136 @@
+{
+  "mission_id": "OB-M20",
+  "title": "Career Blueprint",
+  "pillar": "Mission Readiness",
+  "module_number": 20,
+  "module_title": "Professional Development & Portfolio",
+  "video_duration": "12 min",
+  "estimated_time": "1.5 hours",
+  "multiday": false,
+  "deadline": "7 days",
+  "prerequisites": [
+    "All previous beginner missions completed or in progress",
+    "Reflection on learning journey"
+  ],
+  "learning_objectives": [
+    "Perform honest self-assessment of acquired skills",
+    "Curate portfolio artifacts from completed missions",
+    "Create a 12-month professional development roadmap"
+  ],
+  "key_topics": [
+    "Skills self-assessment methodology",
+    "Portfolio curation and presentation",
+    "Career roadmap planning",
+    "Professional identity development",
+    "Certification path planning",
+    "Community engagement"
+  ],
+  "scenario": "You have completed Beginner Offensive. Before moving to Intermediate, document where you have been, where you are, and where you are going. This becomes a key portfolio piece and your roadmap for the next 12 months.",
+  "scenario_context": {
+    "setting": "End of Beginner track reflection and planning",
+    "challenge": "Honest self-assessment and strategic career planning",
+    "relevance": "Self-awareness is what separates professionals who grow from those who plateau. Your career blueprint is a living document."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Skills Inventory",
+      "description": "List every skill gained through the Beginner track. Rate yourself 1-5 on each. Be honest.",
+      "detailed_guidance": "Use the full curriculum as a checklist. Rate: 1=Heard of it, 2=Understand concept, 3=Can do with guidance, 4=Can do independently, 5=Can teach others. Be brutally honest.",
+      "evidence_required": "Skills inventory with self-assessment ratings"
+    },
+    {
+      "number": 2,
+      "title": "Portfolio Review",
+      "description": "Gather your best 3 mission outputs. Write a one-paragraph summary of each explaining what you did and learned.",
+      "detailed_guidance": "Choose 3 missions where you're most proud of your work. For each: what was the challenge, what did you do, what did you learn, what would you do differently?",
+      "evidence_required": "3 portfolio summaries (one per mission)"
+    },
+    {
+      "number": 3,
+      "title": "12-Month Roadmap",
+      "description": "Create a month-by-month plan: OCH progression, certifications, CTF participation, community involvement, portfolio milestones.",
+      "detailed_guidance": "Month 1-2: OCH Intermediate. Month 3: CTF competitions. Month 4: eJPT prep. Month 5: HackTheBox/VulnHub. Month 6: Portfolio building. Adjust to your reality. Be specific.",
+      "evidence_required": "12-month career roadmap document"
+    },
+    {
+      "number": 4,
+      "title": "Identity Statement",
+      "description": "Write your Offensive Security Professional Identity Statement: who you are becoming, what you stand for, and how you will use your skills ethically.",
+      "detailed_guidance": "One page. Who are you becoming professionally? What ethical principles guide your work? How will you contribute to African cybersecurity? This is personal and professional.",
+      "evidence_required": "Professional identity statement (1 page)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Self-Awareness",
+      "weight": "25%"
+    },
+    {
+      "category": "Planning Quality",
+      "weight": "25%"
+    },
+    {
+      "category": "Portfolio Curation",
+      "weight": "25%"
+    },
+    {
+      "category": "Identity Clarity",
+      "weight": "25%"
+    }
+  ],
+  "linked_recipes": [
+    "R28",
+    "R29"
+  ],
+  "resources": [
+    {
+      "name": "Skills Assessment Template",
+      "type": "Template"
+    },
+    {
+      "name": "Career Planning Guide",
+      "type": "PDF"
+    },
+    {
+      "name": "Portfolio Examples",
+      "type": "Examples"
+    }
+  ],
+  "reflection_prompt": "In 12 months, you want to be employed in cybersecurity. What is the single most important thing you need to do in the next 30 days to make that happen?",
+  "quiz": [
+    {
+      "question": "Honest self-assessment is valuable because:",
+      "options": [
+        "It looks good on a resume",
+        "It identifies specific gaps you can target for improvement",
+        "It's required for certification",
+        "It replaces practical skills"
+      ],
+      "correct_index": 1,
+      "explanation": "Knowing your actual skill level prevents overconfidence and enables targeted improvement where it matters most."
+    },
+    {
+      "question": "A professional identity statement is important because:",
+      "options": [
+        "Employers require it",
+        "It clarifies your values and direction, guiding decisions throughout your career",
+        "It replaces a resume",
+        "It's a legal requirement"
+      ],
+      "correct_index": 1,
+      "explanation": "A clear professional identity helps you make career decisions, maintain ethical boundaries, and communicate your value to employers."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Skills inventory with ratings",
+    "3 curated portfolio summaries",
+    "12-month roadmap",
+    "Professional identity statement"
+  ],
+  "mentor_notes": "Honesty in self-assessment is more important than high ratings. The identity statement reveals professional maturity. The roadmap should be realistic and specific to their situation.",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "🚀",
+  "mission_type": "Mandatory"
+}

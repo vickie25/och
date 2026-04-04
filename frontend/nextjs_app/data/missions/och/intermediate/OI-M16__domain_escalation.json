@@ -1,0 +1,170 @@
+{
+  "mission_id": "OI-M16",
+  "title": "Domain Escalation",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Password Attacks",
+  "pillar_icon": "🔑",
+  "mission_type": "Mandatory",
+  "module_number": 16,
+  "module_title": "Active Directory Attacks and Domain Privilege Escalation",
+  "video_duration": "18 min",
+  "estimated_time": "5-6 hrs",
+  "multiday": true,
+  "deadline": "72 hours",
+  "prerequisites": [
+    "Beginner Offensive Track completed",
+    "Active Directory fundamentals",
+    "Kerberos authentication concepts",
+    "Impacket tools familiarity",
+    "PowerShell AD enumeration",
+    "Domain user credentials required"
+  ],
+  "learning_objectives": [
+    "Enumerate Active Directory structure and trust relationships",
+    "Execute Kerberoasting to extract and crack service tickets",
+    "Perform AS-REP roasting on pre-authentication disabled accounts",
+    "Perform credential relay and reuse attacks",
+    "Escalate from domain user to domain admin",
+    "Document comprehensive AD security assessment"
+  ],
+  "key_topics": [
+    "Active Directory enumeration (PowerShell, Bloodhound)",
+    "Kerberos protocol and ticket attacks",
+    "Service Principal Name (SPN) enumeration",
+    "Kerberoasting ticket extraction and cracking",
+    "AS-REP roasting pre-auth disabled accounts",
+    "NTLM relay attacks",
+    "Credential reuse and lateral movement",
+    "Domain trust exploitation",
+    "AD security assessment"
+  ],
+  "scenario": "Foothold on a domain-joined workstation. Escalate from domain user to domain admin via AD authentication attacks.",
+  "scenario_context": {
+    "setting": "Domain-joined workstation with valid user credentials",
+    "challenge": "Escalate from standard domain user to domain admin",
+    "relevance": "AD exploitation is critical for enterprise network compromise"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Domain Enumeration",
+      "description": "Users, groups, SPNs, computer accounts, trusts.",
+      "detailed_guidance": "Use PowerShell, Impacket, and Bloodhound to enumerate domain structure. Document users, groups, SPNs, computer accounts, and domain trusts.",
+      "evidence_required": "Domain enumeration with attack findings identified"
+    },
+    {
+      "number": 2,
+      "title": "Kerberoasting",
+      "description": "Request and crack service tickets.",
+      "detailed_guidance": "Enumerate SPNs with GetUserSPNs.py. Request Kerberos tickets for service accounts. Crack extracted tickets. Document successful cracks.",
+      "evidence_required": "Kerberoast log: SPN, ticket hash, cracked password"
+    },
+    {
+      "number": 3,
+      "title": "AS-REP Roasting",
+      "description": "Pre-auth disabled accounts.",
+      "detailed_guidance": "Find accounts with pre-authentication disabled. Extract AS-REP hashes. Crack hashes. Document accounts compromised.",
+      "evidence_required": "AS-REP results with cracked accounts"
+    },
+    {
+      "number": 4,
+      "title": "Credential Relay/Reuse",
+      "description": "Lateral movement with discovered creds.",
+      "detailed_guidance": "Test discovered credentials on other systems. Document credential reuse across domain. Perform lateral movement.",
+      "evidence_required": "Credential reuse matrix with lateral movement proof"
+    },
+    {
+      "number": 5,
+      "title": "Domain Admin Achievement",
+      "description": "Achieve DA through any valid chain.",
+      "detailed_guidance": "Use any of the above attacks to escalate to domain admin. Document the complete exploitation chain.",
+      "evidence_required": "Domain admin access evidence + chain documentation"
+    },
+    {
+      "number": 6,
+      "title": "AD Security Assessment",
+      "description": "Comprehensive report with attack paths.",
+      "detailed_guidance": "Write assessment covering enumeration findings, vulnerabilities exploited, attack paths used, and recommendations.",
+      "evidence_required": "AD security assessment report (5+ pages)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Enumeration Quality",
+      "weight": "15%"
+    },
+    {
+      "category": "Attack Execution",
+      "weight": "25%"
+    },
+    {
+      "category": "DA Achievement",
+      "weight": "20%"
+    },
+    {
+      "category": "Attack Chain Documentation",
+      "weight": "15%"
+    },
+    {
+      "category": "Assessment Report",
+      "weight": "15%"
+    },
+    {
+      "category": "Recommendations",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "RI23",
+    "RI24"
+  ],
+  "resources": [
+    {
+      "name": "Impacket Tools for AD Attacks",
+      "type": "reference"
+    },
+    {
+      "name": "Kerberoasting and AS-REP Roasting Techniques",
+      "type": "guide"
+    },
+    {
+      "name": "Bloodhound AD Enumeration and Analysis",
+      "type": "tutorial"
+    }
+  ],
+  "reflection_prompt": "What AD security weaknesses did you discover? How would hardening help mitigate these attacks?",
+  "quiz": [
+    {
+      "question": "Why is Kerberoasting effective against AD service accounts?",
+      "options": [
+        "Service accounts use simple passwords",
+        "Anyone can request service tickets using SPN queries",
+        "Kerberos stores passwords in tickets",
+        "Domain controllers don't validate requests"
+      ],
+      "correct_index": 1,
+      "explanation": "Any authenticated domain user can request Kerberos tickets for services. If the service account password is weak, the ticket can be cracked offline."
+    },
+    {
+      "question": "What accounts are vulnerable to AS-REP roasting?",
+      "options": [
+        "All domain users",
+        "Service accounts only",
+        "Accounts with pre-authentication disabled",
+        "Domain administrators"
+      ],
+      "correct_index": 2,
+      "explanation": "AS-REP roasting targets accounts with pre-authentication disabled, allowing attackers to extract crackable hashes without valid credentials."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Domain enumeration with identified attack vectors",
+    "Kerberoast log with service accounts and results",
+    "AS-REP roasting results with cracked accounts",
+    "Credential reuse matrix",
+    "Domain admin access evidence with chain documentation",
+    "Comprehensive AD security assessment report"
+  ],
+  "mentor_notes": "Domain admin achievement is mandatory. Assessment should show AD understanding and attack chain clarity. 72-hour deadline allows thorough testing. Recommendations should be actionable."
+}

@@ -1,0 +1,71 @@
+{
+  "recipe_id": "R18",
+  "title": "Python Script Starter Template",
+  "pillar": "Scripting Basics",
+  "pillar_icon": "📜",
+  "estimated_time": "15 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Python 3",
+    "text editor"
+  ],
+  "when_to_use": "When starting any Python automation script for offensive work",
+  "linked_missions": [
+    "OB-M11",
+    "OB-M12"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Shebang",
+      "instruction": "Start with shebang: #!/usr/bin/env python3",
+      "tip": "env python3 is more portable than /usr/bin/python3 as Python location varies",
+      "expected_output": "Script file with shebang"
+    },
+    {
+      "number": 2,
+      "title": "Import Essentials",
+      "instruction": "Import essentials: import sys, os, socket, datetime",
+      "tip": "Only import what you need. sys for args, os for files, socket for network, datetime for timestamps",
+      "expected_output": "Imports added"
+    },
+    {
+      "number": 3,
+      "title": "Argument Handling",
+      "instruction": "Add argument handling: if len(sys.argv) < 2: print('Usage: script.py <target>'); sys.exit(1)",
+      "tip": "For complex arguments, use argparse instead. For simple scripts, sys.argv is sufficient",
+      "expected_output": "Argument handling added"
+    },
+    {
+      "number": 4,
+      "title": "Main Function",
+      "instruction": "Define main function: def main(target): ...",
+      "tip": "Keep main() clean. Call other functions from main(). This keeps code organised and testable",
+      "expected_output": "Main function defined"
+    },
+    {
+      "number": 5,
+      "title": "Error Handling",
+      "instruction": "Add try/except for error handling around all network calls",
+      "tip": "Catch specific exceptions: socket.gaierror for DNS, socket.timeout for timeouts, ConnectionRefusedError for refused",
+      "expected_output": "Error handling added"
+    },
+    {
+      "number": 6,
+      "title": "Output Function",
+      "instruction": "Add output function: write results to timestamped file",
+      "tip": "Use f-strings for clean formatting. Include run metadata: target, timestamp, script version",
+      "expected_output": "Output function added"
+    },
+    {
+      "number": 7,
+      "title": "Entry Point",
+      "instruction": "Add if __name__ == '__main__': main(sys.argv[1])",
+      "tip": "This pattern allows importing functions from other scripts without executing main()",
+      "expected_output": "Entry point added"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 7
+}

@@ -1,0 +1,167 @@
+{
+  "mission_id": "OM-M11",
+  "title": "The Practice — Red Team Business Plan",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Red Team Leadership & Practice",
+  "pillar_icon": "👑",
+  "mission_type": "Mandatory",
+  "module_number": 11,
+  "module_title": "Red Team Business Model",
+  "video_duration": "20-23 min",
+  "estimated_time": "12-15 hrs",
+  "multiday": true,
+  "deadline": "10 days",
+  "prerequisites": [
+    "Advanced Offensive Track - Mastery Tier Access"
+  ],
+  "learning_objectives": [
+    "Market analysis for Southern African cybersecurity services",
+    "Service catalog design with tiered offerings and SLAs",
+    "Professional engagement templates and pricing models",
+    "Team structure and hiring pipeline planning",
+    "3-year financial model with revenue projections",
+    "Go-to-market strategy targeting first 10 clients",
+    "Partnership and channel development",
+    "Africa-specific business considerations"
+  ],
+  "key_topics": [
+    "Market research and analysis",
+    "Service design and pricing",
+    "Engagement processes",
+    "Team management",
+    "Financial planning",
+    "Marketing and sales",
+    "Partnerships",
+    "African business environment"
+  ],
+  "scenario": "This Mastery mission requires professional-grade execution in Southern African cybersecurity services market. Challenge: Develop complete red team business plan: market analysis, service design, financials, go-to-market strategy. Relevance: OCH graduates launch professional red team practices serving pan-African enterprises and governments",
+  "scenario_context": {
+    "setting": "Southern African cybersecurity services market",
+    "challenge": "Develop complete red team business plan: market analysis, service design, financials, go-to-market strategy",
+    "relevance": "OCH graduates launch professional red team practices serving pan-African enterprises and governments"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Market Analysis",
+      "description": "Southern African cybersecurity market: demand, competitors, pricing.",
+      "detailed_guidance": "Research Southern African cybersecurity market:\n        - Market size and growth rates\n        - Competitive landscape: Who else offers red team services?\n        - Buyer personas: Who buys red team assessments?\n        - Pricing trends: What do assessments cost?\n        - Regional considerations: SADC, WAEMU, East Africa\n\n        Deliver: Market analysis with data-supported insights.",
+      "evidence_required": "Market analysis with data-supported insights"
+    },
+    {
+      "number": 2,
+      "title": "Service Catalog Design",
+      "description": "Offerings, deliverables, SLAs, pricing per tier.",
+      "detailed_guidance": "Define service offerings:\n        - Standard Red Team Assessment (scope, duration, cost)\n        - Targeted Assessment (specific systems, lower cost)\n        - OT-focused Assessment (specialized, premium)\n        - Mentorship/Training (team capability building)\n        - SLAs: Response times, report delivery, support\n\n        Deliver: Service catalog with pricing and SLA details.",
+      "evidence_required": "Service catalog with pricing rationale"
+    },
+    {
+      "number": 3,
+      "title": "Engagement Templates",
+      "description": "Proposal, engagement letter, ROE, report, exec presentation.",
+      "detailed_guidance": "Develop professional templates:\n        1. Proposal: How to pitch red team services\n        2. Engagement letter: Legal agreement and terms\n        3. Rules of Engagement: Scope and limitations\n        4. Report template: How to present findings\n        5. Executive presentation: C-suite communication\n\n        Deliver: 5 professional documents ready for use.",
+      "evidence_required": "Complete template package (5 documents)"
+    },
+    {
+      "number": 4,
+      "title": "Team & Operations Plan",
+      "description": "Structure, hiring, training pipeline, operational procedures.",
+      "detailed_guidance": "Plan organizational structure:\n        - Founder/lead role and responsibilities\n        - Operator team: Skills matrix and hiring\n        - Growth trajectory: Year 1-3 team expansion\n        - Training and development: How to develop staff\n        - Operational procedures: Workflows and approvals\n\n        Deliver: Team plan with org chart and growth projections.",
+      "evidence_required": "Team plan with org chart + growth projections"
+    },
+    {
+      "number": 5,
+      "title": "Financial Model",
+      "description": "3-year financials: revenue, costs, margins, break-even.",
+      "detailed_guidance": "Develop 3-year financial projections:\n        - Revenue model: Pricing strategy and volume\n        - Cost structure: Salaries, infrastructure, overhead\n        - Profitability: EBITDA and margins by year\n        - Break-even analysis: When does business become profitable?\n        - Cash flow: Monthly projections\n\n        Deliver: Financial model with documented assumptions.",
+      "evidence_required": "Financial model with documented assumptions"
+    },
+    {
+      "number": 6,
+      "title": "Go-to-Market Strategy",
+      "description": "First 10 clients, partnerships, marketing, positioning.",
+      "detailed_guidance": "Plan market entry:\n        - Target market: Which companies/industries first?\n        - Sales strategy: How to find and close first 10 clients\n        - Partnerships: Industry partnerships and channels\n        - Marketing: Branding and awareness building\n        - Positioning: Your unique value proposition\n        - 90-day action plan: Specific steps to launch\n\n        Deliver: GTM strategy with 90-day action plan.",
+      "evidence_required": "GTM strategy with 90-day action plan"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Market Analysis",
+      "weight": "15%"
+    },
+    {
+      "category": "Service Design",
+      "weight": "15%"
+    },
+    {
+      "category": "Template Professionalism",
+      "weight": "15%"
+    },
+    {
+      "category": "Financial Realism",
+      "weight": "20%"
+    },
+    {
+      "category": "GTM Strategy",
+      "weight": "15%"
+    },
+    {
+      "category": "Africa-Specific Insight",
+      "weight": "20%"
+    }
+  ],
+  "linked_recipes": [
+    "RM13",
+    "RM14"
+  ],
+  "resources": [
+    {
+      "type": "Documentation",
+      "title": "OCH Mastery Reference Guide",
+      "url": "https://och.dev/mastery-reference"
+    },
+    {
+      "type": "Video",
+      "title": "Mission Overview: The Practice — Red Team Business Plan",
+      "duration": "20-23 min"
+    },
+    {
+      "type": "Tool",
+      "title": "OCH Mastery Assessment Framework",
+      "url": "https://och.dev/assessment"
+    }
+  ],
+  "reflection_prompt": "What competitive advantages would a pan-African red team have versus foreign competitors? How would you structure pricing for African enterprises with different budgets and maturity levels?",
+  "quiz": [
+    {
+      "question": "When developing a red team business plan for Southern African markets, what is the primary competitive advantage of local operators versus international firms?",
+      "options": [
+        "International firms are always more capable",
+        "Local operators understand regional infrastructure, legal frameworks, client relationships, and threat landscapes—enabling targeted service delivery and client trust",
+        "Competitive advantage doesn't matter in cybersecurity",
+        "Price is the only factor clients consider"
+      ],
+      "correct_index": 1,
+      "explanation": "Local African red teams understand regional context: enterprise maturity, infrastructure patterns, regulatory environment, and threat actors. This enables better threat modeling, relevant service design, and client relationships that international competitors struggle to establish."
+    },
+    {
+      "question": "In your go-to-market strategy for pan-African red team services, what distinguishes your approach to the first 10 clients?",
+      "options": [
+        "Target clients are determined randomly",
+        "Strategic selection of early adopters that will provide references, case studies, and operating capital for scaling—typically progressive enterprises and government agencies",
+        "All clients are equally important in the first phase",
+        "Go-to-market strategy doesn't matter for technical services"
+      ],
+      "correct_index": 1,
+      "explanation": "Strategic client selection matters critically for new red team practices. First clients should be progressive organizations that will value your capabilities, provide references and testimonials, and generate revenue for sustainable scaling. Regional government agencies and forward-thinking enterprises are ideal early targets."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Professional deliverables demonstrating mastery-level capability",
+    "Complete documentation and methodology",
+    "Evidence of technical excellence and strategic thinking",
+    "Leadership and mentorship contributions"
+  ],
+  "mentor_notes": "\nThis Mastery mission requires senior mentor review. Candidates must demonstrate:\n- Professional-grade execution and documentation\n- Deep understanding of African organizational and threat contexts\n- Strategic thinking beyond tactical execution\n- Readiness for commercial red team operations\n- Leadership potential within OCH and broader community\n\nSuccessful completion positions candidate for Mastery portfolio and professional practice.\n        "
+}

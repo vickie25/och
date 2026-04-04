@@ -1,0 +1,69 @@
+{
+  "recipe_id": "RI05",
+  "title": "Attack Path Mapping Framework",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Deep Enumeration",
+  "pillar_icon": "\ud83d\udd0e",
+  "estimated_time": "15 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "Diagramming tool"
+  ],
+  "when_to_use": "After enumeration before exploitation",
+  "linked_missions": [
+    "OI-M04"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Compile comprehensive list of all discovered access points and entry vectors",
+      "tip": "Start with the most reliable information source for attack path mapping framework",
+      "expected_output": "Documented list of all potential attack vectors with corresponding services"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "For each access point, identify logical next steps for privilege escalation or lateral movement",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "Annotated list showing progression possibilities from each access point"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Create visual diagram showing connections between access points and possible progressions",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Attack path diagram with nodes representing systems and edges showing progression paths"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Identify the shortest path to reach the defined engagement objective",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Documented shortest attack path with minimal hops to target goal"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Document all alternative paths that could reach the same objective",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "List of alternative attack paths with varying complexity levels"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Rate each path by difficulty, detection risk, and operational impact",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Scoring matrix ranking paths by risk factors and complexity"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Select and document the top 3 paths with detailed justifications for each",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Final report with 3 prioritized attack paths and comprehensive explanations"
+    }
+  ]
+}

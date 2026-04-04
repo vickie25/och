@@ -1,0 +1,155 @@
+{
+  "mission_id": "OI-M06",
+  "title": "XSS Impact Demonstration",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Web Application Attacks",
+  "pillar_icon": "🕸️",
+  "mission_type": "Mandatory",
+  "module_number": 6,
+  "module_title": "Advanced XSS Exploitation and Filter Bypass",
+  "video_duration": "15 min",
+  "estimated_time": "3-4 hrs",
+  "multiday": false,
+  "deadline": null,
+  "prerequisites": [
+    "Beginner Offensive Track completed",
+    "XSS fundamentals (Reflected, Stored, DOM)",
+    "JavaScript knowledge",
+    "Browser DOM manipulation",
+    "Filter bypass techniques"
+  ],
+  "learning_objectives": [
+    "Discover and classify XSS vulnerabilities across input vectors",
+    "Develop creative filter bypass techniques",
+    "Create impactful PoCs demonstrating business risk beyond alert boxes",
+    "Document findings in client-ready format"
+  ],
+  "key_topics": [
+    "Reflected XSS identification and exploitation",
+    "Stored XSS discovery and persistence",
+    "DOM-based XSS and client-side sinks",
+    "HTML/JavaScript filter bypass techniques",
+    "Content Security Policy (CSP) evasion",
+    "Session cookie theft and hijacking",
+    "Phishing injection techniques",
+    "Executive-friendly vulnerability reporting"
+  ],
+  "scenario": "A client dismisses XSS as harmless. Find XSS vulns, bypass filters, and create PoCs showing real impact beyond alert boxes.",
+  "scenario_context": {
+    "setting": "Web application with input filtering but incomplete XSS prevention",
+    "challenge": "Demonstrate business impact to stakeholder who underestimates XSS severity",
+    "relevance": "Many organizations minimize XSS risk; requires impact demonstration"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "XSS Discovery & Classification",
+      "description": "Test all inputs. Classify: reflected, stored, DOM-based.",
+      "detailed_guidance": "Systematically test every input field (search, comments, profile, etc.). For each XSS found, classify type and document injection point.",
+      "evidence_required": "XSS findings matrix with classification"
+    },
+    {
+      "number": 2,
+      "title": "Filter Bypass Challenge",
+      "description": "Develop 3+ bypass techniques per filter.",
+      "detailed_guidance": "When payloads are blocked, develop workarounds: case variation, encoding (HTML, Unicode, hex), nested tags, event handlers, protocol schemes. Document each bypass.",
+      "evidence_required": "Filter bypass log with techniques and success rates"
+    },
+    {
+      "number": 3,
+      "title": "Cookie Theft PoC",
+      "description": "Demonstrate session cookie theft.",
+      "detailed_guidance": "Create payload that exfiltrates session cookies to attacker-controlled server. Document attacker's ability to hijack session.",
+      "evidence_required": "Cookie theft PoC with captured credentials"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Impact Demo",
+      "description": "Show phishing injection, keylogging, or defacement.",
+      "detailed_guidance": "Create payload demonstrating realistic business impact: phishing form injection, keylogger implementation, or page defacement. Record PoC.",
+      "evidence_required": "Advanced impact PoC with video/screenshot evidence"
+    },
+    {
+      "number": 5,
+      "title": "Client-Ready Report",
+      "description": "Executive-friendly report.",
+      "detailed_guidance": "Write non-technical summary emphasizing business impact (account takeover, data theft, fraud). Include executive summary and technical appendix.",
+      "evidence_required": "Executive vulnerability report with business impact"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Discovery Thoroughness",
+      "weight": "20%"
+    },
+    {
+      "category": "Bypass Creativity",
+      "weight": "20%"
+    },
+    {
+      "category": "Impact Demonstration",
+      "weight": "25%"
+    },
+    {
+      "category": "Report Clarity",
+      "weight": "20%"
+    },
+    {
+      "category": "Technical Accuracy",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "RI08",
+    "RI09"
+  ],
+  "resources": [
+    {
+      "name": "XSS Filter Bypass Techniques Reference",
+      "type": "guide"
+    },
+    {
+      "name": "JavaScript Payload Crafting for XSS",
+      "type": "tutorial"
+    },
+    {
+      "name": "OWASP XSS Prevention Cheat Sheet",
+      "type": "reference"
+    }
+  ],
+  "reflection_prompt": "How would you explain XSS impact to a non-technical executive? What was the most creative filter bypass you discovered?",
+  "quiz": [
+    {
+      "question": "Why is Stored XSS generally more dangerous than Reflected XSS?",
+      "options": [
+        "It executes faster",
+        "It affects multiple users automatically",
+        "It's harder to detect",
+        "It bypasses WAF"
+      ],
+      "correct_index": 1,
+      "explanation": "Stored XSS persists in the application and affects all users who view the payload, making it a mass exploitation vector."
+    },
+    {
+      "question": "What is the primary security benefit of Content Security Policy (CSP)?",
+      "options": [
+        "Prevents DOM attacks",
+        "Restricts script sources and prevents inline scripts",
+        "Blocks all XSS attacks",
+        "Encrypts payloads"
+      ],
+      "correct_index": 1,
+      "explanation": "CSP allows organizations to restrict where scripts can be loaded from, preventing inline script execution and limiting XSS impact."
+    }
+  ],
+  "portfolio_artifacts": [
+    "XSS discovery and classification matrix",
+    "Filter bypass techniques documentation",
+    "Cookie theft PoC code and evidence",
+    "Advanced impact PoC (video/screenshots)",
+    "Executive vulnerability report",
+    "Technical appendix with payloads"
+  ],
+  "mentor_notes": "Assess creativity in filter bypass and quality of impact demonstration. Executive summary should convert technical findings into business language. PoCs must be convincing but ethical."
+}

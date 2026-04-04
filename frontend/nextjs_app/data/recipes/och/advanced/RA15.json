@@ -1,0 +1,67 @@
+{
+  "recipe_id": "RA15",
+  "title": "Data Exfiltration Workflow",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Command & Control",
+  "pillar_icon": "\ud83d\udce1",
+  "estimated_time": "40 min",
+  "difficulty": "Advanced",
+  "tools_required": [
+    "Custom scripts",
+    "DNS tools",
+    "HTTP/HTTPS",
+    "Encryption tools"
+  ],
+  "when_to_use": "Use this recipe when data exfiltration workflow is required. This advanced recipe covers professional-grade techniques suitable for experienced red teamers. Applicable to missions: OA-M11, OA-M12, OA-M19.",
+  "linked_missions": [
+    "OA-M11",
+    "OA-M12",
+    "OA-M19"
+  ],
+  "step_count": 6,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Step 1: Data Exfiltration Workflow",
+      "instruction": "Execute step 1 of the Data Exfiltration Workflow recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 1 with documented results and artifacts collected."
+    },
+    {
+      "number": 2,
+      "title": "Step 2: Data Exfiltration Workflow",
+      "instruction": "Execute step 2 of the Data Exfiltration Workflow recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 2 with documented results and artifacts collected."
+    },
+    {
+      "number": 3,
+      "title": "Step 3: Data Exfiltration Workflow",
+      "instruction": "Execute step 3 of the Data Exfiltration Workflow recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 3 with documented results and artifacts collected."
+    },
+    {
+      "number": 4,
+      "title": "Step 4: Data Exfiltration Workflow",
+      "instruction": "Execute step 4 of the Data Exfiltration Workflow recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 4 with documented results and artifacts collected."
+    },
+    {
+      "number": 5,
+      "title": "Step 5: Data Exfiltration Workflow",
+      "instruction": "Execute step 5 of the Data Exfiltration Workflow recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 5 with documented results and artifacts collected."
+    },
+    {
+      "number": 6,
+      "title": "Step 6: Data Exfiltration Workflow",
+      "instruction": "Execute step 6 of the Data Exfiltration Workflow recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 6 with documented results and artifacts collected."
+    }
+  ]
+}

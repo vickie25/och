@@ -1,0 +1,166 @@
+{
+  "mission_id": "OM-M08",
+  "title": "Critical Infrastructure — OT Security Assessment",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Specialist Domains",
+  "pillar_icon": "🎯",
+  "mission_type": "Mandatory",
+  "module_number": 8,
+  "module_title": "OT/SCADA Security",
+  "video_duration": "19-21 min",
+  "estimated_time": "10-12 hrs",
+  "multiday": true,
+  "deadline": "10 days",
+  "prerequisites": [
+    "Advanced Offensive Track - Mastery Tier Access"
+  ],
+  "learning_objectives": [
+    "OT environment study and SCADA architecture understanding",
+    "Safety-first assessment methodology with explicit safety constraints",
+    "IT/OT boundary analysis and segmentation testing",
+    "Threat scenario development for African power utilities",
+    "OT-specific assessment reporting with operational impact scoring",
+    "Client education on OT security fundamentals",
+    "Regulatory framework awareness (AU, SADC standards)"
+  ],
+  "key_topics": [
+    "SCADA and ICS architecture",
+    "OT safety considerations",
+    "Segmentation testing",
+    "Threat modeling for infrastructure",
+    "ATT&CK for ICS mapping",
+    "OT-specific reporting",
+    "Client education approaches",
+    "African infrastructure context"
+  ],
+  "scenario": "This Mastery mission requires professional-grade execution in Southern African power utility with coal and solar generation plants. Challenge: Design safety-first OT assessment methodology for power generation SCADA systems. Relevance: African critical infrastructure (power, water, utilities) increasingly targeted by nation-states; OT assessment expertise critical",
+  "scenario_context": {
+    "setting": "Southern African power utility with coal and solar generation plants",
+    "challenge": "Design safety-first OT assessment methodology for power generation SCADA systems",
+    "relevance": "African critical infrastructure (power, water, utilities) increasingly targeted by nation-states; OT assessment expertise critical"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "OT Environment Study",
+      "description": "Research SCADA architecture for power generation.",
+      "detailed_guidance": "Research Southern African power utility infrastructure:\n        - Coal generation plants: Technology, controls, safety systems\n        - Solar farms: Distributed architecture, modern controls\n        - Transmission: SCADA systems, protective relays\n        - Distribution: SCADA, demand response, AMI systems\n\n        Deliver: Study document with architecture diagrams.",
+      "evidence_required": "OT environment study with architecture diagram"
+    },
+    {
+      "number": 2,
+      "title": "Assessment Methodology",
+      "description": "Safe OT methodology. Document what you will NOT do.",
+      "detailed_guidance": "Develop safe OT assessment approach:\n        - What will you test? (segmentation, configs, patches)\n        - What will you NOT test? (Safety systems, emergency stops)\n        - How do you prevent operational disruption?\n        - How do you coordinate with OT team?\n\n        Deliver: Methodology document with explicit safety constraints.",
+      "evidence_required": "Methodology with safety constraints"
+    },
+    {
+      "number": 3,
+      "title": "IT/OT Boundary Analysis Plan",
+      "description": "Test segmentation without impacting operations.",
+      "detailed_guidance": "Plan boundary testing:\n        - What is the IT/OT boundary in this environment?\n        - How is it protected?\n        - Can you move from IT to OT?\n        - How would you test without impacting operations?\n\n        Deliver: Test plan with safety procedures.",
+      "evidence_required": "Boundary test plan with safety procedures"
+    },
+    {
+      "number": 4,
+      "title": "Threat Scenario Development",
+      "description": "3 scenarios specific to African power utility OT.",
+      "detailed_guidance": "Develop 3 realistic scenarios for African utility:\n        1. Nation-state targeting power generation\n        2. Insider with OT access\n        3. Supply chain compromise (software/hardware)\n\n        Map each to ATT&CK for ICS framework.\n\n        Deliver: 3 scenarios with threat modeling and attack paths.",
+      "evidence_required": "3 scenarios with ATT&CK for ICS mapping"
+    },
+    {
+      "number": 5,
+      "title": "Assessment Report Template",
+      "description": "OT-specific template with operational impact scoring.",
+      "detailed_guidance": "Create OT-specific assessment template:\n        - Executive summary for utility management\n        - Findings with operational impact scoring\n        - Impact levels: Prevents operations, degrades, informs\n        - Recommendations prioritized by risk and effort\n        - Technical details for OT team\n\n        Deliver: Template document ready for use.",
+      "evidence_required": "OT report template"
+    },
+    {
+      "number": 6,
+      "title": "Client Education Package",
+      "description": "OT security education for utility management.",
+      "detailed_guidance": "Develop education for utility management:\n        - OT security fundamentals: Why it matters\n        - Threat landscape: Adversaries targeting African utilities\n        - Assessment value: What you'll learn, what it reveals\n        - FAQs: Common questions and misconceptions\n\n        Deliver: Executive presentation + FAQ document.",
+      "evidence_required": "Executive education: presentation + FAQ"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "OT Understanding",
+      "weight": "20%"
+    },
+    {
+      "category": "Safety-First Methodology",
+      "weight": "25%"
+    },
+    {
+      "category": "Threat Scenario Realism",
+      "weight": "15%"
+    },
+    {
+      "category": "Report Template Quality",
+      "weight": "15%"
+    },
+    {
+      "category": "Client Communication",
+      "weight": "15%"
+    },
+    {
+      "category": "Africa-Specific Context",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "RM10",
+    "RM11"
+  ],
+  "resources": [
+    {
+      "type": "Documentation",
+      "title": "OCH Mastery Reference Guide",
+      "url": "https://och.dev/mastery-reference"
+    },
+    {
+      "type": "Video",
+      "title": "Mission Overview: Critical Infrastructure — OT Security Assessment",
+      "duration": "19-21 min"
+    },
+    {
+      "type": "Tool",
+      "title": "OCH Mastery Assessment Framework",
+      "url": "https://och.dev/assessment"
+    }
+  ],
+  "reflection_prompt": "How would your assessment approach differ for a coal plant versus solar installation in Africa? What legal and safety implications govern OT security testing in African jurisdictions?",
+  "quiz": [
+    {
+      "question": "When assessing OT security for a Southern African power utility, why is explicit safety-first methodology essential?",
+      "options": [
+        "Safety considerations slow down assessments unnecessarily",
+        "OT systems control critical infrastructure; unintended actions could cause outages, equipment damage, or public safety risks—requiring explicit constraints",
+        "Safety only matters for nuclear facilities",
+        "Experienced operators don't need safety procedures"
+      ],
+      "correct_index": 1,
+      "explanation": "OT systems control power, water, and other critical infrastructure. Unintended disruptions have real consequences for public safety and national security. Explicit safety constraints prevent actions that could cause operational disruption, equipment damage, or harm."
+    },
+    {
+      "question": "In threat scenario development for African power utilities, what distinguishes a realistic nation-state scenario from a hypothetical one?",
+      "options": [
+        "Realistic scenarios are always more complex",
+        "Realistic scenarios align with documented nation-state TTPs, target the utility's specific vulnerabilities, and account for regional geopolitical context",
+        "All scenarios are equally realistic",
+        "Hypothetical scenarios are more useful for planning"
+      ],
+      "correct_index": 1,
+      "explanation": "Realistic threat scenarios are based on actual observed nation-state tradecraft (ATT&CK for ICS), target the specific utility's known vulnerabilities, and consider regional geopolitical actors and their capabilities. This improves utility management's understanding of genuine risks."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Professional deliverables demonstrating mastery-level capability",
+    "Complete documentation and methodology",
+    "Evidence of technical excellence and strategic thinking",
+    "Leadership and mentorship contributions"
+  ],
+  "mentor_notes": "\nThis Mastery mission requires senior mentor review. Candidates must demonstrate:\n- Professional-grade execution and documentation\n- Deep understanding of African organizational and threat contexts\n- Strategic thinking beyond tactical execution\n- Readiness for commercial red team operations\n- Leadership potential within OCH and broader community\n\nSuccessful completion positions candidate for Mastery portfolio and professional practice.\n        "
+}

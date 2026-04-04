@@ -1,0 +1,77 @@
+{
+  "recipe_id": "RI25",
+  "title": "Pentest Report Structure Template",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Professional Reporting",
+  "pillar_icon": "\ud83d\udccb",
+  "estimated_time": "20 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "Word processor",
+    "annotation tool"
+  ],
+  "when_to_use": "When compiling the final pentest deliverable",
+  "linked_missions": [
+    "OI-M17"
+  ],
+  "step_count": 8,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Create professional cover page with company branding and engagement dates",
+      "tip": "Start with the most reliable information source for pentest report structure template",
+      "expected_output": "Formatted cover page with client name, pentest dates, and tester information"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Write concise executive summary (1 page) with key findings and risk overview",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "High-level summary suitable for non-technical stakeholders"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Document scope definition, engagement rules, and testing methodology",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Detailed scope section explaining what was tested and how"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Create summary table of all findings with severity ratings and status",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Quick-reference table enabling rapid finding review"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Write detailed finding sections following consistent template for each vulnerability",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Comprehensive finding documentation with technical details"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Develop risk matrix graphically showing severity vs likelihood",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Visual risk representation for executive communication"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Provide detailed remediation roadmap with timelines and responsible parties",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Actionable remediation plan with prioritization and timelines"
+    },
+    {
+      "number": 8,
+      "title": "Step 8",
+      "instruction": "Include appendices with tool output, testing timeline, and methodology details",
+      "tip": "Follow standard best practices for step 8",
+      "expected_output": "Supporting documentation validating testing rigor and thoroughness"
+    }
+  ]
+}

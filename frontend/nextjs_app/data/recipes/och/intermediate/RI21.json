@@ -1,0 +1,71 @@
+{
+  "recipe_id": "RI21",
+  "title": "Windows PrivEsc Methodology",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Privilege Escalation",
+  "pillar_icon": "\u2b06\ufe0f",
+  "estimated_time": "25 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "WinPEAS",
+    "PowerUp",
+    "accesschk"
+  ],
+  "when_to_use": "After gaining standard Windows user access",
+  "linked_missions": [
+    "OI-M14"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Run WinPEAS executable to perform automated Windows privilege escalation enumeration",
+      "tip": "Start with the most reliable information source for windows privesc methodology",
+      "expected_output": "Comprehensive report highlighting privilege escalation vectors and misconfigurations"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Enumerate services with wmic to identify services with modifiable paths",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "List of services with writable binary paths or parameters for DLL injection"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Use accesschk to verify file permissions on sensitive directories and services",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Confirmed writable access to system directories or service files"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Run Invoke-AllChecks PowerUp function to identify escalation opportunities",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "PowerShell output listing all discovered privilege escalation vulnerabilities"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Check AlwaysInstallElevated registry setting for MSI installation escalation",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Confirmed registry misconfiguration enabling elevated MSI installation"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Enumerate token privileges with 'whoami /priv' looking for SeImpersonate",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "List of user token privileges including service account escalation opportunities"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Search for stored credentials in registry, files, and configuration databases",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Recovered plaintext or recoverable credentials for escalation attempts"
+    }
+  ]
+}

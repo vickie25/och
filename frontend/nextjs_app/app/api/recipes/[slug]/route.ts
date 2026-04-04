@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { findRecipeNormalizedBySlug } from '@/lib/recipesFromFilesystem';
 
 export async function GET(
   request: NextRequest,
@@ -8,42 +7,21 @@ export async function GET(
 ) {
   try {
     const { slug } = await params;
-    const recipesDir = path.join(process.cwd(), 'data', 'recipes');
+    const recipe = findRecipeNormalizedBySlug(process.cwd(), slug);
 
-    if (!fs.existsSync(recipesDir)) {
+    if (!recipe) {
       return NextResponse.json({ error: 'Recipe not found' }, { status: 404 });
     }
 
-    const recipeFiles = fs.readdirSync(recipesDir)
-      .filter(file => file.endsWith('.json'));
-
-    for (const file of recipeFiles) {
-      try {
-        const content = fs.readFileSync(path.join(recipesDir, file), 'utf-8');
-        const recipe = JSON.parse(content);
-
-        if (recipe.slug === slug) {
-          return NextResponse.json({
-            ...recipe,
-            is_bookmarked: false,
-            user_status: null,
-            user_rating: null,
-            context_labels: []
-          });
-        }
-      } catch (error) {
-        console.error(`Error parsing ${file}:`, error);
-        continue;
-      }
-    }
-
-    return NextResponse.json({ error: 'Recipe not found' }, { status: 404 });
-
+    return NextResponse.json({
+      ...recipe,
+      is_bookmarked: false,
+      user_status: null,
+      user_rating: null,
+      context_labels: [],
+    });
   } catch (error) {
     console.error('Error fetching recipe:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch recipe' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch recipe' }, { status: 500 });
   }
 }

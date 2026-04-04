@@ -1,0 +1,65 @@
+{
+  "recipe_id": "RA06",
+  "title": "Evasion Development Workflow",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Evasion & Anti-Detection",
+  "pillar_icon": "\ud83d\udc7b",
+  "estimated_time": "45 min",
+  "difficulty": "Advanced",
+  "tools_required": [
+    "Custom development environment",
+    "Obfuscation tools",
+    "Encryption libraries"
+  ],
+  "when_to_use": "Use this recipe when evasion development workflow is required. This advanced recipe covers professional-grade techniques suitable for experienced red teamers. Applicable to missions: OA-M04, OA-M05.",
+  "linked_missions": [
+    "OA-M04",
+    "OA-M05"
+  ],
+  "step_count": 6,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Step 1: Evasion Development Workflow",
+      "instruction": "Execute step 1 of the Evasion Development Workflow recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 1 with documented results and artifacts collected."
+    },
+    {
+      "number": 2,
+      "title": "Step 2: Evasion Development Workflow",
+      "instruction": "Execute step 2 of the Evasion Development Workflow recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 2 with documented results and artifacts collected."
+    },
+    {
+      "number": 3,
+      "title": "Step 3: Evasion Development Workflow",
+      "instruction": "Execute step 3 of the Evasion Development Workflow recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 3 with documented results and artifacts collected."
+    },
+    {
+      "number": 4,
+      "title": "Step 4: Evasion Development Workflow",
+      "instruction": "Execute step 4 of the Evasion Development Workflow recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 4 with documented results and artifacts collected."
+    },
+    {
+      "number": 5,
+      "title": "Step 5: Evasion Development Workflow",
+      "instruction": "Execute step 5 of the Evasion Development Workflow recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 5 with documented results and artifacts collected."
+    },
+    {
+      "number": 6,
+      "title": "Step 6: Evasion Development Workflow",
+      "instruction": "Execute step 6 of the Evasion Development Workflow recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 6 with documented results and artifacts collected."
+    }
+  ]
+}

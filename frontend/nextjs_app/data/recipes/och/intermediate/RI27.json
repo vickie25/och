@@ -1,0 +1,71 @@
+{
+  "recipe_id": "RI27",
+  "title": "Finding Presentation Framework",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Professional Reporting",
+  "pillar_icon": "\ud83d\udccb",
+  "estimated_time": "15 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "Presentation software",
+    "screen recorder"
+  ],
+  "when_to_use": "When presenting results to client audiences",
+  "linked_missions": [
+    "OI-M18",
+    "OI-M19"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Open presentation with business impact statement capturing attention immediately",
+      "tip": "Start with the most reliable information source for finding presentation framework",
+      "expected_output": "Compelling opening slide focused on financial or operational risk"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Present attack chain visually showing progression from access to impact",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "Visual diagram demonstrating attack flow and compromised systems"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Demonstrate vulnerability live with screen recording or recorded demo",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Video demonstration showing vulnerability exploitation clearly"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Frame all technical details in business context and strategic impact",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Risk communication translated to business terms and decision-making factors"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Provide specific remediation with clear timeline and resource requirements",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Actionable remediation plan with realistic implementation schedule"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Close presentation emphasizing security improvements and partnership",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Positive conclusion reinforcing collaborative security improvement approach"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Prepare for difficult questions with detailed technical knowledge and client awareness",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Confidence and credibility demonstrated through thorough preparation"
+    }
+  ]
+}

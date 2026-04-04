@@ -1,0 +1,69 @@
+{
+  "recipe_id": "R15",
+  "title": "DevTools Recon Exercise",
+  "pillar": "Web Fundamentals",
+  "pillar_icon": "🕸️",
+  "estimated_time": "15 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Chrome/Firefox Developer Tools"
+  ],
+  "when_to_use": "When passively analysing any web application",
+  "linked_missions": [
+    "OB-M09"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Open DevTools",
+      "instruction": "Open any website in Chrome or Firefox",
+      "tip": "Start with a site you know well — you'll recognise anomalies faster",
+      "expected_output": "Website loaded"
+    },
+    {
+      "number": 2,
+      "title": "Launch Developer Tools",
+      "instruction": "Press F12 to open Developer Tools",
+      "tip": "Also accessible via right-click → Inspect or Ctrl+Shift+I",
+      "expected_output": "DevTools open"
+    },
+    {
+      "number": 3,
+      "title": "Network Tab",
+      "instruction": "Go to Network tab and refresh the page",
+      "tip": "Check 'Preserve log' to keep requests across page navigations",
+      "expected_output": "Network requests visible"
+    },
+    {
+      "number": 4,
+      "title": "Inspect Headers",
+      "instruction": "Click any request to view its headers (Request and Response)",
+      "tip": "Look for Server, X-Powered-By, and missing security headers",
+      "expected_output": "Headers analysed"
+    },
+    {
+      "number": 5,
+      "title": "Check Tokens",
+      "instruction": "Look for cookies, tokens, and parameters in headers",
+      "tip": "Authorization headers, session cookies, and API keys often reveal authentication patterns",
+      "expected_output": "Authentication tokens noted"
+    },
+    {
+      "number": 6,
+      "title": "Check Responses",
+      "instruction": "Check the Response tab for API data or hidden fields",
+      "tip": "API responses often contain more data than the UI displays. Look for user IDs, roles, and internal data",
+      "expected_output": "Response data reviewed"
+    },
+    {
+      "number": 7,
+      "title": "Document Findings",
+      "instruction": "Note any API endpoints, server versions, or frameworks exposed",
+      "tip": "Build a site map from your observations. This feeds directly into your recon report",
+      "expected_output": "Findings documented"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 7
+}

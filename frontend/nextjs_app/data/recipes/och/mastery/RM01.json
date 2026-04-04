@@ -1,0 +1,78 @@
+{
+  "recipe_id": "RM01",
+  "title": "Vulnerability Research Campaign",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Zero-Day Research & Development",
+  "pillar_icon": "\ud83d\udd2c",
+  "estimated_time": "30 min",
+  "difficulty": "Mastery",
+  "tools_required": [
+    "IDA Pro 7.x (Hex-Rays decompiler)",
+    "Ghidra (NSA reverse engineering)",
+    "AFL/libFuzzer (coverage-guided fuzzing)",
+    "AddressSanitizer (ASAN)",
+    "WinDbg/GDB (kernel debugging)",
+    "Frida (runtime instrumentation)",
+    "Custom Python harnesses",
+    "Binary Ninja"
+  ],
+  "when_to_use": "Use Vulnerability Research Campaign to develop professional-grade vulnerability research campaign capabilities at Mastery level. This recipe is part of the Zero-Day Research & Development pillar and integrates with linked missions OM-M01, OM-M13, OM-M15.",
+  "linked_missions": [
+    "OM-M01",
+    "OM-M13",
+    "OM-M15"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Target Selection & Justification",
+      "instruction": "Select a target binary or application with 50K+ lines of network-facing code. Document the attack surface: file parsers, protocol handlers, input validators. Research existing CVEs and disclosures. Justify your selection based on deployment prevalence, vulnerability history, and research gaps in academic literature.",
+      "tip": "Prioritize closed-source software with established security boundaries; avoid hardened targets like Chrome/Firefox as primary choices. Look for niche software with significant deployment but limited public scrutiny.",
+      "expected_output": "Target selection document (3-5 pages) with attack surface diagram"
+    },
+    {
+      "number": 2,
+      "title": "Source Code Audit",
+      "instruction": "Conduct structured source code review (if available) or binary analysis of network-facing input handlers. Map data flow from external input to sensitive operations (memory allocation, file I/O, command execution). Use IDA Pro or Ghidra to annotate the binary with cross-references and function signatures. Identify 5-10 vulnerability candidates based on unsafe patterns.",
+      "tip": "Use Ghidra's automated analysis + symbol recovery. Focus on boundary conditions: integer overflows in size calculations, off-by-one errors in loop bounds, unchecked user input to strcpy/sprintf.",
+      "expected_output": "Annotated disassembly with vulnerability candidate list"
+    },
+    {
+      "number": 3,
+      "title": "Fuzzing Campaign Design & Execution",
+      "instruction": "Create coverage-guided fuzzing harnesses using libFuzzer or AFL++. Instrument the target with AddressSanitizer (ASAN) and MemorySanitizer (MSAN) to catch memory errors. Run minimum 72 hours of continuous fuzzing on multi-core infrastructure. Seed the fuzzer with valid inputs (protocol messages, file formats) to maximize coverage. Log all crashes with edge case triggers.",
+      "tip": "Use persistent mode in libFuzzer to maximize throughput. Custom mutators for protocol-specific fuzzing yield better results than generic byte-level mutations.",
+      "expected_output": "Fuzzing corpus, coverage reports (70%+ coverage), crash triage with root cause"
+    },
+    {
+      "number": 4,
+      "title": "Crash Triage & Root Cause Analysis",
+      "instruction": "Analyze unique crashes: deduplicate by crash signature, isolate minimum reproducer inputs. For each crash, determine root cause using debugger: dereference of uninitialized pointer, heap corruption, stack overflow, integer overflow leading to undersized allocation. Assess exploitability: reachability, required preconditions, impact severity.",
+      "tip": "Use ASAN error messages + stack traces to correlate crashes. Reproducers with 100% reliability are gold; probabilistic crashes require more engineering.",
+      "expected_output": "Root cause analysis document per crash; exploitability scoring"
+    },
+    {
+      "number": 5,
+      "title": "Proof of Concept Development",
+      "instruction": "For confirmed vulnerabilities, develop minimal reliable PoC. For near-misses, conduct deeper analysis to understand exploitation barriers. Ensure PoCs are reproducible 100% of the time on the target version. Include version-specific offsets, environment setup, success criteria.",
+      "tip": "PoCs should be <200 lines of code; clarity over cleverness. Document any required preconditions (specific input sequences, timing).",
+      "expected_output": "PoC code + technical analysis of vulnerability mechanics"
+    },
+    {
+      "number": 6,
+      "title": "Responsible Disclosure Package",
+      "instruction": "Prepare comprehensive disclosure package: vulnerability advisory (technical details, impact, CVSS score), timeline for vendor patch, draft security bulletin language, vendor contact strategy, coordination plan if multiple CVEs. Follow CERT/CC or vendor-specific disclosure policies.",
+      "tip": "Verify vendor contact details via official channels. Assume 90-day disclosure window; coordinate with other researchers if applicable. Document all communications.",
+      "expected_output": "Complete disclosure package with vendor communication templates"
+    },
+    {
+      "number": 7,
+      "title": "Research Retrospective",
+      "instruction": "Conduct post-mortem analysis: time allocation per phase, methodology effectiveness, what would you do differently. Document false leads (crashes that seemed exploitable but weren't). Reflect on methodology improvements for next campaign. Include lessons learned on fuzzing strategies, triage efficiency, and analysis techniques.",
+      "tip": "Honest retrospectives reveal patterns; if fuzzing found nothing, analyze why (insufficient corpus, poor harness, wrong target). Use insights to refine your research methodology.",
+      "expected_output": "Retrospective document (3 pages) with actionable methodology improvements"
+    }
+  ]
+}

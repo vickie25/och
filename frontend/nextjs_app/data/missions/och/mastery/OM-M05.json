@@ -1,0 +1,164 @@
+{
+  "mission_id": "OM-M05",
+  "title": "Invisible Operator — Advanced Evasion Suite",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Custom Implant Engineering",
+  "pillar_icon": "⚙️",
+  "mission_type": "Mandatory",
+  "module_number": 5,
+  "module_title": "EDR Evasion Engineering",
+  "video_duration": "20-23 min",
+  "estimated_time": "15-20 hrs",
+  "multiday": true,
+  "deadline": "14 days",
+  "prerequisites": [
+    "Advanced Offensive Track - Mastery Tier Access"
+  ],
+  "learning_objectives": [
+    "EDR hook analysis and detection mechanism identification",
+    "Direct and indirect syscall implementation",
+    "Userland unhooking strategies and comparison",
+    "ETW provider patching and telemetry disabling",
+    "Integrated kill chain testing with zero EDR alerts",
+    "Detection engineering recommendations for EDR vendors"
+  ],
+  "key_topics": [
+    "EDR architecture and hook mechanisms",
+    "Syscall conventions and usage",
+    "Unhooking techniques",
+    "ETW (Event Tracing for Windows) evasion",
+    "Kill chain construction",
+    "Detection analysis",
+    "EDR bypass comparison"
+  ],
+  "scenario": "This Mastery mission requires professional-grade execution in Advanced EDR-defended African government and enterprise networks. Challenge: Develop advanced evasion techniques to defeat hook-based detection and ETW telemetry. Relevance: Nation-states targeting critical African infrastructure employ full EDR stack; zero-alert operations essential",
+  "scenario_context": {
+    "setting": "Advanced EDR-defended African government and enterprise networks",
+    "challenge": "Develop advanced evasion techniques to defeat hook-based detection and ETW telemetry",
+    "relevance": "Nation-states targeting critical African infrastructure employ full EDR stack; zero-alert operations essential"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "EDR Analysis",
+      "description": "Analyse hooks, ETW providers, kernel callbacks.",
+      "detailed_guidance": "Analyze EDR mechanisms:\n        - Hook inventory: What APIs are hooked?\n        - ETW providers: What telemetry is collected?\n        - Kernel callbacks: What does the filter driver monitor?\n        - Detection logic: How does EDR correlate data?\n\n        Deliver: Analysis document with hook locations and telemetry mapping.",
+      "evidence_required": "EDR analysis: hook inventory + telemetry mapping"
+    },
+    {
+      "number": 2,
+      "title": "Syscall Implementation",
+      "description": "Direct/indirect syscalls for critical API calls.",
+      "detailed_guidance": "Implement syscall approach:\n        - Direct syscalls: Use syscall instruction directly\n        - Indirect syscalls: Jump to ntdll implementation\n        - API replacement: Call syscalls instead of hooked APIs\n        - Compare effectiveness against unhooking\n\n        Deliver: Syscall code, before/after detection comparison.",
+      "evidence_required": "Syscall code + before/after detection comparison"
+    },
+    {
+      "number": 3,
+      "title": "Unhooking Strategy",
+      "description": "Userland unhooking as alternative evasion.",
+      "detailed_guidance": "Implement userland unhooking:\n        - Restore original API functions by reading from disk\n        - Handle DLL relocation and base address changes\n        - Test against hook re-application\n        - Compare with syscall approach\n\n        Deliver: Unhooking code, technique comparison analysis.",
+      "evidence_required": "Unhooking code + technique comparison"
+    },
+    {
+      "number": 4,
+      "title": "ETW Evasion",
+      "description": "Patch relevant ETW telemetry providers.",
+      "detailed_guidance": "Patch ETW providers:\n        - Identify relevant providers (ProcessCreate, ImageLoad, etc.)\n        - Disable telemetry collection\n        - Use legitimate APIs to achieve disabling\n\n        Deliver: ETW evasion code, telemetry capture analysis showing silence.",
+      "evidence_required": "ETW evasion + telemetry analysis"
+    },
+    {
+      "number": 5,
+      "title": "Integrated Evasion Testing",
+      "description": "Full kill chain with zero EDR alerts.",
+      "detailed_guidance": "Execute full kill chain with zero EDR alerts:\n        - Load implant, execute commands, capture activity\n        - Monitor EDR console for alerts during execution\n        - Document that no alerts/detections appear\n        - Screenshot EDR console showing clean event log\n\n        Deliver: Kill chain execution evidence with EDR screenshots.",
+      "evidence_required": "Kill chain evidence + EDR console screenshots"
+    },
+    {
+      "number": 6,
+      "title": "Detection Engineering Report",
+      "description": "Report for EDR vendor recommending detection improvements.",
+      "detailed_guidance": "Write report for EDR vendor:\n        - How evasion techniques circumvent detection\n        - Recommended detection improvements\n        - Behavioral analytics that would catch this approach\n        - Specific log sources and telemetry needed\n\n        Deliver: Report recommending detection enhancements.",
+      "evidence_required": "Detection engineering report"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "EDR Analysis Depth",
+      "weight": "15%"
+    },
+    {
+      "category": "Syscall Implementation",
+      "weight": "20%"
+    },
+    {
+      "category": "Evasion Effectiveness",
+      "weight": "20%"
+    },
+    {
+      "category": "Kill Chain Success",
+      "weight": "15%"
+    },
+    {
+      "category": "Detection Engineering Value",
+      "weight": "20%"
+    },
+    {
+      "category": "Code Quality",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "RM05",
+    "RM06"
+  ],
+  "resources": [
+    {
+      "type": "Documentation",
+      "title": "OCH Mastery Reference Guide",
+      "url": "https://och.dev/mastery-reference"
+    },
+    {
+      "type": "Video",
+      "title": "Mission Overview: Invisible Operator — Advanced Evasion Suite",
+      "duration": "20-23 min"
+    },
+    {
+      "type": "Tool",
+      "title": "OCH Mastery Assessment Framework",
+      "url": "https://och.dev/assessment"
+    }
+  ],
+  "reflection_prompt": "How would you test your evasion techniques in a lab that mirrors your target EDR deployment? What would drive your choice between syscalls vs. unhooking for specific African target environments?",
+  "quiz": [
+    {
+      "question": "What is the primary advantage of direct syscall implementation over userland unhooking for EDR evasion?",
+      "options": [
+        "Syscalls are always slower than hooked APIs",
+        "Syscalls bypass hooks entirely by calling the kernel directly, avoiding detection at the API hook level where EDR typically intercepts",
+        "Syscalls only work on Windows 10",
+        "Unhooking is always more effective than syscalls"
+      ],
+      "correct_index": 1,
+      "explanation": "EDR hooks userland APIs (ntdll, kernel32) to intercept suspicious calls. Direct syscalls bypass these hooks by calling the kernel directly via the syscall instruction, completely avoiding the detection point. This is why syscalls are particularly effective against hook-based EDR."
+    },
+    {
+      "question": "In a zero-alert kill chain deployment against African enterprises with next-generation EDR, what is the critical difference between patching ETW versus implementing syscalls?",
+      "options": [
+        "ETW patching is more effective than syscalls",
+        "Syscalls prevent API hooks, while ETW patching disables telemetry collection—both are needed for complete evasion",
+        "Only ETW patching matters; syscalls are unnecessary",
+        "They are completely interchangeable"
+      ],
+      "correct_index": 1,
+      "explanation": "Effective evasion requires addressing multiple detection layers. Syscalls defeat hook-based detection at the API level, while ETW patching disables kernel-level telemetry. Combining both provides comprehensive evasion against sophisticated EDR systems."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Professional deliverables demonstrating mastery-level capability",
+    "Complete documentation and methodology",
+    "Evidence of technical excellence and strategic thinking",
+    "Leadership and mentorship contributions"
+  ],
+  "mentor_notes": "\nThis Mastery mission requires senior mentor review. Candidates must demonstrate:\n- Professional-grade execution and documentation\n- Deep understanding of African organizational and threat contexts\n- Strategic thinking beyond tactical execution\n- Readiness for commercial red team operations\n- Leadership potential within OCH and broader community\n\nSuccessful completion positions candidate for Mastery portfolio and professional practice.\n        "
+}

@@ -1,0 +1,71 @@
+{
+  "recipe_id": "RI20",
+  "title": "GTFOBins Quick Lookup",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Privilege Escalation",
+  "pillar_icon": "\u2b06\ufe0f",
+  "estimated_time": "10 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "GTFOBins website",
+    "terminal"
+  ],
+  "when_to_use": "When SUID or sudo provides escalation paths",
+  "linked_missions": [
+    "OI-M13",
+    "OI-M14"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Navigate to gtfobins.github.io in browser for interactive binary lookup",
+      "tip": "Start with the most reliable information source for gtfobins quick lookup",
+      "expected_output": "Access to GTFOBins database with searchable interface"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Search for binary name discovered during enumeration phase",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "Matching binary entry with available exploitation functions"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Review available functions including Shell, SUID, Sudo, and Capabilities",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "List of exploitation methods applicable to discovered binary"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Select matching function corresponding to exploitation scenario (SUID, Sudo, etc)",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Specific exploitation command sequence for target scenario"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Copy command sequence and adapt parameters for target environment",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Customized exploit command ready for execution"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Execute adapted command sequence to achieve privilege escalation",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Successful elevation to root or higher privilege user account"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Verify escalation with 'id' command confirming new privilege level",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Confirmed root access with uid=0 and gid=0 or sudo group membership"
+    }
+  ]
+}

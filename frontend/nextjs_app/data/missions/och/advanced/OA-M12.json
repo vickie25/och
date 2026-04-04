@@ -1,0 +1,157 @@
+{
+  "mission_id": "OA-M12",
+  "title": "Data Heist",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Command & Control",
+  "pillar_icon": "\ud83d\udce1",
+  "mission_type": "Mandatory",
+  "module_number": 12,
+  "module_title": "Module 12: Data Heist",
+  "video_duration": "15-20 min",
+  "estimated_time": "5-6 hrs",
+  "multiday": false,
+  "deadline": "72 hours",
+  "prerequisites": [
+    "Intermediate Offensive Track",
+    "Core Cybersecurity Fundamentals"
+  ],
+  "learning_objectives": [
+    "Assess physical security vulnerabilities",
+    "Exploit wireless security weaknesses (Wi-Fi, Bluetooth)",
+    "Conduct credential acquisition through physical access",
+    "Establish network access from physical foothold",
+    "Document physical+wireless+network attack chain"
+  ],
+  "key_topics": [
+    "C2 infrastructure design and deployment",
+    "Encrypted command channels",
+    "Multi-protocol C2 implementation",
+    "Distributed and resilient C2 networks",
+    "Operational security for C2"
+  ],
+  "scenario": "Scenario Access to file server with board minutes and financial projections (lab data). SOC monitors for large transfers. Exfiltrate without triggering alerts. Subtasks Scoring Rubric Linked Recipes: RA15, RA16 ________________________________________________________________________________ 3.7 Advanced Web Exploitation",
+  "scenario_context": {
+    "setting": "Addis Ababa, Ethiopia, East African telecommunications provider",
+    "challenge": "Exploit physical and wireless security at East African telecommunications provider's Addis Ababa, Ethiopia campus",
+    "relevance": "Reflects real-world African enterprise security challenges and red team operations across the continent"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Data ID & Staging",
+      "description": "Identify, compress, encrypt target files.",
+      "evidence": "Staging log: files, size, encryption",
+      "detailed_guidance": "Begin by thoroughly reviewing the scenario and understanding all objectives. Document your approach before execution. This is the foundational subtask that enables all following work.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Staging log: files, size, encryption"
+    },
+    {
+      "number": 2,
+      "title": "Channel Selection",
+      "description": "Test channels. Select based on stealth and bandwidth.",
+      "evidence": "Channel assessment matrix",
+      "detailed_guidance": "Conduct systematic reconnaissance and information gathering. Map the target network, identify services, and document all findings with evidence.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Channel assessment matrix"
+    },
+    {
+      "number": 3,
+      "title": "Covert Exfiltration",
+      "description": "Rate-limited transfer with timing jitter.",
+      "evidence": "Exfiltration evidence: logs, timing, receipt",
+      "detailed_guidance": "Analyze vulnerabilities discovered in reconnaissance. Validate each vulnerability through testing and document the exploitation path.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Exfiltration evidence: logs, timing, receipt"
+    },
+    {
+      "number": 4,
+      "title": "Alternate Channel",
+      "description": "Exfiltrate via different channel as backup.",
+      "evidence": "Alternate channel evidence + comparison",
+      "detailed_guidance": "Execute the exploitation with careful attention to OPSEC and evasion. Maintain detailed logs of all actions for evidence and reporting.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Alternate channel evidence + comparison"
+    },
+    {
+      "number": 5,
+      "title": "Operational Log",
+      "description": "Complete timestamped log of every action.",
+      "evidence": "Operational log (legal review quality)",
+      "detailed_guidance": "Establish persistence mechanisms that survive system reboots and will maintain access throughout the engagement.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Operational log (legal review quality)"
+    },
+    {
+      "number": 6,
+      "title": "Data Protection Report",
+      "description": "DLP detection and prevention recommendations.",
+      "evidence": "DLP recommendations report",
+      "detailed_guidance": "Perform privilege escalation and lateral movement to achieve the mission objectives. Document each pivot point.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "DLP recommendations report"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Exfiltration Success",
+      "weight": "20%"
+    },
+    {
+      "category": "Stealth Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Channel Diversity",
+      "weight": "15%"
+    },
+    {
+      "category": "Operational Logging",
+      "weight": "20%"
+    },
+    {
+      "category": "DLP Report",
+      "weight": "15%"
+    },
+    {
+      "category": "Ethics Compliance",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "Data Heist"
+  ],
+  "resources": [
+    "OCH Advanced Command & Control Toolkit",
+    "Engagement Framework Documentation",
+    "OPSEC Guidelines",
+    "Reporting Templates",
+    "Mentor Support Channel"
+  ],
+  "reflection_prompt": "",
+  "quiz": [
+    {
+      "question": "What is the primary objective of OA-M12?",
+      "options": [
+        "To test defensive capabilities",
+        "To simulate a real-world attack scenario",
+        "To achieve the specified mission goals within the engagement scope",
+        "All of the above"
+      ],
+      "correct_index": 2,
+      "explanation": "The mission objectives define the success criteria for this engagement."
+    },
+    {
+      "question": "What should be the first step when beginning this mission?",
+      "options": [
+        "Immediately execute exploits",
+        "Deploy all available tools",
+        "Thoroughly review scenario, objectives, and engagement scope",
+        "Contact the target organization"
+      ],
+      "correct_index": 2,
+      "explanation": "Understanding the engagement scope and objectives is critical before execution."
+    }
+  ],
+  "portfolio_artifacts": [
+    "OA-M12_engagement_plan.md",
+    "OA-M12_evidence_log.txt",
+    "OA-M12_technical_report.md",
+    "OA-M12_client_presentation.pdf"
+  ],
+  "mentor_notes": "For OA-M12 - Data Heist: Ensure learner demonstrates proper OPSEC, evidence collection, and professional reporting. This mission is designed to build command & control expertise. Coordinate with blue team for detection validation where applicable."
+}

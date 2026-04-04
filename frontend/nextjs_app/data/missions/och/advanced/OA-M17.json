@@ -1,0 +1,157 @@
+{
+  "mission_id": "OA-M17",
+  "title": "Emulate the Adversary",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Adversary Emulation",
+  "pillar_icon": "\ud83c\udfad",
+  "mission_type": "Mandatory",
+  "module_number": 17,
+  "module_title": "Module 17: Emulate the Adversary",
+  "video_duration": "15-20 min",
+  "estimated_time": "6-8 hrs",
+  "multiday": true,
+  "deadline": "5 days",
+  "prerequisites": [
+    "Intermediate Offensive Track",
+    "Core Cybersecurity Fundamentals"
+  ],
+  "learning_objectives": [
+    "Analyze mobile device management (MDM) solutions",
+    "Exploit MDM policy weaknesses",
+    "Bypass mobile security controls",
+    "Achieve persistent access on managed mobile devices",
+    "Document mobile-to-network attack pathways"
+  ],
+  "key_topics": [
+    "APT group TTPs and methodologies",
+    "Malware analysis and emulation",
+    "Known threat actor tool usage",
+    "Purple team operations",
+    "Defense validation against emulated threats"
+  ],
+  "scenario": "Scenario Southern African telecom targeted by financially-motivated threat group. Design complete adversary emulation based on known TTPs. Subtasks Scoring Rubric Linked Recipes: RA23, RA24 ________________________________________________________________________________",
+  "scenario_context": {
+    "setting": "Antananarivo, Madagascar, SADC member institution",
+    "challenge": "Bypass mobile device management at SADC member institution's Antananarivo, Madagascar operations",
+    "relevance": "Reflects real-world African enterprise security challenges and red team operations across the continent"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Threat Actor Research",
+      "description": "Known campaigns, TTPs, targets, tools, infrastructure.",
+      "evidence": "Threat actor profile with TTP inventory",
+      "detailed_guidance": "Begin by thoroughly reviewing the scenario and understanding all objectives. Document your approach before execution. This is the foundational subtask that enables all following work.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Threat actor profile with TTP inventory"
+    },
+    {
+      "number": 2,
+      "title": "ATT&CK Mapping",
+      "description": "Map all TTPs to MITRE ATT&CK. Create Navigator layer.",
+      "evidence": "ATT&CK mapping + Navigator export",
+      "detailed_guidance": "Conduct systematic reconnaissance and information gathering. Map the target network, identify services, and document all findings with evidence.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "ATT&CK mapping + Navigator export"
+    },
+    {
+      "number": 3,
+      "title": "Emulation Plan",
+      "description": "Complete plan: phases, TTPs, tools, infrastructure.",
+      "evidence": "Adversary emulation plan (10+ pages)",
+      "detailed_guidance": "Analyze vulnerabilities discovered in reconnaissance. Validate each vulnerability through testing and document the exploitation path.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Adversary emulation plan (10+ pages)"
+    },
+    {
+      "number": 4,
+      "title": "Detection Coverage Assessment",
+      "description": "Assess detection against each emulated TTP.",
+      "evidence": "Detection coverage matrix",
+      "detailed_guidance": "Execute the exploitation with careful attention to OPSEC and evasion. Maintain detailed logs of all actions for evidence and reporting.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Detection coverage matrix"
+    },
+    {
+      "number": 5,
+      "title": "Purple Team Playbook",
+      "description": "Collaborative testing playbook per technique.",
+      "evidence": "Purple team playbook with test cases",
+      "detailed_guidance": "Establish persistence mechanisms that survive system reboots and will maintain access throughout the engagement.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Purple team playbook with test cases"
+    },
+    {
+      "number": 6,
+      "title": "Executive Intelligence Brief",
+      "description": "Board-level threat briefing.",
+      "evidence": "Executive brief (2-3 pages, non-technical)",
+      "detailed_guidance": "Perform privilege escalation and lateral movement to achieve the mission objectives. Document each pivot point.\n\nSpecific to this mission:\n- Follow all engagement rules of engagement\n- Maintain OPSEC throughout execution\n- Collect evidence of all activities\n- Document findings for client reporting\n- Coordinate with engagement lead and blue team as needed",
+      "evidence_required": "Executive brief (2-3 pages, non-technical)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Research Quality",
+      "weight": "15%"
+    },
+    {
+      "category": "ATT&CK Mapping",
+      "weight": "15%"
+    },
+    {
+      "category": "Emulation Plan Quality",
+      "weight": "25%"
+    },
+    {
+      "category": "Detection Assessment",
+      "weight": "15%"
+    },
+    {
+      "category": "Purple Team Integration",
+      "weight": "15%"
+    },
+    {
+      "category": "Executive Communication",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "Emulate the Adversary"
+  ],
+  "resources": [
+    "OCH Advanced Adversary Emulation Toolkit",
+    "Engagement Framework Documentation",
+    "OPSEC Guidelines",
+    "Reporting Templates",
+    "Mentor Support Channel"
+  ],
+  "reflection_prompt": "",
+  "quiz": [
+    {
+      "question": "What is the primary objective of OA-M17?",
+      "options": [
+        "To test defensive capabilities",
+        "To simulate a real-world attack scenario",
+        "To achieve the specified mission goals within the engagement scope",
+        "All of the above"
+      ],
+      "correct_index": 2,
+      "explanation": "The mission objectives define the success criteria for this engagement."
+    },
+    {
+      "question": "What should be the first step when beginning this mission?",
+      "options": [
+        "Immediately execute exploits",
+        "Deploy all available tools",
+        "Thoroughly review scenario, objectives, and engagement scope",
+        "Contact the target organization"
+      ],
+      "correct_index": 2,
+      "explanation": "Understanding the engagement scope and objectives is critical before execution."
+    }
+  ],
+  "portfolio_artifacts": [
+    "OA-M17_engagement_plan.md",
+    "OA-M17_evidence_log.txt",
+    "OA-M17_technical_report.md",
+    "OA-M17_client_presentation.pdf"
+  ],
+  "mentor_notes": "For OA-M17 - Emulate the Adversary: Ensure learner demonstrates proper OPSEC, evidence collection, and professional reporting. This mission is designed to build adversary emulation expertise. Coordinate with blue team for detection validation where applicable."
+}

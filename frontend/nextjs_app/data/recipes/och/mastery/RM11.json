@@ -1,0 +1,67 @@
+{
+  "recipe_id": "RM11",
+  "title": "Mobile & Embedded Assessment",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Specialist Domains",
+  "pillar_icon": "\ud83c\udfaf",
+  "estimated_time": "30 min",
+  "difficulty": "Mastery",
+  "tools_required": [
+    "Android: Frida, Burp Suite, jadx, apktool, Magisk",
+    "iOS: Frida, LLDB, Hopper, Charles proxy, Jailbreak tools",
+    "Firmware: binwalk, IDA Pro, Ghidra, OpenWrt",
+    "USSD: USSD emulator, protocol analyzers",
+    "IoT: Firmware extraction, embedded Linux tools"
+  ],
+  "when_to_use": "Use Mobile & Embedded Assessment to develop professional-grade mobile & embedded assessment capabilities at Mastery level. This recipe is part of the Specialist Domains pillar and integrates with linked missions OM-M08, OM-M09.",
+  "linked_missions": [
+    "OM-M08",
+    "OM-M09"
+  ],
+  "step_count": 6,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Android Comprehensive Assessment",
+      "instruction": "Full security assessment of Android app: static analysis (decompile with jadx, identify hardcoded credentials, weak crypto, insecure APIs), dynamic analysis (run with Frida instrumentation, intercept network with Burp, hook sensitive functions), runtime manipulation (bypass root detection, certificate pinning bypasses, API mocking). Demonstrate: eavesdropping, credential extraction, functional bypass.",
+      "tip": "Android assessment reveals poor mobile security practices. Many developers were trained on insecure examples.",
+      "expected_output": "Android report with findings + Frida script demonstrations"
+    },
+    {
+      "number": 2,
+      "title": "iOS Assessment",
+      "instruction": "iOS binary analysis and security assessment: extract IPA, reverse binary with Hopper/IDA, analyze Objective-C runtime, test keychain storage (extract secrets), transport security (man-in-the-middle HTTPS), platform-specific vulnerabilities (use-after-free, memory corruption). iOS is more locked down; focus on app logic vulnerabilities.",
+      "tip": "iOS assessment requires jailbreak or provisioning profile tricks. App Store vs Enterprise deployment have different security models.",
+      "expected_output": "iOS report with binary analysis + keychain findings"
+    },
+    {
+      "number": 3,
+      "title": "Mobile API Assessment",
+      "instruction": "Assess all backend APIs called by mobile apps: authentication (JWT flaws, session management), authorization (BOLA/IDOR vulnerabilities), data protection (encryption in transit/at rest), business logic (account takeover, privilege escalation). Fuzz APIs: invalid inputs, boundary conditions, race conditions. Demonstrate: account enumeration, unauthorized data access, function manipulation.",
+      "tip": "Mobile apps often have weak API security compared to web apps. They communicate with same backends as web.",
+      "expected_output": "API assessment with BOLA/IDOR + auth findings"
+    },
+    {
+      "number": 4,
+      "title": "USSD Security Analysis",
+      "instruction": "Analyze USSD security (prevalent in African mobile banking): session management (are sessions properly invalidated?), input validation (injection attacks in USSD strings?), overlay attacks (display USSD prompt to user asking for PIN). Demonstrate: USSD session hijacking, input validation bypass, UI manipulation.",
+      "tip": "USSD is unique to African context; many developers don't understand session semantics.",
+      "expected_output": "USSD analysis with threat model"
+    },
+    {
+      "number": 5,
+      "title": "IoT Kiosk Assessment",
+      "instruction": "Assess IoT kiosks (payment terminals, ATMs, display systems): firmware extraction and analysis (binwalk, strings, IDA), network communication (telemetry, updates), physical security (UART access, case opening), credentials (hardcoded keys, firmware secrets). Demonstrate: firmware modification, bootloader bypass, credential extraction.",
+      "tip": "IoT devices are often poorly secured; firmware updates via unencrypted HTTP are common.",
+      "expected_output": "IoT report with firmware analysis + findings"
+    },
+    {
+      "number": 6,
+      "title": "Unified Security Report",
+      "instruction": "Produce comprehensive report (20+ pages) integrating findings across all mobile/IoT attack surfaces. Show cross-platform attack chains: compromise Android app -> extract API credentials -> access iOS backend -> USSD hijacking + kiosk control. Emphasize African mobile banking context: impact on millions of users, socioeconomic implications. Provide roadmap for securing ecosystem.",
+      "tip": "Unified report shows that isolated vulnerabilities compound. Cross-platform thinking is critical.",
+      "expected_output": "Comprehensive 20+ page report with attack chains"
+    }
+  ]
+}

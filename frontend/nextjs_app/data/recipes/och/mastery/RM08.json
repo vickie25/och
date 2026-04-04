@@ -1,0 +1,69 @@
+{
+  "recipe_id": "RM08",
+  "title": "Extended Operation OPSEC Framework",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Adversary Infrastructure at Scale",
+  "pillar_icon": "\ud83c\udf0d",
+  "estimated_time": "30 min",
+  "difficulty": "Mastery",
+  "tools_required": [
+    "Threat modeling frameworks",
+    "OPSEC documentation templates",
+    "Monitoring & logging systems",
+    "Incident response tools",
+    "Team communication platforms",
+    "Version control (for SOPs)",
+    "Training delivery tools"
+  ],
+  "when_to_use": "Use Extended Operation OPSEC Framework to develop professional-grade extended operation opsec framework capabilities at Mastery level. This recipe is part of the Adversary Infrastructure at Scale pillar and integrates with linked missions OM-M06, OM-M07.",
+  "linked_missions": [
+    "OM-M06",
+    "OM-M07"
+  ],
+  "step_count": 6,
+  "steps": [
+    {
+      "number": 1,
+      "title": "OPSEC Threat Model",
+      "instruction": "Develop threat model for extended operation: Who is looking (defenders, law enforcement, competitors)? What are they looking for (malware signatures, C2 traffic, team members)? Consequences: engagement impact, operator safety, platform exposure. Rate threats by likelihood and impact. Produce risk matrix with heat map. Example: \"Detected team server\" is high likelihood + high impact = highest risk.",
+      "tip": "Threat model should be operation-specific. Different adversaries (corporate SOC vs nation-state) have different detection capabilities.",
+      "expected_output": "OPSEC threat model with risk matrix"
+    },
+    {
+      "number": 2,
+      "title": "Standard Operating Procedures (SOPs)",
+      "instruction": "Document comprehensive SOPs covering: daily operations (C2 usage, logs review, anomaly detection), infrastructure management (team server updates, certificate rotation, monitoring), inter-operator communications (secure channels, code words, authentication), incident response initiation. Each SOP: clear steps, decision trees, abort conditions, documentation requirements.",
+      "tip": "SOPs should be so detailed that a new operator can follow them. Include \"what if\" scenarios.",
+      "expected_output": "Complete SOP document (10+ pages)"
+    },
+    {
+      "number": 3,
+      "title": "OPSEC Audit Framework",
+      "instruction": "Design audit system: daily checklists for operators (infrastructure status, C2 behavioral review, communication log review), weekly reviews (anomaly analysis, threat intelligence digest), automated monitoring (certificate expiration, domain reputation, traffic patterns). Framework: checklist format, evidence collection, audit logging.",
+      "tip": "Audits catch problems before they become catastrophes. Automated monitoring + human review is most effective.",
+      "expected_output": "Audit framework with templates and checklists"
+    },
+    {
+      "number": 4,
+      "title": "OPSEC Incident Response Playbook",
+      "instruction": "Design OPSEC-specific incident response: detection (infrastructure discovered, operator identified, malware discovered), assessment (scope of compromise, operator exposure, engagement impact), containment (burn infrastructure, change credentials, operator exfil), and decision tree (abort? pivot? escalate?). Include: communication protocols, backup channels, escalation criteria.",
+      "tip": "OPSEC IR differs from regular IR; focus is operator safety and engagement survival.",
+      "expected_output": "OPSEC IR playbook with decision trees"
+    },
+    {
+      "number": 5,
+      "title": "Tabletop Exercise",
+      "instruction": "Conduct realistic tabletop: simulate major OPSEC failure (e.g., malware sample leaked, team server burned, operator phone compromised) during active engagement. Facilitate exercise: present scenario, have team execute OPSEC IR playbook, note decision quality, measure response time. Document: what worked, what failed, lessons learned.",
+      "tip": "Tabletop exercises are invaluable training. Real stress reveals gaps in procedures.",
+      "expected_output": "Tabletop scenario + facilitator guide + after-action report"
+    },
+    {
+      "number": 6,
+      "title": "OPSEC Training Material",
+      "instruction": "Create onboarding material for new operators: training presentation (slides), assessment questions, case studies of OPSEC failures, decision trees for common scenarios. Training should cover: threat model, SOP walkthroughs, incident response procedures, communication protocols, behavioral OPSEC (tradecraft). Include real-world examples (with sanitization).",
+      "tip": "Training transforms OPSEC from policy to culture. Repetition builds muscle memory.",
+      "expected_output": "Training deck + assessment questions + case studies"
+    }
+  ]
+}

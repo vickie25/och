@@ -1,0 +1,71 @@
+{
+  "recipe_id": "RM15",
+  "title": "Knowledge Transfer Program",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Red Team Leadership & Practice",
+  "pillar_icon": "\ud83d\udc51",
+  "estimated_time": "30 min",
+  "difficulty": "Mastery",
+  "tools_required": [
+    "Training platforms (LMS, internal wiki)",
+    "Video recording tools",
+    "Documentation templates",
+    "Community platforms (Discord, forums)",
+    "Open-source project hosting",
+    "Publishing platforms",
+    "Mentorship tracking"
+  ],
+  "when_to_use": "Use Knowledge Transfer Program to develop professional-grade knowledge transfer program capabilities at Mastery level. This recipe is part of the Red Team Leadership & Practice pillar and integrates with linked missions OM-M12, OM-M13, OM-M14, OM-M15.",
+  "linked_missions": [
+    "OM-M12",
+    "OM-M13",
+    "OM-M14",
+    "OM-M15"
+  ],
+  "step_count": 6,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Program Architecture",
+      "instruction": "Design comprehensive training program (8+ pages): tiers (beginner, intermediate, advanced, mastery), progression pathways, assessment criteria, graduation requirements. Example: \"Advanced tier requires 6 months, completion of 5 projects, peer review approval, and mastery project assessment.\" Include: prerequisites, estimated time investment, success metrics, community roles.",
+      "tip": "Program architecture determines who graduates and what level they achieve. Be rigorous; reputation depends on graduate quality.",
+      "expected_output": "Program architecture document (8+ pages)"
+    },
+    {
+      "number": 2,
+      "title": "Learning Paths for Diverse Profiles",
+      "instruction": "Design 3 distinct learning paths: (1) Recent graduate track (weak hacking background, strong fundamentals needed), (2) IT professional transition (strong infrastructure background, needs red team mindset), (3) SOC analyst track (detection-focused, needs offensive perspective). Each path: 12-month progression, monthly milestones, learning objectives, project work. Paths converge at mastery.",
+      "tip": "Diversity of backgrounds requires tailored paths. Learning customization increases success rate.",
+      "expected_output": "3 detailed learning paths with monthly milestones"
+    },
+    {
+      "number": 3,
+      "title": "Complete Training Module Creation",
+      "instruction": "Create one complete training module from your expertise area: slides (50+ slides, narrative flow), lab guide (hands-on exercises with detailed steps), assessment (knowledge check quiz, practical challenge, project). Module should teach a capstone skill: \"Kernel Exploitation for EDR Bypass\" or \"Cloud-Native Attack Methodology\". Include: learning objectives, prerequisite knowledge, expected time, success criteria.",
+      "tip": "Creating training reveals gaps in your knowledge. Teaching forces clarity.",
+      "expected_output": "Complete training module: slides, lab guide, assessment"
+    },
+    {
+      "number": 4,
+      "title": "Community Contribution Plan",
+      "instruction": "Annual plan for knowledge sharing: blog posts (12+ per year, e.g., \"EDR Evasion Techniques\", \"Cloud Exploitation Patterns\"), speaking engagements (2-3 conferences), open-source contributions (release tools, share code), mentorship (3-5 mentees). Plan: topics, timeline, venues, community platforms. This positions you as thought leader.",
+      "tip": "Community contribution builds reputation and attracts quality people to your program.",
+      "expected_output": "Annual contribution plan with quarterly deliverables"
+    },
+    {
+      "number": 5,
+      "title": "Program Measurement Framework",
+      "instruction": "Design success metrics: graduate employment rate (90%+ in red team roles?), graduate satisfaction (survey feedback), graduate advancement (how many move to leadership?), employer feedback (are graduates performing well?), retention (how many stay in security field?). Measurement enables continuous improvement.",
+      "tip": "Metrics drive improvements. Measure what matters: graduate success, not just completion.",
+      "expected_output": "Measurement framework with KPIs and survey instruments"
+    },
+    {
+      "number": 6,
+      "title": "Personal Commitment Statement",
+      "instruction": "Write your covenant with the community (1 page): what you commit to (knowledge sharing, mentorship, raising next generation), how you'll live it (concrete actions), why you believe it (your philosophy). This statement guides program decisions and inspires students. Share it publicly to hold yourself accountable.",
+      "tip": "Commitment statement should be authentic and visceral. It's your \"why\".",
+      "expected_output": "Commitment statement (1 page, shareable)"
+    }
+  ]
+}

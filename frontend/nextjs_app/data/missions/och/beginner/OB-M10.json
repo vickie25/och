@@ -1,0 +1,137 @@
+{
+  "mission_id": "OB-M10",
+  "title": "DVWA Explorer",
+  "pillar": "Web Fundamentals",
+  "module_number": 10,
+  "module_title": "Web Vulnerability Discovery",
+  "video_duration": "18 min",
+  "estimated_time": "1.5-2 hours",
+  "multiday": false,
+  "deadline": "5 days",
+  "prerequisites": [
+    "OB-M09 completed",
+    "DVWA installed and running in lab",
+    "Basic HTTP knowledge"
+  ],
+  "learning_objectives": [
+    "Recognise common web vulnerability patterns through hands-on observation",
+    "Understand how SQL injection, XSS, and command injection manifest",
+    "Compare vulnerability classes and identify common root causes"
+  ],
+  "key_topics": [
+    "SQL Injection (SQLi) indicators",
+    "Cross-Site Scripting (XSS) reflected patterns",
+    "Command Injection behaviour",
+    "Input handling analysis",
+    "Vulnerability pattern recognition",
+    "DVWA lab environment usage"
+  ],
+  "scenario": "You have set up DVWA (Damn Vulnerable Web Application) in your lab. Your task is to systematically explore the first three vulnerability categories at LOW security setting. This is not exploitation; it is understanding what each vulnerability looks like.",
+  "scenario_context": {
+    "setting": "DVWA lab at LOW security level",
+    "challenge": "Observe and document vulnerability behaviour without exploitation",
+    "relevance": "Understanding what vulnerabilities look like is the first step toward finding and exploiting them. DVWA provides a safe environment to build this pattern recognition."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "SQL Injection Discovery",
+      "description": "Enter various inputs and observe behaviour. Document normal input behaviour, special character responses, and error messages.",
+      "detailed_guidance": "Start with normal input (a number, a name). Then try: single quote, double quote, 1 OR 1=1, semicolons. Watch for error messages, different responses, or unexpected data. DO NOT try to extract data — just observe.",
+      "evidence_required": "SQLi observation notes with screenshots"
+    },
+    {
+      "number": 2,
+      "title": "XSS Discovery",
+      "description": "Test basic inputs in the XSS (Reflected) module. Document where input appears in the page and how HTML characters are handled.",
+      "detailed_guidance": "Enter plain text first. Then try: <b>test</b>, <script>alert(1)</script>, \"onmouseover=\"alert(1). Watch if your input appears in the page source. Check if HTML entities are encoded or rendered.",
+      "evidence_required": "XSS observation notes with input/output comparison"
+    },
+    {
+      "number": 3,
+      "title": "Command Injection Discovery",
+      "description": "Observe how the app uses your input. Document normal function and how the underlying OS command might be constructed.",
+      "detailed_guidance": "Enter a normal IP. Then try: 127.0.0.1; ls, 127.0.0.1 && whoami, 127.0.0.1 | id. Watch for additional output appearing. Think about how the app constructs the OS command.",
+      "evidence_required": "Command injection analysis with app behaviour notes"
+    },
+    {
+      "number": 4,
+      "title": "Vulnerability Pattern Report",
+      "description": "Compare all three types: what makes them similar (user input) and what makes each unique.",
+      "detailed_guidance": "Write a comparative analysis: all three take user input and use it unsafely. SQLi injects into database queries, XSS into HTML output, command injection into OS commands. Note the common root cause: insufficient input validation.",
+      "evidence_required": "Comparative vulnerability analysis report"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Observation Quality",
+      "weight": "30%"
+    },
+    {
+      "category": "Understanding Depth",
+      "weight": "25%"
+    },
+    {
+      "category": "Pattern Recognition",
+      "weight": "25%"
+    },
+    {
+      "category": "Documentation",
+      "weight": "20%"
+    }
+  ],
+  "linked_recipes": [
+    "R16",
+    "R17"
+  ],
+  "resources": [
+    {
+      "name": "DVWA Setup Guide",
+      "type": "Guide"
+    },
+    {
+      "name": "OWASP Top 10 Quick Reference",
+      "type": "PDF"
+    },
+    {
+      "name": "Vulnerability Classification Guide",
+      "type": "Document"
+    }
+  ],
+  "reflection_prompt": "All three vulnerability types share a common root cause: trusting user input. Design a set of developer guidelines that would prevent all three categories if followed consistently.",
+  "quiz": [
+    {
+      "question": "The common root cause of SQLi, XSS, and command injection is:",
+      "options": [
+        "Weak passwords",
+        "Insufficient input validation and unsafe use of user-controlled data",
+        "Missing antivirus",
+        "Outdated software"
+      ],
+      "correct_index": 1,
+      "explanation": "All three vulnerability classes result from applications using user-supplied input in dangerous contexts without proper validation or encoding."
+    },
+    {
+      "question": "DVWA should be run in an isolated lab because:",
+      "options": [
+        "It's slow",
+        "It contains real vulnerabilities that could be exploited if exposed to a network",
+        "It requires a license",
+        "It only works on Windows"
+      ],
+      "correct_index": 1,
+      "explanation": "DVWA is intentionally vulnerable. Exposing it on a network-connected machine creates real security risks."
+    }
+  ],
+  "portfolio_artifacts": [
+    "SQLi observation report",
+    "XSS analysis",
+    "Command injection analysis",
+    "Comparative vulnerability report"
+  ],
+  "mentor_notes": "This is about observation and understanding, not exploitation. Students who demonstrate clear understanding of WHY each vulnerability exists score higher than those who just document what happened.",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "🕸️",
+  "mission_type": "Mandatory"
+}

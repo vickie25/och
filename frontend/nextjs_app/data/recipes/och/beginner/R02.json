@@ -1,0 +1,55 @@
+{
+  "recipe_id": "R02",
+  "title": "Risk Matrix Builder",
+  "pillar": "Offensive Mindset",
+  "pillar_icon": "🧠",
+  "estimated_time": "20 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Spreadsheet or drawing tool"
+  ],
+  "when_to_use": "After identifying threats or vulnerabilities; used in every risk ranking task",
+  "linked_missions": [
+    "OB-M01"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Draw the Grid",
+      "instruction": "Draw a 5×5 grid: Likelihood (vertical) vs Impact (horizontal)",
+      "tip": "Use a spreadsheet for clean formatting, or draw by hand for quick fieldwork",
+      "expected_output": "Empty 5×5 grid"
+    },
+    {
+      "number": 2,
+      "title": "Label Rows",
+      "instruction": "Label rows: Very Unlikely, Unlikely, Possible, Likely, Very Likely",
+      "tip": "Consider the African context: infrastructure reliability, mobile-first users, bandwidth constraints",
+      "expected_output": "Labelled likelihood axis"
+    },
+    {
+      "number": 3,
+      "title": "Label Columns",
+      "instruction": "Label columns: Negligible, Minor, Moderate, Major, Critical",
+      "tip": "Impact should consider: data sensitivity, financial loss, operational disruption, regulatory penalties",
+      "expected_output": "Labelled impact axis"
+    },
+    {
+      "number": 4,
+      "title": "Colour-Code Zones",
+      "instruction": "Colour-code: green (low), yellow (medium), orange (high), red (critical)",
+      "tip": "The diagonal from bottom-left to top-right transitions from green to red",
+      "expected_output": "Colour-coded risk matrix"
+    },
+    {
+      "number": 5,
+      "title": "Place Risks",
+      "instruction": "Place each identified risk on the matrix and justify placement",
+      "tip": "Write one sentence per risk explaining why you placed it where you did",
+      "expected_output": "Populated risk matrix with justifications"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 5
+}

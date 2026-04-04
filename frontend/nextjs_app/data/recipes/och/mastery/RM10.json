@@ -1,0 +1,68 @@
+{
+  "recipe_id": "RM10",
+  "title": "OT Security Assessment Framework",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Specialist Domains",
+  "pillar_icon": "\ud83c\udfaf",
+  "estimated_time": "28 min",
+  "difficulty": "Mastery",
+  "tools_required": [
+    "ICS/SCADA simulation software (PLCSim, Factory I/O)",
+    "Network analysis (Wireshark, Zeek)",
+    "NMAP & ICS-specific tools",
+    "Modbus/Profinet protocol analysis",
+    "Physical security assessment tools",
+    "Safety engineering frameworks",
+    "Risk assessment templates"
+  ],
+  "when_to_use": "Use OT Security Assessment Framework to develop professional-grade ot security assessment framework capabilities at Mastery level. This recipe is part of the Specialist Domains pillar and integrates with linked missions OM-M08.",
+  "linked_missions": [
+    "OM-M08"
+  ],
+  "step_count": 6,
+  "steps": [
+    {
+      "number": 1,
+      "title": "OT Environment Study",
+      "instruction": "Research target OT environment (e.g., power generation SCADA). Study architecture: HMI systems, PLCs, network topology, safety interlocks, operational technology. Identify: device vendors (Siemens, ABB), protocols (Modbus TCP, Profinet), network segmentation, backup/redundancy systems. Create architecture diagram with data flows.",
+      "tip": "OT systems have decades-old designs optimized for safety + reliability, not security. Understand why before assessing.",
+      "expected_output": "OT architecture study with diagrams"
+    },
+    {
+      "number": 2,
+      "title": "Safety-First Assessment Methodology",
+      "instruction": "Design assessment that does NOT impact operations: no network scanning that could disrupt equipment, no experimental injections into control systems, no physical manipulation. Document: what you WILL test (passive reconnaissance, non-invasive security checks), what you WILL NOT do (load testing, exploit testing, physical intrusion). Get explicit approval for every test. Include kill switch procedures.",
+      "tip": "OT safety incidents can kill people. Conservative assessment is professional responsibility.",
+      "expected_output": "Assessment methodology with safety constraints"
+    },
+    {
+      "number": 3,
+      "title": "IT/OT Boundary Testing",
+      "instruction": "Test segmentation between IT (corporate network) and OT (operational systems): verify firewall rules, analyze allowed traffic, test for unauthorized IT->OT connections, check for OT->IT data exfiltration. Document: boundary effectiveness, potential bridges (engineer laptops, mobile devices), legitimate but risky connections (remote vendor access).",
+      "tip": "Boundary testing is non-disruptive: use network monitoring + firewall logs.",
+      "expected_output": "Boundary test plan + segmentation assessment"
+    },
+    {
+      "number": 4,
+      "title": "OT-Specific Threat Scenarios",
+      "instruction": "Develop 3 threat scenarios specific to African power utility OT: (1) remote network compromise of engineer workstations + lateral movement to SCADA, (2) insider threat with access to control network, (3) supply chain attack via firmware update server. Map each scenario to ATT&CK for ICS framework. Quantify: risk, impact, detection difficulty.",
+      "tip": "Tailor scenarios to client environment and threat landscape. African context: state-sponsored interest in infrastructure.",
+      "expected_output": "3 threat scenarios with ATT&CK mapping"
+    },
+    {
+      "number": 5,
+      "title": "OT-Specific Assessment Report",
+      "instruction": "Create assessment report template: findings organized by domain (architecture, IT/OT boundary, device security, network monitoring, incident response), severity with operational impact scoring (not just \"critical\"), remediation with implementation guidance, OT-aware recommendations (don't demand immediate patches if they require downtime). Include photos, network diagrams, evidence.",
+      "tip": "OT reports require different messaging than IT reports. Focus on operational resilience, not just vulnerability count.",
+      "expected_output": "OT-specific assessment report template"
+    },
+    {
+      "number": 6,
+      "title": "Client Education Package",
+      "instruction": "Create executive education for utility management: presentation (non-technical overview of OT security, threats to power infrastructure, cost of downtime), FAQ (answers to management questions: \"Why can't we just patch?\", \"What if we upgrade to cloud SCADA?\"), guidance (prioritized action plan, vendor relationships, certification programs). Make it compelling without being alarmist.",
+      "tip": "Utility executives care about business continuity. Frame security as operational resilience.",
+      "expected_output": "Executive presentation + FAQ + guidance (15-20 slides)"
+    }
+  ]
+}

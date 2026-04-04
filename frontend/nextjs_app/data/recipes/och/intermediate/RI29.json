@@ -1,0 +1,71 @@
+{
+  "recipe_id": "RI29",
+  "title": "Advanced Readiness Assessment",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Pentest Methodology",
+  "pillar_icon": "\ud83c\udfaf",
+  "estimated_time": "20 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "Spreadsheet",
+    "calendar",
+    "CTF platforms"
+  ],
+  "when_to_use": "After Intermediate before Advanced",
+  "linked_missions": [
+    "OI-M20"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Self-assess reconnaissance skills from 1-5 covering passive, active, and OSINT techniques",
+      "tip": "Start with the most reliable information source for advanced readiness assessment",
+      "expected_output": "Honest rating of reconnaissance capability with specific strengths identified"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Rate enumeration proficiency including service, protocol, and vulnerability enumeration",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "Enumeration skill assessment showing comfort with multiple techniques"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Assess web application testing skills covering SQLi, XSS, authentication, and APIs",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Web security knowledge rating from basic to advanced techniques"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Rate network attack proficiency including MitM, sniffing, and service exploitation",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Network security attack skill assessment"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Evaluate exploitation abilities covering Metasploit, custom exploits, and shellcode",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Exploitation skill level from basic payloads to advanced custom code"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Create 30-day study and practice plan targeting identified skill gaps",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Structured improvement plan with specific learning resources and timelines"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Schedule 2 CTF challenges covering weak areas for practical skill building",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Scheduled CTF challenges reinforcing identified skill gaps"
+    }
+  ]
+}

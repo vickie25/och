@@ -1,0 +1,55 @@
+{
+  "recipe_id": "R01",
+  "title": "Adversarial Thinking Warm-Up",
+  "pillar": "Offensive Mindset",
+  "pillar_icon": "🧠",
+  "estimated_time": "15 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Pen and paper or text editor"
+  ],
+  "when_to_use": "Before any vulnerability assessment or when developing adversarial thinking skills",
+  "linked_missions": [
+    "OB-M01"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Select a Target App",
+      "instruction": "Pick any app on your phone or browser",
+      "tip": "Choose something you use daily — familiarity helps you think deeper about assumptions",
+      "expected_output": "A specific app selected for analysis"
+    },
+    {
+      "number": 2,
+      "title": "List Assumptions",
+      "instruction": "List 5 assumptions it makes about users (e.g., users will only enter valid data)",
+      "tip": "Think about authentication, payment, input handling, session management, and data storage",
+      "expected_output": "5+ written assumptions"
+    },
+    {
+      "number": 3,
+      "title": "Violate Each Assumption",
+      "instruction": "For each assumption, ask: what if someone intentionally violated this?",
+      "tip": "Think like a malicious user with technical knowledge — not just accidental misuse",
+      "expected_output": "Violation scenario per assumption"
+    },
+    {
+      "number": 4,
+      "title": "Assess Consequences",
+      "instruction": "Write the potential consequences of each violation",
+      "tip": "Consider data loss, financial impact, reputation damage, and cascading effects",
+      "expected_output": "Impact analysis per violation"
+    },
+    {
+      "number": 5,
+      "title": "Rank by Severity",
+      "instruction": "Rank by severity: you have just completed a basic threat model",
+      "tip": "Use a simple High/Medium/Low ranking. The highest severity items are your priority findings",
+      "expected_output": "Prioritised risk list"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 5
+}

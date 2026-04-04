@@ -1,0 +1,70 @@
+{
+  "recipe_id": "RI16",
+  "title": "Post-Exploitation Checklist",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Post-Exploitation Basics",
+  "pillar_icon": "\ud83d\udd13",
+  "estimated_time": "20 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "OS built-in commands",
+    "LinPEAS/WinPEAS"
+  ],
+  "when_to_use": "Immediately after gaining shell access",
+  "linked_missions": [
+    "OI-M11"
+  ],
+  "step_count": 7,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Execute whoami, id, and hostname to determine current user context and system identity",
+      "tip": "Start with the most reliable information source for post-exploitation checklist",
+      "expected_output": "User account details, group memberships, and target system hostname"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Dump password hashes from /etc/passwd on Linux or use 'net user' on Windows",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "User account list with hash availability for offline cracking"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Capture network configuration using 'ip addr' on Linux or 'ipconfig' on Windows",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Network interface information showing IP addresses and network segments"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Review listening ports and established connections using netstat",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Network socket information revealing services and internal network access"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "List all running processes with 'ps aux' on Linux or 'tasklist' on Windows",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Process inventory showing running services and potential privilege escalation opportunities"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Search for SUID binaries on Linux systems that could enable privilege escalation",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "List of SUID binaries with excessive permissions for escalation attempts"
+    },
+    {
+      "number": 7,
+      "title": "Documentation/Reporting",
+      "instruction": "Check shell history, configuration files, and SSH keys for additional credentials",
+      "tip": "Review all findings before compilation for accuracy and completeness",
+      "expected_output": "Discovered hardcoded credentials, SSH keys, and history of previous commands"
+    }
+  ]
+}

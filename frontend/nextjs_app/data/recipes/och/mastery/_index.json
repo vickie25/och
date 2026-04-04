@@ -1,0 +1,97 @@
+{
+  "track": "Offensive",
+  "tier": "Mastery",
+  "total_recipes": 15,
+  "recipes": [
+    {
+      "id": "RM01",
+      "file": "RM01.json",
+      "title": "Vulnerability Research Campaign",
+      "pillar": "Zero-Day Research & Development"
+    },
+    {
+      "id": "RM02",
+      "file": "RM02.json",
+      "title": "Modern Exploit Development Workflow",
+      "pillar": "Zero-Day Research & Development"
+    },
+    {
+      "id": "RM03",
+      "file": "RM03.json",
+      "title": "Exploit Weaponization Process",
+      "pillar": "Zero-Day Research & Development"
+    },
+    {
+      "id": "RM04",
+      "file": "RM04.json",
+      "title": "Custom Implant Development Lifecycle",
+      "pillar": "Custom Implant Engineering"
+    },
+    {
+      "id": "RM05",
+      "file": "RM05.json",
+      "title": "Advanced Evasion Development",
+      "pillar": "Custom Implant Engineering"
+    },
+    {
+      "id": "RM06",
+      "file": "RM06.json",
+      "title": "EDR Architecture Analysis",
+      "pillar": "Custom Implant Engineering"
+    },
+    {
+      "id": "RM07",
+      "file": "RM07.json",
+      "title": "Infrastructure-as-Code Deployment",
+      "pillar": "Adversary Infrastructure at Scale"
+    },
+    {
+      "id": "RM08",
+      "file": "RM08.json",
+      "title": "Extended Operation OPSEC Framework",
+      "pillar": "Adversary Infrastructure at Scale"
+    },
+    {
+      "id": "RM09",
+      "file": "RM09.json",
+      "title": "OPSEC Incident Response",
+      "pillar": "Adversary Infrastructure at Scale"
+    },
+    {
+      "id": "RM10",
+      "file": "RM10.json",
+      "title": "OT Security Assessment Framework",
+      "pillar": "Specialist Domains"
+    },
+    {
+      "id": "RM11",
+      "file": "RM11.json",
+      "title": "Mobile & Embedded Assessment",
+      "pillar": "Specialist Domains"
+    },
+    {
+      "id": "RM12",
+      "file": "RM12.json",
+      "title": "Cloud-Native Attack Methodology",
+      "pillar": "Specialist Domains"
+    },
+    {
+      "id": "RM13",
+      "file": "RM13.json",
+      "title": "Red Team Practice Business Plan",
+      "pillar": "Red Team Leadership & Practice"
+    },
+    {
+      "id": "RM14",
+      "file": "RM14.json",
+      "title": "Engagement Management Framework",
+      "pillar": "Red Team Leadership & Practice"
+    },
+    {
+      "id": "RM15",
+      "file": "RM15.json",
+      "title": "Knowledge Transfer Program",
+      "pillar": "Red Team Leadership & Practice"
+    }
+  ]
+}

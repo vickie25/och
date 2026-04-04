@@ -1,0 +1,137 @@
+{
+  "mission_id": "OB-M05",
+  "title": "Packet Detective",
+  "pillar": "Networking Essentials",
+  "module_number": 5,
+  "module_title": "Network Traffic Analysis",
+  "video_duration": "14 min",
+  "estimated_time": "1 hour",
+  "multiday": false,
+  "deadline": "5 days",
+  "prerequisites": [
+    "OB-M03 and OB-M04 completed",
+    "Wireshark installed",
+    "Basic networking concepts"
+  ],
+  "learning_objectives": [
+    "Identify network protocols and ports from packet captures",
+    "Analyse TCP handshakes and connection states",
+    "Detect network anomalies from traffic patterns"
+  ],
+  "key_topics": [
+    "Protocol identification from PCAPs",
+    "TCP three-way handshake analysis",
+    "Network communication mapping",
+    "Anomaly detection in traffic patterns",
+    "Wireshark filtering basics",
+    "Port and protocol correlation"
+  ],
+  "scenario": "Your team lead hands you a PCAP file from a suspicious network session captured at a client site. Before using any automated tools, she wants proof you understand what you are looking at. Identify protocols, map communications, and spot anomalies.",
+  "scenario_context": {
+    "setting": "Client site network investigation",
+    "challenge": "Manual PCAP analysis demonstrating protocol understanding",
+    "relevance": "Network traffic analysis is essential for both offensive and defensive operations. Understanding what normal traffic looks like helps identify malicious activity."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Protocol Identification",
+      "description": "Identify all protocols present and list the ports they use. Note any non-standard port usage.",
+      "detailed_guidance": "Open the PCAP. List every protocol observed. For each, note the port number and whether it's the standard port. Flag any protocol running on a non-standard port — this is often suspicious.",
+      "evidence_required": "Protocol identification table: port, protocol, standard/non-standard"
+    },
+    {
+      "number": 2,
+      "title": "Handshake Analysis",
+      "description": "Find all TCP handshake sequences. Document completed vs abnormal handshakes.",
+      "detailed_guidance": "Filter for SYN packets. Trace each connection's handshake: SYN → SYN-ACK → ACK. Note incomplete handshakes, RST packets, and retransmissions. These patterns reveal scanning, firewalls, or issues.",
+      "evidence_required": "Handshake analysis with connection status per pair"
+    },
+    {
+      "number": 3,
+      "title": "Communication Map",
+      "description": "Draw a communication map showing all IP addresses and connections. Note direction and volume.",
+      "detailed_guidance": "Create a diagram: each IP as a node, each connection as an arrow with protocol and data volume. Identify the most talkative hosts, any broadcast traffic, and unexpected connections.",
+      "evidence_required": "Network communication diagram"
+    },
+    {
+      "number": 4,
+      "title": "Anomaly Report",
+      "description": "Identify at least 2 potential anomalies and explain why they are suspicious.",
+      "detailed_guidance": "Look for: unusual ports, high-frequency connections, DNS to unexpected servers, large data transfers to external IPs, unencrypted credentials, scanning patterns. Explain why each is suspicious.",
+      "evidence_required": "Anomaly report with evidence and reasoning"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Protocol Knowledge",
+      "weight": "25%"
+    },
+    {
+      "category": "Analysis Accuracy",
+      "weight": "30%"
+    },
+    {
+      "category": "Diagram Quality",
+      "weight": "20%"
+    },
+    {
+      "category": "Anomaly Reasoning",
+      "weight": "25%"
+    }
+  ],
+  "linked_recipes": [
+    "R09",
+    "R10"
+  ],
+  "resources": [
+    {
+      "name": "Sample PCAP File",
+      "type": "Lab File"
+    },
+    {
+      "name": "Wireshark Display Filter Cheat Sheet",
+      "type": "PDF"
+    },
+    {
+      "name": "Protocol Port Reference Card",
+      "type": "Document"
+    }
+  ],
+  "reflection_prompt": "You find evidence of data exfiltration in the PCAP — sensitive data being sent to an external IP over DNS queries. How would you report this to the client, and what immediate actions would you recommend?",
+  "quiz": [
+    {
+      "question": "A TCP SYN packet without a responding SYN-ACK likely indicates:",
+      "options": [
+        "Normal connection",
+        "The port is filtered or the host is down",
+        "Successful data transfer",
+        "DNS resolution"
+      ],
+      "correct_index": 1,
+      "explanation": "A SYN without SYN-ACK means the connection attempt failed — the port may be filtered by a firewall or the host isn't responding."
+    },
+    {
+      "question": "A protocol running on a non-standard port is suspicious because:",
+      "options": [
+        "It's always malware",
+        "Attackers often use non-standard ports to evade detection",
+        "Non-standard ports don't work",
+        "Only HTTP uses standard ports"
+      ],
+      "correct_index": 1,
+      "explanation": "Attackers frequently run services on non-standard ports to bypass firewall rules and avoid detection by simple port-based filtering."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Protocol identification table",
+    "Handshake analysis document",
+    "Network communication diagram",
+    "Anomaly report"
+  ],
+  "mentor_notes": "Evaluate understanding over tool proficiency. A student who correctly identifies anomalies with clear reasoning scores higher than one who uses Wireshark features but misses the significance.",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "🌐",
+  "mission_type": "Mandatory"
+}

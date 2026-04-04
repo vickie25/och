@@ -1,0 +1,136 @@
+{
+  "mission_id": "OB-M07",
+  "title": "Terminal Warrior",
+  "pillar": "Linux & CLI",
+  "module_number": 7,
+  "module_title": "Linux Filesystem & Command Line",
+  "video_duration": "16 min",
+  "estimated_time": "1 hour",
+  "multiday": false,
+  "deadline": "5 days",
+  "prerequisites": [
+    "Kali Linux VM running",
+    "Basic terminal access"
+  ],
+  "learning_objectives": [
+    "Navigate the Linux filesystem with speed and accuracy",
+    "Discover hidden files and analyse file permissions",
+    "Build command pipelines for security-relevant tasks"
+  ],
+  "key_topics": [
+    "Linux filesystem hierarchy (/etc, /var, /tmp, /opt, /usr)",
+    "Hidden file discovery (dotfiles)",
+    "File permission analysis (SUID, world-writable)",
+    "Command chaining and piping",
+    "Security-relevant file locations",
+    "Grep, find, and permission commands"
+  ],
+  "scenario": "Your mentor has set up a challenge on your Kali VM. Navigate the filesystem, find hidden files, decode a message, and prove you can operate in the terminal under time pressure. Speed and accuracy both count.",
+  "scenario_context": {
+    "setting": "Kali Linux VM with planted challenge files",
+    "challenge": "Filesystem navigation and discovery under time pressure",
+    "relevance": "Every offensive engagement begins and ends in the terminal. Speed and comfort with the CLI directly impacts operational effectiveness."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Filesystem Navigation Challenge",
+      "description": "Navigate to 5 system directories (/etc, /var/log, /tmp, /opt, /usr/share). List contents and document 3 interesting files in each.",
+      "detailed_guidance": "Use ls -la in each directory. For 'interesting' files, look for configuration files, logs with data, scripts, and anything security-relevant. Explain why each file is interesting from an attacker's perspective.",
+      "evidence_required": "Terminal output showing navigation and file discovery"
+    },
+    {
+      "number": 2,
+      "title": "Hidden File Hunt",
+      "description": "Find all hidden files in /home and /tmp. Read contents and document anything resembling credentials or configuration data.",
+      "detailed_guidance": "Use ls -la and find to locate dotfiles. Read contents with cat. Look for .bash_history, .ssh directories, .env files, cached credentials. Document everything found.",
+      "evidence_required": "List of hidden files found with contents summary"
+    },
+    {
+      "number": 3,
+      "title": "Permission Analysis",
+      "description": "Find 5 files with unusual permissions (world-writable, SUID, etc.) and explain each security concern.",
+      "detailed_guidance": "Use find to locate SUID binaries (find / -perm -4000), world-writable files (find / -perm -002), and files owned by root but writable by others. Explain the security risk of each.",
+      "evidence_required": "Permission analysis table: file, permissions, concern"
+    },
+    {
+      "number": 4,
+      "title": "Command Chain Challenge",
+      "description": "Write a single command pipeline that finds all .conf files modified in the last 7 days, searches them for 'password', and saves results to a file.",
+      "detailed_guidance": "Combine find, xargs/exec, grep, and output redirection into a single pipeline. Test it. Make sure it handles filenames with spaces. The goal is efficiency and correctness.",
+      "evidence_required": "Working command and output file"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Terminal Proficiency",
+      "weight": "30%"
+    },
+    {
+      "category": "File Discovery",
+      "weight": "25%"
+    },
+    {
+      "category": "Security Awareness",
+      "weight": "25%"
+    },
+    {
+      "category": "Command Efficiency",
+      "weight": "20%"
+    }
+  ],
+  "linked_recipes": [
+    "R12",
+    "R13"
+  ],
+  "resources": [
+    {
+      "name": "Linux Filesystem Map",
+      "type": "PDF"
+    },
+    {
+      "name": "Essential Linux Commands Cheat Sheet",
+      "type": "Document"
+    },
+    {
+      "name": "Challenge VM Setup Instructions",
+      "type": "Guide"
+    }
+  ],
+  "reflection_prompt": "You gain a shell on a target system during an engagement. You have 5 minutes before the connection might be detected. What are the first 10 commands you run, and why?",
+  "quiz": [
+    {
+      "question": "SUID binaries are security-relevant because:",
+      "options": [
+        "They are hidden files",
+        "They execute with the file owner's privileges regardless of who runs them",
+        "They require passwords",
+        "They only exist on Kali"
+      ],
+      "correct_index": 1,
+      "explanation": "SUID binaries run with the permissions of the file owner (often root), making them potential privilege escalation vectors."
+    },
+    {
+      "question": "The command 'find / -perm -002' searches for:",
+      "options": [
+        "Hidden files",
+        "SUID binaries",
+        "World-writable files",
+        "Encrypted files"
+      ],
+      "correct_index": 2,
+      "explanation": "The -002 permission flag matches files that are writable by 'others' (world-writable), which can be a security risk."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Filesystem navigation evidence",
+    "Hidden file discovery report",
+    "Permission analysis table",
+    "Working command pipeline"
+  ],
+  "mentor_notes": "Speed matters but accuracy matters more. Check that the student understands WHY each finding is security-relevant, not just that they found it. The command chain in subtask 4 should be elegant and functional.",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "🐧",
+  "mission_type": "Mandatory"
+}

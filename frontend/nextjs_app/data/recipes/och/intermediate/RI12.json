@@ -1,0 +1,63 @@
+{
+  "recipe_id": "RI12",
+  "title": "Vulnerability Chaining Framework",
+  "track": "Offensive",
+  "tier": "Intermediate",
+  "pillar": "Network Attacks",
+  "pillar_icon": "\ud83c\udf10",
+  "estimated_time": "15 min",
+  "difficulty": "Intermediate",
+  "tools_required": [
+    "Diagramming tool",
+    "spreadsheet"
+  ],
+  "when_to_use": "After gaining multi-host access",
+  "linked_missions": [
+    "OI-M08"
+  ],
+  "step_count": 6,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Initial Setup/Scanning",
+      "instruction": "Create comprehensive inventory of all access points and credentials across network",
+      "tip": "Start with the most reliable information source for vulnerability chaining framework",
+      "expected_output": "Spreadsheet mapping each host with associated access methods and credentials"
+    },
+    {
+      "number": 2,
+      "title": "Data Collection/Configuration",
+      "instruction": "Design graph visualization with hosts as nodes and access/trust relationships as edges",
+      "tip": "Organize data systematically to avoid duplicates and ensure coverage",
+      "expected_output": "Attack graph showing how compromised systems connect and enable progression"
+    },
+    {
+      "number": 3,
+      "title": "Analysis/Enumeration",
+      "instruction": "Test credential reuse across discovered hosts to enable lateral movement",
+      "tip": "Look for patterns and correlations in collected data",
+      "expected_output": "Confirmed list of credentials working across multiple systems"
+    },
+    {
+      "number": 4,
+      "title": "Advanced Technique/Filtering",
+      "instruction": "Document complete attack chain from initial access to final objective",
+      "tip": "Use multiple techniques to increase coverage and accuracy",
+      "expected_output": "Step-by-step narrative documenting progression through multiple systems"
+    },
+    {
+      "number": 5,
+      "title": "Correlation/Testing",
+      "instruction": "Identify detection opportunities and security controls bypassed at each stage",
+      "tip": "Validate findings across different tools and methods",
+      "expected_output": "Analysis of detection gaps and security control weaknesses exploited"
+    },
+    {
+      "number": 6,
+      "title": "Validation/Exploitation",
+      "instruction": "Create visual storyboard presenting attack chain as narrative progression",
+      "tip": "Document proof-of-concept evidence for credibility",
+      "expected_output": "Client-ready presentation of the complete attack story with visual flow"
+    }
+  ]
+}

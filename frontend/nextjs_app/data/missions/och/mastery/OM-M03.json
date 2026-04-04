@@ -1,0 +1,163 @@
+{
+  "mission_id": "OM-M03",
+  "title": "Forge the Weapon — Exploit Weaponization",
+  "track": "Offensive",
+  "tier": "Mastery",
+  "pillar": "Zero-Day Research & Development",
+  "pillar_icon": "🔬",
+  "mission_type": "Mandatory",
+  "module_number": 3,
+  "module_title": "Operator-Ready Tools",
+  "video_duration": "18-20 min",
+  "estimated_time": "12-15 hrs",
+  "multiday": true,
+  "deadline": "10 days",
+  "prerequisites": [
+    "Advanced Offensive Track - Mastery Tier Access"
+  ],
+  "learning_objectives": [
+    "Exploit reliability engineering (target 95%+ success rate)",
+    "Target environment validation and pre-flight checks",
+    "C2 framework integration and callback execution",
+    "Safety mechanisms and graceful failure handling",
+    "Comprehensive operator documentation",
+    "Ethical boundary analysis and risk assessment"
+  ],
+  "key_topics": [
+    "Reliability engineering",
+    "Target validation modules",
+    "C2 integration patterns",
+    "Operator documentation standards",
+    "Safety and abort mechanisms",
+    "Ethical exploitation guidelines"
+  ],
+  "scenario": "This Mastery mission requires professional-grade execution in Multi-engagement red team operations across East Africa. Challenge: Transform academic PoC into reliable, safe operator tool with C2 integration. Relevance: Red team operators require battle-tested tools for concurrent African enterprise engagements",
+  "scenario_context": {
+    "setting": "Multi-engagement red team operations across East Africa",
+    "challenge": "Transform academic PoC into reliable, safe operator tool with C2 integration",
+    "relevance": "Red team operators require battle-tested tools for concurrent African enterprise engagements"
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "PoC Baseline",
+      "description": "Document starting PoC: reliability, failure modes, side effects.",
+      "detailed_guidance": "Document your starting PoC:\n        - Reliability: Success rate percentage\n        - Failure modes: Under what conditions does it fail?\n        - Side effects: Does it crash the process, leak information?\n        - Prerequisites: Target version, configuration, environment\n\n        Create baseline metrics to compare against improvements.",
+      "evidence_required": "PoC analysis with baseline metrics"
+    },
+    {
+      "number": 2,
+      "title": "Target Validation Module",
+      "description": "Pre-exploitation checks: version, environment, abort conditions.",
+      "detailed_guidance": "Develop pre-exploitation checks:\n        - Verify target software version and configuration\n        - Check for environmental prerequisites\n        - Test for conditions that would cause failure\n        - Implement graceful abort if target doesn't match\n\n        Deliver: Python/C module that validates target before exploitation attempt.",
+      "evidence_required": "Validation module + test results"
+    },
+    {
+      "number": 3,
+      "title": "Reliability Engineering",
+      "description": "Improve to >95% reliability. Handle failure gracefully.",
+      "detailed_guidance": "Improve exploit to >95% success rate:\n        - Add retry logic with randomized delays\n        - Implement address space handling for ASLR\n        - Add race condition handling if applicable\n        - Test extensively on diverse configurations\n\n        Deliver: 100+ run reliability report with metrics and failure analysis.",
+      "evidence_required": "100-run reliability report"
+    },
+    {
+      "number": 4,
+      "title": "C2 Integration",
+      "description": "Integrate with C2 framework. Demonstrate callback.",
+      "detailed_guidance": "Integrate with C2 framework:\n        - Connect exploitation to C2 callback\n        - Demonstrate successful callback after exploitation\n        - Handle multi-stage: stager -> meterpreter pattern\n        - Document integration points and configuration\n\n        Deliver: Integration code, deployment procedure, callback evidence.",
+      "evidence_required": "C2 integration + exploitation-to-callback demo"
+    },
+    {
+      "number": 5,
+      "title": "Operator Documentation",
+      "description": "Comprehensive manual: prerequisites, usage, limitations, abort.",
+      "detailed_guidance": "Write comprehensive 5+ page manual:\n        - Prerequisites and environment setup\n        - Usage instructions with examples\n        - Configuration options and customization\n        - Limitations and known issues\n        - Abort procedures and safety mechanisms\n        - Troubleshooting guide",
+      "evidence_required": "Operator manual (5+ pages)"
+    },
+    {
+      "number": 6,
+      "title": "Safety & Ethics Review",
+      "description": "Risk matrix and ethical boundary analysis.",
+      "detailed_guidance": "Develop safety framework:\n        - Risk matrix: What could go wrong?\n        - Ethical boundary analysis: Where do you draw the line?\n        - Incident procedures: What if exploitation causes damage?\n        - Client communication: How would you explain risks?\n        - Compliance: What legal boundaries apply in African jurisdictions?\n\n        Deliver: Safety review document with governance framework.",
+      "evidence_required": "Safety review document"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Reliability Improvement",
+      "weight": "25%"
+    },
+    {
+      "category": "Safety Engineering",
+      "weight": "20%"
+    },
+    {
+      "category": "C2 Integration",
+      "weight": "15%"
+    },
+    {
+      "category": "Operator Documentation",
+      "weight": "15%"
+    },
+    {
+      "category": "Ethical Analysis",
+      "weight": "15%"
+    },
+    {
+      "category": "Code Quality",
+      "weight": "10%"
+    }
+  ],
+  "linked_recipes": [
+    "RM03",
+    "RM04"
+  ],
+  "resources": [
+    {
+      "type": "Documentation",
+      "title": "OCH Mastery Reference Guide",
+      "url": "https://och.dev/mastery-reference"
+    },
+    {
+      "type": "Video",
+      "title": "Mission Overview: Forge the Weapon — Exploit Weaponization",
+      "duration": "18-20 min"
+    },
+    {
+      "type": "Tool",
+      "title": "OCH Mastery Assessment Framework",
+      "url": "https://och.dev/assessment"
+    }
+  ],
+  "reflection_prompt": "What safety mechanisms would prevent accidental customer impact during a 30-day African engagement? How do operator skill levels influence exploit reliability requirements?",
+  "quiz": [
+    {
+      "question": "What is the primary purpose of target validation in exploit weaponization for operator-ready tools?",
+      "options": [
+        "To make the exploit run faster",
+        "To verify the target environment matches prerequisites before exploitation, preventing failed or dangerous attempts",
+        "To encrypt all communications",
+        "To automatically find new vulnerabilities"
+      ],
+      "correct_index": 1,
+      "explanation": "Target validation checks the target environment (version, configuration, running processes) before attempting exploitation. This prevents failures from environmental mismatches and dangerous situations where exploitation might cause unintended damage."
+    },
+    {
+      "question": "In a concurrent red team engagement across multiple African countries, why is C2 integration critical for weaponized exploits?",
+      "options": [
+        "It slows down exploit execution for stealth",
+        "It allows the operator to execute commands and maintain control after successful exploitation, enabling full system compromise",
+        "It prevents the exploit from working correctly",
+        "It eliminates the need for other post-exploitation tools"
+      ],
+      "correct_index": 1,
+      "explanation": "C2 integration transforms a standalone exploit into an operational capability. After gaining initial execution, the operator needs persistent command and control to move laterally, establish persistence, and achieve engagement objectives across African targets."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Professional deliverables demonstrating mastery-level capability",
+    "Complete documentation and methodology",
+    "Evidence of technical excellence and strategic thinking",
+    "Leadership and mentorship contributions"
+  ],
+  "mentor_notes": "\nThis Mastery mission requires senior mentor review. Candidates must demonstrate:\n- Professional-grade execution and documentation\n- Deep understanding of African organizational and threat contexts\n- Strategic thinking beyond tactical execution\n- Readiness for commercial red team operations\n- Leadership potential within OCH and broader community\n\nSuccessful completion positions candidate for Mastery portfolio and professional practice.\n        "
+}

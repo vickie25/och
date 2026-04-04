@@ -1,0 +1,128 @@
+{
+  "mission_id": "OB-M06",
+  "title": "Network Mapper",
+  "pillar": "Networking Essentials",
+  "module_number": 6,
+  "module_title": "Network Architecture & Lateral Movement",
+  "video_duration": "12 min",
+  "estimated_time": "45 min",
+  "multiday": false,
+  "deadline": "3 days",
+  "prerequisites": [
+    "OB-M05 completed",
+    "Subnet calculation basics",
+    "Understanding of network zones"
+  ],
+  "learning_objectives": [
+    "Calculate subnets and identify network boundaries",
+    "Map network zones and their security functions",
+    "Identify lateral movement paths from an attacker's perspective"
+  ],
+  "key_topics": [
+    "Subnet calculation (CIDR notation)",
+    "Network zone identification (DMZ, internal, guest, management)",
+    "Lateral movement path analysis",
+    "Network segmentation assessment",
+    "Access control gap identification"
+  ],
+  "scenario": "You are given a corporate network diagram for a medium-sized company. Your job is to identify network zones, calculate subnets, and determine the most likely lateral movement paths from an initial compromise in the guest WiFi zone.",
+  "scenario_context": {
+    "setting": "Medium-sized corporate network",
+    "challenge": "Subnet analysis and lateral movement path identification",
+    "relevance": "Understanding network architecture is critical for both attackers planning movement and defenders building segmentation. Many African corporate networks have flat architectures with poor segmentation."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Subnet Calculation",
+      "description": "For each zone in the provided diagram, calculate the subnet, usable host range, and broadcast address.",
+      "detailed_guidance": "Convert CIDR to subnet mask. Calculate network address, broadcast address, and usable range for each zone. Verify your math with ipcalc if available.",
+      "evidence_required": "Subnet calculation table for all zones"
+    },
+    {
+      "number": 2,
+      "title": "Zone Mapping",
+      "description": "Identify each zone's purpose (DMZ, internal, guest, management) and list expected services.",
+      "detailed_guidance": "For each zone: what is its function? What services should be running there? What kind of traffic should flow in and out? Identify any zones that seem misconfigured.",
+      "evidence_required": "Zone purpose map with expected services"
+    },
+    {
+      "number": 3,
+      "title": "Attack Path Analysis",
+      "description": "From the guest WiFi zone, map 2-3 lateral movement paths to the server zone. Note what controls would block each path.",
+      "detailed_guidance": "Think like an attacker: from guest WiFi, how do you reach internal servers? Consider: ARP spoofing, VLAN hopping, credential theft, pivoting through compromised hosts. For each path, note which controls (firewalls, ACLs, NAC) would block it.",
+      "evidence_required": "Lateral movement path diagram with control gaps"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Subnet Accuracy",
+      "weight": "30%"
+    },
+    {
+      "category": "Zone Understanding",
+      "weight": "25%"
+    },
+    {
+      "category": "Attack Path Logic",
+      "weight": "30%"
+    },
+    {
+      "category": "Documentation",
+      "weight": "15%"
+    }
+  ],
+  "linked_recipes": [
+    "R09",
+    "R11"
+  ],
+  "resources": [
+    {
+      "name": "Corporate Network Diagram",
+      "type": "Lab File"
+    },
+    {
+      "name": "Subnet Calculation Quick Reference",
+      "type": "PDF"
+    },
+    {
+      "name": "Network Segmentation Guide",
+      "type": "Document"
+    }
+  ],
+  "reflection_prompt": "The company has a completely flat network — no VLANs, no segmentation. An attacker compromises one workstation. Describe the impact and design a segmentation plan they could implement within 30 days.",
+  "quiz": [
+    {
+      "question": "A /24 subnet has how many usable host addresses?",
+      "options": [
+        "256",
+        "254",
+        "255",
+        "128"
+      ],
+      "correct_index": 1,
+      "explanation": "A /24 has 256 total addresses, minus network address and broadcast address = 254 usable hosts."
+    },
+    {
+      "question": "Lateral movement from guest WiFi to internal servers is easier when:",
+      "options": [
+        "Strong passwords are used",
+        "Network segmentation is weak or absent",
+        "Antivirus is installed",
+        "Users have MFA"
+      ],
+      "correct_index": 1,
+      "explanation": "Without proper segmentation, an attacker in the guest WiFi zone may be able to reach internal resources directly."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Subnet calculation table",
+    "Zone mapping document",
+    "Lateral movement analysis"
+  ],
+  "mentor_notes": "Subnet math must be correct — no partial credit. The attack path analysis reveals whether the student thinks like an attacker. Look for creative paths beyond the obvious.",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "🌐",
+  "mission_type": "Mandatory"
+}

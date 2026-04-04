@@ -1,0 +1,136 @@
+{
+  "mission_id": "OB-M11",
+  "title": "Recon Automator",
+  "pillar": "Scripting Basics",
+  "module_number": 11,
+  "module_title": "Python Automation for Reconnaissance",
+  "video_duration": "16 min",
+  "estimated_time": "1.5 hours",
+  "multiday": false,
+  "deadline": "5 days",
+  "prerequisites": [
+    "Python 3 installed",
+    "Basic programming concepts",
+    "OB-M03 (passive recon understanding)"
+  ],
+  "learning_objectives": [
+    "Build a functional Python recon automation script",
+    "Implement input validation, WHOIS lookups, and DNS resolution",
+    "Generate timestamped output reports programmatically"
+  ],
+  "key_topics": [
+    "Python scripting for OSINT",
+    "WHOIS automation",
+    "DNS resolution with socket/python-whois",
+    "Input validation patterns",
+    "Timestamped report generation",
+    "Error handling in network scripts"
+  ],
+  "scenario": "Your team performs the same passive recon steps on every engagement. It is time to automate. Build a Python script that takes a domain as input and automates basic OSINT lookups, saving everything to a timestamped report.",
+  "scenario_context": {
+    "setting": "Team recon automation project",
+    "challenge": "Build a working Python recon tool from scratch",
+    "relevance": "Automation is what separates a script kiddie from a professional operator. Building your own tools develops deep understanding."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Domain Input Handler",
+      "description": "Create a script that accepts a domain, validates the format, and stores it for processing.",
+      "detailed_guidance": "Use sys.argv or argparse for input. Validate with regex or simple checks. Handle missing input gracefully with usage message.",
+      "evidence_required": "Working script with input validation"
+    },
+    {
+      "number": 2,
+      "title": "WHOIS Lookup Function",
+      "description": "Add a function that performs a WHOIS lookup and extracts key fields (registrar, creation date, expiry).",
+      "detailed_guidance": "Use python-whois library. Extract registrar, creation_date, expiration_date, name_servers. Handle lookup failures with try/except.",
+      "evidence_required": "Script output showing parsed WHOIS data"
+    },
+    {
+      "number": 3,
+      "title": "DNS Resolution Function",
+      "description": "Add a function that resolves the domain to IPs and performs reverse DNS lookups.",
+      "detailed_guidance": "Use socket.gethostbyname() and socket.gethostbyaddr(). Handle resolution failures. Try multiple record types if possible.",
+      "evidence_required": "Script output showing DNS results"
+    },
+    {
+      "number": 4,
+      "title": "Report Generator",
+      "description": "Add output formatting that saves all results to a timestamped text file.",
+      "detailed_guidance": "Create output directory. Generate filename with timestamp. Write results with clear headers and formatting. Include run metadata.",
+      "evidence_required": "Generated report file and complete script source"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Code Functionality",
+      "weight": "30%"
+    },
+    {
+      "category": "Error Handling",
+      "weight": "20%"
+    },
+    {
+      "category": "Code Quality",
+      "weight": "25%"
+    },
+    {
+      "category": "Output Professionalism",
+      "weight": "25%"
+    }
+  ],
+  "linked_recipes": [
+    "R18",
+    "R19"
+  ],
+  "resources": [
+    {
+      "name": "Python Recon Script Starter",
+      "type": "Template"
+    },
+    {
+      "name": "python-whois Documentation",
+      "type": "Reference"
+    },
+    {
+      "name": "Socket Programming Guide",
+      "type": "PDF"
+    }
+  ],
+  "reflection_prompt": "Your script works perfectly in the lab but fails on a real engagement because DNS is blocked. How do you build resilience into your tools?",
+  "quiz": [
+    {
+      "question": "try/except in Python network scripts is important because:",
+      "options": [
+        "It makes code faster",
+        "Network operations frequently fail and unhandled exceptions crash the script",
+        "It's a Python requirement",
+        "It only works for WHOIS"
+      ],
+      "correct_index": 1,
+      "explanation": "Network operations are unreliable. DNS lookups fail, connections time out, and services refuse connections. Error handling keeps the script running."
+    },
+    {
+      "question": "Timestamped output files are important because:",
+      "options": [
+        "They look professional",
+        "They prevent overwriting previous results and provide an audit trail",
+        "Python requires them",
+        "They encrypt the data"
+      ],
+      "correct_index": 1,
+      "explanation": "Timestamps ensure each engagement's results are preserved separately, creating an audit trail for reporting and legal purposes."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Complete Python recon script",
+    "Sample output report",
+    "Script documentation"
+  ],
+  "mentor_notes": "Code must run. Test by executing the submitted script against a test domain. Evaluate: does it handle errors? Is the output useful? Is the code readable?",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "📜",
+  "mission_type": "Mandatory"
+}

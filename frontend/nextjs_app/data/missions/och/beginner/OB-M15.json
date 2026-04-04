@@ -1,0 +1,137 @@
+{
+  "mission_id": "OB-M15",
+  "title": "Nmap Mastery Challenge",
+  "pillar": "Beginner Tooling",
+  "module_number": 15,
+  "module_title": "Advanced Nmap Techniques",
+  "video_duration": "16 min",
+  "estimated_time": "1.5 hours",
+  "multiday": false,
+  "deadline": "5 days",
+  "prerequisites": [
+    "OB-M04 and OB-M14 completed",
+    "Nmap proficiency",
+    "Lab with 3 target machines with different configs"
+  ],
+  "learning_objectives": [
+    "Apply advanced Nmap scanning techniques against diverse targets",
+    "Compare stealth and full scan approaches",
+    "Design custom scan strategies for firewalled targets"
+  ],
+  "key_topics": [
+    "Host discovery techniques",
+    "SYN stealth vs connect scan",
+    "Version and script scanning",
+    "Firewall evasion techniques",
+    "Scan strategy design",
+    "Output format comparison"
+  ],
+  "scenario": "Your mentor has set up 3 target machines with different configurations. Complete a series of scanning challenges, each requiring different Nmap techniques. Document every command and result precisely.",
+  "scenario_context": {
+    "setting": "Lab with 3 differently-configured targets",
+    "challenge": "Progressive Nmap challenges from basic to firewall evasion",
+    "relevance": "Nmap is the most important tool in an offensive operator's arsenal. Mastering its capabilities is non-negotiable."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "Discovery Scan",
+      "description": "Find all live hosts using host discovery only (no port scanning). Document flags used and rationale.",
+      "detailed_guidance": "Use nmap -sn. Try different discovery methods: ICMP echo, TCP SYN, TCP ACK, ARP. Explain why you chose each method and what each discovers.",
+      "evidence_required": "Host discovery output and command explanation"
+    },
+    {
+      "number": 2,
+      "title": "Stealth vs Full Scan Comparison",
+      "description": "Run both a SYN stealth scan and full connect scan against Host 1. Compare results, timing, and detection risk.",
+      "detailed_guidance": "Run nmap -sS (SYN) and nmap -sT (connect) against the same host. Compare: results, speed, packets sent, detection likelihood. Explain when to use each.",
+      "evidence_required": "Both scan outputs plus comparison analysis"
+    },
+    {
+      "number": 3,
+      "title": "Version & Script Scan",
+      "description": "Run comprehensive version detection plus default scripts against Host 2. Identify all services and script findings.",
+      "detailed_guidance": "Use nmap -sV -sC or nmap -A. Analyse NSE script output. Note any vulnerabilities or misconfigurations the scripts reveal.",
+      "evidence_required": "Full scan output plus findings analysis"
+    },
+    {
+      "number": 4,
+      "title": "Custom Scan Challenge",
+      "description": "Host 3 has a firewall. Design and execute a scan strategy to identify services despite the firewall. Try multiple approaches.",
+      "detailed_guidance": "Try: fragment packets (-f), decoys (-D), different timing (-T), ACK scan (-sA), window scan (-sW), specific port ranges. Document what works and what's blocked.",
+      "evidence_required": "Scan strategy document plus results"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Nmap Command Knowledge",
+      "weight": "25%"
+    },
+    {
+      "category": "Technique Selection",
+      "weight": "25%"
+    },
+    {
+      "category": "Analysis Quality",
+      "weight": "25%"
+    },
+    {
+      "category": "Documentation",
+      "weight": "25%"
+    }
+  ],
+  "linked_recipes": [
+    "R07",
+    "R22"
+  ],
+  "resources": [
+    {
+      "name": "Nmap Cheat Sheet",
+      "type": "PDF"
+    },
+    {
+      "name": "NSE Script Reference",
+      "type": "Document"
+    },
+    {
+      "name": "Firewall Evasion Guide",
+      "type": "PDF"
+    }
+  ],
+  "reflection_prompt": "A client's IDS alerts on your scans within seconds. How do you adjust your approach to complete the engagement without triggering excessive alerts?",
+  "quiz": [
+    {
+      "question": "SYN scan is called 'stealth' because:",
+      "options": [
+        "It's invisible to all detection",
+        "It doesn't complete the TCP handshake, making it harder to log",
+        "It uses encryption",
+        "It only scans common ports"
+      ],
+      "correct_index": 1,
+      "explanation": "SYN scan sends SYN and receives SYN-ACK but never completes with ACK. Many older systems don't log incomplete connections."
+    },
+    {
+      "question": "Against a firewalled host, an ACK scan (-sA) helps by:",
+      "options": [
+        "Bypassing the firewall",
+        "Revealing which ports are filtered vs unfiltered by the firewall",
+        "Scanning faster",
+        "Finding vulnerabilities"
+      ],
+      "correct_index": 1,
+      "explanation": "ACK scans don't determine open ports but reveal firewall rules by showing which ports are filtered vs unfiltered."
+    }
+  ],
+  "portfolio_artifacts": [
+    "Host discovery analysis",
+    "Scan comparison report",
+    "Version/script findings",
+    "Firewall evasion strategy"
+  ],
+  "mentor_notes": "Evaluate command selection rationale, not just results. The firewall evasion challenge should show creative thinking and systematic approach.",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "🛠️",
+  "mission_type": "Mandatory"
+}

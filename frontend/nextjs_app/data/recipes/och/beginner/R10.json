@@ -1,0 +1,62 @@
+{
+  "recipe_id": "R10",
+  "title": "TCP Handshake Analyser",
+  "pillar": "Networking Essentials",
+  "pillar_icon": "🌐",
+  "estimated_time": "15 min",
+  "difficulty": "Beginner",
+  "tools_required": [
+    "Wireshark"
+  ],
+  "when_to_use": "When analysing network captures for suspicious connection patterns",
+  "linked_missions": [
+    "OB-M05"
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "title": "Open PCAP",
+      "instruction": "Open a PCAP in Wireshark or read a PCAP summary",
+      "tip": "If analysing your own traffic, start capture before generating the connection",
+      "expected_output": "PCAP loaded"
+    },
+    {
+      "number": 2,
+      "title": "Filter SYN Packets",
+      "instruction": "Filter for TCP connections: tcp.flags.syn==1 && tcp.flags.ack==0",
+      "tip": "This shows only initial SYN packets — the start of every TCP connection attempt",
+      "expected_output": "SYN packets isolated"
+    },
+    {
+      "number": 3,
+      "title": "Trace Handshakes",
+      "instruction": "For each SYN, trace the full handshake: SYN, SYN-ACK, ACK",
+      "tip": "Right-click a packet → Follow → TCP Stream to see the complete conversation",
+      "expected_output": "Handshakes traced"
+    },
+    {
+      "number": 4,
+      "title": "Identify Half-Open Connections",
+      "instruction": "Note any half-open connections (SYN without SYN-ACK): possible scan",
+      "tip": "Many SYN packets to different ports from one IP = port scan. SYN flood = DoS attack",
+      "expected_output": "Scan patterns identified"
+    },
+    {
+      "number": 5,
+      "title": "Note RST Packets",
+      "instruction": "Note any RST packets: connection refused or reset",
+      "tip": "RST after SYN = port closed. RST after established connection = connection forcefully terminated",
+      "expected_output": "RST analysis complete"
+    },
+    {
+      "number": 6,
+      "title": "Document Findings",
+      "instruction": "Document: source IP, dest IP, port, handshake status",
+      "tip": "Create a connection state table for your report. Include: endpoints, ports, state, assessment",
+      "expected_output": "Connection analysis table"
+    }
+  ],
+  "track": "Offensive",
+  "tier": "Beginner",
+  "step_count": 6
+}

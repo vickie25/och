@@ -1,0 +1,136 @@
+{
+  "mission_id": "OB-M13",
+  "title": "Vulnerability Researcher",
+  "pillar": "Vulnerability Concepts",
+  "module_number": 13,
+  "module_title": "CVE Research & Risk Assessment",
+  "video_duration": "15 min",
+  "estimated_time": "1.5 hours",
+  "multiday": false,
+  "deadline": "5 days",
+  "prerequisites": [
+    "Basic understanding of software versions",
+    "Web browser for NVD/ExploitDB research"
+  ],
+  "learning_objectives": [
+    "Research CVEs systematically using NVD and ExploitDB",
+    "Assess exploitability and prioritise vulnerabilities by risk",
+    "Produce executive-level vulnerability briefings"
+  ],
+  "key_topics": [
+    "CVE research methodology",
+    "NVD and ExploitDB usage",
+    "CVSS scoring interpretation",
+    "Exploitability assessment",
+    "Risk prioritisation",
+    "Executive briefing communication"
+  ],
+  "scenario": "A client runs Apache 2.4.49 and OpenSSH 7.6. They want to know their exposure. Research all relevant CVEs, assess exploitability, and deliver a vulnerability briefing that a non-technical manager can understand.",
+  "scenario_context": {
+    "setting": "Client with known software versions needing risk assessment",
+    "challenge": "Comprehensive CVE research and executive communication",
+    "relevance": "Vulnerability research is a core skill for both pentesters and security analysts. The ability to translate technical findings for executives is a career differentiator."
+  },
+  "subtasks": [
+    {
+      "number": 1,
+      "title": "CVE Discovery",
+      "description": "Search NVD and ExploitDB for CVEs affecting both software versions. Document every CVE found.",
+      "detailed_guidance": "Search nvd.nist.gov for Apache 2.4.49 and OpenSSH 7.6. For each CVE: record ID, CVSS score, description, affected versions. Check ExploitDB for public exploits.",
+      "evidence_required": "CVE list with ID, CVSS score, description, affected version"
+    },
+    {
+      "number": 2,
+      "title": "Exploitability Assessment",
+      "description": "For each CVE, determine public exploit availability, attack complexity, and potential impact.",
+      "detailed_guidance": "For each CVE: is there a public exploit? What's the attack vector (network/local)? What privileges are needed? What's the impact on confidentiality, integrity, availability?",
+      "evidence_required": "Exploitability assessment matrix"
+    },
+    {
+      "number": 3,
+      "title": "Priority Ranking",
+      "description": "Rank all CVEs by risk. Consider CVSS, exploit availability, and client context.",
+      "detailed_guidance": "Don't just sort by CVSS. Consider: is the exploit public and reliable? Is the affected service internet-facing? What data is at risk? Client context matters.",
+      "evidence_required": "Prioritised vulnerability list with justification"
+    },
+    {
+      "number": 4,
+      "title": "Briefing Document",
+      "description": "Create a 1-page executive briefing summarising exposure and top 3 recommended actions.",
+      "detailed_guidance": "Write for a non-technical audience. Lead with risk level. Explain impact in business terms. Provide clear, actionable recommendations. One page maximum.",
+      "evidence_required": "Executive vulnerability briefing (1 page)"
+    }
+  ],
+  "scoring_rubric": [
+    {
+      "category": "Research Thoroughness",
+      "weight": "25%"
+    },
+    {
+      "category": "Assessment Accuracy",
+      "weight": "30%"
+    },
+    {
+      "category": "Prioritisation Logic",
+      "weight": "25%"
+    },
+    {
+      "category": "Briefing Quality",
+      "weight": "20%"
+    }
+  ],
+  "linked_recipes": [
+    "R20",
+    "R21"
+  ],
+  "resources": [
+    {
+      "name": "NVD Search Guide",
+      "type": "PDF"
+    },
+    {
+      "name": "CVSS v3.1 Calculator",
+      "type": "Tool"
+    },
+    {
+      "name": "Executive Briefing Template",
+      "type": "Template"
+    }
+  ],
+  "reflection_prompt": "You find a critical CVE (CVSS 9.8) with a public exploit for the client's internet-facing Apache server. The client says they can't patch for 2 weeks. What interim mitigations do you recommend?",
+  "quiz": [
+    {
+      "question": "Apache 2.4.49 is notable for CVE-2021-41773 which allows:",
+      "options": [
+        "SQL injection",
+        "Path traversal and potential remote code execution",
+        "Password cracking",
+        "DNS spoofing"
+      ],
+      "correct_index": 1,
+      "explanation": "CVE-2021-41773 is a critical path traversal vulnerability in Apache 2.4.49 that can lead to remote code execution."
+    },
+    {
+      "question": "A CVSS score alone is insufficient for prioritisation because:",
+      "options": [
+        "CVSS is always wrong",
+        "It doesn't account for exploit availability, environment context, or business impact",
+        "It only measures network vulnerabilities",
+        "It requires a paid license"
+      ],
+      "correct_index": 1,
+      "explanation": "CVSS measures technical severity but not real-world risk. Exploit availability, exposure, and business context are equally important for prioritisation."
+    }
+  ],
+  "portfolio_artifacts": [
+    "CVE research database",
+    "Exploitability matrix",
+    "Priority ranking",
+    "Executive briefing"
+  ],
+  "mentor_notes": "The executive briefing is the key differentiator. Technical research should be thorough, but the ability to communicate risk to non-technical stakeholders is what makes a professional.",
+  "track": "Offensive",
+  "tier": "Beginner",
+  "pillar_icon": "🔓",
+  "mission_type": "Mandatory"
+}

@@ -1,0 +1,65 @@
+{
+  "recipe_id": "RA14",
+  "title": "Kubernetes Enumeration Checklist",
+  "track": "Offensive",
+  "tier": "Advanced",
+  "pillar": "Cloud & Container Attacks",
+  "pillar_icon": "\u2601\ufe0f",
+  "estimated_time": "30 min",
+  "difficulty": "Advanced",
+  "tools_required": [
+    "kubectl",
+    "kubesec",
+    "kube-apiserver",
+    "Kubernetes documentation"
+  ],
+  "when_to_use": "Use this recipe when kubernetes enumeration checklist is required. This advanced recipe covers professional-grade techniques suitable for experienced red teamers. Applicable to missions: OA-M10.",
+  "linked_missions": [
+    "OA-M10"
+  ],
+  "step_count": 6,
+  "steps": [
+    {
+      "number": 1,
+      "title": "Step 1: Kubernetes Enumeration Checklist",
+      "instruction": "Execute step 1 of the Kubernetes Enumeration Checklist recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 1 with documented results and artifacts collected."
+    },
+    {
+      "number": 2,
+      "title": "Step 2: Kubernetes Enumeration Checklist",
+      "instruction": "Execute step 2 of the Kubernetes Enumeration Checklist recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 2 with documented results and artifacts collected."
+    },
+    {
+      "number": 3,
+      "title": "Step 3: Kubernetes Enumeration Checklist",
+      "instruction": "Execute step 3 of the Kubernetes Enumeration Checklist recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 3 with documented results and artifacts collected."
+    },
+    {
+      "number": 4,
+      "title": "Step 4: Kubernetes Enumeration Checklist",
+      "instruction": "Execute step 4 of the Kubernetes Enumeration Checklist recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 4 with documented results and artifacts collected."
+    },
+    {
+      "number": 5,
+      "title": "Step 5: Kubernetes Enumeration Checklist",
+      "instruction": "Execute step 5 of the Kubernetes Enumeration Checklist recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 5 with documented results and artifacts collected."
+    },
+    {
+      "number": 6,
+      "title": "Step 6: Kubernetes Enumeration Checklist",
+      "instruction": "Execute step 6 of the Kubernetes Enumeration Checklist recipe. Follow the detailed procedures for this advanced technique. Ensure all prerequisites are met and tools are properly configured.",
+      "tip": "Follow best practices and maintain detailed logs of all activities for later analysis.",
+      "expected_output": "Successful completion of step 6 with documented results and artifacts collected."
+    }
+  ]
+}
