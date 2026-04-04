@@ -37,44 +37,64 @@ import jwt
 
 User = get_user_model()
 
+# Pre-authorized Google accounts: senior platform admin (RBAC + Django admin).
+# OAuth: add this email as a test user in Google Cloud Console while the app is in testing.
+GOOGLE_PRIVILEGED_SUPERADMIN = {
+    "nelsonochieng516@gmail.com": {
+        # RBAC: admin is top tier; finance_admin satisfies finance-only role checks; program_director for director surfaces.
+        "rbac_roles": ("admin", "finance_admin", "program_director"),
+        "is_staff": True,
+        "is_superuser": True,
+    },
+}
+
+
+def _is_privileged_superadmin_email(email: str) -> bool:
+    return (email or "").strip().lower() in GOOGLE_PRIVILEGED_SUPERADMIN
+
 
 def _apply_google_email_role_overrides(user, email: str) -> None:
     """
-    Apply role overrides based on verified email domains.
-    Only for specific pre-authorized admin emails - permissions are granted by admin.
+    Apply role overrides for pre-authorized emails (explicit allowlist only).
+    Grants senior admin RBAC roles and optionally Django staff/superuser flags.
     """
     normalized_email = (email or "").strip().lower()
-    
-    # Only individual email mappings for specific pre-authorized users
-    # No domain-based auto-assignments - permissions must be granted by admin
-    individual_email_mappings = {
-        "nelsonochieng516@gmail.com": "sponsor_admin",
-    }
-    
-    # Check individual mappings only
-    role_name = individual_email_mappings.get(normalized_email)
-    
-    if not role_name:
-        return  # No mapping applies
-    
-    # Get or create the role
-    from users.models import Role, UserRole
-    try:
-        role = Role.objects.get(name=role_name)
-    except Role.DoesNotExist:
-        print(f"Warning: Role {role_name} not found for email override")
+    config = GOOGLE_PRIVILEGED_SUPERADMIN.get(normalized_email)
+    if not config:
         return
-    
-    # Assign the role if not already assigned
-    user_role, created = UserRole.objects.get_or_create(
-        user=user,
-        role=role,
-        scope='global',
-        defaults={'is_active': True}
-    )
-    
-    if created:
-        print(f"Auto-assigned role {role_name} to user {user.email} based on pre-authorized email")
+
+    rbac_roles = config.get("rbac_roles") or ()
+    for role_name in rbac_roles:
+        try:
+            role = Role.objects.get(name=role_name)
+        except Role.DoesNotExist:
+            print(f"Warning: Role {role_name} not found for privileged Google email override")
+            continue
+        user_role, created = UserRole.objects.get_or_create(
+            user=user,
+            role=role,
+            scope="global",
+            defaults={"is_active": True},
+        )
+        if not created and not user_role.is_active:
+            user_role.is_active = True
+            user_role.save(update_fields=["is_active"])
+        if created:
+            print(f"Auto-assigned RBAC role {role_name} to {user.email} (privileged Google email)")
+
+    staff = config.get("is_staff")
+    superuser = config.get("is_superuser")
+    if staff is not None or superuser is not None:
+        updates = []
+        if staff is not None and user.is_staff != staff:
+            user.is_staff = staff
+            updates.append("is_staff")
+        if superuser is not None and user.is_superuser != superuser:
+            user.is_superuser = superuser
+            updates.append("is_superuser")
+        if updates:
+            user.save(update_fields=updates)
+            print(f"Updated Django flags for {user.email}: {', '.join(updates)}")
 
 
 class GoogleOAuthInitiateView(APIView):
@@ -89,7 +109,7 @@ class GoogleOAuthInitiateView(APIView):
         """Initiate Google OAuth flow."""
         # Get Google OAuth credentials from environment
         client_id = os.getenv('GOOGLE_CLIENT_ID') or os.getenv('GOOGLE_OAUTH_CLIENT_ID')
-        client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
+        client_secret = os.getenv('GOOGLE_CLIENT_SECRET') or os.getenv('GOOGLE_OAUTH_CLIENT_SECRET')
         
         if not client_id or not client_secret:
             return Response(
@@ -172,7 +192,7 @@ class GoogleOAuthCallbackView(APIView):
                 return Response({'detail': 'Authorization code is required'}, status=status.HTTP_400_BAD_REQUEST)
 
             client_id = os.getenv('GOOGLE_CLIENT_ID') or os.getenv('GOOGLE_OAUTH_CLIENT_ID')
-            client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
+            client_secret = os.getenv('GOOGLE_CLIENT_SECRET') or os.getenv('GOOGLE_OAUTH_CLIENT_SECRET')
             if not client_id or not client_secret:
                 return Response({'detail': 'Google SSO is not configured'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
@@ -281,14 +301,30 @@ class GoogleOAuthCallbackView(APIView):
                     user = User.objects.get(email__iexact=email)
                     created = False
                 except User.DoesNotExist:
-                    return Response(
-                        {
-                            'detail': 'No account is registered with this Google email. Please register first, then sign in with Google.',
-                            'code': 'user_not_registered',
-                            'email': email,
-                        },
-                        status=status.HTTP_404_NOT_FOUND,
-                    )
+                    # Allow first-time Google login for pre-authorized superadmin emails only (JIT account).
+                    if _is_privileged_superadmin_email(email):
+                        user = User.objects.create(
+                            email=email,
+                            username=email,
+                            first_name=first_name,
+                            last_name=last_name,
+                            avatar_url=picture,
+                            email_verified=email_verified,
+                            account_status='active' if email_verified else 'pending_verification',
+                            is_active=True,
+                        )
+                        user.set_unusable_password()
+                        user.save(update_fields=['password'])
+                        created = True
+                    else:
+                        return Response(
+                            {
+                                'detail': 'No account is registered with this Google email. Please register first, then sign in with Google.',
+                                'code': 'user_not_registered',
+                                'email': email,
+                            },
+                            status=status.HTTP_404_NOT_FOUND,
+                        )
 
             if not created:
                 if not user.avatar_url and picture:
@@ -305,16 +341,17 @@ class GoogleOAuthCallbackView(APIView):
 
             if created:
                 from users.views.auth_views import _assign_user_role
-                try:
-                    _assign_user_role(user, intended_role)
-                except Exception as e:
-                    return Response(
-                        {
-                            'detail': f'Failed to assign role during Google signup: {str(e)}',
-                            'role': intended_role,
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+                if not _is_privileged_superadmin_email(email):
+                    try:
+                        _assign_user_role(user, intended_role)
+                    except Exception as e:
+                        return Response(
+                            {
+                                'detail': f'Failed to assign role during Google signup: {str(e)}',
+                                'role': intended_role,
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
                 request.session.pop('oauth_intended_role', None)
                 if email_verified and not user.activated_at:
                     user.activated_at = timezone.now()
