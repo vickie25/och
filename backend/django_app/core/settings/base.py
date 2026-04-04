@@ -408,21 +408,19 @@ FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID') or os.environ.get('GOOGLE_OAUTH_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET') or os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET')
 
-# Resend settings for email activation and password reset (fallback)
-RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
-RESEND_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', 'onboarding@resend.dev')
-RESEND_FROM_NAME = os.environ.get('RESEND_FROM_NAME', 'Ongoza CyberHub')
-
-# Email: prefer MAIL_* from .env (e.g. MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM_ADDRESS, MAIL_FROM_NAME, MAIL_ENCRYPTION)
-MAIL_FROM_ADDRESS = os.environ.get('MAIL_FROM_ADDRESS') or RESEND_FROM_EMAIL
-MAIL_FROM_NAME = os.environ.get('MAIL_FROM_NAME') or RESEND_FROM_NAME
-DEFAULT_FROM_EMAIL = f"{MAIL_FROM_NAME} <{MAIL_FROM_ADDRESS}>"
+# Email: set MAIL_* (or EMAIL_*) for SMTP — see development.py for console fallback when MAIL_HOST is unset.
+MAIL_FROM_ADDRESS = os.environ.get('MAIL_FROM_ADDRESS') or os.environ.get('EMAIL_FROM_ADDRESS', '')
+MAIL_FROM_NAME = os.environ.get('MAIL_FROM_NAME') or os.environ.get('EMAIL_FROM_NAME', 'Ongoza CyberHub')
+if MAIL_FROM_ADDRESS:
+    DEFAULT_FROM_EMAIL = f"{MAIL_FROM_NAME} <{MAIL_FROM_ADDRESS}>"
+else:
+    DEFAULT_FROM_EMAIL = f"{MAIL_FROM_NAME} <noreply@localhost>"
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.environ.get('MAIL_HOST') or os.environ.get('EMAIL_HOST', 'smtp.resend.com')
+EMAIL_HOST = os.environ.get('MAIL_HOST') or os.environ.get('EMAIL_HOST', '')
 EMAIL_PORT = int(os.environ.get('MAIL_PORT') or os.environ.get('EMAIL_PORT', '465'))
-EMAIL_HOST_USER = os.environ.get('MAIL_USERNAME') or os.environ.get('EMAIL_HOST_USER', 'resend')
-EMAIL_HOST_PASSWORD = os.environ.get('MAIL_PASSWORD') or os.environ.get('RESEND_API_KEY') or os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_HOST_USER = os.environ.get('MAIL_USERNAME') or os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('MAIL_PASSWORD') or os.environ.get('EMAIL_HOST_PASSWORD', '')
 
 # MAIL_ENCRYPTION=tls usually means STARTTLS (port 587); port 465 typically uses SSL
 _use_tls = (os.environ.get('MAIL_ENCRYPTION', '').lower() == 'tls')

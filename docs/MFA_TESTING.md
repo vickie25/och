@@ -198,7 +198,7 @@ When you verified TOTP enrollment, the response may have included `backup_codes`
 
 ## 3. Test Email MFA
 
-Uses your existing email configuration (e.g. MAIL_* / RESEND_*).
+Uses your existing email configuration (``MAIL_*`` / ``EMAIL_*`` SMTP settings).
 
 1. Enroll email (authenticated):
    ```bash

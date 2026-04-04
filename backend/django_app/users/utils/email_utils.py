@@ -65,7 +65,7 @@ def send_otp_email(user, code):
 
 def send_verification_email(user, verification_url):
     """
-    Send email verification link using Resend.
+    Send email verification link via EmailService (Django SMTP / console backend).
     
     Args:
         user: User instance
@@ -128,7 +128,6 @@ def send_verification_email(user, verification_url):
         </html>
         """
         
-        # Use ResendService to send the email
         return email_service._execute_send(
             user.email,
             "Verify your Ongoza CyberHub email",
@@ -138,7 +137,7 @@ def send_verification_email(user, verification_url):
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Failed to send verification email via Resend: {str(e)}")
+        logger.error(f"Failed to send verification email via EmailService: {str(e)}")
         # Fallback to Django's send_mail
         subject = 'Verify your Ongoza CyberHub email'
         html_message = render_to_string('emails/verify_email.html', {

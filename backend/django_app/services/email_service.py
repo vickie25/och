@@ -1,181 +1,84 @@
 """
-Email service using Resend API for sending transactional emails.
+Transactional HTML email via Django's email layer (SMTP or console backend).
+
+Configure MAIL_* / EMAIL_* in the environment; see core.settings.base.
 """
 import logging
+import traceback
+
 from django.conf import settings
-from django.template.loader import render_to_string
+from django.core.mail import send_mail
 from django.utils.html import strip_tags
 
 logger = logging.getLogger(__name__)
 
-try:
-    from resend.emails._emails import Emails
-    RESEND_AVAILABLE = True
-except ImportError:
-    RESEND_AVAILABLE = False
-    logger.warning("Resend package not installed. Email service will use Django's send_mail as fallback.")
-
 
 class EmailService:
-    """
-    Email service for sending transactional emails via Resend API.
-    Falls back to Django's send_mail if Resend is not available.
-    """
-    
+    """Send transactional emails using Django ``send_mail`` (SMTP or console)."""
+
     def __init__(self):
-        self.resend_api_key = getattr(settings, 'RESEND_API_KEY', None)
-        self.from_email = getattr(settings, 'RESEND_FROM_EMAIL', 'onboarding@resend.dev')
-        self.from_name = getattr(settings, 'RESEND_FROM_NAME', 'Ongoza CyberHub')
-        self.frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
-        
-        if RESEND_AVAILABLE and self.resend_api_key:
-            try:
-                # Set the API key globally for resend
-                import resend
-                resend.api_key = self.resend_api_key
-                self.emails_client = Emails()
-                self.use_resend = True
-            except Exception as e:
-                logger.warning(f"Failed to initialize Resend client: {str(e)}")
-                self.use_resend = False
-        else:
-            self.use_resend = False
-            if not RESEND_AVAILABLE:
-                logger.warning("Resend package not available. Using Django send_mail fallback.")
-            elif not self.resend_api_key:
-                logger.warning("RESEND_API_KEY not configured. Using Django send_mail fallback.")
-    
+        self.frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
+
     def _execute_send(self, to_email: str, subject: str, html_content: str, email_type: str = "transactional") -> bool:
         """
-        Internal method to send email via Resend or fallback to Django.
-
-        Args:
-            to_email: Recipient email address
-            subject: Email subject
-            html_content: HTML email content
-            email_type: Type of email (for logging)
+        Send HTML email via Django's configured EMAIL_BACKEND.
 
         Returns:
-            bool: True if email sent successfully, False otherwise
+            bool: True if the message was handed off successfully, False otherwise.
         """
+        email_backend = getattr(settings, "EMAIL_BACKEND", "")
+        from_addr = getattr(settings, "DEFAULT_FROM_EMAIL", None)
+        plain_message = strip_tags(html_content)
+
+        # Non-debug: SMTP selected but incomplete — avoid silent no-ops.
+        if (
+            not getattr(settings, "DEBUG", False)
+            and email_backend == "django.core.mail.backends.smtp.EmailBackend"
+            and (
+                not getattr(settings, "EMAIL_HOST", None)
+                or not getattr(settings, "EMAIL_HOST_USER", None)
+                or not getattr(settings, "EMAIL_HOST_PASSWORD", None)
+            )
+        ):
+            logger.error(
+                "SMTP backend is configured but EMAIL_HOST / EMAIL_HOST_USER / EMAIL_HOST_PASSWORD "
+                "are missing. Email will not be sent."
+            )
+            return False
+
         try:
-            # Check if we're in development mode with console backend
-            email_backend = getattr(settings, 'EMAIL_BACKEND', '')
-
-            # In production-like environments, fail fast if SMTP backend is selected but missing credentials.
-            if (
-                not getattr(settings, 'DEBUG', False)
-                and email_backend == 'django.core.mail.backends.smtp.EmailBackend'
-                and (
-                    not getattr(settings, 'EMAIL_HOST', None)
-                    or not getattr(settings, 'EMAIL_HOST_USER', None)
-                    or not getattr(settings, 'EMAIL_HOST_PASSWORD', None)
-                )
-            ):
-                logger.error(
-                    'SMTP email backend is configured but missing required settings '
-                    '(EMAIL_HOST/EMAIL_HOST_USER/EMAIL_HOST_PASSWORD). Email will not be sent.'
-                )
-                return False
-
-            if email_backend == 'django.core.mail.backends.console.EmailBackend':
-                # Use console backend for development
-                from django.core.mail import send_mail
-                plain_message = strip_tags(html_content)
-
-                send_mail(
-                    subject=subject,
-                    message=plain_message,
-                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', self.from_email),
-                    recipient_list=[to_email],
-                    html_message=html_content,
-                    fail_silently=False,
-                )
+            send_mail(
+                subject=subject,
+                message=plain_message,
+                from_email=from_addr,
+                recipient_list=[to_email],
+                html_message=html_content,
+                fail_silently=False,
+            )
+            if email_backend == "django.core.mail.backends.console.EmailBackend":
                 logger.info(
-                    f"Email output to console backend (not delivered) "
-                    f"(type: {email_type}, to: {to_email})"
+                    "Email written to console backend (not delivered remotely) "
+                    "(type: %s, to: %s)",
+                    email_type,
+                    to_email,
                 )
-                return True
-            elif self.use_resend:
-                # Send via Resend API
-                params = {
-                    "from": f"{self.from_name} <{self.from_email}>",
-                    "to": [to_email],
-                    "subject": subject,
-                    "html": html_content,
-                }
-
-                logger.info(f"Attempting to send email via Resend to {to_email} (type: {email_type})")
-                result = self.emails_client.send(params)
-
-                if isinstance(result, dict):
-                    message_id = result.get('id') or result.get('data', {}).get('id')
-                    error_info = result.get('error') or result.get('message')
-                    if message_id:
-                        logger.info(
-                            f"Email sent successfully via Resend (type: {email_type}, id: {message_id}, to: {to_email})"
-                        )
-                        return True
-                    if error_info:
-                        logger.error(f"Resend API error: {error_info} (type: {email_type}, to: {to_email})")
-                        return False
-                    logger.error(f"Resend API returned unexpected response: {result} (type: {email_type}, to: {to_email})")
-                    return False
-
-                if result and hasattr(result, 'id'):
-                    logger.info(f"Email sent successfully via Resend (type: {email_type}, id: {result.id}, to: {to_email})")
-                    return True
-                elif result and hasattr(result, 'error'):
-                    logger.error(f"Resend API error: {result.error} (type: {email_type}, to: {to_email})")
-                    return False
-                else:
-                    logger.error(f"Resend API returned unexpected response: {result} (type: {email_type}, to: {to_email})")
-                    return False
             else:
-                # Fallback to Django's send_mail
-                from django.core.mail import send_mail
-                plain_message = strip_tags(html_content)
-
-                send_mail(
-                    subject=subject,
-                    message=plain_message,
-                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', self.from_email),
-                    recipient_list=[to_email],
-                    html_message=html_content,
-                    fail_silently=False,
-                )
                 logger.info(
-                    f"Email accepted by SMTP backend for delivery (not guaranteed delivered) "
-                    f"(type: {email_type}, to: {to_email})"
+                    "Email accepted by backend for delivery (type: %s, to: %s)",
+                    email_type,
+                    to_email,
                 )
-                return True
-
+            return True
         except Exception as e:
-            import traceback
-            logger.error(f"Failed to send email (type: {email_type}, to: {to_email}): {str(e)}")
-            logger.error(f"Error traceback: {traceback.format_exc()}")
-            try:
-                from django.core.mail import send_mail
-                plain_message = strip_tags(html_content)
-                send_mail(
-                    subject=subject,
-                    message=plain_message,
-                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', self.from_email),
-                    recipient_list=[to_email],
-                    html_message=html_content,
-                    fail_silently=False,
-                )
-                logger.info(
-                    f"Email sent successfully via Django send_mail fallback after provider error "
-                    f"(type: {email_type}, to: {to_email})"
-                )
-                return True
-            except Exception as fallback_error:
-                logger.error(
-                    f"Fallback send_mail also failed (type: {email_type}, to: {to_email}): {fallback_error}"
-                )
-                return False
-    
+            logger.error(
+                "Failed to send email (type: %s, to: %s): %s",
+                email_type,
+                to_email,
+                str(e),
+            )
+            logger.error(traceback.format_exc())
+            return False
+
     def send_activation_email(self, user, raw_token: str = None) -> bool:
         """
         Send account activation email to user.

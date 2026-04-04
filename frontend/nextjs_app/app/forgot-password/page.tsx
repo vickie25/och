@@ -56,15 +56,14 @@ export default function ForgotPasswordPage() {
         // Server error - likely email service issue
         setError(
           errorResponse?.error || 
-          'Email service error. Please check backend logs. The Resend package may not be installed or configured correctly.'
+          'Email service error. Please check backend logs and SMTP (MAIL_*) configuration.'
         )
       } else {
         // For network errors or other issues, show generic message
         setError(
           'Unable to send email. Please check that:\n' +
           '1. The Django backend is running\n' +
-          '2. RESEND_API_KEY is configured in .env\n' +
-          '3. The resend package is installed: pip install resend'
+          '2. MAIL_HOST, MAIL_USERNAME, and MAIL_PASSWORD are set in the Django environment'
         )
       }
     } finally {
