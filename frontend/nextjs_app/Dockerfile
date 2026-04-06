@@ -1,47 +1,43 @@
 # syntax=docker/dockerfile:1.4
-# Multi-stage build tuned for small VPS (1–2 GB RAM): capped Node heap, single-job native builds,
-# npm settings via ENV (no extra `npm config` layer that was getting SIGKILL/137 on the droplet).
+# Multi-stage build tuned for small VPS: Debian bookworm-slim (glibc) so npm uses prebuilt
+# binaries far more often than Alpine/musl (which forces gcc/python during npm ci and spikes RAM).
+# See deploy/build-next-low-mem.sh (BuildKit parallelism) and deploy/ensure-swap-2g.sh.
 
 # Stage 1: Install dependencies (including devDependencies for build)
-FROM node:20-alpine AS deps
+FROM node:20-bookworm-slim AS deps
 
 WORKDIR /app
 
-RUN apk add --no-cache libc6-compat python3 make g++
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV NEXT_TELEMETRY_DISABLED=1
-# npm reads these from the environment — avoids a separate Node process for `npm config set`
 ENV npm_config_fetch_retries=10
 ENV npm_config_fetch_retry_mintimeout=20000
 ENV npm_config_fetch_retry_maxtimeout=120000
 ENV npm_config_fetch_timeout=600000
 ENV npm_config_maxsockets=1
-# One g++/node-gyp job at a time lowers peak RAM during native module builds
 ENV npm_config_jobs=1
-# Smaller heap during npm ci on 1–2 GB RAM hosts (next build gets a higher cap in builder)
-ENV NODE_OPTIONS=--max-old-space-size=1024
+ENV NODE_OPTIONS=--max-old-space-size=2048
 
 COPY frontend/nextjs_app/package.json frontend/nextjs_app/package-lock.json* ./
 
-# set -e: required — plain `sh -c` does not abort on OOM/kill; `||` chains used to continue with broken node_modules.
-# --omit=optional: fewer packages → lower peak RAM (if something breaks, remove this flag).
+# If npm ci fails with node-gyp / native compile errors, add: python3 make g++ to apt-get above.
 RUN --mount=type=cache,target=/root/.npm \
     set -eux; \
     if [ -f package-lock.json ]; then \
-      npm ci --prefer-offline --no-audit --legacy-peer-deps --omit=optional; \
+      npm ci --prefer-offline --no-audit --legacy-peer-deps; \
     else \
-      npm install --prefer-offline --no-audit --legacy-peer-deps --omit=optional; \
+      npm install --prefer-offline --no-audit --legacy-peer-deps; \
     fi; \
     npm cache clean --force; \
     rm -rf /tmp/* 2>/dev/null || true
 
-# Stage 2: Build the application
-FROM node:20-alpine AS builder
+# Stage 2: Build the application (must use same libc family as deps — bookworm)
+FROM node:20-bookworm-slim AS builder
 
 WORKDIR /app
-
-# Do NOT install gcc/python here — BuildKit would run this in parallel with the deps stage's
-# `npm ci` and roughly double peak RAM (OOM 137 on small VPS). Native modules compile in `deps` only.
 
 COPY --from=deps /app/node_modules ./node_modules
 
@@ -74,9 +70,7 @@ ENV GROK_API_KEY_COACHING=${GROK_API_KEY_COACHING}
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV NEXT_BUILD_VERBOSE=1
-# next.config.js reads this: fewer workers / threads → lower peak RAM on small hosts
 ENV NEXT_BUILD_LOW_MEMORY=1
-# Match deps cap: on a 2 GB RAM host, higher heaps invite OOM; use swap (deploy/ensure-swap-2g.sh) if build OOMs.
 ENV NODE_OPTIONS=--max-old-space-size=2048
 ENV npm_config_jobs=1
 
@@ -118,16 +112,20 @@ RUN set -eux; \
     npm cache clean --force 2>/dev/null || true && \
     rm -rf /tmp/* /root/.npm/_cacache/tmp/* 2>/dev/null || true
 
-# Stage 3: Production runner (minimal image)
-FROM node:20-alpine AS runner
+# Stage 3: Production runner (bookworm-slim — matches standalone Node/glibc)
+FROM node:20-bookworm-slim AS runner
 
 WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+RUN groupadd --system --gid 1001 nodejs && \
+    useradd --system --uid 1001 --gid nodejs nextjs
 
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
