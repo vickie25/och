@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1.4
 # Multi-stage build tuned for small VPS: Debian bookworm-slim (glibc) so npm uses prebuilt
 # binaries far more often than Alpine/musl (which forces gcc/python during npm ci and spikes RAM).
 # See deploy/build-next-low-mem.sh (BuildKit parallelism) and deploy/ensure-swap-2g.sh.
@@ -24,8 +23,8 @@ ENV NODE_OPTIONS=--max-old-space-size=2048
 COPY frontend/nextjs_app/package.json frontend/nextjs_app/package-lock.json* ./
 
 # If npm ci fails with node-gyp / native compile errors, add: python3 make g++ to apt-get above.
-RUN --mount=type=cache,target=/root/.npm \
-    set -eux; \
+# No `syntax=docker/dockerfile:1.4` / cache mounts — on 1 GB RAM hosts pulling the Dockerfile frontend image can OOM (137).
+RUN set -eux; \
     if [ -f package-lock.json ]; then \
       npm ci --prefer-offline --no-audit --legacy-peer-deps; \
     else \
