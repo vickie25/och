@@ -18,18 +18,19 @@ ENV npm_config_fetch_timeout=600000
 ENV npm_config_maxsockets=1
 # One g++/node-gyp job at a time lowers peak RAM during native module builds
 ENV npm_config_jobs=1
-# npm ci + next build (one stage at a time); with swap, 2048 is a reasonable cap
-ENV NODE_OPTIONS=--max-old-space-size=2048
+# Smaller heap during npm ci on 1–2 GB RAM hosts (next build gets a higher cap in builder)
+ENV NODE_OPTIONS=--max-old-space-size=1024
 
 COPY frontend/nextjs_app/package.json frontend/nextjs_app/package-lock.json* ./
 
 # set -e: required — plain `sh -c` does not abort on OOM/kill; `||` chains used to continue with broken node_modules.
+# --omit=optional: fewer packages → lower peak RAM (if something breaks, remove this flag).
 RUN --mount=type=cache,target=/root/.npm \
     set -eux; \
     if [ -f package-lock.json ]; then \
-      npm ci --prefer-offline --no-audit --legacy-peer-deps; \
+      npm ci --prefer-offline --no-audit --legacy-peer-deps --omit=optional; \
     else \
-      npm install --prefer-offline --no-audit --legacy-peer-deps; \
+      npm install --prefer-offline --no-audit --legacy-peer-deps --omit=optional; \
     fi; \
     npm cache clean --force; \
     rm -rf /tmp/* 2>/dev/null || true
