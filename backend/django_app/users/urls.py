@@ -37,8 +37,6 @@ from .views.sso_views import (
 from .views.google_oauth_views import (
     GoogleOAuthInitiateView,
     GoogleOAuthCallbackView,
-    google_oauth_initiate,
-    google_oauth_callback,
 )
 from .views.onboarding_views import (
     check_onboarding_status,
@@ -120,10 +118,10 @@ urlpatterns = [
     path('auth/sso/okta', okta_sso_login, name='sso-okta'),
     
     # Google OAuth 2.0 flow (for account activation/signup)
-    path('auth/google/initiate', google_oauth_initiate, name='google-oauth-initiate'),
-    path('auth/google/initiate/', google_oauth_initiate, name='google-oauth-initiate-slash'),
-    path('auth/google/callback', google_oauth_callback, name='google-oauth-callback'),
-    path('auth/google/callback/', google_oauth_callback, name='google-oauth-callback-slash'),
+    path('auth/google/initiate', GoogleOAuthInitiateView.as_view(), name='google-oauth-initiate'),
+    path('auth/google/initiate/', GoogleOAuthInitiateView.as_view(), name='google-oauth-initiate-slash'),
+    path('auth/google/callback', GoogleOAuthCallbackView.as_view(), name='google-oauth-callback'),
+    path('auth/google/callback/', GoogleOAuthCallbackView.as_view(), name='google-oauth-callback-slash'),
 
     # Onboarding flow endpoints
     path('auth/onboarding/status', check_onboarding_status, name='onboarding-status'),

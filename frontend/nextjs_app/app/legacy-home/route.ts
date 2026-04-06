@@ -41,9 +41,91 @@ function resolveMarketingHtmlPath(): string {
   )
 }
 
+/** CSP for the static marketing document (not the Next shell). Include prod host + localhost. */
+function legacyHomeContentSecurityPolicy(): string {
+  const connect = [
+    "'self'",
+    'http://localhost:8000',
+    'https://localhost:8000',
+    'https://cybochengine.africa',
+    'https://www.cybochengine.africa',
+  ]
+  const fe = process.env.NEXT_PUBLIC_FRONTEND_URL
+  if (fe) {
+    try {
+      const u = new URL(fe)
+      const o = `${u.protocol}//${u.host}`
+      if (!connect.includes(o)) connect.push(o)
+    } catch {
+      /* ignore */
+    }
+  }
+  const frame = [
+    "'self'",
+    'https://cybochengine.africa',
+    'https://www.cybochengine.africa',
+    'http://localhost:*',
+    'https://localhost:*',
+  ]
+  return [
+    "default-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "img-src 'self' data: https: blob:",
+    `connect-src ${connect.join(' ')}`,
+    `frame-ancestors ${frame.join(' ')}`,
+  ].join('; ')
+}
+
+/**
+ * Safari/WebKit can paint a dark page when gradient + background-clip:text + transparent fill fails
+ * (many h1 rules in the marketing HTML use this pattern).
+ */
+const SAFARI_HEADLINE_FIX = `
+<script>
+(function () {
+  var ua = navigator.userAgent || '';
+  var isSafari = /Safari\\//.test(ua) && !/Chrom(e|ium)\\//.test(ua);
+  if (isSafari) document.documentElement.classList.add('och-safari-text-fallback');
+})();
+</script>
+<style id="och-safari-headline-fallback">
+.och-safari-text-fallback h1 {
+  -webkit-text-fill-color: #f1f5f9 !important;
+  color: #f1f5f9 !important;
+  background: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+}
+.och-safari-text-fallback .landing-h1 {
+  color: #e2e8f0 !important;
+  -webkit-text-fill-color: #e2e8f0 !important;
+  background: none !important;
+}
+.och-safari-text-fallback .landing-h1 span,
+.och-safari-text-fallback .gradient-text,
+.och-safari-text-fallback .pr-h2 span,
+.och-safari-text-fallback .ch-title span,
+.och-safari-text-fallback .wl-hero h2 span,
+.och-safari-text-fallback .wl-chip .wl-num,
+.och-safari-text-fallback .wl-price-big,
+.och-safari-text-fallback .wl-reg-header h2,
+.och-safari-text-fallback .wl-pay-amount-val {
+  -webkit-text-fill-color: #f59e0b !important;
+  color: #ea580c !important;
+  background: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+}
+</style>
+`
+
 export async function GET() {
   const htmlPath = resolveMarketingHtmlPath()
   let html = await fs.readFile(htmlPath, 'utf8')
+
+  html = html.replace('<head>', `<head>${SAFARI_HEADLINE_FIX}`)
 
   // Remove JS that overrides "Join Pioneer Cohort" to open auth; keep inline waitlist handler.
   html = html.replace(
@@ -148,8 +230,7 @@ export async function GET() {
       // Allow embedding this marketing doc in the homepage iframe (same-origin).
       // Next may add `X-Frame-Options: DENY` by default; setting SAMEORIGIN here overrides it.
       'X-Frame-Options': 'SAMEORIGIN',
-      // Safari-friendly CSP - allow localhost and relax frame restrictions for dev
-      'Content-Security-Policy': "default-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:8000 https://localhost:8000; frame-ancestors 'self' http://localhost:* https://localhost:*;",
+      'Content-Security-Policy': legacyHomeContentSecurityPolicy(),
     },
   })
 }

@@ -8,8 +8,8 @@ import hashlib
 import base64
 from urllib.parse import urlencode, urlparse, parse_qs
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
+from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
@@ -104,6 +104,7 @@ class GoogleOAuthInitiateView(APIView):
     Used for both signup and login.
     """
     permission_classes = [AllowAny]
+    renderer_classes = [JSONRenderer]
 
     def get(self, request):
         """Initiate Google OAuth flow."""
@@ -175,7 +176,8 @@ class GoogleOAuthCallbackView(APIView):
     Creates/activates account and returns tokens.
     """
     permission_classes = [AllowAny]
-    
+    renderer_classes = [JSONRenderer]
+
     @method_decorator(csrf_exempt)
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
@@ -442,19 +444,3 @@ class GoogleOAuthCallbackView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
             return Response({'detail': 'Something went wrong.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def google_oauth_initiate(request):
-    """GET /api/v1/auth/google/initiate - Convenience endpoint"""
-    view = GoogleOAuthInitiateView()
-    return view.get(request)
-
-
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def google_oauth_callback(request):
-    """POST /api/v1/auth/google/callback - Convenience endpoint"""
-    view = GoogleOAuthCallbackView()
-    return view.post(request)

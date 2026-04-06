@@ -52,7 +52,8 @@ module.exports = (phase) => {
                 "default-src 'self'",
                 "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com https://checkout.stripe.com",
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-                "font-src 'self' https://fonts.gstatic.com",
+                // MUI / some icon fonts load embedded WOFF as data: URIs
+                "font-src 'self' data: https://fonts.gstatic.com",
                 "img-src 'self' data: https: blob:",
                 "connect-src 'self' http://localhost:8000 http://localhost:8001 https://cybochengine.africa https://www.cybochengine.africa",
                 "frame-src 'self' https://js.stripe.com https://checkout.stripe.com",
