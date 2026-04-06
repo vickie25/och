@@ -2,21 +2,54 @@
  * Base URL for server-side Next.js routes to reach Django (Docker internal, then fallbacks).
  */
 
+import { existsSync } from 'fs';
 import type { NextResponse } from 'next/server';
 
-export function djangoBaseForServerFetch(): string {
-  const raw =
-    process.env.DJANGO_INTERNAL_URL ||
-    process.env.DJANGO_API_URL ||
-    process.env.NEXT_PUBLIC_DJANGO_API_URL ||
-    'http://localhost:8000';
+/** True inside typical Linux containers (Docker / similar). */
+function isRunningInDocker(): boolean {
+  if (process.env.NEXT_RUNTIME_DOCKER === '1') return true;
+  try {
+    return existsSync('/.dockerenv');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Normalize to scheme + host + port only (no /api path) so `new URL('/api/v1/...', base)` is correct.
+ */
+function djangoOriginFromRaw(raw: string): string {
   const trimmed = raw.replace(/\/$/, '');
   try {
     const u = new URL(trimmed.includes('://') ? trimmed : `http://${trimmed}`);
-    return u.toString().replace(/\/$/, '');
+    return u.origin;
   } catch {
     return trimmed;
   }
+}
+
+export function djangoBaseForServerFetch(): string {
+  const internal =
+    process.env.DJANGO_INTERNAL_URL?.trim() || process.env.DJANGO_API_URL?.trim();
+  if (internal) {
+    return djangoOriginFromRaw(internal);
+  }
+
+  // Inside Docker, never fall back to NEXT_PUBLIC HTTPS (hairpin / routing often breaks fetch).
+  if (isRunningInDocker()) {
+    return 'http://django:8000';
+  }
+
+  const pub = process.env.NEXT_PUBLIC_DJANGO_API_URL?.trim();
+  if (pub) {
+    const stripped = pub
+      .replace(/\/$/, '')
+      .replace(/\/api\/v1\/?$/i, '')
+      .replace(/\/api\/?$/i, '');
+    return djangoOriginFromRaw(stripped);
+  }
+
+  return 'http://localhost:8000';
 }
 
 /** Collect Set-Cookie headers from a fetch Response (Node / undici). */
