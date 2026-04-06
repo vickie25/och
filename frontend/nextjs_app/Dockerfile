@@ -18,20 +18,20 @@ ENV npm_config_fetch_timeout=600000
 ENV npm_config_maxsockets=1
 # One g++/node-gyp job at a time lowers peak RAM during native module builds
 ENV npm_config_jobs=1
-# Tighter cap for npm ci than for `next build` — lowers peak RSS on small hosts
-ENV NODE_OPTIONS=--max-old-space-size=1536
+# npm ci + next build (one stage at a time); with swap, 2048 is a reasonable cap
+ENV NODE_OPTIONS=--max-old-space-size=2048
 
 COPY frontend/nextjs_app/package.json frontend/nextjs_app/package-lock.json* ./
 
+# set -e: required — plain `sh -c` does not abort on OOM/kill; `||` chains used to continue with broken node_modules.
 RUN --mount=type=cache,target=/root/.npm \
+    set -eux; \
     if [ -f package-lock.json ]; then \
-      npm ci --prefer-offline --no-audit --legacy-peer-deps || \
-      { npm ci --prefer-offline --no-audit || npm ci; }; \
+      npm ci --prefer-offline --no-audit --legacy-peer-deps; \
     else \
-      npm install --prefer-offline --no-audit --legacy-peer-deps || \
-      { npm install --prefer-offline --no-audit || npm install; }; \
-    fi && \
-    npm cache clean --force && \
+      npm install --prefer-offline --no-audit --legacy-peer-deps; \
+    fi; \
+    npm cache clean --force; \
     rm -rf /tmp/* 2>/dev/null || true
 
 # Stage 2: Build the application
@@ -78,9 +78,10 @@ ENV NEXT_BUILD_LOW_MEMORY=1
 ENV NODE_OPTIONS=--max-old-space-size=2048
 ENV npm_config_jobs=1
 
-RUN mv .eslintrc.json .eslintrc.json.bak 2>/dev/null || true && \
-    mv eslint.config.mjs eslint.config.mjs.bak 2>/dev/null || true && \
-    echo "=== Starting Next.js build (low-memory profile) ===" && \
+RUN set -eux; \
+    mv .eslintrc.json .eslintrc.json.bak 2>/dev/null || true; \
+    mv eslint.config.mjs eslint.config.mjs.bak 2>/dev/null || true; \
+    echo "=== Starting Next.js build (low-memory profile) ==="; \
     for attempt in 1 2 3; do \
       echo "=== Build attempt $attempt of 3 ===" && \
       if npm run build 2>&1; then \
