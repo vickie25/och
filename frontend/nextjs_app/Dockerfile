@@ -18,8 +18,8 @@ ENV npm_config_fetch_timeout=600000
 ENV npm_config_maxsockets=1
 # One g++/node-gyp job at a time lowers peak RAM during native module builds
 ENV npm_config_jobs=1
-# Cap V8 heap for npm ci (raise only if you see "JavaScript heap out of memory")
-ENV NODE_OPTIONS=--max-old-space-size=2048
+# Tighter cap for npm ci than for `next build` — lowers peak RSS on small hosts
+ENV NODE_OPTIONS=--max-old-space-size=1536
 
 COPY frontend/nextjs_app/package.json frontend/nextjs_app/package-lock.json* ./
 
