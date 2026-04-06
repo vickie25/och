@@ -39,7 +39,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-RUN apk add --no-cache libc6-compat python3 make g++
+# Do NOT install gcc/python here — BuildKit would run this in parallel with the deps stage's
+# `npm ci` and roughly double peak RAM (OOM 137 on small VPS). Native modules compile in `deps` only.
 
 COPY --from=deps /app/node_modules ./node_modules
 
