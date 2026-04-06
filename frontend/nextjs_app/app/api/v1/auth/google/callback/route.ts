@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { djangoBaseForServerFetch, forwardSetCookies } from '@/lib/djangoServerBase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,21 +19,28 @@ export async function POST(request: NextRequest) {
       device_name: device_name || 'missing'
     });
 
-    // Forward to Django backend
-    const djangoUrl = process.env.DJANGO_API_URL || process.env.NEXT_PUBLIC_DJANGO_API_URL || 'http://localhost:8000';
+    const djangoUrl = djangoBaseForServerFetch();
     const apiUrl = new URL('/api/v1/auth/google/callback', djangoUrl);
 
     logger('[Google OAuth Callback] Forwarding to:', apiUrl.toString());
 
+    const forwardHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'User-Agent': request.headers.get('user-agent') || '',
+      'X-Forwarded-For':
+        request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || '',
+      'X-Forwarded-Proto': request.headers.get('x-forwarded-proto') || 'http',
+      'X-Forwarded-Host': request.headers.get('x-forwarded-host') || request.headers.get('host') || 'localhost:3000',
+    };
+    const cookie = request.headers.get('cookie');
+    if (cookie) {
+      forwardHeaders.Cookie = cookie;
+    }
+
     const response = await fetch(apiUrl.toString(), {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': request.headers.get('user-agent') || '',
-        'X-Forwarded-For': request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || '',
-        'X-Forwarded-Proto': request.headers.get('x-forwarded-proto') || 'http',
-        'X-Forwarded-Host': request.headers.get('x-forwarded-host') || 'localhost:3000',
-      },
+      headers: forwardHeaders,
       body: JSON.stringify({
         code,
         state,
@@ -48,14 +56,24 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       const errorText = await response.text();
       logger('[Google OAuth Callback] Backend error:', errorText);
-      
-      return NextResponse.json(
-        { 
+
+      let detail = errorText || 'Unknown error';
+      try {
+        const parsed = JSON.parse(errorText) as { detail?: string };
+        if (typeof parsed?.detail === 'string') detail = parsed.detail;
+      } catch {
+        /* keep raw */
+      }
+
+      const errRes = NextResponse.json(
+        {
           error: 'Failed to complete Google OAuth',
-          detail: errorText || 'Unknown error'
+          detail,
         },
         { status: response.status }
       );
+      forwardSetCookies(response, errRes);
+      return errRes;
     }
 
     const data = await response.json();
@@ -66,7 +84,9 @@ export async function POST(request: NextRequest) {
       accountActivated: data.account_activated
     });
 
-    return NextResponse.json(data);
+    const okRes = NextResponse.json(data);
+    forwardSetCookies(response, okRes);
+    return okRes;
 
   } catch (error: any) {
     logger('[Google OAuth Callback] Unexpected error:', error);

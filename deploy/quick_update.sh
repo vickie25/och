@@ -26,8 +26,16 @@ if command -v pm2 &> /dev/null && pm2 list | grep -q ongoza; then
 elif command -v docker &> /dev/null && [ -f "docker-compose.yml" ]; then
     echo "Using Docker..."
     cd backend
-    docker compose pull
-    docker compose up -d --build
+    if docker compose version >/dev/null 2>&1; then
+        DC=(docker compose)
+    elif command -v docker-compose >/dev/null 2>&1; then
+        DC=(docker-compose)
+    else
+        echo "❌ Neither 'docker compose' nor docker-compose found"
+        exit 1
+    fi
+    "${DC[@]}" pull
+    "${DC[@]}" up -d --build
     echo "✅ Services restarted"
 else
     echo "❌ No service manager found"

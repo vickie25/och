@@ -82,6 +82,12 @@ function getBaseUrl(path: string): string {
     return baseUrl;
   }
 
+  // Google OAuth: from the browser, always use the Next.js BFF so the server reaches Django
+  // (DJANGO_INTERNAL_URL in Docker, localhost:8000 locally) and sessions/cookies work.
+  if (path.startsWith('/auth/google/') && typeof window !== 'undefined') {
+    return `${window.location.origin}/api/v1`;
+  }
+
   // Check if path starts with /auth/ (Google OAuth, etc.)
   if (path.startsWith('/auth/')) {
     // If DJANGO_API_URL already ends with /api, use it as is and add /v1

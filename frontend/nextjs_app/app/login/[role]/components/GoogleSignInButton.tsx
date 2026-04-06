@@ -37,13 +37,14 @@ export function GoogleSignInButton({ role = 'student', mode = 'login' }: GoogleS
       } else {
         throw new Error('No authorization URL received')
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Google OAuth initiation error:', err)
-      setError(
-        err?.data?.detail || 
-        err?.message || 
+      const anyErr = err as { data?: { detail?: string }; message?: string }
+      const detail =
+        (typeof anyErr?.data?.detail === 'string' && anyErr.data.detail) ||
+        (typeof anyErr?.message === 'string' && anyErr.message) ||
         'Failed to initiate Google sign-in'
-      )
+      setError(detail)
       setIsLoading(false)
     }
   }
