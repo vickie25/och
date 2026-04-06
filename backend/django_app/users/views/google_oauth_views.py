@@ -3,9 +3,13 @@ Google OAuth 2.0 / OpenID Connect views for account activation and signup.
 Implements full OAuth flow: initiation → callback → account creation/activation.
 """
 import os
+import json
+import time
+import hmac
 import secrets
 import hashlib
 import base64
+from typing import Any, Dict, Optional
 from urllib.parse import urlencode, urlparse, parse_qs
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -36,6 +40,65 @@ import requests
 import jwt
 
 User = get_user_model()
+
+# Signed OAuth state survives BFF/proxy flows where Django session cookies do not round-trip.
+_GOOGLE_OAUTH_STATE_MAX_AGE_SEC = 900
+
+
+def _b64url_encode(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode().rstrip('=')
+
+
+def _b64url_decode(s: str) -> bytes:
+    pad = '=' * (-len(s) % 4)
+    return base64.urlsafe_b64decode(s + pad)
+
+
+def _build_google_oauth_state(oauth_mode: str, intended_role: str) -> str:
+    """HMAC-signed state: CSRF protection without relying on Django session."""
+    mode = oauth_mode if oauth_mode in ('login', 'register') else 'login'
+    role = (intended_role or 'student')[:64]
+    payload: Dict[str, Any] = {
+        'v': 1,
+        'n': secrets.token_urlsafe(16),
+        'm': mode,
+        'r': role,
+        't': int(time.time()),
+    }
+    body = json.dumps(payload, separators=(',', ':'), sort_keys=True).encode('utf-8')
+    body_b64 = _b64url_encode(body)
+    key = settings.SECRET_KEY.encode('utf-8')
+    sig = hmac.new(key, body_b64.encode('utf-8'), hashlib.sha256).hexdigest()
+    return f'{body_b64}.{sig}'
+
+
+def _parse_and_verify_google_oauth_state(state: str) -> Optional[Dict[str, Any]]:
+    if not state or '.' not in state:
+        return None
+    body_b64, sig = state.rsplit('.', 1)
+    if len(sig) != 64 or any(c not in '0123456789abcdefABCDEF' for c in sig):
+        return None
+    key = settings.SECRET_KEY.encode('utf-8')
+    expected = hmac.new(key, body_b64.encode('utf-8'), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected.lower(), sig.lower()):
+        return None
+    try:
+        payload = json.loads(_b64url_decode(body_b64).decode('utf-8'))
+    except (ValueError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    if payload.get('v') != 1:
+        return None
+    ts = payload.get('t')
+    if not isinstance(ts, int) or abs(int(time.time()) - int(ts)) > _GOOGLE_OAUTH_STATE_MAX_AGE_SEC:
+        return None
+    m = payload.get('m', 'login')
+    if m not in ('login', 'register'):
+        m = 'login'
+    r = payload.get('r') or 'student'
+    if not isinstance(r, str):
+        r = 'student'
+    return {'m': m, 'r': r, 'n': payload.get('n')}
+
 
 # Pre-authorized Google accounts: senior platform admin (RBAC + Django admin).
 # OAuth: add this email as a test user in Google Cloud Console while the app is in testing.
@@ -124,23 +187,18 @@ class GoogleOAuthInitiateView(APIView):
         frontend_url = frontend_url.rstrip('/')
         redirect_uri = f"{frontend_url}/auth/google/callback"
         
-        # Generate state for CSRF protection
-        oauth_state = secrets.token_urlsafe(32)
-        request.session['oauth_state'] = oauth_state
-
-        # Store intended role for signup (if provided)
-        intended_role = request.GET.get('role')
-        if intended_role:
-            request.session['oauth_intended_role'] = intended_role
-            print(f"[OAuth] Stored intended role for signup: {intended_role}")
-
-        # Store OAuth mode: 'login' (default) vs 'register'
+        # Signed state: CSRF + carries mode/role without relying on session (Next.js BFF often drops session).
+        intended_role = request.GET.get('role') or 'student'
         oauth_mode = request.GET.get('mode', 'login')
+        oauth_state = _build_google_oauth_state(oauth_mode, intended_role)
+        # Keep session keys for cleanup on success and optional PKCE
+        request.session['oauth_state'] = oauth_state
+        request.session['oauth_intended_role'] = intended_role
         request.session['oauth_mode'] = oauth_mode
-        print(f"[OAuth] Stored oauth_mode: {oauth_mode}")
-        
-        # Build Google OAuth authorization URL WITHOUT PKCE in development
-        # PKCE doesn't work well with session-based storage in stateless APIs
+        print(f"[OAuth] oauth_mode={oauth_mode} role={intended_role}")
+
+        # Build Google OAuth URL. PKCE is optional: requires sticky Django session; off by default
+        # for confidential clients (server-held client_secret). Enable with GOOGLE_OAUTH_USE_PKCE=True.
         params = {
             'client_id': client_id,
             'redirect_uri': redirect_uri,
@@ -150,9 +208,9 @@ class GoogleOAuthInitiateView(APIView):
             'prompt': 'select_account',
             'state': oauth_state,
         }
-        
-        # Only use PKCE in production with proper session management
-        if not settings.DEBUG:
+
+        use_pkce = getattr(settings, 'GOOGLE_OAUTH_USE_PKCE', False)
+        if use_pkce:
             code_verifier = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode('utf-8').rstrip('=')
             code_challenge = base64.urlsafe_b64encode(
                 hashlib.sha256(code_verifier.encode('utf-8')).digest()
@@ -201,20 +259,19 @@ class GoogleOAuthCallbackView(APIView):
             if not state:
                 return Response({'detail': 'State parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-            session_state = request.session.get('oauth_state')
-            if settings.DEBUG and session_state != state:
-                print('[OAuth Debug] Session state mismatch (dev mode allows this)')
-            elif not settings.DEBUG and session_state != state:
+            state_payload = _parse_and_verify_google_oauth_state(state)
+            if not state_payload:
                 return Response(
-                    {'detail': 'Invalid state parameter. Possible CSRF attack.'},
+                    {
+                        'detail': 'Invalid or expired state parameter. Please start Google sign-in again.',
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            code_verifier = request.session.get('oauth_code_verifier')
-            if not code_verifier and not settings.DEBUG:
+            use_pkce = getattr(settings, 'GOOGLE_OAUTH_USE_PKCE', False)
+            code_verifier = request.session.get('oauth_code_verifier') if use_pkce else None
+            if use_pkce and not code_verifier:
                 return Response({'detail': 'Session expired. Please try again.'}, status=status.HTTP_400_BAD_REQUEST)
-            if settings.DEBUG:
-                code_verifier = None
 
             frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
             redirect_uri = f"{frontend_url.rstrip('/')}/auth/google/callback"
@@ -269,8 +326,9 @@ class GoogleOAuthCallbackView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            oauth_mode = request.data.get('mode') or request.session.get('oauth_mode', 'login')
-            intended_role = request.data.get('role') or request.session.get('oauth_intended_role', 'student')
+            # Mode/role from signed state (trusted); body/session only as fallback for legacy clients
+            oauth_mode = state_payload.get('m') or request.data.get('mode') or request.session.get('oauth_mode', 'login')
+            intended_role = state_payload.get('r') or request.data.get('role') or request.session.get('oauth_intended_role', 'student')
             if oauth_mode not in ('login', 'register'):
                 oauth_mode = 'login'
             if not intended_role:
