@@ -1094,12 +1094,18 @@ export function LoginForm() {
                         return `${normalized}/api/v1/auth/google/initiate?${query}`;
                       };
 
-                      const localDirectBase =
-                        typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
-                          ? `${window.location.protocol}//${window.location.hostname}:8000`
-                          : null;
+                      const isLocalFront =
+                        typeof window !== 'undefined' &&
+                        ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
-                      const absoluteUrl = configuredApiBase ? buildInitiateUrl(configuredApiBase) : null;
+                      const localDirectBase = isLocalFront
+                        ? `${window.location.protocol}//${window.location.hostname}:8000`
+                        : null;
+
+                      const absoluteUrl =
+                        configuredApiBase && !isLocalFront
+                          ? buildInitiateUrl(configuredApiBase)
+                          : null;
                       const localDirectUrl = localDirectBase ? buildInitiateUrl(localDirectBase) : null;
 
                       const endpoints = [relativePath, localDirectUrl, absoluteUrl].filter(Boolean) as string[];
@@ -1114,10 +1120,11 @@ export function LoginForm() {
                             return;
                           }
 
-                          lastError = data?.detail || data?.error || lastError;
-                          if (![404, 502, 503, 504].includes(response.status)) {
-                            break;
-                          }
+                          lastError =
+                            (typeof data?.detail === 'string' && data.detail) ||
+                            (typeof data?.error === 'string' && data.error) ||
+                            `HTTP ${response.status}` ||
+                            lastError;
                         } catch {
                           lastError = 'Failed to initiate Google sign-in';
                         }

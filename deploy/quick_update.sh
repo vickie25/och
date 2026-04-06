@@ -22,10 +22,9 @@ if command -v pm2 &> /dev/null && pm2 list | grep -q ongoza; then
     pm2 save
     echo "✅ Services restarted"
     
-# Check for Docker
+# Check for Docker (compose file lives at repo root, not backend/)
 elif command -v docker &> /dev/null && [ -f "docker-compose.yml" ]; then
     echo "Using Docker..."
-    cd backend
     if docker compose version >/dev/null 2>&1; then
         DC=(docker compose)
     elif command -v docker-compose >/dev/null 2>&1; then

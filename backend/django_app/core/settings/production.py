@@ -6,8 +6,16 @@ import os
 
 DEBUG = False
 
-# Production hosts
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'cybochengine.africa,www.cybochengine.africa,localhost,127.0.0.1').split(',')
+# Production hosts (strip; merge Docker service names so in-compose BFF calls are not DisallowedHost)
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get(
+        'ALLOWED_HOSTS',
+        'cybochengine.africa,www.cybochengine.africa,localhost,127.0.0.1',
+    ).split(',')
+    if h.strip()
+]
+ALLOWED_HOSTS = merge_docker_internal_hosts(ALLOWED_HOSTS)
 
 # Frontend URL for production
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://cybochengine.africa')

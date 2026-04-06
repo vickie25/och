@@ -73,6 +73,16 @@ function getBaseUrl(path: string): string {
     // Action routes fall through to Django default below
   }
 
+  // Google OAuth from the browser: always same-origin Next BFF. Paths starting with /api/v1/
+  // would otherwise use NEXT_PUBLIC_DJANGO_API_URL (often production), which triggers CORS from
+  // localhost and skips DJANGO_INTERNAL_URL on the server.
+  if (typeof window !== 'undefined' && path.includes('auth/google')) {
+    if (path.startsWith('/api/v1/')) {
+      return window.location.origin;
+    }
+    return `${window.location.origin}/api/v1`;
+  }
+
   // Check if path already includes /api/v1
   if (path.startsWith('/api/v1/')) {
     // If DJANGO_API_URL already ends with /api, remove it to avoid duplication
@@ -80,12 +90,6 @@ function getBaseUrl(path: string): string {
       ? DJANGO_API_URL.replace(/\/api$/, '')
       : DJANGO_API_URL;
     return baseUrl;
-  }
-
-  // Google OAuth: from the browser, always use the Next.js BFF so the server reaches Django
-  // (DJANGO_INTERNAL_URL in Docker, localhost:8000 locally) and sessions/cookies work.
-  if (path.startsWith('/auth/google/') && typeof window !== 'undefined') {
-    return `${window.location.origin}/api/v1`;
   }
 
   // Check if path starts with /auth/ (Google OAuth, etc.)

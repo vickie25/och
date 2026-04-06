@@ -714,11 +714,25 @@ export async function fetcher<T>(
       errorMessage.includes('CORS') ||
       errorMessage.includes('cors') ||
       (error as any)?.code === 'ECONNREFUSED';
-    
-    // Detect CORS errors specifically
-    const isCorsError = errorMessage.includes('CORS') || 
-                        errorMessage.includes('cors') ||
-                        (errorMessage.includes('Failed to fetch') && typeof window !== 'undefined');
+
+    // Cross-origin: only then treat opaque "Failed to fetch" as likely CORS (browser hides details).
+    let requestIsCrossOrigin = false;
+    if (typeof window !== 'undefined') {
+      try {
+        requestIsCrossOrigin = urlObj.origin !== window.location.origin;
+      } catch {
+        requestIsCrossOrigin = false;
+      }
+    }
+
+    const isExplicitCorsMessage =
+      /access-control|cross.origin|blocked by cors/i.test(errorMessage) ||
+      errorMessage.includes('CORS') ||
+      errorMessage.includes('cors');
+
+    const isCorsError =
+      isExplicitCorsMessage ||
+      (errorMessage.includes('Failed to fetch') && requestIsCrossOrigin);
     
     // Don't log connection errors to console if backend is down (expected behavior)
     if (!isConnectionError && typeof window !== 'undefined') {
@@ -726,13 +740,16 @@ export async function fetcher<T>(
     }
     
     // Provide more specific error message
-    let finalErrorMessage = 'Cannot connect to backend server'
+    let finalErrorMessage = 'Cannot connect to backend server';
     if (isCorsError) {
-      finalErrorMessage = 'CORS error: Backend may not be allowing requests from this origin. Check CORS configuration.'
+      finalErrorMessage =
+        'CORS error: Backend may not be allowing requests from this origin. Check CORS configuration.';
     } else if (isConnectionError) {
-      finalErrorMessage = 'Cannot connect to backend server. Please ensure the service is running and accessible.'
+      finalErrorMessage = requestIsCrossOrigin
+        ? 'Cannot connect to backend server. Please ensure the service is running and accessible.'
+        : 'Cannot reach this app’s API (same-origin request failed). Ensure Next.js is running, try a hard refresh, and check the Network tab for the failing URL.';
     } else {
-      finalErrorMessage = errorMessage
+      finalErrorMessage = errorMessage;
     }
     
     throw new ApiError(

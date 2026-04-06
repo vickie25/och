@@ -1,5 +1,11 @@
 /**
  * Base URL for server-side Next.js routes to reach Django (Docker internal, then fallbacks).
+ *
+ * Production / Docker:
+ * - Browser: use `NEXT_PUBLIC_*` https URL for links and any intentional cross-origin calls.
+ * - Next.js Route Handlers (BFF): set `DJANGO_INTERNAL_URL` or `DJANGO_API_URL` (e.g. `http://django:8000`)
+ *   so server-side `fetch` does not depend on public HTTPS or hairpin NAT.
+ * - Local dev: `http://localhost:8000` or host.docker.internal as appropriate.
  */
 
 import { existsSync } from 'fs';

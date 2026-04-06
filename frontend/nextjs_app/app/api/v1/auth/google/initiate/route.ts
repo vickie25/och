@@ -23,14 +23,14 @@ export async function GET(request: NextRequest) {
 
     logger('[Google OAuth Initiate] Forwarding to:', apiUrl.toString());
 
+    // Do not forward X-Forwarded-Host: if Django ever uses USE_X_FORWARDED_HOST, the browser's
+    // Host (e.g. localhost:3000) can trigger DisallowedHost against a production-only ALLOWED_HOSTS.
     const forwardHeaders: Record<string, string> = {
       Accept: 'application/json',
-      'Content-Type': 'application/json',
       'User-Agent': request.headers.get('user-agent') || '',
       'X-Forwarded-For':
         request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || '',
       'X-Forwarded-Proto': request.headers.get('x-forwarded-proto') || 'http',
-      'X-Forwarded-Host': request.headers.get('x-forwarded-host') || request.headers.get('host') || 'localhost:3000',
     };
     const cookie = request.headers.get('cookie');
     if (cookie) {

@@ -31,7 +31,6 @@ export async function POST(request: NextRequest) {
       'X-Forwarded-For':
         request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || '',
       'X-Forwarded-Proto': request.headers.get('x-forwarded-proto') || 'http',
-      'X-Forwarded-Host': request.headers.get('x-forwarded-host') || request.headers.get('host') || 'localhost:3000',
     };
     const cookie = request.headers.get('cookie');
     if (cookie) {

@@ -20,6 +20,8 @@ else:
         'localhost', '127.0.0.1', '0.0.0.0', 'testserver', 'nginx', 'django'
     ]
 
+ALLOWED_HOSTS = merge_docker_internal_hosts(ALLOWED_HOSTS)
+
 # Paystack/callback webhooks hit the public tunnel URL — must allow Host header (set ALLOW_TUNNEL_HOSTS=false to skip)
 if os.environ.get('ALLOW_TUNNEL_HOSTS', 'true').lower() == 'true':
     for _sfx in _TUNNEL_HOST_SUFFIXES:

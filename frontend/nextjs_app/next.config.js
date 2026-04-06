@@ -1,6 +1,54 @@
 const { PHASE_DEVELOPMENT_SERVER } = require('next/constants');
 const path = require('path');
 
+/**
+ * CSP connect-src tokens: env-driven API origins (http + https), dev localhost, prod defaults,
+ * paired ws/wss for realtime, and Google OAuth endpoints. Same-origin `/api/*` BFF calls use 'self'
+ * and never hit browser CORS when the client uses relative URLs (see googleOAuthClient).
+ */
+function buildConnectSrcExtra() {
+  const origins = new Set();
+  const add = (s) => {
+    if (!s || typeof s !== 'string') return;
+    const t = s.trim();
+    if (!t) return;
+    try {
+      const u = new URL(t.includes('://') ? t : `https://${t}`);
+      origins.add(u.origin);
+      if (u.protocol === 'https:') origins.add(`wss://${u.host}`);
+      if (u.protocol === 'http:') origins.add(`ws://${u.host}`);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  [
+    process.env.NEXT_PUBLIC_DJANGO_API_URL,
+    process.env.NEXT_PUBLIC_FASTAPI_API_URL,
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.NEXT_PUBLIC_WS_URL,
+  ].forEach(add);
+
+  [
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+    'http://localhost:8001',
+    'http://127.0.0.1:8001',
+    'ws://localhost:8000',
+    'ws://127.0.0.1:8000',
+    'ws://localhost:8001',
+    'ws://127.0.0.1:8001',
+    'https://cybochengine.africa',
+    'https://www.cybochengine.africa',
+    'wss://cybochengine.africa',
+    'wss://www.cybochengine.africa',
+    'https://accounts.google.com',
+    'https://www.googleapis.com',
+  ].forEach(add);
+
+  return Array.from(origins).join(' ');
+}
+
 /** @type {(phase: string) => import('next').NextConfig} */
 module.exports = (phase) => {
   const djangoBase =
@@ -66,7 +114,7 @@ module.exports = (phase) => {
                 // MUI / some icon fonts load embedded WOFF as data: URIs
                 "font-src 'self' data: https://fonts.gstatic.com",
                 "img-src 'self' data: https: blob:",
-                "connect-src 'self' http://localhost:8000 http://localhost:8001 https://cybochengine.africa https://www.cybochengine.africa",
+                `connect-src 'self' ${buildConnectSrcExtra()} https://js.stripe.com https://checkout.stripe.com`,
                 "frame-src 'self' https://js.stripe.com https://checkout.stripe.com",
                 "object-src 'none'",
                 "base-uri 'self'",
@@ -77,6 +125,7 @@ module.exports = (phase) => {
         },
       ];
     },
+    // App Router handlers under app/api/** take precedence; these proxy only unmatched paths.
     async rewrites() {
       return [
         {

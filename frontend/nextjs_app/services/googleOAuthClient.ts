@@ -1,9 +1,13 @@
 /**
  * Google OAuth 2.0 Client
  * Handles Google SSO for account activation and signup
+ *
+ * Always uses root-relative `/api/v1/auth/google/*` URLs resolved against `window.location.origin`
+ * so we never POST to NEXT_PUBLIC_DJANGO_API_URL (e.g. production) from localhost — that causes
+ * CORS preflight failures after Google redirects back to http://localhost:3000.
  */
 
-import { apiGateway } from './apiGateway'
+import { fetcher } from '@/utils/fetcher'
 
 export interface GoogleOAuthInitiateRequest {
   role?: string
@@ -42,7 +46,11 @@ export const googleOAuthClient = {
     const params: Record<string, string> = {}
     if (data?.role) params.role = data.role
     if (data?.mode) params.mode = data.mode
-    return apiGateway.get('/auth/google/initiate', { skipAuth: true, params })
+    return fetcher<GoogleOAuthInitiateResponse>('/api/v1/auth/google/initiate', {
+      method: 'GET',
+      skipAuth: true,
+      params,
+    })
   },
 
   /**
@@ -51,6 +59,10 @@ export const googleOAuthClient = {
    * Exchanges authorization code for tokens and creates/activates account
    */
   async callback(data: GoogleOAuthCallbackRequest): Promise<GoogleOAuthCallbackResponse> {
-    return apiGateway.post('/auth/google/callback', data, { skipAuth: true })
+    return fetcher<GoogleOAuthCallbackResponse>('/api/v1/auth/google/callback', {
+      method: 'POST',
+      skipAuth: true,
+      body: JSON.stringify(data),
+    })
   },
 }

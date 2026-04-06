@@ -76,7 +76,46 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-change-me-in-p
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+
+def merge_docker_internal_hosts(hosts):
+    """Extend ALLOWED_HOSTS for Docker internal Host headers and local dev."""
+    out = list(hosts)
+    if IN_DOCKER:
+        for _h in (
+            'django',
+            'nginx',
+            'nextjs',
+            'fastapi',
+            'host.docker.internal',
+        ):
+            if _h not in out:
+                out.append(_h)
+    # Host-run Django (or narrow .env ALLOWED_HOSTS) while DEBUG is on: avoid DisallowedHost
+    # for localhost / Docker Desktop gateway when the Next BFF calls http://127.0.0.1:8000 or
+    # http://host.docker.internal:8000.
+    if os.environ.get('DEBUG', 'False').lower() == 'true':
+        for _h in (
+            'localhost',
+            '127.0.0.1',
+            '0.0.0.0',
+            'host.docker.internal',
+            'testserver',
+        ):
+            if _h not in out:
+                out.append(_h)
+    return out
+
+
+# Honor ALLOWED_HOSTS from the environment (Docker Compose sets this with `django`, `nginx`, etc.).
+# Previously this was hardcoded after load_dotenv, which ignored compose-injected hosts and caused
+# DisallowedHost (400 HTML) for server-side fetches to http://django:8000 from Next.js.
+_allowed_env = (os.environ.get('ALLOWED_HOSTS') or '').strip()
+if _allowed_env:
+    ALLOWED_HOSTS = [h.strip() for h in _allowed_env.split(',') if h.strip()]
+else:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+
+ALLOWED_HOSTS = merge_docker_internal_hosts(ALLOWED_HOSTS)
 
 # Enable APPEND_SLASH to support both with and without trailing slashes
 APPEND_SLASH = True
