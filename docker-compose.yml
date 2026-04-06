@@ -20,6 +20,9 @@ services:
     networks:
       - ongoza-network
     restart: unless-stopped
+    # Keep nginx lightweight on small VPS
+    mem_limit: ${NGINX_MEM_LIMIT:-128m}
+    cpus: ${NGINX_CPUS:-0.25}
     healthcheck:
       # Use 127.0.0.1 so Host matches local.conf (localhost IPv6 ::1 does not match server_name localhost)
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/health"]
@@ -39,6 +42,19 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Lower baseline RAM for small VPS (safe defaults; override via env if needed)
+    command:
+      [
+        "postgres",
+        "-c",
+        "shared_buffers=${POSTGRES_SHARED_BUFFERS:-256MB}",
+        "-c",
+        "work_mem=${POSTGRES_WORK_MEM:-4MB}",
+        "-c",
+        "maintenance_work_mem=${POSTGRES_MAINTENANCE_WORK_MEM:-64MB}",
+        "-c",
+        "max_connections=${POSTGRES_MAX_CONNECTIONS:-100}"
+      ]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
@@ -47,6 +63,8 @@ services:
     networks:
       - ongoza-network
     restart: unless-stopped
+    mem_limit: ${POSTGRES_MEM_LIMIT:-900m}
+    cpus: ${POSTGRES_CPUS:-1.0}
 
   # 3. PostgreSQL Vector (FastAPI)
   postgres-vector:
@@ -60,6 +78,18 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
       - vector_db_data:/var/lib/postgresql/data
+    command:
+      [
+        "postgres",
+        "-c",
+        "shared_buffers=${VECTOR_POSTGRES_SHARED_BUFFERS:-256MB}",
+        "-c",
+        "work_mem=${VECTOR_POSTGRES_WORK_MEM:-4MB}",
+        "-c",
+        "maintenance_work_mem=${VECTOR_POSTGRES_MAINTENANCE_WORK_MEM:-64MB}",
+        "-c",
+        "max_connections=${VECTOR_POSTGRES_MAX_CONNECTIONS:-100}"
+      ]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
@@ -68,6 +98,8 @@ services:
     networks:
       - ongoza-network
     restart: unless-stopped
+    mem_limit: ${VECTOR_POSTGRES_MEM_LIMIT:-900m}
+    cpus: ${VECTOR_POSTGRES_CPUS:-1.0}
 
   # 4. Redis
   redis:
@@ -80,10 +112,13 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    command: redis-server --appendonly yes
+    # Cap redis memory so it cannot consume the whole host.
+    command: redis-server --appendonly yes --maxmemory ${REDIS_MAXMEMORY:-256mb} --maxmemory-policy ${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
     networks:
       - ongoza-network
     restart: unless-stopped
+    mem_limit: ${REDIS_MEM_LIMIT:-320m}
+    cpus: ${REDIS_CPUS:-0.5}
 
   # 5. Django Backend
   django:
@@ -118,6 +153,36 @@ services:
     networks:
       - ongoza-network
     restart: unless-stopped
+    # `runserver` is memory-hungry and not ideal for production; gunicorn is lighter/more stable.
+    command:
+      [
+        "gunicorn",
+        "core.wsgi:application",
+        "--bind",
+        "0.0.0.0:8000",
+        "--workers",
+        "${DJANGO_WORKERS:-2}",
+        "--threads",
+        "${DJANGO_THREADS:-2}",
+        "--worker-class",
+        "sync",
+        "--timeout",
+        "${DJANGO_TIMEOUT:-120}",
+        "--keep-alive",
+        "5",
+        "--max-requests",
+        "${DJANGO_MAX_REQUESTS:-500}",
+        "--max-requests-jitter",
+        "${DJANGO_MAX_REQUESTS_JITTER:-50}",
+        "--access-logfile",
+        "-",
+        "--error-logfile",
+        "-",
+        "--log-level",
+        "${DJANGO_LOG_LEVEL:-info}"
+      ]
+    mem_limit: ${DJANGO_MEM_LIMIT:-900m}
+    cpus: ${DJANGO_CPUS:-1.0}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health/"]
       interval: 10s
@@ -151,6 +216,23 @@ services:
     networks:
       - ongoza-network
     restart: unless-stopped
+    command:
+      [
+        "uvicorn",
+        "main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8001",
+        "--workers",
+        "${FASTAPI_WORKERS:-2}",
+        "--log-level",
+        "${FASTAPI_LOG_LEVEL:-info}",
+        "--timeout-keep-alive",
+        "5"
+      ]
+    mem_limit: ${FASTAPI_MEM_LIMIT:-800m}
+    cpus: ${FASTAPI_CPUS:-1.0}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 10s
@@ -177,6 +259,8 @@ services:
       - "3000:3000"
     environment:
       NODE_ENV: production
+      # Keep Next runtime heap bounded on small VPS; adjust if you see OOMs under load.
+      NODE_OPTIONS: ${NEXT_NODE_OPTIONS:---max-old-space-size=512}
       PORT: 3000
       HOSTNAME: "0.0.0.0"
       # Server-side BFF must reach Django on the compose network (never rely on public URL from inside the container).
@@ -194,6 +278,8 @@ services:
     networks:
       - ongoza-network
     restart: unless-stopped
+    mem_limit: ${NEXTJS_MEM_LIMIT:-800m}
+    cpus: ${NEXTJS_CPUS:-1.0}
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})\""]
       interval: 15s
