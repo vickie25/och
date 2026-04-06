@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 from rest_framework.permissions import AllowAny
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework.renderers import JSONRenderer
 from rest_framework.views import APIView
 from django.contrib.auth import authenticate
 from django.utils import timezone
@@ -1184,17 +1185,18 @@ class MeView(APIView):
     Get current user profile with roles and consents.
     """
     permission_classes = [permissions.IsAuthenticated]
-    
+    renderer_classes = [JSONRenderer]
+
     def get(self, request):
         user = request.user
-        
+
         # Check if user is active
         if not user.is_active:
             return Response(
                 {'detail': 'Account is inactive. Please contact support.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         # Check account status
         # Allow pending_verification users to access their profile during onboarding
         # Block suspended, deactivated, and erased accounts
@@ -1203,7 +1205,15 @@ class MeView(APIView):
                 {'detail': f'Account is {user.account_status}. Please contact support.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
+        try:
+            return self._build_me_response(user)
+        except Exception as e:
+            logger.exception('MeView failed for user_id=%s', getattr(user, 'pk', None))
+            detail = str(e) if settings.DEBUG else 'Unable to load profile. Please try again or contact support.'
+            return Response({'detail': detail}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def _build_me_response(self, user):
         serializer = UserSerializer(user)
         
         # Get roles with scope details
@@ -1254,9 +1264,14 @@ class MeView(APIView):
                     organizationmember__user=user
                 ).distinct()
             )
-            if getattr(user, 'org_id', None) and hasattr(user.org_id, 'org_type') and user.org_id.org_type == 'sponsor':
-                if user.org_id not in sponsor_orgs:
-                    sponsor_orgs.append(user.org_id)
+            # Use org_id_id to avoid fetching a missing Organization row (can raise / break MeView)
+            if getattr(user, 'org_id_id', None):
+                try:
+                    org = user.org_id
+                    if getattr(org, 'org_type', None) == 'sponsor' and org not in sponsor_orgs:
+                        sponsor_orgs.append(org)
+                except Exception:
+                    pass
             for org in sponsor_orgs:
                 try:
                     member = OrganizationMember.objects.get(organization=org, user=user)
