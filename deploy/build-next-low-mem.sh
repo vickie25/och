@@ -23,8 +23,17 @@ export BUILDKIT_MAX_PARALLELISM="$P"
 export DOCKER_BUILDKIT_MAX_PARALLELISM="${DOCKER_BUILDKIT_MAX_PARALLELISM:-$P}"
 
 echo "BUILDKIT_MAX_PARALLELISM=$BUILDKIT_MAX_PARALLELISM DOCKER_BUILDKIT_MAX_PARALLELISM=$DOCKER_BUILDKIT_MAX_PARALLELISM"
-echo "Running: ${DC[*]} build nextjs"
-"${DC[@]}" build nextjs
+if [ "${PRUNE_BUILDER:-}" = "1" ]; then
+  echo "PRUNE_BUILDER=1: docker builder prune -f"
+  docker builder prune -f 2>/dev/null || true
+fi
+BUILD_ARGS=()
+if [ "${NO_CACHE:-}" = "1" ]; then
+  BUILD_ARGS+=(--no-cache)
+  echo "NO_CACHE=1: full rebuild (use once after a failed/corrupt deps layer)"
+fi
+echo "Running: ${DC[*]} build ${BUILD_ARGS[*]} nextjs"
+"${DC[@]}" build "${BUILD_ARGS[@]}" nextjs
 
 echo "Running: ${DC[*]} up -d nextjs"
 "${DC[@]}" up -d nextjs
