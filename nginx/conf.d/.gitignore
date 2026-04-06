@@ -1,0 +1,4 @@
+# Never commit machine-local certbot drops (duplicates ssl-docker.conf server_name).
+ssl.conf
+*.bak
+ssl-docker.conf.untacked.bak.*
