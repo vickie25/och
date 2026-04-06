@@ -6,6 +6,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 
+/** Server-side only: prefer internal Docker URL, then API URL, then public (may be wrong inside containers). */
+function djangoBaseForServerFetch(): string {
+  const raw =
+    process.env.DJANGO_INTERNAL_URL ||
+    process.env.DJANGO_API_URL ||
+    process.env.NEXT_PUBLIC_DJANGO_API_URL ||
+    'http://localhost:8000';
+  const trimmed = raw.replace(/\/$/, '');
+  try {
+    const u = new URL(trimmed.includes('://') ? trimmed : `http://${trimmed}`);
+    return u.toString().replace(/\/$/, '');
+  } catch {
+    return trimmed;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -14,8 +30,7 @@ export async function GET(request: NextRequest) {
 
     logger('[Google OAuth Initiate] Request:', { role, mode });
 
-    // Forward to Django backend
-    const djangoUrl = process.env.DJANGO_API_URL || process.env.NEXT_PUBLIC_DJANGO_API_URL || 'http://localhost:8000';
+    const djangoUrl = djangoBaseForServerFetch();
     const apiUrl = new URL('/api/v1/auth/google/initiate', djangoUrl);
     
     // Add query parameters
@@ -40,11 +55,19 @@ export async function GET(request: NextRequest) {
     if (!response.ok) {
       const errorText = await response.text();
       logger('[Google OAuth Initiate] Backend error:', errorText);
-      
+
+      let detail = errorText || 'Unknown error';
+      try {
+        const parsed = JSON.parse(errorText) as { detail?: string };
+        if (typeof parsed?.detail === 'string') detail = parsed.detail;
+      } catch {
+        /* keep raw */
+      }
+
       return NextResponse.json(
-        { 
+        {
           error: 'Failed to initiate Google OAuth',
-          detail: errorText || 'Unknown error'
+          detail,
         },
         { status: response.status }
       );
@@ -57,11 +80,17 @@ export async function GET(request: NextRequest) {
 
   } catch (error: any) {
     logger('[Google OAuth Initiate] Unexpected error:', error);
-    
+
+    const msg = error?.message || 'An unexpected error occurred';
+    const hint =
+      /fetch failed|ECONNREFUSED|ENOTFOUND|network/i.test(msg) || msg.includes('Failed to fetch')
+        ? ' Check that Django is running and DJANGO_API_URL / DJANGO_INTERNAL_URL points to it (e.g. http://localhost:8000 or http://django:8000 in Docker).'
+        : '';
+
     return NextResponse.json(
       {
         error: 'Failed to initiate Google sign-in',
-        detail: error?.message || 'An unexpected error occurred'
+        detail: `${msg}${hint}`,
       },
       { status: 500 }
     );
