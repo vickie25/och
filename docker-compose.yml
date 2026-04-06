@@ -21,7 +21,8 @@ services:
       - ongoza-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      # Use 127.0.0.1 so Host matches local.conf (localhost IPv6 ::1 does not match server_name localhost)
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/health"]
       interval: 10s
       timeout: 5s
       retries: 5
