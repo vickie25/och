@@ -159,6 +159,8 @@ services:
       start_period: 30s
 
   # 7. Next.js Frontend
+  # Small VPS: run `bash deploy/ensure-swap-2g.sh` before `docker compose build nextjs` if builds exit 137 (OOM).
+  # Disk: periodic `bash deploy/docker-prune-safe.sh` — see deploy/*.sh
   nextjs:
     build:
       context: .

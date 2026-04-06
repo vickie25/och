@@ -36,3 +36,13 @@ npm-debug.log*
 *.md
 docs
 mission_hall
+
+# Tests & coverage (shrink build context, less I/O on small disks)
+**/coverage
+**/.nyc_output
+**/*.test.ts
+**/*.test.tsx
+**/__tests__
+
+# Docker / CI artifacts
+**/.docker

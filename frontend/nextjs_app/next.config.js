@@ -10,11 +10,22 @@ module.exports = (phase) => {
     .replace(/\/api\/v1$/, '')
     .replace(/\/api$/, '');
 
+  /** Lower parallelism during `next build` on small VPS / Docker builders (see Dockerfile NEXT_BUILD_LOW_MEMORY). */
+  const lowResourceBuild = process.env.NEXT_BUILD_LOW_MEMORY === '1';
+
   /** @type {import('next').NextConfig} */
   const nextConfig = {
     output: 'standalone',
     outputFileTracingRoot: path.join(__dirname, '../..'),
     productionBrowserSourceMaps: false,
+    ...(lowResourceBuild
+      ? {
+          experimental: {
+            cpus: 1,
+            workerThreads: false,
+          },
+        }
+      : {}),
     typescript: {
       ignoreBuildErrors: true,
     },
