@@ -9,6 +9,7 @@ import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiGateway } from '../services/apiGateway';
 import { djangoClient } from '../services/djangoClient';
+import { ApiError } from '../utils/fetcher';
 import { setAuthTokens, clearAuthTokens, getAccessToken, isAuthenticated } from '../utils/auth';
 import type { LoginRequest, User } from '../services/types';
 
@@ -82,39 +83,41 @@ function useProvideAuth(): AuthContextValue {
    */
   const login = useCallback(async (credentials: LoginRequest) => {
     try {
-      // Call Next.js API route (sets HttpOnly cookies)
-      let response: Response;
+      // Django login via apiGateway (JSON body). Middleware only sees cookies — sync via /api/auth/set-tokens.
+      let responseData: any;
       try {
-        response = await apiGateway.post<any>('/auth/login', credentials, { skipAuth: true });
-      } catch (fetchError: any) {
-        // Catch network/connection errors
-        const errorMsg = fetchError.message || 'Unknown error';
-        const isConnectionError = 
+        responseData = await apiGateway.post<any>('/auth/login', credentials, { skipAuth: true });
+      } catch (fetchError: unknown) {
+        if (fetchError instanceof ApiError) {
+          const d = fetchError.data as any;
+          const message =
+            (typeof d?.detail === 'string' && d.detail) ||
+            (Array.isArray(d?.detail) && d.detail.length ? String(d.detail[0]) : null) ||
+            d?.error ||
+            d?.message ||
+            fetchError.message ||
+            'Login failed';
+          const error = new Error(message);
+          (error as any).data = fetchError.data;
+          (error as any).status = fetchError.status;
+          (error as any).code = d?.code;
+          throw error;
+        }
+        const errorMsg = fetchError instanceof Error ? fetchError.message : 'Unknown error';
+        const isConnectionError =
           errorMsg.includes('fetch failed') ||
           errorMsg.includes('Failed to fetch') ||
           errorMsg.includes('NetworkError') ||
           errorMsg.includes('ECONNREFUSED');
-        
+
         const error = new Error(
-          isConnectionError 
+          isConnectionError
             ? 'Cannot connect to backend server. Please ensure the Django API is running on port 8000.'
             : `Network error: ${errorMsg}`
         );
         (error as any).data = { detail: error.message };
         throw error;
       }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const message = errorData.detail || errorData.error || 'Login failed';
-        const error = new Error(message);
-        (error as any).data = errorData;
-        (error as any).status = response.status;
-        (error as any).code = errorData.code; // e.g. 'BAD_GATEWAY' for backend 5xx
-        throw error;
-      }
-
-      const responseData: any = await response.json();
 
       // Check if MFA is required — return structured result (do not throw)
       if (responseData.mfa_required) {
@@ -156,7 +159,22 @@ function useProvideAuth(): AuthContextValue {
       } catch {
         // Keep login responsive; fallback to user payload from login response.
       }
-      
+
+      try {
+        await fetch('/api/auth/set-tokens', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            access_token,
+            refresh_token: refresh_token ?? '',
+            user: fullUser ?? user,
+          }),
+        });
+      } catch {
+        // Non-fatal; login page recovery may still call set-tokens when redirect= is present
+      }
+
       // Update state with authenticated user immediately
       setState({
         user: fullUser,
