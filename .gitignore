@@ -118,7 +118,7 @@ yarn-error.log*
 .DS_Store
 
 # Docker
-.dockerignore
+# Root .dockerignore is tracked (shrinks build context on VPS).
 
 # Logs
 logs/

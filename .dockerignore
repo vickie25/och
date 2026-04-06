@@ -1,0 +1,38 @@
+# Root build context is "." — without this, Docker uploads ~1GB+ (node_modules, .git, caches).
+
+.git
+.gitignore
+**/.git
+
+# Frontend — largest wins
+frontend/nextjs_app/node_modules
+frontend/nextjs_app/.next
+frontend/nextjs_app/out
+frontend/nextjs_app/.turbo
+**/node_modules
+
+# Python / Django
+**/__pycache__
+**/*.py[cod]
+**/.venv
+**/venv
+**/.mypy_cache
+backend/**/media
+backend/**/staticfiles
+
+# Env & local (compose injects build args; do not bake secrets from random files)
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.idea
+.vscode
+**/.DS_Store
+*.log
+npm-debug.log*
+
+# Docs & misc (not needed for nextjs image)
+*.md
+docs
+mission_hall
