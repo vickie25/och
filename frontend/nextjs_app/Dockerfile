@@ -18,6 +18,10 @@ ENV npm_config_fetch_retry_maxtimeout=120000
 ENV npm_config_fetch_timeout=600000
 ENV npm_config_maxsockets=1
 ENV npm_config_jobs=1
+ENV npm_config_loglevel=warn
+ENV npm_config_progress=false
+ENV npm_config_audit=false
+ENV npm_config_fund=false
 ENV NODE_OPTIONS=--max-old-space-size=2048
 
 COPY frontend/nextjs_app/package.json frontend/nextjs_app/package-lock.json* ./
@@ -26,9 +30,9 @@ COPY frontend/nextjs_app/package.json frontend/nextjs_app/package-lock.json* ./
 # No `syntax=docker/dockerfile:1.4` / cache mounts — on 1 GB RAM hosts pulling the Dockerfile frontend image can OOM (137).
 RUN set -eux; \
     if [ -f package-lock.json ]; then \
-      npm ci --prefer-offline --no-audit --legacy-peer-deps; \
+      npm ci --prefer-offline --no-audit --legacy-peer-deps --omit=optional; \
     else \
-      npm install --prefer-offline --no-audit --legacy-peer-deps; \
+      npm install --prefer-offline --no-audit --legacy-peer-deps --omit=optional; \
     fi; \
     npm cache clean --force; \
     rm -rf /tmp/* 2>/dev/null || true
