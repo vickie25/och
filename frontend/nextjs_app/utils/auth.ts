@@ -29,17 +29,28 @@ export function setAuthTokens(accessToken: string, refreshToken: string): void {
 /**
  * Get access token from cookies or localStorage
  */
+function readCookieToken(name: string): string | null {
+  if (typeof document === 'undefined') return null
+  const prefix = `${name}=`
+  for (const raw of document.cookie.split(';')) {
+    const c = raw.trim()
+    if (c.startsWith(prefix)) {
+      try {
+        return decodeURIComponent(c.slice(prefix.length))
+      } catch {
+        return c.slice(prefix.length)
+      }
+    }
+  }
+  return null
+}
+
 export function getAccessToken(): string | null {
   if (typeof window === 'undefined') return null;
 
-  // Try cookies first
-  const cookies = document.cookie.split(';');
-  const tokenCookie = cookies.find(c => c.trim().startsWith(`${ACCESS_TOKEN_COOKIE}=`));
-  if (tokenCookie) {
-    return tokenCookie.split('=')[1];
-  }
+  const fromCookie = readCookieToken(ACCESS_TOKEN_COOKIE)
+  if (fromCookie) return fromCookie
 
-  // Fallback to localStorage
   return localStorage.getItem(ACCESS_TOKEN_KEY) || localStorage.getItem(LEGACY_AUTH_TOKEN_KEY);
 }
 
@@ -49,14 +60,9 @@ export function getAccessToken(): string | null {
 export function getRefreshToken(): string | null {
   if (typeof window === 'undefined') return null;
 
-  // Try cookies first
-  const cookies = document.cookie.split(';');
-  const tokenCookie = cookies.find(c => c.trim().startsWith(`${REFRESH_TOKEN_COOKIE}=`));
-  if (tokenCookie) {
-    return tokenCookie.split('=')[1];
-  }
+  const fromCookie = readCookieToken(REFRESH_TOKEN_COOKIE)
+  if (fromCookie) return fromCookie
 
-  // Fallback to localStorage
   return localStorage.getItem(REFRESH_TOKEN_KEY);
 }
 

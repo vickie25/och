@@ -5,12 +5,20 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_API_URL;
+// In Docker, `localhost` points at the Next.js container, not the host.
+// Prefer the internal service URL when present.
+const FASTAPI_URL = process.env.FASTAPI_INTERNAL_URL || process.env.NEXT_PUBLIC_FASTAPI_API_URL;
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   
   try {
+    if (!FASTAPI_URL) {
+      return NextResponse.json(
+        { error: 'Profiling service is not configured (missing FASTAPI url).' },
+        { status: 503 }
+      );
+    }
     const body = await request.json();
     
     const res = await fetch(`${FASTAPI_URL}/api/v1/profiling/session/start`, {

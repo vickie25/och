@@ -81,48 +81,50 @@ export async function POST(request: NextRequest) {
       access_token,
     });
 
+    // Match /api/auth/set-tokens: do not force Secure on plain HTTP (local Docker / http://localhost).
+    const proto =
+      request.headers.get('x-forwarded-proto') ??
+      request.headers.get('x-url-scheme') ??
+      (request.nextUrl.protocol === 'https:' ? 'https' : 'http')
+    const isSecure = proto === 'https'
+    const cookieBase = {
+      secure: isSecure,
+      sameSite: 'lax' as const,
+      path: '/',
+    }
+
     // RBAC cookies for middleware
     const normalizedRoles = extractNormalizedRoles(user)
     const primaryRole = getPrimaryRole(normalizedRoles)
     nextResponse.cookies.set('och_roles', JSON.stringify(normalizedRoles), {
+      ...cookieBase,
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
-      path: '/',
     })
     nextResponse.cookies.set('och_primary_role', primaryRole || '', {
+      ...cookieBase,
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
-      path: '/',
     })
     nextResponse.cookies.set('och_dashboard', getDashboardForRole(primaryRole), {
+      ...cookieBase,
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
-      path: '/',
     })
 
     // Access token (readable by client for Authorization header)
     nextResponse.cookies.set('access_token', access_token, {
+      ...cookieBase,
       httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
       maxAge: 60 * 15,
-      path: '/',
     })
 
     // Refresh token (HttpOnly for server refresh flow), optional
     if (refresh_token) {
       nextResponse.cookies.set('refresh_token', refresh_token, {
+        ...cookieBase,
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 30,
-        path: '/',
       })
     }
 

@@ -8,7 +8,6 @@ export const dynamic = 'force-dynamic'
 
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useAuth } from '@/hooks/useAuth'
 import { googleOAuthClient } from '@/services/googleOAuthClient'
 import { apiGateway } from '@/services/apiGateway'
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
@@ -33,20 +32,34 @@ function GoogleOAuthCallbackPageInner() {
 
     const handleCallback = async () => {
       try {
-        // If we already showed "account created" success, don't re-run (avoids back-button
-        // bringing user here again and redirecting them to dashboard)
+        // Fresh OAuth round-trip always includes ?code=… — never skip the token exchange
+        // just because sessionStorage still has oauth_callback_handled from an older visit
+        // (that would redirect to /dashboard with no tokens → 401 → /login).
+        const oauthCode = searchParams.get('code')
         const fromSuccess = searchParams.get('success') === '1'
         const alreadyHandled = typeof window !== 'undefined' && sessionStorage.getItem('oauth_callback_handled') === '1'
-        if (fromSuccess || alreadyHandled) {
+        // Replay / success-page UX only when Google did not just return an authorization code
+        if (!oauthCode && (fromSuccess || alreadyHandled)) {
           setStatus('success')
-          setMessage(
-            'Your account has been created. Please check your email for a self-onboarding link to set your password, secure your account with MFA, and complete profiling.'
-          )
-          setShowRedirectMessage(false)
-          // So Back is intercepted and sends user to /register (see popstate effect below)
-          if (typeof window !== 'undefined' && !window.history.state?.oauthSuccessBackGuard) {
-            window.history.replaceState({ oauthSuccessBackGuard: true }, '', window.location.pathname + '?' + (new URLSearchParams(window.location.search)).toString())
-            window.history.pushState({ oauthSuccessBackGuard: true }, '', window.location.href)
+          const studentEmailFlow =
+            typeof window !== 'undefined' &&
+            sessionStorage.getItem('oauth_student_email_flow') === '1'
+          if (studentEmailFlow) {
+            setMessage(
+              'Your account has been created. Please check your email for a self-onboarding link to set your password, secure your account with MFA, and complete profiling.'
+            )
+            setShowRedirectMessage(false)
+            // So Back is intercepted and sends user to /register (see popstate effect below)
+            if (typeof window !== 'undefined' && !window.history.state?.oauthSuccessBackGuard) {
+              window.history.replaceState({ oauthSuccessBackGuard: true }, '', window.location.pathname + '?' + (new URLSearchParams(window.location.search)).toString())
+              window.history.pushState({ oauthSuccessBackGuard: true }, '', window.location.href)
+            }
+          } else {
+            setMessage("You're signed in. Redirecting…")
+            setShowRedirectMessage(true)
+            redirectTimer = setTimeout(() => {
+              window.location.replace('/dashboard')
+            }, 600)
           }
           return
         }
@@ -126,6 +139,7 @@ function GoogleOAuthCallbackPageInner() {
             'admin',
             'analyst',
             'finance',
+            'finance_admin',
             'support',
           ].includes(roleName)
         })
@@ -146,10 +160,10 @@ function GoogleOAuthCallbackPageInner() {
           const profilingComplete = user.profiling_complete ?? false
           console.log('[OAuth Callback] Student profiling_complete:', profilingComplete)
 
-          // Either a brand-new account or a student logging in with Google where we (re)sent
-          // the onboarding email: in both cases, keep them on this page and instruct them
-          // to start from the email instead of dropping into profiler. Offer a resend link.
-          if (accountCreated || onboardingEmailSent) {
+          // Brand-new student via Google: we send a self-onboarding email (password → MFA → profiling).
+          // Do not use onboardingEmailSent alone — the backend may resend on later logins; that should
+          // not block the user with an "account created" screen.
+          if (accountCreated) {
             const email = user.email || response.user?.email || ''
             setResendEmail(email || null)
             setResendCooldownSeconds(60)
@@ -159,6 +173,7 @@ function GoogleOAuthCallbackPageInner() {
             setShowRedirectMessage(false)
             // Mark as handled and replace URL so Back doesn't reload this page with code
             if (typeof window !== 'undefined') {
+              sessionStorage.setItem('oauth_student_email_flow', '1')
               sessionStorage.setItem('oauth_callback_handled', '1')
               const url = new URL(window.location.href)
               url.searchParams.delete('code')
@@ -203,6 +218,7 @@ function GoogleOAuthCallbackPageInner() {
               redirectPath = '/dashboard/employer'
               break
             case 'finance':
+            case 'finance_admin':
               redirectPath = '/dashboard/finance'
               break
             case 'admin':
@@ -240,6 +256,10 @@ function GoogleOAuthCallbackPageInner() {
         }
         
         console.log('[OAuth Callback] Will redirect to:', redirectPath)
+
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('oauth_student_email_flow')
+        }
 
         // Redirect with a short delay; use replace so callback is not left in history
         // (avoids back-button going callback → Google → … instead of to app)

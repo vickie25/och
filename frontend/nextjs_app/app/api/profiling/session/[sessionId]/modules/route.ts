@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_API_URL || 'http://localhost:8001'
+// In Docker, `localhost` points at the Next.js container. Prefer the internal service URL.
+const FASTAPI_URL = process.env.FASTAPI_INTERNAL_URL || process.env.NEXT_PUBLIC_FASTAPI_API_URL || 'http://localhost:8001'
 
 export async function GET(
   request: NextRequest,
@@ -15,6 +16,7 @@ export async function GET(
       headers: {
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(8000),
     })
 
     if (!response.ok) {

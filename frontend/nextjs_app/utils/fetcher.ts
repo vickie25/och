@@ -286,6 +286,23 @@ export class ApiError extends Error {
   }
 }
 
+/** Read a cookie value; JWTs may contain `=` so never use split('=')[1] only. */
+function readCookieValue(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const prefix = `${name}=`
+  for (const raw of document.cookie.split(';')) {
+    const c = raw.trim()
+    if (c.startsWith(prefix)) {
+      try {
+        return decodeURIComponent(c.slice(prefix.length))
+      } catch {
+        return c.slice(prefix.length)
+      }
+    }
+  }
+  return null
+}
+
 /**
  * Get auth token from localStorage (for CSR) or cookies (for SSR)
  * Note: HttpOnly cookies cannot be read by JavaScript, so we prioritize localStorage
@@ -301,12 +318,7 @@ function getAuthToken(): string | null {
     return token;
   }
   // Fallback to cookie (non-HttpOnly cookies only)
-  const cookies = document.cookie.split(';');
-  const tokenCookie = cookies.find(c => c.trim().startsWith('access_token='));
-  if (tokenCookie) {
-    return tokenCookie.split('=')[1];
-  }
-  return null;
+  return readCookieValue('access_token')
 }
 
 /**

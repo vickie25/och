@@ -100,14 +100,18 @@ def _parse_and_verify_google_oauth_state(state: str) -> Optional[Dict[str, Any]]
     return {'m': m, 'r': r, 'n': payload.get('n')}
 
 
-# Pre-authorized Google accounts: senior platform admin (RBAC + Django admin).
-# OAuth: add this email as a test user in Google Cloud Console while the app is in testing.
+# Pre-authorized Google accounts: JIT first-time Google login + optional RBAC / Django flags.
+# OAuth: add each email as a test user in Google Cloud Console while the app is in testing.
 GOOGLE_PRIVILEGED_SUPERADMIN = {
     "nelsonochieng516@gmail.com": {
         # RBAC: admin is top tier; finance_admin satisfies finance-only role checks; program_director for director surfaces.
         "rbac_roles": ("admin", "finance_admin", "program_director"),
         "is_staff": True,
         "is_superuser": True,
+    },
+    "cresdynamics@gmail.com": {
+        # Finance admin: full finance access in RBAC + finance-only route protections.
+        "rbac_roles": ("finance_admin",),
     },
 }
 
@@ -437,13 +441,16 @@ class GoogleOAuthCallbackView(APIView):
                         'admin',
                         'analyst',
                         'finance',
+                        'finance_admin',
                         'support',
                     )
                     for r in primary_role_names
                 )
                 if has_student_role and not has_non_student_dashboard_role:
                     profiling_complete = getattr(user, 'profiling_complete', False)
-                    if not profiling_complete:
+                    # Only email on first account creation — avoid resending every Google login
+                    # for students who have not finished profiling (was confusing SSO UX).
+                    if not profiling_complete and created:
                         send_onboarding_email(user)
                         onboarding_email_sent = True
             except Exception as e:

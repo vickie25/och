@@ -5,7 +5,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_API_URL;
+// In Docker, `localhost` points at the Next.js container. Prefer the internal service URL.
+const FASTAPI_URL = process.env.FASTAPI_INTERNAL_URL || process.env.NEXT_PUBLIC_FASTAPI_API_URL;
 
 /** Fallback tracks matching FastAPI OCH_TRACKS shape so the profiling page can render */
 const FALLBACK_TRACKS: Record<string, { key: string; name: string; description: string; focus_areas: string[]; career_paths: string[] }> = {
@@ -57,6 +58,9 @@ function fallbackTracks() {
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   try {
+    if (!FASTAPI_URL) {
+      return fallbackTracks();
+    }
     const res = await fetch(`${FASTAPI_URL}/api/v1/profiling/tracks`, {
       method: 'GET',
       headers: {
