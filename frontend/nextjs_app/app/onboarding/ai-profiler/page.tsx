@@ -661,9 +661,7 @@ export default function AIProfilerPage() {
               options: normalizedOptions,
             }
           })
-          // Filter out difficulty_selection question (removed per user request)
-          .filter(q => q.id !== 'difficulty_selection' && q.category !== 'difficulty_selection')
-        console.log('[AIProfiler] Loaded questions:', allQuestions.length, 'questions (difficulty_selection filtered out)')
+        console.log('[AIProfiler] Loaded questions:', allQuestions.length)
         setQuestions(allQuestions)
         
         // Try to restore saved progress after questions load
@@ -671,9 +669,9 @@ export default function AIProfilerPage() {
           const saved = localStorage.getItem('profiling_progress')
           if (saved) {
             const progressData = JSON.parse(saved)
-            // Only restore if session matches or no session yet
+            // Only restore if session matches (never merge unknown/blank session ids).
             const currentSessionId = sessionResponse?.session_id || session?.session_id
-            if (!currentSessionId || progressData.session_id === currentSessionId || !progressData.session_id) {
+            if (currentSessionId && progressData.session_id === currentSessionId) {
               if (progressData.responses && Object.keys(progressData.responses).length > 0) {
                 setResponses(progressData.responses)
 
@@ -700,6 +698,12 @@ export default function AIProfilerPage() {
                   setCurrentSection('assessment')
                 }
               }
+            } else if (currentSessionId && progressData.session_id && progressData.session_id !== currentSessionId) {
+              console.warn('[AIProfiler] Clearing stale saved progress from another session:', {
+                savedSessionId: progressData.session_id,
+                currentSessionId,
+              })
+              localStorage.removeItem('profiling_progress')
             }
           }
         } catch (error) {
@@ -797,7 +801,13 @@ export default function AIProfilerPage() {
       const saved = localStorage.getItem('profiling_progress')
       if (saved) {
         const progressData = JSON.parse(saved)
-        if (progressData.responses && Object.keys(progressData.responses).length > 0) {
+        if (session && progressData.session_id && progressData.session_id !== session.session_id) {
+          console.warn('[AIProfiler] Ignoring saved progress from a different session:', {
+            savedSessionId: progressData.session_id,
+            currentSessionId: session.session_id,
+          })
+          localStorage.removeItem('profiling_progress')
+        } else if (progressData.responses && Object.keys(progressData.responses).length > 0) {
           const answeredCount = Object.keys(progressData.responses).length
           const correctIndex = Math.min(answeredCount, questions.length - 1)
           const correctPercentage = questions.length > 0

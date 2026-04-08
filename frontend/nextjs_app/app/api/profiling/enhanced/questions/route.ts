@@ -9,7 +9,11 @@ import { NextRequest, NextResponse } from 'next/server';
 const FASTAPI_URL = process.env.FASTAPI_INTERNAL_URL || process.env.NEXT_PUBLIC_FASTAPI_API_URL;
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
+  const authHeader =
+    request.headers.get('authorization') ||
+    (request.cookies.get('access_token')?.value
+      ? `Bearer ${request.cookies.get('access_token')?.value}`
+      : null);
   
   try {
     if (!FASTAPI_URL) {

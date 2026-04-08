@@ -222,7 +222,7 @@ function RecipeCard({
       )}
 
       <div className="flex items-center gap-2 pt-2 border-t border-och-steel/5">
-        <Link href={`/recipes/${recipe.slug || recipe.id}`} className="flex-1">
+        <Link href={`/dashboard/student/coaching/recipes/${recipe.slug || recipe.id}`} className="flex-1">
           <Button
             variant="outline"
             size="sm"

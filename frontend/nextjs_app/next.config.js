@@ -51,8 +51,13 @@ function buildConnectSrcExtra() {
 
 /** @type {(phase: string) => import('next').NextConfig} */
 module.exports = (phase) => {
+  // Rewrites happen server-side inside the Next.js container. Prefer internal Docker URLs when set,
+  // otherwise fall back to the public NEXT_PUBLIC_* base (ngrok / prod).
   const djangoBase =
-    process.env.NEXT_PUBLIC_DJANGO_API_URL || 'http://localhost:8000';
+    process.env.DJANGO_INTERNAL_URL ||
+    process.env.DJANGO_API_URL ||
+    process.env.NEXT_PUBLIC_DJANGO_API_URL ||
+    'http://localhost:8000';
   const normalizedDjangoBase = djangoBase
     .replace(/\/$/, '')
     .replace(/\/api\/v1$/, '')
@@ -66,14 +71,12 @@ module.exports = (phase) => {
     output: 'standalone',
     outputFileTracingRoot: path.join(__dirname, '../..'),
     productionBrowserSourceMaps: false,
-    ...(lowResourceBuild
-      ? {
-          experimental: {
-            cpus: 1,
-            workerThreads: false,
-          },
-        }
-      : {}),
+    // Prevent Next from redirecting `/api/v1/.../` <-> `/api/v1/...` which can
+    // create an infinite loop when proxying to Django (APPEND_SLASH).
+    skipTrailingSlashRedirect: true,
+    experimental: {
+      ...(lowResourceBuild ? { cpus: 1, workerThreads: false } : {}),
+    },
     typescript: {
       ignoreBuildErrors: true,
     },
@@ -128,9 +131,12 @@ module.exports = (phase) => {
     // App Router handlers under app/api/** take precedence; these proxy only unmatched paths.
     async rewrites() {
       return [
+        // Preserve trailing slashes for Django endpoints (Django's APPEND_SLASH).
+        // Without this, `/api/v1/foo/` can be forwarded upstream as `/api/v1/foo`,
+        // causing an infinite 301 loop between Next and Django.
         {
-          source: '/api/profiling/:path*',
-          destination: `${normalizedDjangoBase}/api/v1/profiling/:path*`,
+          source: '/api/v1/:path*/',
+          destination: `${normalizedDjangoBase}/api/v1/:path*/`,
         },
         {
           source: '/api/v1/:path*',

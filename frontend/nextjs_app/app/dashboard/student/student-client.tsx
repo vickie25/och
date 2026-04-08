@@ -72,12 +72,19 @@ export default function StudentClient() {
         // This ensures admin resets are immediately respected
         const { djangoClient } = await import('@/services/djangoClient');
         let currentProfilingComplete = user.profiling_complete;
+        let universitySet = true;
         
         try {
           console.log('StudentClient: Fetching fresh user data from Django...');
           const freshUser = await djangoClient.auth.getCurrentUser();
           currentProfilingComplete = freshUser?.profiling_complete ?? false;
           console.log('StudentClient: Fresh profiling_complete =', currentProfilingComplete);
+
+          // University mapping is required for community features.
+          // Treat it as missing if both id and name are empty.
+          const uniId = (freshUser as any)?.university_id;
+          const uniName = (freshUser as any)?.university_name;
+          universitySet = Boolean(uniId) || (typeof uniName === 'string' && uniName.trim().length > 0);
 
           // Don't call reloadUser here - it causes infinite loops
         } catch (err) {
@@ -89,6 +96,19 @@ export default function StudentClient() {
           console.log('✅ Django profiling_complete=false - redirecting to profiler');
           router.push('/onboarding/ai-profiler');
           return;
+        }
+
+        // Prompt to set university once per session if missing.
+        if (!universitySet && typeof window !== 'undefined') {
+          const alreadyPrompted = sessionStorage.getItem('och_prompt_university') === '1';
+          if (!alreadyPrompted) {
+            sessionStorage.setItem('och_prompt_university', '1');
+            console.log('StudentClient: University missing - redirecting to university mapping');
+            setCheckingProfiling(false);
+            setCheckingFoundations(false);
+            router.push('/dashboard/student/settings/profile?highlight=university');
+            return;
+          }
         }
         
         // Django says profiling is complete - TRUST IT, don't check FastAPI

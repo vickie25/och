@@ -117,7 +117,7 @@ export function MissionsGridView({ missions, loading, onMissionClick }: Props) {
                   ? 'opacity-75 cursor-not-allowed bg-och-midnight/30 border-och-steel/10' 
                   : 'cursor-pointer hover:shadow-lg hover:shadow-och-defender/20 hover:-translate-y-0.5 bg-och-midnight/50 border-och-steel/20 hover:border-och-steel/40'
               }`}
-              onClick={() => !mission.is_locked && onMissionClick(mission.id)}
+              onClick={() => onMissionClick(mission.id)}
             >
               {/* Hovering padlock overlay for locked missions */}
               {mission.is_locked && (
@@ -207,8 +207,7 @@ export function MissionsGridView({ missions, loading, onMissionClick }: Props) {
               {/* Action Button - Compact */}
               <div className="px-3 pb-3 flex-shrink-0">
                 <button
-                  onClick={() => !mission.is_locked && onMissionClick(mission.id)}
-                  disabled={mission.is_locked}
+                  onClick={() => onMissionClick(mission.id)}
                   className={`w-full py-1.5 px-2.5 rounded-lg text-[11px] font-semibold transition-all flex items-center justify-center gap-1.5 ${
                     mission.is_locked
                       ? 'bg-och-steel/10 text-och-steel/50 cursor-not-allowed'
@@ -223,7 +222,7 @@ export function MissionsGridView({ missions, loading, onMissionClick }: Props) {
                   ) : mission.is_locked ? (
                     <>
                       <Lock className="h-3.5 w-3.5" />
-                      Locked
+                      View
                     </>
                   ) : (
                     <>

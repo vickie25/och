@@ -1,3 +1,4 @@
+import logging
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -5,6 +6,8 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 from .models import Notification, NotificationPreference
 from .serializers import NotificationSerializer, NotificationPreferenceSerializer
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationViewSet(viewsets.ModelViewSet):
@@ -16,8 +19,12 @@ class NotificationViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def unread_count(self, request):
-        count = self.get_queryset().filter(is_read=False).count()
-        return Response({'count': count})
+        try:
+            count = self.get_queryset().filter(is_read=False).count()
+            return Response({'count': count})
+        except Exception as e:
+            logger.error('notifications unread_count failed: %s', e, exc_info=True)
+            return Response({'count': 0})
     
     @action(detail=True, methods=['post'])
     def mark_read(self, request, pk=None):

@@ -64,7 +64,7 @@ export function RecipeSidebar({ recipeIds }: RecipeSidebarProps) {
               <h4 className="text-sm font-semibold text-white mb-1">{recipe.title}</h4>
               <p className="text-xs text-och-steel mb-3">{recipe.description}</p>
               <div className="flex items-center gap-2">
-                <Link href={`/recipes/${recipe.id}`} className="flex-1">
+                <Link href={`/dashboard/student/coaching/recipes/${recipe.slug || recipe.id}`} className="flex-1">
                   <Button
                     variant="defender"
                     size="sm"

@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAccessToken } from '@/utils/auth';
+import { djangoBaseForServerFetch } from '@/lib/djangoServerBase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,11 +19,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Try to get user info from Django
-    const DJANGO_API_URL = process.env.NEXT_PUBLIC_DJANGO_API_URL;
-    const response = await fetch(`${DJANGO_API_URL}/api/v1/auth/me`, {
+    const base = djangoBaseForServerFetch();
+    const response = await fetch(`${base}/api/v1/auth/me`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
+      signal: AbortSignal.timeout(8000),
     });
 
     if (response.ok) {

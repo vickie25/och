@@ -27,34 +27,36 @@ interface ApiRequestInit extends RequestInit {
  */
 function getNextApiBase(): string {
   if (typeof window !== 'undefined') return `${window.location.origin}/api`;
-  return process.env.NEXT_PUBLIC_APP_URL
-    ? `${process.env.NEXT_PUBLIC_APP_URL}/api`
-    : '/api';
+  const publicBase =
+    process.env.NEXT_PUBLIC_FRONTEND_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    '';
+  // When called server-side we still want an absolute URL if possible.
+  return publicBase ? `${publicBase.replace(/\/$/, '')}/api` : '/api';
+}
+
+const FASTAPI_RELATIVE_PATH_PREFIXES = [
+  '/recommendations',
+  '/embeddings',
+  '/personality',
+  '/ai/',
+] as const;
+
+function isFastApiRelativePath(path: string): boolean {
+  return FASTAPI_RELATIVE_PATH_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
 
 /**
  * Determine if a path should go to Django or FastAPI
  */
 function getBaseUrl(path: string): string {
-  // Enhanced profiling should talk directly to FastAPI so we don't depend
-  // on a matching Next.js API route for every sub-endpoint.
-  if (path.startsWith('/profiling/enhanced')) {
-    return `${FASTAPI_API_URL}/api/v1`;
-  }
-
-  // Core profiling (status, tracks, classic engine) still uses Next.js proxy
-  // so those endpoints can return safe fallbacks if FastAPI is down.
+  // Profiling endpoints should go through the Next.js BFF (/api/profiling/*).
+  // This keeps browser calls same-origin (works on ngrok/prod) and lets the
+  // server use FASTAPI_INTERNAL_URL inside Docker.
   if (path.startsWith('/profiling')) {
     return getNextApiBase();
   }
-
-  // Other FastAPI routes (AI, recommendations, embeddings, personality)
-  const fastApiPaths = [
-    '/recommendations',
-    '/embeddings',
-    '/personality',
-    '/ai/',
-  ];
 
   // Recipes: list (/recipes) and detail (/recipes/{slug}) go to Next.js local API.
   // Action sub-routes (/recipes/{slug}/progress, /bookmark, /feedback, /related)
@@ -83,6 +85,16 @@ function getBaseUrl(path: string): string {
     return `${window.location.origin}/api/v1`;
   }
 
+  // Browser: route all Django REST traffic through same-origin /api/v1/* (Next rewrites → Django).
+  // Narrow NEXT_PUBLIC_DJANGO_API_URL only covered sponsor/billing/etc., so /notifications/*,
+  // /marketplace/*, /privacy/* still hit the wrong host and caused redirect/CORS issues on ngrok.
+  if (typeof window !== 'undefined' && !isFastApiRelativePath(path)) {
+    if (path.startsWith('/api/v1/')) {
+      return window.location.origin;
+    }
+    return `${window.location.origin}/api/v1`;
+  }
+
   // Check if path already includes /api/v1
   if (path.startsWith('/api/v1/')) {
     // If DJANGO_API_URL already ends with /api, remove it to avoid duplication
@@ -101,9 +113,7 @@ function getBaseUrl(path: string): string {
     return `${DJANGO_API_URL}/api/v1`;
   }
 
-  const isFastApi = fastApiPaths.some(prefix => path.startsWith(prefix));
-
-  if (isFastApi) {
+  if (isFastApiRelativePath(path)) {
     return `${FASTAPI_API_URL}/api/v1`;
   }
 
@@ -131,9 +141,16 @@ async function refreshAccessToken(): Promise<string | null> {
     return null;
   }
 
+  const refreshUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/api/v1/auth/token/refresh`
+      : DJANGO_API_URL.endsWith('/api')
+        ? `${DJANGO_API_URL}/v1/auth/token/refresh`
+        : `${DJANGO_API_URL}/api/v1/auth/token/refresh`;
+
   try {
     const response = await fetcher<RefreshTokenResponse>(
-      `${DJANGO_API_URL}/api/v1/auth/token/refresh`,
+      refreshUrl,
       {
         method: 'POST',
         body: JSON.stringify({ refresh_token: refreshToken }),

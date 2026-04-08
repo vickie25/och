@@ -14,6 +14,85 @@ import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 
+function normalizeRoleName(roleName: string): string {
+  const normalized = (roleName || '').toLowerCase().trim()
+  if (
+    normalized === 'program_director' ||
+    normalized === 'program director' ||
+    normalized === 'programdirector' ||
+    normalized === 'director'
+  )
+    return 'program_director'
+  if (normalized === 'mentee') return 'mentee'
+  if (normalized === 'student') return 'student'
+  if (normalized === 'mentor') return 'mentor'
+  if (normalized === 'admin') return 'admin'
+  if (
+    normalized === 'sponsor_admin' ||
+    normalized === 'sponsor' ||
+    normalized === 'sponsor/employer admin' ||
+    normalized === 'sponsoremployer admin'
+  )
+    return 'sponsor_admin'
+  if (
+    normalized === 'institution_admin' ||
+    normalized === 'institution admin' ||
+    normalized === 'institutional_admin' ||
+    normalized === 'institutional admin'
+  )
+    return 'institution_admin'
+  if (normalized === 'organization_admin' || normalized === 'organization admin')
+    return 'organization_admin'
+  if (normalized === 'analyst') return 'analyst'
+  if (normalized === 'employer') return 'employer'
+  if (normalized === 'finance' || normalized === 'finance_admin') return 'finance'
+  if (normalized === 'support') return 'support'
+  return normalized
+}
+
+function extractNormalizedRoles(user: any): string[] {
+  const rolesRaw = user?.roles || []
+  if (!Array.isArray(rolesRaw)) return []
+  const roles = rolesRaw
+    .map((ur: any) => {
+      let roleValue: string
+      if (typeof ur === 'string') roleValue = ur
+      else if (ur && typeof ur === 'object') {
+        const r = ur.role
+        roleValue =
+          typeof r === 'string'
+            ? r
+            : r?.name != null
+              ? String(r.name)
+              : ur?.name != null
+                ? String(ur.name)
+                : ''
+      } else roleValue = String(ur ?? '')
+      return normalizeRoleName(roleValue)
+    })
+    .filter(Boolean)
+  return Array.from(new Set(roles))
+}
+
+function getPrimaryRole(roles: string[]): string | null {
+  if (roles.includes('admin')) return 'admin'
+  const priority = [
+    'program_director',
+    'finance',
+    'support',
+    'mentor',
+    'analyst',
+    'institution_admin',
+    'organization_admin',
+    'sponsor_admin',
+    'employer',
+    'mentee',
+    'student',
+  ]
+  for (const r of priority) if (roles.includes(r)) return r
+  return roles[0] || null
+}
+
 function GoogleOAuthCallbackPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -36,6 +115,19 @@ function GoogleOAuthCallbackPageInner() {
         // just because sessionStorage still has oauth_callback_handled from an older visit
         // (that would redirect to /dashboard with no tokens → 401 → /login).
         const oauthCode = searchParams.get('code')
+
+        // If we're in a real callback (code present), proactively clear stale tokens so an
+        // expired access_token doesn't cause an immediate /auth/me 401 → redirect loop
+        // before we finish exchanging the code and setting fresh cookies.
+        if (oauthCode && typeof window !== 'undefined') {
+          try {
+            localStorage.removeItem('access_token')
+            localStorage.removeItem('auth_token')
+            localStorage.removeItem('refresh_token')
+          } catch {
+            // ignore
+          }
+        }
         const fromSuccess = searchParams.get('success') === '1'
         const alreadyHandled = typeof window !== 'undefined' && sessionStorage.getItem('oauth_callback_handled') === '1'
         // Replay / success-page UX only when Google did not just return an authorization code
@@ -124,6 +216,9 @@ function GoogleOAuthCallbackPageInner() {
         const userRoles = response.user?.roles || []
         const user = response.user || {}
         console.log('[OAuth Callback] User data:', { roles: userRoles, profiling_complete: user.profiling_complete })
+
+        const normalizedRoles = extractNormalizedRoles(user)
+        const primaryRole = getPrimaryRole(normalizedRoles)
         
         const hasPrivilegedDashboardRole = userRoles.some((r: any) => {
           const roleName = typeof r === 'string' ? r : (r?.role || r?.name || '').toLowerCase()
@@ -196,18 +291,15 @@ function GoogleOAuthCallbackPageInner() {
           }
         } else {
           // Determine dashboard for other roles
-          const role = userRoles[0]
-          const roleName = typeof role === 'string' ? role.toLowerCase() : (role?.role || role?.name || '').toLowerCase()
+          const roleName = (primaryRole || '').toLowerCase()
           
           switch (roleName) {
             case 'mentor':
               redirectPath = '/dashboard/mentor'
               break
-            case 'director':
             case 'program_director':
               redirectPath = '/dashboard/director'
               break
-            case 'sponsor':
             case 'sponsor_admin':
               redirectPath = '/dashboard/sponsor'
               break
@@ -218,7 +310,6 @@ function GoogleOAuthCallbackPageInner() {
               redirectPath = '/dashboard/employer'
               break
             case 'finance':
-            case 'finance_admin':
               redirectPath = '/dashboard/finance'
               break
             case 'admin':

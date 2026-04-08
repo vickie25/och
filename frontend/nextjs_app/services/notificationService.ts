@@ -6,7 +6,7 @@ export const notificationService = {
   },
 
   async getUnreadCount() {
-    return apiGateway.get('/notifications/unread_count')
+    return apiGateway.get('/notifications/unread_count/')
   },
 
   async markAsRead(id: string) {

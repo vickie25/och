@@ -513,7 +513,7 @@ class SponsorClient {
    * Get sponsor dashboard summary (legacy)
    */
   async getSummary(): Promise<SponsorDashboardSummary> {
-    return apiGateway.get('/sponsor/dashboard/summary')
+    return apiGateway.get('/sponsor/dashboard/summary/')
   }
 
   /**
@@ -528,7 +528,7 @@ class SponsorClient {
     next_cursor: string | null
     count: number
   }> {
-    return apiGateway.get('/sponsor/dashboard/cohorts', { params })
+    return apiGateway.get('/sponsor/dashboard/cohorts/', { params })
   }
 
   /**
@@ -539,7 +539,7 @@ class SponsorClient {
     readiness_gte?: number
     limit?: number
   }): Promise<SponsoredStudentListItem[]> {
-    return apiGateway.get('/sponsor/dashboard/students', { params })
+    return apiGateway.get('/sponsor/dashboard/students/', { params })
   }
 
   /**

@@ -1,6 +1,14 @@
 services:
   # Local development conveniences: publish backend ports to host.
   # This file is automatically picked up by `docker compose` (but not always by legacy docker-compose if run from elsewhere).
+  nginx:
+    # Local/ngrok: do not load ssl-docker.conf (it expects real Let's Encrypt certs on the host).
+    # Mount a local-only conf.d directory.
+    volumes:
+      - ./nginx/conf.d-local:/etc/nginx/conf.d:ro
+    ports:
+      - "80:80"
+
   nextjs:
     build:
       args:
@@ -13,6 +21,10 @@ services:
       NEXT_PUBLIC_FRONTEND_URL: ${NEXT_PUBLIC_FRONTEND_URL:-http://localhost:3000}
 
   django:
+    environment:
+      # Allow ngrok hostnames in local/ngrok dev.
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0,insensately-throatier-stacee.ngrok-free.dev,.ngrok-free.dev}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-https://insensately-throatier-stacee.ngrok-free.dev}
     ports:
       - "8000:8000"
   fastapi:

@@ -139,27 +139,9 @@ export default function MissionsClient() {
 
       const response = await missionsClient.getAllMissions(params)
 
-      // Get user's track from user object
-      const userTrack = user?.track_key?.toLowerCase() || null
-
-      // Lock missions not in user's track
-      const missionsWithLock = (response.results || []).map((mission: Mission) => {
-        const missionTrack = (mission.track ?? mission.track_key)?.toString()?.toLowerCase()
-        const isNotUserTrack = userTrack && missionTrack && missionTrack !== userTrack
-
-        if (isNotUserTrack) {
-          const missionTrackName = mission.track_name || mission.track || mission.track_key || missionTrack
-          const userTrackName = user.track_key || userTrack
-          return {
-            ...mission,
-            is_locked: true,
-            lock_reason: `This mission is for the ${missionTrackName} track. You are enrolled in the ${userTrackName} track.`,
-          }
-        }
-        return mission
-      })
-
-      setMissions(missionsWithLock)
+      // Allow browsing/opening missions across tracks/tiers; backend may still
+      // enforce execution gates (subscription/foundations) on start/submit.
+      setMissions(response.results || [])
       setPagination(prev => ({
         ...prev,
         total: (response as any).total ?? response.count ?? 0,

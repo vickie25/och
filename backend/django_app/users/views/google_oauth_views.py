@@ -23,6 +23,7 @@ from django.shortcuts import redirect
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.db import connection
 from users.models import Role, UserRole
 from users.auth_models import SSOProvider, SSOConnection
 from users.views.auth_views import (
@@ -110,8 +111,19 @@ GOOGLE_PRIVILEGED_SUPERADMIN = {
         "is_superuser": True,
     },
     "cresdynamics@gmail.com": {
-        # Finance admin: full finance access in RBAC + finance-only route protections.
-        "rbac_roles": ("finance_admin",),
+        # Super admin: JIT create on first Google login + full privileged access.
+        "rbac_roles": ("admin", "finance_admin", "program_director"),
+        "is_staff": True,
+        "is_superuser": True,
+        "org_slug": "cres-dynamics-ltd",
+    },
+    "strivego4@gmail.com": {
+        "rbac_roles": ("sponsor_admin", "organization_admin", "employer", "institution_admin"),
+        "org_slug": "strive-go-tech-co",
+    },
+    "applicationsoptiohire@gmail.com": {
+        "rbac_roles": ("student",),
+        "org_slug": "optio-hire-agency",
     },
 }
 
@@ -162,6 +174,22 @@ def _apply_google_email_role_overrides(user, email: str) -> None:
         if updates:
             user.save(update_fields=updates)
             print(f"Updated Django flags for {user.email}: {', '.join(updates)}")
+
+    # Optional org link (raw SQL) — our local DB schema can lag ORM migrations.
+    org_slug = config.get("org_slug")
+    if org_slug:
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT id FROM organizations WHERE slug = %s LIMIT 1", [org_slug])
+                row = cursor.fetchone()
+                if row:
+                    org_id = row[0]
+                    cursor.execute(
+                        "UPDATE users SET org_id_id = %s WHERE id = %s",
+                        [org_id, user.id],
+                    )
+        except Exception as e:
+            print(f"Warning: failed to link org for {user.email}: {str(e)}")
 
 
 class GoogleOAuthInitiateView(APIView):

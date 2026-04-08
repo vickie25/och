@@ -203,9 +203,6 @@ export function MissionsTableView({
   };
 
   const handleMissionClick = (mission: Mission) => {
-    if (isMissionLocked(mission)) {
-      return; // Don't navigate if locked
-    }
     router.push(`/dashboard/student/missions/${mission.id}`);
   };
 

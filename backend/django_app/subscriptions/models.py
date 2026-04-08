@@ -179,10 +179,9 @@ class UserSubscription(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name='subscription',
-        to_field='uuid_id',
         db_column='user_id',
         db_index=True,
-        help_text='FK column stores users.uuid_id (see migrations_sql/FIX_USER_SUBSCRIPTIONS_USER_ID_UUID_PG.sql).',
+        help_text='FK column stores users.id (bigint) in local/dev DB.',
     )
     plan = models.ForeignKey(
         SubscriptionPlan,

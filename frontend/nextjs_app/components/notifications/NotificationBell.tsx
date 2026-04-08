@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Bell } from 'lucide-react'
 import { apiGateway } from '@/services/apiGateway'
+import { ApiError } from '@/utils/fetcher'
 import { NotificationPanel } from './NotificationPanel'
 
 export function NotificationBell() {
@@ -17,9 +18,13 @@ export function NotificationBell() {
 
   const fetchUnreadCount = async () => {
     try {
-      const data = await apiGateway.get<{ count: number }>('/notifications/unread_count')
+      const data = await apiGateway.get<{ count: number }>('/notifications/unread_count/')
       setUnreadCount(data.count)
     } catch (error) {
+      // Status 0 = browser network failure (tunnel down, reset, blocked). Avoid noisy console.
+      if (error instanceof ApiError && error.status === 0) {
+        return
+      }
       console.error('Failed to fetch unread count:', error)
     }
   }

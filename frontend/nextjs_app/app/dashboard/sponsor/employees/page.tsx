@@ -25,11 +25,14 @@ export default function SponsoredStudentsPage() {
       const errorMessage = err?.message || err?.data?.detail || err?.data?.error || 'Failed to load sponsored students';
       
       // Check if it's a connection/network error or API endpoint doesn't exist
-      const isConnectionError = errorMessage.includes('fetch failed') ||
-                               errorMessage.includes('Failed to fetch') ||
-                               errorMessage.includes('NetworkError') ||
-                               errorMessage.includes('ECONNREFUSED') ||
-                               errorMessage.includes('Cannot connect to backend server');
+      const isConnectionError =
+        errorMessage.includes('fetch failed') ||
+        errorMessage.includes('Failed to fetch') ||
+        errorMessage.includes('NetworkError') ||
+        errorMessage.includes('ECONNREFUSED') ||
+        errorMessage.includes('Cannot connect to backend server') ||
+        errorMessage.includes('Cannot reach this app') ||
+        errorMessage.includes('same-origin request failed');
       
       const isNotFoundError = errorStatus === 404 ||
                              errorMessage.includes('404') ||

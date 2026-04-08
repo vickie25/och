@@ -1,6 +1,7 @@
 """
 API views for Sponsor Dashboard.
 """
+import logging
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -37,6 +38,8 @@ from .services import (
     TalentScopeService,
     BillingService,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class SponsorDashboardViewSet(viewsets.ViewSet):
@@ -300,73 +303,77 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 {'detail': 'User is not associated with a sponsor organization'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        cohort_id = request.query_params.get('cohort_id')
-        # Raw query with cast so join works when users.id is bigint and enrollments.user_id is varchar
-        with connection.cursor() as cursor:
-            sql = """
-                SELECT e.id AS enrollment_id, e.cohort_id, e.user_id, e.status AS enrollment_status,
-                       u.uuid_id AS user_uuid_id, u.email, u.first_name, u.last_name,
-                       c.name AS cohort_name
-                FROM enrollments e
-                INNER JOIN users u ON u.id::text = e.user_id::text
-                INNER JOIN cohorts c ON c.id = e.cohort_id
-                WHERE e.org_id = %s AND e.seat_type = %s
-            """
-            params = [org.id, 'sponsored']
-            if cohort_id:
-                sql += " AND e.cohort_id = %s"
-                params.append(cohort_id)
-            sql += " ORDER BY e.joined_at DESC"
-            cursor.execute(sql, params)
-            rows = cursor.fetchall()
-            columns = [col[0] for col in cursor.description]
-        enrollment_rows = [dict(zip(columns, row)) for row in rows]
-        if not enrollment_rows:
+        try:
+            cohort_id = request.query_params.get('cohort_id')
+            # Raw query with cast so join works when users.id is bigint and enrollments.user_id is varchar
+            with connection.cursor() as cursor:
+                sql = """
+                    SELECT e.id AS enrollment_id, e.cohort_id, e.user_id, e.status AS enrollment_status,
+                           u.uuid_id AS user_uuid_id, u.email, u.first_name, u.last_name,
+                           c.name AS cohort_name
+                    FROM enrollments e
+                    INNER JOIN users u ON u.id::text = e.user_id::text
+                    INNER JOIN cohorts c ON c.id = e.cohort_id
+                    WHERE e.org_id = %s AND e.seat_type = %s
+                """
+                params = [org.id, 'sponsored']
+                if cohort_id:
+                    sql += " AND e.cohort_id = %s"
+                    params.append(cohort_id)
+                sql += " ORDER BY e.joined_at DESC"
+                cursor.execute(sql, params)
+                rows = cursor.fetchall()
+                columns = [col[0] for col in cursor.description]
+            enrollment_rows = [dict(zip(columns, row)) for row in rows]
+            if not enrollment_rows:
+                return Response([])
+            cohort_ids = list({r['cohort_id'] for r in enrollment_rows})
+            user_ids = list({r['user_id'] for r in enrollment_rows})
+            aggregate_map = {}
+            agg_qs = SponsorStudentAggregates.objects.filter(
+                org=org,
+                cohort_id__in=cohort_ids,
+                student_id__in=user_ids
+            )
+            for agg in agg_qs:
+                key = (str(agg.cohort_id), str(agg.student_id))
+                aggregate_map[key] = agg
+            students = []
+            for r in enrollment_rows:
+                key = (str(r['cohort_id']), str(r['user_id']))
+                agg = aggregate_map.get(key)
+                if agg:
+                    name = agg.name_anonymized
+                    consent = agg.consent_employer_share
+                    readiness_score = float(agg.readiness_score) if agg.readiness_score is not None else None
+                    completion_pct = float(agg.completion_pct) if agg.completion_pct is not None else None
+                    portfolio_items = agg.portfolio_items or 0
+                else:
+                    consent = False
+                    name = f"Student #{str(r['enrollment_id'])[:8]}"
+                    readiness_score = None
+                    completion_pct = None
+                    portfolio_items = 0
+                if consent:
+                    first = r['first_name'] or ''
+                    last = r['last_name'] or ''
+                    name = f"{first} {last}".strip() or (r['email'] or '')
+                students.append({
+                    'id': str(r['user_uuid_id']) if r.get('user_uuid_id') is not None else str(r['user_id']),
+                    'name': name,
+                    'email': r['email'] if consent else '',
+                    'cohort_name': r['cohort_name'] or '',
+                    'cohort_id': str(r['cohort_id']),
+                    'readiness_score': readiness_score,
+                    'completion_pct': completion_pct,
+                    'portfolio_items': portfolio_items,
+                    'enrollment_status': r['enrollment_status'],
+                    'consent_employer_share': consent,
+                })
+            return Response(students)
+        except Exception as e:
+            logger.error('Error in sponsor dashboard students endpoint: %s', e, exc_info=True)
             return Response([])
-        cohort_ids = list({r['cohort_id'] for r in enrollment_rows})
-        user_ids = list({r['user_id'] for r in enrollment_rows})
-        aggregate_map = {}
-        agg_qs = SponsorStudentAggregates.objects.filter(
-            org=org,
-            cohort_id__in=cohort_ids,
-            student_id__in=user_ids
-        )
-        for agg in agg_qs:
-            key = (str(agg.cohort_id), str(agg.student_id))
-            aggregate_map[key] = agg
-        students = []
-        for r in enrollment_rows:
-            key = (str(r['cohort_id']), str(r['user_id']))
-            agg = aggregate_map.get(key)
-            if agg:
-                name = agg.name_anonymized
-                consent = agg.consent_employer_share
-                readiness_score = float(agg.readiness_score) if agg.readiness_score is not None else None
-                completion_pct = float(agg.completion_pct) if agg.completion_pct is not None else None
-                portfolio_items = agg.portfolio_items or 0
-            else:
-                consent = False
-                name = f"Student #{str(r['enrollment_id'])[:8]}"
-                readiness_score = None
-                completion_pct = None
-                portfolio_items = 0
-            if consent:
-                first = r['first_name'] or ''
-                last = r['last_name'] or ''
-                name = f"{first} {last}".strip() or (r['email'] or '')
-            students.append({
-                'id': str(r['user_uuid_id']),
-                'name': name,
-                'email': r['email'] if consent else '',
-                'cohort_name': r['cohort_name'] or '',
-                'cohort_id': str(r['cohort_id']),
-                'readiness_score': readiness_score,
-                'completion_pct': completion_pct,
-                'portfolio_items': portfolio_items,
-                'enrollment_status': r['enrollment_status'],
-                'consent_employer_share': consent,
-            })
-        return Response(students)
     
     @action(detail=False, methods=['get'], url_path='cohort-enrollments')
     def cohort_enrollments(self, request):
