@@ -18,7 +18,7 @@ ENV npm_config_loglevel=warn
 ENV npm_config_progress=false
 ENV npm_config_audit=false
 ENV npm_config_fund=false
-ENV NODE_OPTIONS=--max-old-space-size=2048
+ENV NODE_OPTIONS=--max-old-space-size=512
 
 COPY frontend/nextjs_app/package.json frontend/nextjs_app/package-lock.json* ./
 
@@ -70,7 +70,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV NEXT_BUILD_VERBOSE=1
 ENV NEXT_BUILD_LOW_MEMORY=1
-ENV NODE_OPTIONS=--max-old-space-size=2048
+ENV NODE_OPTIONS=--max-old-space-size=512
 ENV npm_config_jobs=1
 
 RUN set -eux; \
