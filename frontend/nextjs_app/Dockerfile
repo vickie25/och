@@ -3,13 +3,9 @@
 # See deploy/build-next-low-mem.sh (BuildKit parallelism) and deploy/ensure-swap-2g.sh.
 
 # Stage 1: Install dependencies (including devDependencies for build)
-FROM node:20-bookworm-slim AS deps
+FROM node:22-bookworm-slim AS deps
 
 WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV npm_config_fetch_retries=10
@@ -38,7 +34,7 @@ RUN set -eux; \
     rm -rf /tmp/* 2>/dev/null || true
 
 # Stage 2: Build the application (must use same libc family as deps — bookworm)
-FROM node:20-bookworm-slim AS builder
+FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -116,13 +112,9 @@ RUN set -eux; \
     rm -rf /tmp/* /root/.npm/_cacache/tmp/* 2>/dev/null || true
 
 # Stage 3: Production runner (bookworm-slim — matches standalone Node/glibc)
-FROM node:20-bookworm-slim AS runner
+FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

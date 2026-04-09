@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { missionsClient } from '@/services/missionsClient'
+import type { MissionTemplate } from '@/services/missionsClient'
 import { useAuth } from '@/hooks/useAuth'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -25,23 +26,10 @@ import {
 } from 'lucide-react'
 import { MissionsGridView } from './components/MissionsGridView'
 
-interface Mission {
-  id: string
-  code: string
-  title: string
-  description: string
-  difficulty: 'beginner' | 'intermediate' | 'advanced' | 'capstone'
-  estimated_duration_minutes?: number
-  competency_tags?: string[]
-  track_key?: string
-  track?: string
-  track_name?: string
-  status?: string
-  progress_percent?: number
-  is_locked?: boolean
-  lock_reason?: string | null
-  type?: string
-  ai_score?: number
+type Mission = MissionTemplate & { id: string; status?: any }
+
+function hasMissionId<T extends { id?: unknown }>(m: T): m is T & { id: string } {
+  return typeof (m as any)?.id === 'string' && ((m as any).id as string).length > 0
 }
 
 interface MissionsResponse {
@@ -141,12 +129,13 @@ export default function MissionsClient() {
 
       // Allow browsing/opening missions across tracks/tiers; backend may still
       // enforce execution gates (subscription/foundations) on start/submit.
-      setMissions(response.results || [])
+      // missionsClient returns MissionTemplate[] where id can be optional; UI requires id.
+      setMissions((response.results || []).filter(hasMissionId))
       setPagination(prev => ({
         ...prev,
         total: (response as any).total ?? response.count ?? 0,
-        hasNext: !!(response as any).has_next ?? !!response.next,
-        hasPrevious: !!(response as any).has_previous ?? !!response.previous,
+        hasNext: Boolean((response as any).has_next ?? response.next),
+        hasPrevious: Boolean((response as any).has_previous ?? response.previous),
       }))
 
     } catch (err: any) {
@@ -169,7 +158,7 @@ export default function MissionsClient() {
       // Profile data comes from auth context
       setStudentProfile({
         tier: 1,
-        current_track: user.primary_role?.name || 'defender',
+        current_track: (user as any)?.primary_role?.name || 'defender',
         skill_level: 'beginner',
         total_missions_completed: 0,
         current_streak: 0
@@ -190,10 +179,11 @@ export default function MissionsClient() {
         page: 1,
         page_size: 100,
       })
-      const all = response.results || []
-      const withProgress = all.filter(
-        (m: Mission) => m.status && m.status !== 'not_started'
-      )
+      const all = (response.results || []).filter(hasMissionId)
+      // Student mission progress status uses values like: not_started | in_progress | completed
+      // Some APIs also return mission publish status (draft/published/etc.) on the same `status` field.
+      // We treat anything other than 'not_started' as "has progress" for this UI.
+      const withProgress = all.filter((m) => (m as any).status && (m as any).status !== 'not_started')
       setMyMissions(withProgress)
     } catch {
       setMyMissions([])
@@ -480,7 +470,11 @@ export default function MissionsClient() {
             </Card>
           ) : (
             <>
-              <MissionsGridView missions={missions} loading={loading} onMissionClick={handleMissionClick} />
+              <MissionsGridView
+                missions={missions.map((m) => ({ ...m, description: m.description ?? '' })) as any}
+                loading={loading}
+                onMissionClick={handleMissionClick}
+              />
 
               {/* Pagination */}
               {pagination.total > pagination.pageSize && (

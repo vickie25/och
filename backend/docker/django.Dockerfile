@@ -1,17 +1,17 @@
-FROM python:3.12-slim
+FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 
+ENV DEBIAN_FRONTEND=noninteractive
 ENV PIP_DEFAULT_TIMEOUT=6000
 
-RUN apt-get update && apt-get install -y \
-    postgresql-client \
-    gcc \
-    python3-dev \
+# Keep system deps minimal to avoid OOM during apt on small VPS.
+# We use psycopg2-binary, so we don't need build tooling like gcc/python3-dev/libpq-dev here.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
     curl \
-    libpq-dev \
-    libjpeg-dev \
-    zlib1g-dev \
+    libjpeg62-turbo \
+    zlib1g \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend/django_app/requirements.txt .

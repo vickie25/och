@@ -1,4 +1,4 @@
-FROM python:3.12-slim AS base
+FROM python:3.12-slim-bookworm AS base
 
 WORKDIR /app
 
@@ -8,12 +8,10 @@ ENV PIP_DEFAULT_TIMEOUT=600 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-# Install system dependencies
+# Install minimal system dependencies (avoid gcc/python3-dev to keep apt small)
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    postgresql-client \
-    gcc \
-    python3-dev \
-    libpq-dev \
+    ca-certificates \
     curl \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
