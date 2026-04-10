@@ -114,6 +114,10 @@ RUN set -eux; \
 # Stage 3: Production runner (bookworm-slim — matches standalone Node/glibc)
 FROM node:22-bookworm-slim AS runner
 
+# BuildKit runs independent stage graphs in parallel. Without this edge, `runner`
+# (groupadd/useradd + base image) and `deps` (npm ci) both run at once and can OOM small VPS.
+COPY --from=deps /app/package.json /tmp/.deps-graph-ready
+
 WORKDIR /app
 
 ENV NODE_ENV=production
