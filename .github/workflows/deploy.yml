@@ -17,6 +17,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ${{ github.repository }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-and-push:
@@ -55,9 +56,9 @@ jobs:
 
       - name: Build and push Django image
         if: matrix.service == 'django'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
-          context: ./backend
+          context: .
           file: ./backend/docker/django.Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
@@ -67,9 +68,9 @@ jobs:
 
       - name: Build and push FastAPI image
         if: matrix.service == 'fastapi'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
-          context: ./backend
+          context: .
           file: ./backend/docker/fastapi.Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
@@ -79,9 +80,9 @@ jobs:
 
       - name: Build and push Next.js image
         if: matrix.service == 'nextjs'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
-          context: ./frontend/nextjs_app
+          context: .
           file: ./frontend/nextjs_app/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
