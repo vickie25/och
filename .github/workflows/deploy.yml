@@ -106,7 +106,7 @@ jobs:
       - name: Start services for schema generation
         run: |
           cd backend
-          docker-compose up -d django fastapi
+          docker compose up -d django fastapi
           sleep 10
 
       - name: Fetch Django OpenAPI schema
@@ -146,12 +146,12 @@ jobs:
           echo "Deploying to staging environment"
           # Add your deployment commands here
           # Example: kubectl apply -f k8s/staging/
-          # Or: docker-compose -f docker-compose.prod.yml up -d
+          # Or: docker compose -f docker-compose.prod.yml up -d
 
       - name: Run Django migrations
         run: |
           echo "Running Django migrations on staging"
-          # docker-compose exec django python manage.py migrate
+          # docker compose exec django python manage.py migrate
 
       - name: Clear Next.js cache
         run: |
@@ -178,7 +178,7 @@ jobs:
       - name: Run Django migrations
         run: |
           echo "Running Django migrations on production"
-          # docker-compose exec django python manage.py migrate
+          # docker compose exec django python manage.py migrate
 
       - name: Clear Next.js cache
         run: |

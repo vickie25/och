@@ -245,15 +245,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Validate docker-compose
+      - name: Validate docker compose
         run: |
           cd backend
-          docker-compose config
+          docker compose config
 
       - name: Build images (dry-run)
         run: |
           cd backend
-          docker-compose build --dry-run || docker-compose config --services
+          docker compose build --dry-run || docker compose config --services
 
   schema-sync:
     name: Validate Schema Sync
