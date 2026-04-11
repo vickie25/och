@@ -110,15 +110,15 @@ export async function POST(request: Request) {
       
       nextResponse.cookies.set('och_roles', JSON.stringify(normalizedRoles), {
         ...cookieOptions,
-        httpOnly: true,
+        httpOnly: false,
       })
       nextResponse.cookies.set('och_primary_role', primaryRole || '', {
         ...cookieOptions,
-        httpOnly: true,
+        httpOnly: false,
       })
       nextResponse.cookies.set('och_dashboard', getDashboardForRole(primaryRole), {
         ...cookieOptions,
-        httpOnly: true,
+        httpOnly: false,
       })
       
       const trackKey = user?.track_key || '';

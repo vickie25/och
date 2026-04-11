@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { getRedirectRoute } from '@/utils/redirect';
+import { getUserRoles } from '@/utils/rbac';
 import { getAccessToken, getRefreshToken } from '@/utils/auth';
 import { Eye, EyeOff, ArrowRight, Lock, Mail, Sparkles } from 'lucide-react';
 import { OchLogoMark } from '@/components/brand/OchLogo';
@@ -299,9 +300,9 @@ export function LoginForm() {
       }
 
       const redirectTo = searchParams.get('redirect');
-
       let updatedUser = result?.user || user;
 
+      // Handle cases where user data might be slightly delayed in state
       let retries = 0;
       while ((!updatedUser || !updatedUser.roles || updatedUser.roles.length === 0) && retries < 2) {
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -309,22 +310,8 @@ export function LoginForm() {
         retries++;
       }
 
-      if (!updatedUser || !updatedUser.roles || updatedUser.roles.length === 0) {
-        try {
-          const { djangoClient } = await import('@/services/djangoClient');
-          const fullUser = await djangoClient.auth.getCurrentUser();
-          if (fullUser) updatedUser = fullUser;
-        } catch {
-          // Ignore fetch errors; continue with existing user state
-        }
-      }
-
-      // Check if user is a student/mentee and needs onboarding
-      const userRolesForProfiling = updatedUser?.roles || [];
-      const isStudent = userRolesForProfiling.some((r: any) => {
-        const roleName = typeof r === 'string' ? r : (r?.role || r?.name || '').toLowerCase();
-        return roleName === 'student' || roleName === 'mentee';
-      });
+      const userRoles = getUserRoles(updatedUser);
+      const isStudent = userRoles.includes('student') || userRoles.includes('mentee');
 
       if (isStudent) {
         // Students are treated as email-verified (onboarding link is the verification).
@@ -367,169 +354,19 @@ export function LoginForm() {
         return;
       }
 
-      // CRITICAL: Check for mentor role FIRST before any route determination
-      // Mentors should NEVER be redirected to student dashboard
-      const userRoles = updatedUser?.roles || [];
-      const hasMentorRole = userRoles.some((r: any) => {
-        const roleName = typeof r === 'string' ? r : (r?.role || r?.name || '').toLowerCase().trim();
-        return roleName === 'mentor';
-      });
+      const hasMentorRole = userRoles.includes('mentor');
 
       // Initialize route variable
       let route: string;
       
-      // CRITICAL: If user is a mentor, ALWAYS use mentor dashboard - NO EXCEPTIONS
-      if (hasMentorRole) {
-        route = '/dashboard/mentor';
-      } else {
-        // Only determine route for non-mentors
-        route = '/dashboard/student'; // Default fallback
-        
-        let dashboardFromCookie: string | null = null;
-        if (typeof document !== 'undefined') {
-          const cookies = document.cookie.split(';');
-          const dashboardCookie = cookies.find(c => c.trim().startsWith('och_dashboard='));
-          if (dashboardCookie) {
-            dashboardFromCookie = dashboardCookie.split('=')[1]?.trim() || null;
-          }
-        }
+      // Use getRedirectRoute as the primary routing mechanism
+      // This ensures users are routed to the correct dashboard based on their role priority
+      route = getRedirectRoute(updatedUser);
+      console.log('[Login] Final route from getRedirectRoute:', route);
 
-        if (redirectTo && (redirectTo.startsWith('/dashboard') || redirectTo.startsWith('/students/') || redirectTo.startsWith('/onboarding/'))) {
-          route = redirectTo;
-          console.log('[Login] Using redirectTo route:', route);
-        } else {
-          if (!updatedUser || !updatedUser.roles || updatedUser.roles.length === 0) {
-            if (dashboardFromCookie) {
-              route = dashboardFromCookie;
-              console.log('[Login] Using dashboard cookie route:', route);
-            } else {
-              route = '/dashboard/student';
-              console.log('[Login] Using default student route:', route);
-            }
-          } else {
-            // Use getRedirectRoute as the primary routing mechanism
-            // This ensures users are routed to the correct dashboard based on their role priority
-            route = getRedirectRoute(updatedUser);
-            console.log('[Login] Route from getRedirectRoute:', route);
-            console.log('[Login] User roles:', updatedUser?.roles);
-          }
-        }
-      }
-
-      console.log('[Login] Final route before validation:', route);
-      
-      // CRITICAL: Final mentor check - ensure mentors NEVER get student dashboard
-      // This is a safety net that runs AFTER all route determination logic
-      if (updatedUser?.roles) {
-        const hasMentorRoleFinal = updatedUser.roles.some((r: any) => {
-          const roleName = typeof r === 'string' ? r : (r?.role || r?.name || '').toLowerCase().trim();
-          return roleName === 'mentor';
-        });
-        
-        if (hasMentorRoleFinal && route !== '/dashboard/mentor') {
-          route = '/dashboard/mentor';
-        }
-      }
-
-      // CRITICAL: Check for mentor role AGAIN - mentors should NEVER be associated with student routes
-      if (updatedUser?.roles) {
-        const hasMentorRoleCheck = updatedUser.roles.some((r: any) => {
-          const roleName = typeof r === 'string' ? r : (r?.role || r?.name || '').toLowerCase().trim();
-          return roleName === 'mentor';
-        });
-        if (hasMentorRoleCheck && route === '/dashboard/student') {
-          route = '/dashboard/mentor';
-        }
-      }
-
-      // Check for other roles that should override default student route
-      if (route === '/dashboard/student' && updatedUser?.roles) {
-        // Check for sponsor role
-        const hasSponsorRole = updatedUser.roles.some((r: any) => {
-          const roleName = typeof r === 'string' ? r : (r?.role || r?.name || '').toLowerCase().trim();
-          return roleName === 'sponsor_admin' || roleName === 'sponsor';
-        });
-        if (hasSponsorRole) {
-          route = '/dashboard/sponsor';
-        }
-        // Check for finance role — must go to finance dashboard, never student
-        const hasFinanceRole = updatedUser.roles.some((r: any) => {
-          const roleName = typeof r === 'string' ? r : (r?.role || r?.name || r?.role_display_name || '').toLowerCase().trim();
-          return roleName === 'finance' || roleName === 'finance_admin';
-        });
-        if (hasFinanceRole) {
-          route = '/dashboard/finance';
-        }
-        // Check for support role — must go to support dashboard, never student
-        const hasSupportRole = updatedUser.roles.some((r: any) => {
-          const roleName = typeof r === 'string' ? r : (r?.role || r?.name || r?.role_display_name || '').toLowerCase().trim();
-          return roleName === 'support';
-        });
-        if (hasSupportRole) {
-          route = '/support/dashboard';
-        }
-      }
-
-      if (!route || (!route.startsWith('/dashboard') && !route.startsWith('/students/'))) {
-        if (updatedUser?.roles) {
-          const hasMentorRoleCheck = updatedUser.roles.some((r: any) => {
-            const roleName = typeof r === 'string' ? r : (r?.role || r?.name || '').toLowerCase().trim();
-            return roleName === 'mentor';
-          });
-          if (hasMentorRoleCheck) {
-            route = '/dashboard/mentor';
-          } else {
-            // Only fallback to student if user is NOT a mentor
-            route = '/dashboard/student';
-          }
-        } else {
-          // No roles - default to student (but this should rarely happen)
-          route = '/dashboard/student';
-        }
-      }
-
-      // Additional validation for dashboard routes
-      if (route.startsWith('/dashboard/')) {
-        const { isValidDashboardRoute, getFallbackRoute } = await import('@/utils/redirect');
-        if (!isValidDashboardRoute(route)) {
-          if (updatedUser?.roles?.some((r: any) => {
-            const roleName = typeof r === 'string' ? r : (r?.role || r?.name || '').toLowerCase().trim();
-            return roleName === 'mentor';
-          })) {
-            route = '/dashboard/mentor';
-          } else {
-            route = getFallbackRoute(updatedUser);
-          }
-        }
-      }
-
-      // CRITICAL: ABSOLUTE FINAL CHECK - Force mentor route if mentor detected
-      // This runs RIGHT BEFORE redirect to ensure nothing can override it
-      if (updatedUser?.roles && Array.isArray(updatedUser.roles)) {
-        const finalMentorCheck = updatedUser.roles.some((r: any) => {
-          const roleName = typeof r === 'string' ? r : (r?.role || r?.name || r?.role_display_name || '').toLowerCase().trim();
-          return roleName === 'mentor';
-        });
-        if (finalMentorCheck && route !== '/dashboard/mentor') {
-          route = '/dashboard/mentor';
-        }
-        // CRITICAL: Force finance route if finance detected — finance must NEVER land on student dashboard
-        const finalFinanceCheck = updatedUser.roles.some((r: any) => {
-          const roleName = typeof r === 'string' ? r : (r?.role || r?.name || r?.role_display_name || '').toLowerCase().trim();
-          return roleName === 'finance' || roleName === 'finance_admin';
-        });
-        if (finalFinanceCheck && route === '/dashboard/student') {
-          route = '/dashboard/finance';
-        }
-        // CRITICAL: Force support route if support detected — support must NEVER land on student dashboard
-        const finalSupportCheck = updatedUser.roles.some((r: any) => {
-          const roleName = typeof r === 'string' ? r : (r?.role || r?.name || r?.role_display_name || '').toLowerCase().trim();
-          return roleName === 'support';
-        });
-        if (finalSupportCheck && route === '/dashboard/student') {
-          route = '/support/dashboard';
-        }
-      }
+      // Double check redirect for specific staff roles to prevent student dashboard fallbacks
+      if (userRoles.includes('finance') && route === '/dashboard/student') route = '/dashboard/finance';
+      if (userRoles.includes('support') && route === '/dashboard/student') route = '/support/dashboard';
 
       // Before redirect: if destination requires 2 MFA, check now so we never show dashboard URL with "Verifying..."
       const ROUTES_REQUIRING_TWO_MFA = ['/dashboard/director', '/dashboard/mentor', '/dashboard/admin', '/finance', '/dashboard/analyst', '/support'];
