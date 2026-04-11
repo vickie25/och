@@ -85,6 +85,10 @@ jobs:
           context: .
           file: ./frontend/nextjs_app/Dockerfile
           push: true
+          build-args: |
+            NEXT_PUBLIC_DJANGO_API_URL=https://cybochengine.africa/api
+            NEXT_PUBLIC_FRONTEND_URL=https://cybochengine.africa
+            NEXT_PUBLIC_FASTAPI_API_URL=https://cybochengine.africa/ai
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

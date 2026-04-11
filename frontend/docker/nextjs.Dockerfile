@@ -1,6 +1,11 @@
 # Build stage
 FROM node:20-alpine AS builder
 
+# Set build arguments for Next.js (hardcoded into client-side JS)
+ARG NEXT_PUBLIC_DJANGO_API_URL
+ARG NEXT_PUBLIC_FRONTEND_URL
+ARG NEXT_PUBLIC_FASTAPI_API_URL
+
 WORKDIR /app
 
 # Copy package files
@@ -11,6 +16,11 @@ RUN npm ci
 
 # Copy source code
 COPY frontend/nextjs_app .
+
+# Set environment variables for the build process
+ENV NEXT_PUBLIC_DJANGO_API_URL=$NEXT_PUBLIC_DJANGO_API_URL
+ENV NEXT_PUBLIC_FRONTEND_URL=$NEXT_PUBLIC_FRONTEND_URL
+ENV NEXT_PUBLIC_FASTAPI_API_URL=$NEXT_PUBLIC_FASTAPI_API_URL
 
 # Build Next.js application
 RUN npm run build

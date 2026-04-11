@@ -240,6 +240,13 @@ services:
   # Small VPS: `bash deploy/ensure-swap-2g.sh` (swap) + `bash deploy/build-next-low-mem.sh` (BuildKit parallelism=1).
   # Disk: `bash deploy/docker-prune-safe.sh` periodically.
   nextjs:
+    build:
+      context: .
+      dockerfile: frontend/docker/nextjs.Dockerfile
+      args:
+        - NEXT_PUBLIC_DJANGO_API_URL=${NEXT_PUBLIC_DJANGO_API_URL}
+        - NEXT_PUBLIC_FRONTEND_URL=${NEXT_PUBLIC_FRONTEND_URL}
+        - NEXT_PUBLIC_FASTAPI_API_URL=${NEXT_PUBLIC_FASTAPI_API_URL}
     image: ghcr.io/cresdynamics-lang/och-nextjs:latest
     container_name: ongozacyberhub_nextjs
     ports:
