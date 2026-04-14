@@ -86,7 +86,10 @@ export function useJobApplications() {
                 sector: 'Cybersecurity',
                 country: 'United States',
                 logo_url: null,
-                description: 'Leading cybersecurity solutions provider'
+                description: 'Leading cybersecurity solutions provider',
+                user_id: 1,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
               },
               location: 'New York, NY',
               job_type: 'full_time'
@@ -108,7 +111,10 @@ export function useJobApplications() {
                 sector: 'Information Security',
                 country: 'Canada',
                 logo_url: null,
-                description: 'Enterprise security consulting firm'
+                description: 'Enterprise security consulting firm',
+                user_id: 2,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
               },
               location: 'Remote',
               job_type: 'internship'
@@ -135,7 +141,10 @@ export function useJobApplications() {
                 sector: 'Cybersecurity',
                 country: 'United States',
                 logo_url: null,
-                description: 'Leading cybersecurity solutions provider'
+                description: 'Leading cybersecurity solutions provider',
+                user_id: 1,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
               },
               location: 'New York, NY',
               job_type: 'full_time'

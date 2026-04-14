@@ -15,7 +15,8 @@ export function useHabits() {
     return habits.filter(h => h.isActive).map(habit => {
       const logs = habitLogs.filter(log => log.habitId === habit.id)
       const todayLog = logs.find(log => log.date === today)
-      const streakData = calculateStreak(habit, logs)
+      const expectedLogs = logs.map(l => ({ date: l.date, completed: l.status === 'completed' }))
+      const streakData = calculateStreak(expectedLogs)
       
       return {
         ...habit,
@@ -35,7 +36,8 @@ export function useHabits() {
     if (!habit) return null
     
     const logs = habitLogs.filter(log => log.habitId === habitId)
-    return calculateStreak(habit, logs)
+    const expectedLogs = logs.map(l => ({ date: l.date, completed: l.status === 'completed' }))
+    return calculateStreak(expectedLogs)
   }
   
   return {
