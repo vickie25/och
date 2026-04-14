@@ -23,7 +23,7 @@ def noop(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('curriculum', '0004_crosstrackprogramprogress_crosstracksubmission'),
+        ('curriculum', '0005_curriculumtrack_tier2_completion_config'),
     ]
 
     operations = [
