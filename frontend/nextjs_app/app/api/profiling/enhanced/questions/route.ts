@@ -14,8 +14,17 @@ export async function GET(request: NextRequest) {
     (request.cookies.get('access_token')?.value
       ? `Bearer ${request.cookies.get('access_token')?.value}`
       : null);
+
+  if (authHeader) {
+    console.log('[profiling/auth] Token present. Length:', authHeader.length);
+    console.log('[profiling/auth] Token preview:', authHeader.substring(0, 15), '...', authHeader.substring(authHeader.length - 10));
+  } else {
+    console.log('[profiling/auth] No Auth header found in request.');
+  }
+
   
   try {
+
     console.log('[profiling/enhanced/questions] FASTAPI_URL:', FASTAPI_URL);
     console.log('[profiling/enhanced/questions] Auth header present:', !!authHeader);
     
