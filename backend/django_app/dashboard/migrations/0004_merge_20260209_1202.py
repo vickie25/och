@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('dashboard', '0001_add_profiler_session_id'),
+        ('dashboard', '0002_add_profiler_session_id'),
         ('dashboard', '0003_add_portfolio_fields'),
     ]
 
