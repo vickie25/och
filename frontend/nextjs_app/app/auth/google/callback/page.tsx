@@ -6,7 +6,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { googleOAuthClient } from '@/services/googleOAuthClient'
 import { apiGateway } from '@/services/apiGateway'
@@ -108,10 +108,13 @@ function GoogleOAuthCallbackPageInner() {
   const [resendError, setResendError] = useState<string | null>(null)
   const [resendCooldownSeconds, setResendCooldownSeconds] = useState(0)
 
+  const handledRef = useRef(false)
   useEffect(() => {
     let redirectTimer: NodeJS.Timeout | null = null
 
     const handleCallback = async () => {
+      if (handledRef.current) return
+      handledRef.current = true
       try {
         // Fresh OAuth round-trip always includes ?code=… — never skip the token exchange
         // just because sessionStorage still has oauth_callback_handled from an older visit

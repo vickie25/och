@@ -315,6 +315,7 @@ class GoogleOAuthCallbackView(APIView):
             if code_verifier:
                 token_data['code_verifier'] = code_verifier
 
+            print(f"[OAuth] Exchanging code for token. redirect_uri={redirect_uri}")
             try:
                 response = requests.post('https://oauth2.googleapis.com/token', data=token_data)
                 response.raise_for_status()
