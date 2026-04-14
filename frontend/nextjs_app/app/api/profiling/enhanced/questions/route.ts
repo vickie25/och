@@ -15,19 +15,13 @@ export async function GET(request: NextRequest) {
       ? `Bearer ${request.cookies.get('access_token')?.value}`
       : null);
 
-  if (authHeader) {
-    console.log('[profiling/auth] Token present. Length:', authHeader.length);
-    console.log('[profiling/auth] Token preview:', authHeader.substring(0, 15), '...', authHeader.substring(authHeader.length - 10));
-  } else {
-    console.log('[profiling/auth] No Auth header found in request.');
-  }
-
-  
   try {
-
-    console.log('[profiling/enhanced/questions] FASTAPI_URL:', FASTAPI_URL);
-    console.log('[profiling/enhanced/questions] Auth header present:', !!authHeader);
-    
+    if (!FASTAPI_URL) {
+      return NextResponse.json(
+        { error: 'Profiling service is not configured (missing FASTAPI url).' },
+        { status: 503 }
+      );
+    }
     const res = await fetch(`${FASTAPI_URL}/api/v1/profiling/enhanced/questions`, {
       method: 'GET',
       headers: {
@@ -36,14 +30,11 @@ export async function GET(request: NextRequest) {
       },
       signal: AbortSignal.timeout(5000),
     });
-    console.log('[profiling/enhanced/questions] FastAPI response status:', res.status);
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: 'Failed' }));
-      console.log('[profiling/enhanced/questions] FastAPI error body:', errorData);
       return NextResponse.json(errorData, { status: res.status });
     }
-
 
     const data = await res.json();
     return NextResponse.json(data);
