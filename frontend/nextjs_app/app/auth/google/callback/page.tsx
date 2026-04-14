@@ -313,6 +313,12 @@ function GoogleOAuthCallbackPageInner() {
         if (response.access_token) {
           localStorage.setItem('access_token', response.access_token)
           localStorage.setItem('auth_token', response.access_token)
+          if (typeof document !== 'undefined') {
+            document.cookie = `access_token=${response.access_token}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`
+            if (primaryRole) document.cookie = `och_primary_role=${primaryRole}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`
+            // Instead of getDashboardForRole, just use redirectPath because it's already calculated above!
+            document.cookie = `och_dashboard=${redirectPath}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`
+          }
           if (response.refresh_token) {
             localStorage.setItem('refresh_token', response.refresh_token)
           }
