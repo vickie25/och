@@ -16,12 +16,9 @@ export async function GET(request: NextRequest) {
       : null);
   
   try {
-    if (!FASTAPI_URL) {
-      return NextResponse.json(
-        { error: 'Profiling service is not configured (missing FASTAPI url).' },
-        { status: 503 }
-      );
-    }
+    console.log('[profiling/enhanced/questions] FASTAPI_URL:', FASTAPI_URL);
+    console.log('[profiling/enhanced/questions] Auth header present:', !!authHeader);
+    
     const res = await fetch(`${FASTAPI_URL}/api/v1/profiling/enhanced/questions`, {
       method: 'GET',
       headers: {
@@ -30,6 +27,8 @@ export async function GET(request: NextRequest) {
       },
       signal: AbortSignal.timeout(5000),
     });
+    console.log('[profiling/enhanced/questions] FastAPI response status:', res.status);
+
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: 'Failed to load profiling questions' }));

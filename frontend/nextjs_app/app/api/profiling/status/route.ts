@@ -28,10 +28,9 @@ function fallbackStatus() {
 
 export async function GET(request: NextRequest) {
   const authHeader = buildAuthHeader(request);
-  try {
-    if (!FASTAPI_URL) {
-      return fallbackStatus();
-    }
+    console.log('[profiling/status] FASTAPI_URL:', FASTAPI_URL);
+    console.log('[profiling/status] Auth header present:', !!authHeader);
+    
     const res = await fetch(`${FASTAPI_URL}/api/v1/profiling/status`, {
       method: 'GET',
       headers: {
@@ -40,6 +39,8 @@ export async function GET(request: NextRequest) {
       },
       signal: AbortSignal.timeout(8000),
     });
+    console.log('[profiling/status] FastAPI response status:', res.status);
+
     if (!res.ok) {
       console.warn('[profiling/status] FastAPI returned', res.status);
       return fallbackStatus();
