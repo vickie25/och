@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """Test mission detail endpoint and show full response."""
-import os
-import django
-import sys
 import json
+import os
+
+import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
 from django.test import RequestFactory
-from rest_framework.test import force_authenticate
-from missions.views_student import get_mission_detail
 from missions.models import Mission
+from missions.views_student import get_mission_detail
+from rest_framework.test import force_authenticate
+
 from users.models import User
 
 print("=" * 80)
@@ -36,13 +37,13 @@ request.user = user
 response = get_mission_detail(request, mission_id=mission.id)
 
 print(f"\n[3] Status: {response.status_code}")
-print(f"\n[4] FULL RESPONSE DATA:")
+print("\n[4] FULL RESPONSE DATA:")
 print("=" * 80)
 print(json.dumps(response.data, indent=2, default=str))
 print("=" * 80)
 
 # Check key fields
-print(f"\n[5] KEY FIELDS CHECK:")
+print("\n[5] KEY FIELDS CHECK:")
 data = response.data
 print(f"    ✓ id: {data.get('id')}")
 print(f"    ✓ title: {data.get('title')}")

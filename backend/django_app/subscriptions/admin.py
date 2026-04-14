@@ -1,8 +1,16 @@
 from django.contrib import admin
+
 from .models import (
-    UserSubscription, PaymentTransaction, PromotionalCode, AcademicDiscount, 
-    SubscriptionInvoice, PaymentRetryAttempt, SubscriptionPlan, PaymentGateway
+    AcademicDiscount,
+    PaymentGateway,
+    PaymentRetryAttempt,
+    PaymentTransaction,
+    PromotionalCode,
+    SubscriptionInvoice,
+    SubscriptionPlan,
+    UserSubscription,
 )
+
 
 @admin.register(PromotionalCode)
 class PromotionalCodeAdmin(admin.ModelAdmin):
@@ -10,7 +18,7 @@ class PromotionalCodeAdmin(admin.ModelAdmin):
     list_filter = ['discount_type', 'is_active', 'valid_from']
     search_fields = ['code']
     readonly_fields = ['created_at', 'updated_at']
-    
+
     fieldsets = (
         ('Basic Information', {
             'fields': ('code', 'discount_type', 'discount_value')
@@ -36,7 +44,7 @@ class AcademicDiscountAdmin(admin.ModelAdmin):
     list_filter = ['verification_status', 'verification_method', 'verified_at']
     search_fields = ['user__email', 'institution_name', 'edu_email']
     readonly_fields = ['created_at', 'updated_at', 'verified_at']
-    
+
     fieldsets = (
         ('Student Information', {
             'fields': ('user', 'institution_name', 'edu_email')
@@ -59,7 +67,7 @@ class SubscriptionInvoiceAdmin(admin.ModelAdmin):
     list_filter = ['status', 'invoice_date']
     search_fields = ['invoice_number', 'user__email']
     readonly_fields = ['invoice_number', 'created_at', 'updated_at']
-    
+
     fieldsets = (
         ('Invoice Details', {
             'fields': ('invoice_number', 'user', 'subscription', 'transaction')
@@ -85,7 +93,7 @@ class PaymentRetryAttemptAdmin(admin.ModelAdmin):
     list_filter = ['status', 'attempt_number', 'scheduled_at']
     search_fields = ['subscription__user__email']
     readonly_fields = ['created_at', 'updated_at', 'attempted_at']
-    
+
     fieldsets = (
         ('Retry Information', {
             'fields': ('subscription', 'attempt_number', 'amount', 'currency')
@@ -108,7 +116,7 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
     list_filter = ['status', 'gateway', 'created_at']
     search_fields = ['user__email', 'gateway_transaction_id']
     readonly_fields = ['created_at', 'updated_at']
-    
+
     fieldsets = (
         ('Transaction Details', {
             'fields': ('user', 'subscription', 'amount', 'currency', 'gateway_transaction_id')
@@ -130,7 +138,7 @@ class UserSubscriptionAdmin(admin.ModelAdmin):
     list_filter = ['status', 'plan', 'created_at']
     search_fields = ['user__email', 'stripe_subscription_id']
     readonly_fields = ['created_at', 'updated_at']
-    
+
     fieldsets = (
         ('Subscription Details', {
             'fields': ('user', 'plan', 'status')

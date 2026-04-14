@@ -1,12 +1,12 @@
 """
 Tests for Programs app endpoints, including director dashboard.
 """
+from datetime import timedelta
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from datetime import timedelta
-from programs.models import Program, Track, Cohort, Enrollment, MentorAssignment, CalendarEvent
-from organizations.models import Organization
+from programs.models import CalendarEvent, Cohort, Enrollment, MentorAssignment, Program, Track
 
 User = get_user_model()
 
@@ -149,10 +149,10 @@ class TestDirectorDashboard:
     def test_director_dashboard_returns_data(self, director_client, test_program, test_track, test_cohort):
         """Test that director dashboard returns expected data structure."""
         response = director_client.get('/api/v1/programs/director/dashboard/')
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         # Check hero metrics
         assert 'hero_metrics' in data
         assert 'active_programs' in data['hero_metrics']
@@ -163,15 +163,15 @@ class TestDirectorDashboard:
         assert 'avg_readiness' in data['hero_metrics']
         assert 'avg_completion_rate' in data['hero_metrics']
         assert 'revenue_per_seat' in data['hero_metrics']
-        
+
         # Check alerts
         assert 'alerts' in data
         assert isinstance(data['alerts'], list)
-        
+
         # Check cohort table
         assert 'cohort_table' in data
         assert isinstance(data['cohort_table'], list)
-        
+
         # Check programs
         assert 'programs' in data
         assert isinstance(data['programs'], list)
@@ -196,18 +196,18 @@ class TestDirectorDashboard:
             currency='USD',
             status='active'
         )
-        other_track = Track.objects.create(
+        Track.objects.create(
             program=other_program,
             name='Other Track',
             key='other_track',
             description='Other track',
             director=other_director
         )
-        
+
         response = director_client.get('/api/v1/programs/director/dashboard/')
         assert response.status_code == 200
         data = response.json()
-        
+
         # Should only see their own program
         program_names = [p['name'] for p in data['programs']]
         assert 'Cybersecurity Fundamentals' in program_names
@@ -219,7 +219,7 @@ class TestDirectorDashboard:
         response = director_client.get('/api/v1/programs/director/dashboard/')
         assert response.status_code == 200
         data = response.json()
-        
+
         # Should have alerts for under-filled cohort
         alerts = data['alerts']
         underfilled_alerts = [a for a in alerts if a['type'] == 'underfilled_cohort']
@@ -230,7 +230,7 @@ class TestDirectorDashboard:
         response = director_client.get('/api/v1/programs/director/dashboard/')
         assert response.status_code == 200
         data = response.json()
-        
+
         cohort_data = data['cohort_table'][0]
         assert 'upcoming_milestones' in cohort_data
         assert len(cohort_data['upcoming_milestones']) > 0
@@ -241,7 +241,7 @@ class TestDirectorDashboard:
         response = director_client.get('/api/v1/programs/director/dashboard/')
         assert response.status_code == 200
         data = response.json()
-        
+
         hero_metrics = data['hero_metrics']
         assert hero_metrics['seats_used'] == 1
         assert hero_metrics['seats_available'] == 20
@@ -250,7 +250,7 @@ class TestDirectorDashboard:
     def test_admin_can_see_all_programs(self, admin_client, test_program, director_user):
         """Test that admin users can see all programs."""
         # Create another program
-        other_program = Program.objects.create(
+        Program.objects.create(
             name='Admin Program',
             category='technical',
             description='Admin program',
@@ -259,11 +259,11 @@ class TestDirectorDashboard:
             currency='USD',
             status='active'
         )
-        
+
         response = admin_client.get('/api/v1/programs/director/dashboard/')
         assert response.status_code == 200
         data = response.json()
-        
+
         program_names = [p['name'] for p in data['programs']]
         assert 'Cybersecurity Fundamentals' in program_names
         assert 'Admin Program' in program_names
@@ -276,10 +276,10 @@ class TestCohortEndpoints:
     def test_get_cohort_dashboard(self, director_client, test_cohort, test_enrollment, test_mentor_assignment):
         """Test getting cohort dashboard data."""
         response = director_client.get(f'/api/v1/cohorts/{test_cohort.id}/dashboard/')
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         assert data['cohort_id'] == str(test_cohort.id)
         assert data['cohort_name'] == test_cohort.name
         assert data['enrollments_count'] == 1
@@ -292,7 +292,7 @@ class TestCohortEndpoints:
     def test_get_cohort_enrollments(self, director_client, test_cohort, test_enrollment):
         """Test getting cohort enrollments."""
         response = director_client.get(f'/api/v1/cohorts/{test_cohort.id}/enrollments/')
-        
+
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -302,7 +302,7 @@ class TestCohortEndpoints:
     def test_get_cohort_mentors(self, director_client, test_cohort, test_mentor_assignment):
         """Test getting cohort mentor assignments."""
         response = director_client.get(f'/api/v1/cohorts/{test_cohort.id}/mentors/')
-        
+
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -313,7 +313,7 @@ class TestCohortEndpoints:
     def test_get_cohort_calendar(self, director_client, test_cohort, test_calendar_event):
         """Test getting cohort calendar events."""
         response = director_client.get(f'/api/v1/cohorts/{test_cohort.id}/calendar/')
-        
+
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -323,7 +323,7 @@ class TestCohortEndpoints:
     def test_export_cohort_report_json(self, director_client, test_cohort, test_enrollment):
         """Test exporting cohort report as JSON."""
         response = director_client.get(f'/api/v1/cohorts/{test_cohort.id}/export/?format=json')
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data['cohort_id'] == str(test_cohort.id)
@@ -334,7 +334,7 @@ class TestCohortEndpoints:
     def test_export_cohort_report_csv(self, director_client, test_cohort, test_enrollment):
         """Test exporting cohort report as CSV."""
         response = director_client.get(f'/api/v1/cohorts/{test_cohort.id}/export/?format=csv')
-        
+
         assert response.status_code == 200
         assert response['Content-Type'] == 'text/csv; charset=utf-8'
         assert 'cohort_' in response['Content-Disposition']
@@ -347,7 +347,7 @@ class TestProgramEndpoints:
     def test_list_programs(self, director_client, test_program):
         """Test listing programs."""
         response = director_client.get('/api/v1/programs/')
-        
+
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -357,7 +357,7 @@ class TestProgramEndpoints:
     def test_get_program_detail(self, director_client, test_program):
         """Test getting program details."""
         response = director_client.get(f'/api/v1/programs/{test_program.id}/')
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data['name'] == 'Cybersecurity Fundamentals'
@@ -375,7 +375,7 @@ class TestProgramEndpoints:
             'status': 'active'
         }
         response = director_client.post('/api/v1/programs/', program_data)
-        
+
         assert response.status_code == 201
         data = response.json()
         assert data['name'] == 'New Program'
@@ -389,7 +389,7 @@ class TestTrackEndpoints:
     def test_list_tracks(self, director_client, test_track):
         """Test listing tracks."""
         response = director_client.get('/api/v1/tracks/')
-        
+
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -399,7 +399,7 @@ class TestTrackEndpoints:
     def test_get_track_detail(self, director_client, test_track):
         """Test getting track details."""
         response = director_client.get(f'/api/v1/tracks/{test_track.id}/')
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data['name'] == 'Network Security'
@@ -415,7 +415,7 @@ class TestTrackEndpoints:
             'director': str(director_user.id)
         }
         response = director_client.post('/api/v1/tracks/', track_data)
-        
+
         assert response.status_code == 201
         data = response.json()
         assert data['name'] == 'New Track'
@@ -429,7 +429,7 @@ class TestCohortManagement:
     def test_list_cohorts(self, director_client, test_cohort):
         """Test listing cohorts."""
         response = director_client.get('/api/v1/cohorts/')
-        
+
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -449,7 +449,7 @@ class TestCohortManagement:
             'status': 'draft'
         }
         response = director_client.post('/api/v1/cohorts/', cohort_data)
-        
+
         assert response.status_code == 201
         data = response.json()
         assert data['name'] == 'New Cohort'
@@ -468,9 +468,9 @@ class TestCohortManagement:
             mentor_ratio=0.1,
             status='closed'
         )
-        
+
         response = director_client.get('/api/v1/cohorts/?status=active')
-        
+
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1

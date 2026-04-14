@@ -5,7 +5,7 @@ Use until final learning videos are available. Targets Tier 2 (Beginner) and Tie
 from django.core.management.base import BaseCommand
 from django.db.models import Q
 
-from curriculum.models import Lesson, CurriculumTrack
+from curriculum.models import CurriculumTrack, Lesson
 
 # Stable public sample video URLs (no download required; embed or link)
 PLACEHOLDER_VIDEO_URLS = [

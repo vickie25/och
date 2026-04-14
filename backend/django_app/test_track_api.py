@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 """Test curriculum track API endpoint."""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from curriculum.models import CurriculumTrack, CurriculumModule
+from curriculum.models import CurriculumTrack
 
 print("Testing curriculum track API...")
 

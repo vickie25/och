@@ -1,66 +1,63 @@
 """
 Authentication views for signup, login, MFA, SSO, etc.
 """
-import os
 import logging
-from rest_framework import status, permissions
+import os
+
+from rest_framework import permissions, status
 
 logger = logging.getLogger(__name__)
-from rest_framework.permissions import AllowAny
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework.renderers import JSONRenderer
-from rest_framework.views import APIView
-from django.contrib.auth import authenticate
-from django.utils import timezone
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Case, When, Value, IntegerField
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.views import TokenRefreshView
-from django.views.decorators.csrf import csrf_exempt
+from django.db.models import Case, IntegerField, Value, When
+from django.utils import timezone
 from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.renderers import JSONRenderer
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
+from services.email_service import email_service
 
-from users.models import User, UserRole
 from users.audit_models import AuditLog
+from users.auth_models import MFAMethod, UserSession
+from users.models import User, UserRole
 from users.serializers import (
-    UserSerializer,
-    SignupSerializer,
+    ConsentUpdateSerializer,
     LoginSerializer,
     MagicLinkRequestSerializer,
+    MFACompleteSerializer,
     MFAEnrollSerializer,
     MFAVerifySerializer,
-    MFACompleteSerializer,
     RefreshTokenSerializer,
-    ConsentUpdateSerializer,
-    PasswordResetRequestSerializer,
-    PasswordResetConfirmSerializer,
+    SignupSerializer,
+    UserSerializer,
 )
 from users.utils.auth_utils import (
-    create_mfa_code,
-    verify_mfa_code,
-    create_user_session,
-    verify_refresh_token,
-    rotate_refresh_token,
-    revoke_session,
     check_device_trust,
-    trust_device,
-    encrypt_totp_secret,
+    create_mfa_code,
+    create_user_session,
     decrypt_totp_secret,
-    verify_mfa_challenge,
-    hash_refresh_token,
+    encrypt_totp_secret,
     generate_totp_backup_codes,
+    hash_refresh_token,
+    revoke_session,
+    rotate_refresh_token,
+    trust_device,
+    verify_mfa_challenge,
+    verify_mfa_code,
+    verify_refresh_token,
 )
-from users.utils.email_utils import send_onboarding_email
-from users.utils.risk_utils import calculate_risk_score, requires_mfa
 from users.utils.consent_utils import (
+    get_consent_scopes_for_token,
     get_user_consent_scopes,
     grant_consent,
     revoke_consent,
-    get_consent_scopes_for_token,
 )
-from users.auth_models import MFAMethod, UserSession
-from services.email_service import email_service
+from users.utils.email_utils import send_onboarding_email
+from users.utils.risk_utils import calculate_risk_score, requires_mfa
 
 
 def _get_client_ip(request):
@@ -168,21 +165,21 @@ class SignupView(APIView):
     Create account (email + password or passwordless).
     """
     permission_classes = [permissions.AllowAny]
-    
+
     def post(self, request):
         serializer = SignupSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
         data = serializer.validated_data
-        
+
         # Check if user already exists
         if User.objects.filter(email=data['email']).exists():
             return Response(
                 {'detail': 'User with this email already exists'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Create user
         if data.get('passwordless'):
             # Passwordless signup - create user without password
@@ -218,7 +215,7 @@ class SignupView(APIView):
             # Assign role based on signup data (defaults to student)
             requested_role = data.get('role', 'student')
             _assign_user_role(user, requested_role)
-            
+
             # For passwordless self-registration, send the same onboarding email
             # used for director enrollment so the flow is consistent:
             #   email → setup password → MFA / profiling.
@@ -227,9 +224,9 @@ class SignupView(APIView):
             except Exception as e:
                 # Log email failure but don't block account creation
                 logger.warning(f"Failed to send onboarding email to {user.email} during signup: {str(e)}")
-            
+
             _log_audit_event(user, 'create', 'user', 'success', {'method': 'passwordless'})
-            
+
             return Response(
                 {
                     'detail': 'Account created. Please check your email to complete onboarding.',
@@ -276,17 +273,18 @@ class SignupView(APIView):
                 # Send verification email with OTP (non-blocking)
                 try:
                     code, mfa_code = create_mfa_code(user, method='email', expires_minutes=60)
-                    from users.utils.email_utils import send_verification_email
                     from django.conf import settings
+
+                    from users.utils.email_utils import send_verification_email
                     frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
                     verification_url = f"{frontend_url}/auth/verify-email?code={code}&email={user.email}"
                     send_verification_email(user, verification_url)
                 except Exception as e:
                     # Log email failure but don't block signup
                     logger.warning(f"Failed to send verification email to {user.email}: {str(e)}")
-            
+
             _log_audit_event(user, 'create', 'user', 'success', {'method': 'email_password'})
-            
+
             # Get frontend URL with fallback
             frontend_url = getattr(settings, 'FRONTEND_URL', None)
             if not frontend_url:
@@ -367,9 +365,10 @@ class SimpleLoginView(APIView):
             )
 
 
-from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
-from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+
 
 @method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):
@@ -379,25 +378,25 @@ class LoginView(APIView):
     """
     permission_classes = [permissions.AllowAny]
     parser_classes = [JSONParser, FormParser, MultiPartParser]
-    
+
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
         data = serializer.validated_data
         email = (data['email'] or '').strip().lower()
         password = data.get('password')
         code = data.get('code')
         device_fingerprint = data.get('device_fingerprint', 'unknown')
         device_name = data.get('device_name', 'Unknown Device')
-        
+
         if not email:
             return Response(
                 {'detail': 'Email is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
             user = User.objects.get(email__iexact=email)
         except User.DoesNotExist:
@@ -406,7 +405,7 @@ class LoginView(APIView):
                 {'detail': 'Invalid credentials'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-        
+
         # Check account status and active status
         # Allow pending_verification users to login (they need to complete onboarding)
         # Block suspended, deactivated, and erased accounts
@@ -415,7 +414,7 @@ class LoginView(APIView):
                 {'detail': f'Account is {user.account_status}. Please contact support.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         # Check if user is active (Django's is_active flag)
         if not user.is_active:
             _log_audit_event(user, 'login', 'user', 'failure', {'reason': 'inactive_user'})
@@ -423,7 +422,7 @@ class LoginView(APIView):
                 {'detail': 'Account is inactive. Please contact support.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         # Authenticate
         if code:
             # Passwordless login
@@ -441,7 +440,7 @@ class LoginView(APIView):
                     {'detail': 'Invalid credentials'},
                     status=status.HTTP_401_UNAUTHORIZED
                 )
-            
+
             # Auto-activate account if user has password but account is still pending_verification
             # This handles users who set password before the auto-activation logic was added
             if user.account_status == 'pending_verification' and user.has_usable_password():
@@ -450,7 +449,7 @@ class LoginView(APIView):
                     user.email_verified = True
                     user.email_verified_at = timezone.now()
                     logger.info(f"Email automatically verified for user {user.email} during login (legacy account)")
-                
+
                 user.account_status = 'active'
                 user.is_active = True
                 if not user.activated_at:
@@ -462,15 +461,15 @@ class LoginView(APIView):
                 {'detail': 'Password or code required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Calculate risk score
         ip_address = _get_client_ip(request)
         user_agent = request.META.get('HTTP_USER_AGENT', '')
         risk_score = calculate_risk_score(user, ip_address, device_fingerprint, user_agent)
-        
+
         # Check if device is trusted
         device_trusted = check_device_trust(user, device_fingerprint)
-        
+
         # In development, auto-trust device for test users
         from django.conf import settings
         if settings.DEBUG and user.email.endswith('@test.com') and not device_trusted:
@@ -478,23 +477,22 @@ class LoginView(APIView):
             device_type = _detect_device_type(user_agent)
             trust_device(user, device_fingerprint, device_name, device_type, ip_address, user_agent, expires_days=365)
             device_trusted = True
-        
+
         # Check MFA requirement (mandatory for Finance/Finance Admin/Admin when MFA enabled)
         user_roles = UserRole.objects.filter(user=user, is_active=True).select_related('role')
         user_role_names = [ur.role.name for ur in user_roles]
-        
+
         # Determine primary role (priority: admin > program_director > mentor > student)
         role_priority = ['admin', 'program_director', 'mentor', 'student']
         primary_role = next((r for r in role_priority if r in user_role_names), user_role_names[0] if user_role_names else 'student')
-        
-        high_risk_roles = ['finance', 'finance_admin', 'admin']
+
 
         # Only require MFA when at least one MFA method is configured and enabled.
         # This avoids blocking login with \"MFA required\" for users who have MFA toggled on
         # but haven't completed enrollment (no active MFAMethod yet).
         has_mfa_method = MFAMethod.objects.filter(user=user, enabled=True).exists()
         mfa_required = (requires_mfa(risk_score, primary_role, user) or user.mfa_enabled) and has_mfa_method
-        
+
         # If MFA required and not verified, return MFA challenge
         if mfa_required and not device_trusted:
             # Create temporary session for MFA verification; return refresh_token so client can complete MFA then refresh
@@ -524,7 +522,7 @@ class LoginView(APIView):
                 },
                 status=status.HTTP_200_OK
             )
-        
+
         # Create session and issue tokens
         access_token, refresh_token, session = create_user_session(
             user=user,
@@ -533,36 +531,36 @@ class LoginView(APIView):
             ip_address=ip_address,
             user_agent=user_agent
         )
-        
+
         # Trust device if requested and MFA verified
         if device_trusted or not mfa_required:
             trust_device(user, device_fingerprint, device_name, session.device_type, ip_address, user_agent)
-        
+
         # Get consent scopes for token
         consent_scopes = get_consent_scopes_for_token(user)
-        
+
         # Update user last login
         user.last_login = timezone.now()
         user.last_login_ip = ip_address
         user.save()
-        
+
         # Check if profiling is required (mandatory Tier 0 gateway for students/mentees)
         profiling_required = False
         user_roles = UserRole.objects.filter(user=user, is_active=True)
         user_role_names = [ur.role.name for ur in user_roles]
-        
+
         # Profiling is mandatory for students and mentees
         if 'student' in user_role_names or 'mentee' in user_role_names:
             if not user.profiling_complete:
                 profiling_required = True
-        
+
         _log_audit_event(user, 'login', 'user', 'success', {
             'method': 'passwordless' if code else 'password',
             'risk_score': risk_score,
             'mfa_required': mfa_required,
             'profiling_required': profiling_required,
         })
-        
+
         response = Response({
             'access_token': access_token,
             'refresh_token': refresh_token,
@@ -571,7 +569,7 @@ class LoginView(APIView):
             'profiling_required': profiling_required,
             'primary_role': primary_role,
         }, status=status.HTTP_200_OK)
-        
+
         # Set refresh token as httpOnly cookie
         response.set_cookie(
             'refresh_token',
@@ -581,7 +579,7 @@ class LoginView(APIView):
             secure=not settings.DEBUG,  # Secure in production
             samesite='Lax',
         )
-        
+
         return response
 
 
@@ -591,14 +589,14 @@ class MagicLinkView(APIView):
     Request magic link for passwordless login.
     """
     permission_classes = [permissions.AllowAny]
-    
+
     def post(self, request):
         serializer = MagicLinkRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
         email = serializer.validated_data['email']
-        
+
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
@@ -607,19 +605,20 @@ class MagicLinkView(APIView):
                 {'detail': 'If an account exists, a magic link has been sent.'},
                 status=status.HTTP_200_OK
             )
-        
+
         # Generate magic link code
         code, mfa_code = create_mfa_code(user, method='magic_link', expires_minutes=10)
-        
+
         # Send email with magic link
-        from users.utils.email_utils import send_magic_link_email
         from django.conf import settings
+
+        from users.utils.email_utils import send_magic_link_email
         frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
         magic_link_url = f"{frontend_url}/auth/verify?code={code}&email={email}"
         send_magic_link_email(user, code, magic_link_url)
-        
+
         _log_audit_event(user, 'mfa_challenge', 'user', 'success', {'method': 'magic_link'})
-        
+
         return Response(
             {'detail': 'Magic link sent to your email'},
             status=status.HTTP_200_OK
@@ -730,16 +729,16 @@ class MFAVerifyView(APIView):
     Verify MFA code.
     """
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def post(self, request):
         serializer = MFAVerifySerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
         code = serializer.validated_data['code']
         method = serializer.validated_data['method']
         user = request.user
-        
+
         # SMS/Email enrollment verification (pending method)
         if method in ('sms', 'email'):
             mfa_method = MFAMethod.objects.filter(
@@ -765,6 +764,7 @@ class MFAVerifyView(APIView):
         # Verify code
         if method == 'totp':
             import pyotp
+
             from users.utils.auth_utils import generate_totp_backup_codes, verify_totp_backup_code
 
             mfa_method = MFAMethod.objects.filter(
@@ -1074,20 +1074,20 @@ class MFADisableView(APIView):
                 {'detail': 'MFA is not enabled for this account'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Disable all MFA methods
         from users.auth_models import MFAMethod
         MFAMethod.objects.filter(user=user, enabled=True).update(
             enabled=False,
             is_primary=False
         )
-        
+
         user.mfa_enabled = False
         user.mfa_method = None
         user.save()
-        
+
         _log_audit_event(user, 'mfa_disable', 'mfa', 'success')
-        
+
         return Response({
             'detail': 'MFA disabled successfully'
         }, status=status.HTTP_200_OK)
@@ -1131,12 +1131,12 @@ class RefreshTokenView(APIView):
                 {'detail': 'Invalid or expired refresh token'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-        
+
         response = Response({
             'access_token': new_access_token,
             'refresh_token': new_refresh_token,
         }, status=status.HTTP_200_OK)
-        
+
         # Update refresh token cookie
         response.set_cookie(
             'refresh_token',
@@ -1146,7 +1146,7 @@ class RefreshTokenView(APIView):
             secure=not settings.DEBUG,
             samesite='Lax',
         )
-        
+
         return response
 
 
@@ -1156,26 +1156,26 @@ class LogoutView(APIView):
     Logout and revoke session.
     """
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def post(self, request):
         refresh_token = request.data.get('refresh_token') or request.COOKIES.get('refresh_token')
-        
+
         if refresh_token:
             revoke_session(refresh_token=refresh_token)
         else:
             # Revoke all sessions for user
             revoke_session(user=request.user)
-        
+
         _log_audit_event(request.user, 'logout', 'user', 'success')
-        
+
         response = Response(
             {'detail': 'Logged out successfully'},
             status=status.HTTP_200_OK
         )
-        
+
         # Clear refresh token cookie
         response.delete_cookie('refresh_token')
-        
+
         return response
 
 
@@ -1215,7 +1215,7 @@ class MeView(APIView):
 
     def _build_me_response(self, user):
         serializer = UserSerializer(user)
-        
+
         # Get roles with scope details
         roles = []
         for user_role in user.user_roles.filter(is_active=True).select_related('role'):
@@ -1225,16 +1225,16 @@ class MeView(APIView):
                 'scope': user_role.scope,
                 'scope_ref': str(user_role.scope_ref) if user_role.scope_ref else None,
             })
-        
+
         # Get consent scopes
         consent_scopes = get_user_consent_scopes(user)
-        
+
         # Get entitlements
         entitlements = list(
             user.entitlements.filter(granted=True, expires_at__isnull=True)
             .values_list('feature', flat=True)
         )
-        
+
         # Format response to match spec
         # Example: { "user": {"id":"UUID","email":"martin@och.africa","name":"Martin"}, ... }
         user_data = serializer.data
@@ -1248,7 +1248,7 @@ class MeView(APIView):
             # Student's assigned track (from profiler or program); used by curriculum hub to show "your track" and by backend to filter tracks
             'track_key': getattr(user, 'track_key', None) or user_data.get('track_key'),
         }
-        
+
         # Format consent scopes as list of strings (e.g., ["share_with_mentor","public_portfolio:false"])
         formatted_consents = []
         for scope in consent_scopes:
@@ -1316,17 +1316,17 @@ class ProfileView(APIView):
     Get or update current user profile with role-specific data.
     """
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get(self, request):
         user = request.user
-        
+
         # Check if user is active
         if not user.is_active:
             return Response(
                 {'detail': 'Account is inactive. Please contact support.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         # Check account status
         # Allow pending_verification users to access their profile during onboarding
         # Block suspended, deactivated, and erased accounts
@@ -1335,10 +1335,10 @@ class ProfileView(APIView):
                 {'detail': f'Account is {user.account_status}. Please contact support.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         serializer = UserSerializer(user)
         user_data = serializer.data
-        
+
         # Get roles with scope details
         roles = []
         primary_role = None
@@ -1355,19 +1355,19 @@ class ProfileView(APIView):
                 primary_role = role_data
             elif user_role.role.name in ['mentor', 'student', 'mentee']:
                 primary_role = role_data
-        
+
         # Get consent scopes
         consent_scopes = get_user_consent_scopes(user)
-        
+
         # Get entitlements
         entitlements = list(
             user.entitlements.filter(granted=True, expires_at__isnull=True)
             .values_list('feature', flat=True)
         )
-        
+
         # Get role-specific data
         role_specific_data = {}
-        
+
         # Mentor-specific data
         if user.is_mentor:
             from mentorship_coordination.models import MenteeMentorAssignment
@@ -1383,7 +1383,7 @@ class ProfileView(APIView):
                 'specialties': user.mentor_specialties or [],
                 'availability': user.mentor_availability or {},
             }
-        
+
         # Student/Mentee-specific data
         student_roles = user.user_roles.filter(
             role__name__in=['student', 'mentee'],
@@ -1395,7 +1395,7 @@ class ProfileView(APIView):
                 user=user,
                 status='active'
             ).select_related('cohort', 'cohort__track').first()
-            
+
             role_specific_data['student'] = {
                 'track_name': enrollment.cohort.track.name if enrollment and enrollment.cohort and enrollment.cohort.track else None,
                 'cohort_name': enrollment.cohort.name if enrollment and enrollment.cohort else None,
@@ -1404,7 +1404,7 @@ class ProfileView(APIView):
                 'seat_type': enrollment.seat_type if enrollment else None,
                 'payment_status': enrollment.payment_status if enrollment else None,
             }
-        
+
         # Director-specific data
         director_roles = user.user_roles.filter(
             role__name='program_director',
@@ -1416,24 +1416,24 @@ class ProfileView(APIView):
             programs = DirectorService.get_director_programs(user)
             cohorts_managed = Cohort.objects.filter(track__program__in=programs).count()
             tracks_managed = Track.objects.filter(program__in=programs).count()
-            
+
             role_specific_data['director'] = {
                 'cohorts_managed': cohorts_managed,
                 'tracks_managed': tracks_managed,
             }
-        
+
         # Admin-specific data
         if user.is_staff:
             from django.contrib.auth import get_user_model
             User = get_user_model()
             total_users = User.objects.count()
             active_users = User.objects.filter(is_active=True).count()
-            
+
             role_specific_data['admin'] = {
                 'total_users': total_users,
                 'active_users': active_users,
             }
-        
+
         # Return comprehensive profile data
         return Response({
             **user_data,
@@ -1443,16 +1443,16 @@ class ProfileView(APIView):
             'entitlements': entitlements,
             'role_specific_data': role_specific_data,
         }, status=status.HTTP_200_OK)
-    
+
     def patch(self, request):
         """Update user profile."""
         user = request.user
         serializer = UserSerializer(user, data=request.data, partial=True)
-        
+
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
-        
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -1462,23 +1462,23 @@ class ConsentView(APIView):
     Update consent scopes.
     """
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def post(self, request):
         serializer = ConsentUpdateSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
         scope_type = serializer.validated_data['scope_type']
         granted = serializer.validated_data['granted']
         expires_at = serializer.validated_data.get('expires_at')
-        
+
         if granted:
-            consent = grant_consent(request.user, scope_type, expires_at)
+            grant_consent(request.user, scope_type, expires_at)
             _log_audit_event(request.user, 'consent_granted', 'consent', 'success', {'scope': scope_type})
         else:
-            consent = revoke_consent(request.user, scope_type)
+            revoke_consent(request.user, scope_type)
             _log_audit_event(request.user, 'consent_revoked', 'consent', 'success', {'scope': scope_type})
-        
+
         return Response({
             'detail': f'Consent {scope_type} {"granted" if granted else "revoked"}',
             'consent': {
@@ -1530,8 +1530,9 @@ def register_user(request):
 
             # Send verification email with token
             try:
-                from users.utils.email_utils import send_verification_email
                 from django.conf import settings
+
+                from users.utils.email_utils import send_verification_email
                 frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
                 verification_url = f"{frontend_url}/auth/verify-email?token={raw_token}"
                 send_verification_email(user, verification_url)
@@ -1605,7 +1606,7 @@ def verify_email(request):
                             'detail': 'Email verified successfully. You can now login.',
                             'message': 'Email verified successfully'
                         })
-                
+
                 return Response(
                     {'detail': 'Invalid or expired verification token'},
                     status=status.HTTP_400_BAD_REQUEST
@@ -1638,28 +1639,29 @@ def resend_verification_email(request):
     """
     try:
         user = request.user
-        
+
         # Don't resend if already verified
         if user.email_verified:
             return Response(
                 {'detail': 'Email is already verified'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Generate new verification code and send email
         code, mfa_code = create_mfa_code(user, method='email', expires_minutes=60)
-        from users.utils.email_utils import send_verification_email
         from django.conf import settings
+
+        from users.utils.email_utils import send_verification_email
         frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
         verification_url = f"{frontend_url}/auth/verify-email?code={code}&email={user.email}"
         send_verification_email(user, verification_url)
-        
+
         logger.info(f"Resent verification email to {user.email}")
         return Response({
             'detail': 'Verification email sent successfully',
             'message': 'Please check your email for the verification link'
         })
-        
+
     except Exception as e:
         logger.error(f"Failed to resend verification email: {str(e)}")
         return Response(
@@ -1689,10 +1691,10 @@ def request_password_reset(request):
 
             # Send reset email
             email_sent = email_service.send_password_reset_email(user)
-            
+
             # Log the result for debugging
             logger.info(f"Password reset email send attempt for {email}: {'SUCCESS' if email_sent else 'FAILED'}")
-            
+
             if email_sent:
                 return Response({
                     'message': 'Password reset email sent. Please check your email.'
@@ -1844,7 +1846,7 @@ def check_password_status(request):
             {'error': 'Email is required'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     try:
         user = User.objects.get(email__iexact=email)
         # Treat blank/empty password as "no password", even though Django's
@@ -1853,7 +1855,7 @@ def check_password_status(request):
         # step as pending in the onboarding flow until the student sets one.
         raw_has_password = user.has_usable_password()
         has_password = bool(user.password) and raw_has_password
-        
+
         return Response({
             'email': user.email,
             'has_password': has_password,
@@ -1945,14 +1947,14 @@ def setup_password(request):
 
         # Set password
         user.set_password(password)
-        
+
         # Automatically verify email when password is set during onboarding
         # If user received onboarding email and is setting password, consider email verified
         if not user.email_verified:
             user.email_verified = True
             user.email_verified_at = timezone.now()
             logger.info(f"Email automatically verified for user {user.email} during password setup")
-        
+
         # Activate account if it's pending verification
         if user.account_status == 'pending_verification':
             user.account_status = 'active'
@@ -1960,7 +1962,7 @@ def setup_password(request):
             if not user.activated_at:
                 user.activated_at = timezone.now()
             logger.info(f"Account activated for user {user.email} during password setup")
-        
+
         user.save()
 
         # Log the password setup
@@ -1998,30 +2000,30 @@ class SessionsView(APIView):
     Revoke a specific session.
     """
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get(self, request):
         """Get all active sessions for the current user"""
         user = request.user
-        
+
         # Get all active (non-revoked) sessions that haven't expired
         sessions = UserSession.objects.filter(
             user=user,
             revoked_at__isnull=True,
             expires_at__gt=timezone.now()
         ).order_by('-last_activity')
-        
+
         # Get current session ID from refresh token if available
         current_session_id = None
         try:
             # Try to get current session from request metadata
             # This is a simplified approach - in production, you'd extract from the JWT
-            auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+            request.META.get('HTTP_AUTHORIZATION', '')
             # For now, we'll mark the most recent session as current
             if sessions.exists():
                 current_session_id = str(sessions.first().id)
         except:
             pass
-        
+
         sessions_data = []
         for session in sessions:
             sessions_data.append({
@@ -2039,13 +2041,13 @@ class SessionsView(APIView):
                 'mfa_verified': session.mfa_verified,
                 'ua': session.ua,
             })
-        
+
         return Response(sessions_data, status=status.HTTP_200_OK)
-    
+
     def delete(self, request, session_id=None):
         """Revoke a specific session"""
         user = request.user
-        
+
         try:
             if session_id:
                 # Revoke specific session
@@ -2062,7 +2064,7 @@ class SessionsView(APIView):
                     revoked_at__isnull=True,
                     expires_at__gt=timezone.now()
                 ).order_by('-last_activity')
-                
+
                 if sessions.exists():
                     # Keep the most recent session
                     current_session = sessions.first()

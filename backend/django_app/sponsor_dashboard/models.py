@@ -3,8 +3,9 @@ Sponsor Dashboard models for corporate ROI visibility.
 Aggregates sponsored seat utilization, cohort progress, graduate readiness, and financial metrics.
 """
 import uuid
+
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 
 
@@ -20,7 +21,7 @@ class SponsorDashboardCache(models.Model):
         primary_key=True,
         db_index=True
     )
-    
+
     # Financial KPIs
     seats_total = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     seats_used = models.IntegerField(default=0, validators=[MinValueValidator(0)])
@@ -47,7 +48,7 @@ class SponsorDashboardCache(models.Model):
         default=0,
         validators=[MinValueValidator(0), MaxValueValidator(100)]
     )
-    
+
     # Talent KPIs (aggregates ONLY)
     avg_readiness = models.DecimalField(
         max_digits=5,
@@ -70,7 +71,7 @@ class SponsorDashboardCache(models.Model):
         default=0,
         validators=[MinValueValidator(0)]
     )
-    
+
     # Alerts
     overdue_invoices_count = models.IntegerField(
         default=0,
@@ -81,13 +82,13 @@ class SponsorDashboardCache(models.Model):
         validators=[MinValueValidator(0)],
         help_text='Cohorts with <50% utilization'
     )
-    
+
     cache_updated_at = models.DateTimeField(default=timezone.now)
-    
+
     class Meta:
         db_table = 'sponsor_dashboard_cache'
         ordering = ['-cache_updated_at']
-    
+
     def __str__(self):
         return f"Sponsor Cache: {self.org.name}"
 
@@ -109,7 +110,7 @@ class SponsorCohortDashboard(models.Model):
         related_name='sponsor_dashboards',
         db_index=True
     )
-    
+
     cohort_name = models.CharField(max_length=200)
     track_name = models.CharField(max_length=200, blank=True)
     start_date = models.DateField(null=True, blank=True)
@@ -123,13 +124,13 @@ class SponsorCohortDashboard(models.Model):
         ],
         blank=True
     )
-    
+
     # Seat metrics
     seats_total = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     seats_used = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     seats_sponsored = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     seats_remaining = models.IntegerField(default=0, validators=[MinValueValidator(0)])
-    
+
     # Progress metrics
     avg_readiness = models.DecimalField(
         max_digits=5,
@@ -152,7 +153,7 @@ class SponsorCohortDashboard(models.Model):
         blank=True,
         validators=[MinValueValidator(0), MaxValueValidator(100)]
     )
-    
+
     # Graduate metrics
     graduates_count = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     at_risk_count = models.IntegerField(
@@ -160,7 +161,7 @@ class SponsorCohortDashboard(models.Model):
         validators=[MinValueValidator(0)],
         help_text='Students at risk of dropout'
     )
-    
+
     # Milestones and events
     next_milestone = models.JSONField(
         default=dict,
@@ -171,16 +172,16 @@ class SponsorCohortDashboard(models.Model):
         default=list,
         blank=True
     )
-    
+
     # Flags
     flags = models.JSONField(
         default=list,
         blank=True,
         help_text='["low_completion", "budget_alert", etc.]'
     )
-    
+
     updated_at = models.DateTimeField(default=timezone.now)
-    
+
     class Meta:
         db_table = 'sponsor_cohort_dashboard'
         unique_together = ['org', 'cohort']
@@ -189,7 +190,7 @@ class SponsorCohortDashboard(models.Model):
             models.Index(fields=['org', 'updated_at']),
             models.Index(fields=['cohort']),
         ]
-    
+
     def __str__(self):
         return f"{self.org.name} - {self.cohort_name}"
 
@@ -218,7 +219,7 @@ class SponsorStudentAggregates(models.Model):
         related_name='sponsor_aggregates',
         db_index=True
     )
-    
+
     name_anonymized = models.CharField(
         max_length=100,
         help_text='"Student #123" unless consent granted'
@@ -245,9 +246,9 @@ class SponsorStudentAggregates(models.Model):
         default=False,
         help_text='Whether student consented to share profile with employer'
     )
-    
+
     updated_at = models.DateTimeField(default=timezone.now)
-    
+
     class Meta:
         db_table = 'sponsor_student_aggregates'
         unique_together = ['org', 'cohort', 'student']
@@ -256,7 +257,7 @@ class SponsorStudentAggregates(models.Model):
             models.Index(fields=['org', 'cohort']),
             models.Index(fields=['org', 'consent_employer_share']),
         ]
-    
+
     def __str__(self):
         return f"{self.org.name} - {self.name_anonymized} ({self.cohort.name})"
 
@@ -270,7 +271,7 @@ class SponsorCode(models.Model):
         ('expired', 'Expired'),
         ('revoked', 'Revoked'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     org = models.ForeignKey(
         'organizations.Organization',
@@ -310,7 +311,7 @@ class SponsorCode(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'sponsor_codes'
         ordering = ['-created_at']
@@ -318,10 +319,10 @@ class SponsorCode(models.Model):
             models.Index(fields=['org', 'status']),
             models.Index(fields=['code']),
         ]
-    
+
     def __str__(self):
         return f"{self.code} - {self.org.name} ({self.seats} seats)"
-    
+
     @property
     def is_valid(self):
         """Check if code is currently valid."""

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Completely rebuild subscription tables with correct schema."""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')

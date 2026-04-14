@@ -5,8 +5,8 @@ Creates 50+ recipes covering Sigma rules, log parsing, ELK setup, etc.
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.utils.text import slugify
+
 from recipes.models import Recipe
-from users.models import User
 
 
 class Command(BaseCommand):
@@ -26,7 +26,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('Cleared existing data'))
 
         self.stdout.write('Seeding recipe data...')
-        
+
         sample_recipes = [
             {
                 'title': 'Write Basic Sigma Rule',
@@ -330,7 +330,7 @@ class Command(BaseCommand):
                 }
             },
         ]
-        
+
         created_count = 0
         for recipe_data in sample_recipes:
             slug = slugify(recipe_data['title'])
@@ -344,7 +344,7 @@ class Command(BaseCommand):
             if created:
                 created_count += 1
             self.stdout.write(f"  {'Created' if created else 'Updated'} recipe: {recipe.title}")
-        
+
         # Add more recipes with simpler content structure
         simple_recipes = [
             {
@@ -378,7 +378,7 @@ class Command(BaseCommand):
                 'tools_used': ['snort', 'suricata'],
             },
         ]
-        
+
         for recipe_data in simple_recipes:
             slug = slugify(recipe_data['title'])
             # Add minimal content structure
@@ -404,7 +404,7 @@ class Command(BaseCommand):
             }
             recipe_data['validation_steps'] = {}
             recipe_data['prerequisites'] = []
-            
+
             recipe, created = Recipe.objects.update_or_create(
                 slug=slug,
                 defaults={
@@ -415,7 +415,7 @@ class Command(BaseCommand):
             if created:
                 created_count += 1
             self.stdout.write(f"  {'Created' if created else 'Updated'} recipe: {recipe.title}")
-        
+
         self.stdout.write(self.style.SUCCESS(f'\nSuccessfully created/updated {created_count} recipes!'))
         self.stdout.write(f'Total recipes in database: {Recipe.objects.count()}')
 

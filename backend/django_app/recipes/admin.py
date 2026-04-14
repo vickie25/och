@@ -2,7 +2,8 @@
 Django admin configuration for Recipe Engine.
 """
 from django.contrib import admin
-from .models import Recipe, UserRecipeProgress, RecipeContextLink, UserRecipeBookmark
+
+from .models import Recipe, RecipeContextLink, UserRecipeBookmark, UserRecipeProgress
 
 
 @admin.register(Recipe)

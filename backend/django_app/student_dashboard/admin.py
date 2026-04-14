@@ -2,7 +2,8 @@
 Admin interface for Student Dashboard models.
 """
 from django.contrib import admin
-from .models import StudentDashboardCache, DashboardUpdateQueue
+
+from .models import DashboardUpdateQueue, StudentDashboardCache
 
 
 @admin.register(StudentDashboardCache)
@@ -12,7 +13,7 @@ class StudentDashboardCacheAdmin(admin.ModelAdmin):
     list_filter = ['updated_at', 'profile_incomplete', 'payment_overdue']
     search_fields = ['user__email', 'user__first_name', 'user__last_name']
     readonly_fields = ['updated_at', 'last_active_at']
-    
+
     fieldsets = (
         ('User', {
             'fields': ('user',)
@@ -63,6 +64,6 @@ class DashboardUpdateQueueAdmin(admin.ModelAdmin):
     list_filter = ['priority', 'processed_at', 'queued_at']
     search_fields = ['user__email', 'reason']
     readonly_fields = ['queued_at']
-    
+
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('user')

@@ -1,24 +1,25 @@
 """
 URL configuration for organizations app.
 """
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from .views import OrganizationViewSet, OrganizationMemberViewSet
+
 from .institutional_management_views import (
-    InstitutionalSeatPoolViewSet,
     InstitutionalBulkImportViewSet,
-    onboard_student,
-    invite_student,
-    manage_cohort_enrollments,
-    bulk_enroll_students,
+    InstitutionalSeatPoolViewSet,
     available_cohorts,
     available_tracks,
-    institutional_dashboard,
-    student_progress_report,
-    recycle_seats,
+    bulk_enroll_students,
     export_student_data,
+    institutional_dashboard,
+    invite_student,
+    manage_cohort_enrollments,
+    onboard_student,
+    recycle_seats,
+    student_progress_report,
     user_portal_access,
 )
+from .views import OrganizationMemberViewSet, OrganizationViewSet
 
 router = DefaultRouter()
 router.register(r'organizations', OrganizationViewSet, basename='organization')

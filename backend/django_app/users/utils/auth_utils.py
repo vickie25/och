@@ -12,7 +12,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from users.auth_models import MFACode, MFAMethod, DeviceTrust, UserSession
+from users.auth_models import DeviceTrust, MFACode, MFAMethod, UserSession
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -92,16 +92,16 @@ def create_mfa_code(user, method='email', expires_minutes=10):
         code = generate_magic_link_code()
     else:
         code = generate_otp_code()
-    
+
     expires_at = timezone.now() + timedelta(minutes=expires_minutes)
-    
+
     mfa_code = MFACode.objects.create(
         user=user,
         code=code,
         method=method,
         expires_at=expires_at,
     )
-    
+
     return code, mfa_code
 
 
@@ -167,7 +167,7 @@ def verify_refresh_token(refresh_token):
     Returns (session, user) if valid, (None, None) otherwise.
     """
     refresh_token_hash = hash_refresh_token(refresh_token)
-    
+
     try:
         session = UserSession.objects.get(
             refresh_token_hash=refresh_token_hash,
@@ -239,7 +239,7 @@ def check_device_trust(user, device_fingerprint):
 def trust_device(user, device_fingerprint, device_name, device_type, ip_address=None, user_agent=None, expires_days=90):
     """Mark a device as trusted."""
     expires_at = timezone.now() + timedelta(days=expires_days)
-    
+
     device_trust, created = DeviceTrust.objects.get_or_create(
         user=user,
         device_fingerprint=device_fingerprint,
@@ -251,11 +251,11 @@ def trust_device(user, device_fingerprint, device_name, device_type, ip_address=
             'expires_at': expires_at,
         }
     )
-    
+
     if not created:
         device_trust.last_used_at = timezone.now()
         device_trust.save()
-    
+
     return device_trust
 
 
@@ -267,13 +267,13 @@ def generate_totp_backup_codes(count=10):
     import hashlib
     backup_codes = []
     hashed_codes = []
-    
+
     for _ in range(count):
         code = secrets.token_urlsafe(16)  # 16-character backup code
         backup_codes.append(code)
         # Hash for storage
         hashed_codes.append(hashlib.sha256(code.encode()).hexdigest())
-    
+
     return backup_codes, hashed_codes
 
 
@@ -317,10 +317,11 @@ def verify_mfa_challenge(user, code, method):
             return False
         if method == 'backup_codes':
             return verify_totp_backup_code(user, code)
-        
+
         try:
-            import pyotp
             import binascii
+
+            import pyotp
             secret = decrypt_totp_secret(mfa_method.secret_encrypted)
             totp = pyotp.TOTP(secret)
             if totp.verify(code, valid_window=1):
@@ -351,7 +352,7 @@ def _detect_device_type(user_agent):
     """Detect device type from user agent string."""
     if not user_agent:
         return 'unknown'
-    
+
     ua_lower = user_agent.lower()
     if 'mobile' in ua_lower or 'android' in ua_lower or 'iphone' in ua_lower:
         return 'mobile'

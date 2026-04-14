@@ -9,7 +9,7 @@ They are wired from `profiler/urls.py`:
   - GET /api/v1/profiler/admin/analytics/role-mapping-accuracy
 """
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes

@@ -3,8 +3,9 @@ Django management command to create test users for development.
 Usage: python manage.py create_test_users
 """
 
-from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand
+
 from users.models import Role, UserRole
 
 User = get_user_model()
@@ -20,7 +21,7 @@ class Command(BaseCommand):
         # Create or get roles
         roles = {}
         role_names = ['admin', 'program_director', 'mentor', 'student', 'finance', 'sponsor_admin', 'analyst']
-        
+
         for role_name in role_names:
             role, created = Role.objects.get_or_create(name=role_name)
             roles[role_name] = role
@@ -89,7 +90,7 @@ class Command(BaseCommand):
         for user_data in test_users:
             role_name = user_data.pop('role')
             email = user_data['email']
-            
+
             user, created = User.objects.get_or_create(
                 email=email,
                 defaults={

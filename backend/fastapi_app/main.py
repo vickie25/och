@@ -1,21 +1,21 @@
 """
 FastAPI application entry point for AI and vector processing services.
 """
+from config import settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from routers.v1 import (
-    recommendations,
-    embeddings,
-    personality,
-    missions,
-    curriculum,
-    coaching,
-    dashboard,
-    profiling,
     application_questions,
+    coaching,
+    curriculum,
+    dashboard,
+    embeddings,
+    missions,
+    personality,
+    profiling,
+    recommendations,
 )
-from config import settings
 
 app = FastAPI(
     title="Ongoza CyberHub AI API",

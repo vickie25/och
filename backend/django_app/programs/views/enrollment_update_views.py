@@ -2,13 +2,15 @@
 Views for updating enrollment details (organization, etc.)
 """
 import logging
-from rest_framework.views import APIView
-from rest_framework.response import Response
+
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from users.permissions import IsAdminOrDirector
-from programs.models import Enrollment
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from organizations.models import Organization
+from programs.models import Enrollment
+from users.permissions import IsAdminOrDirector
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +41,7 @@ class UpdateEnrollmentOrganizationView(APIView):
 
         org_id = request.data.get('org')
         org = None
-        
+
         if org_id:
             try:
                 org = Organization.objects.get(id=org_id)

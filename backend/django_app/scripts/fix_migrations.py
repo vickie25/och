@@ -3,9 +3,8 @@
 Script to fix migration order issues.
 Run this if you get "relation does not exist" errors.
 """
-import os
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -34,21 +33,21 @@ def main():
     print("=" * 50)
     print("Fixing Migration Order")
     print("=" * 50)
-    
+
     # Step 1: Create organizations migrations
     if not run_command(
         ["python", "manage.py", "makemigrations", "organizations", "--name", "initial"],
         "Creating organizations migrations"
     ):
         print("\n⚠️  Organizations migrations failed. Continuing anyway...")
-    
+
     # Step 2: Create progress migrations
     if not run_command(
         ["python", "manage.py", "makemigrations", "progress", "--name", "initial"],
         "Creating progress migrations"
     ):
         print("\n⚠️  Progress migrations failed (may not have models). Continuing...")
-    
+
     # Step 3: Check users migrations
     users_migration = BASE_DIR / "users" / "migrations" / "0001_initial.py"
     if users_migration.exists():
@@ -60,7 +59,7 @@ def main():
             else:
                 print("⚠️  Users migration may need organizations dependency")
                 print("   Consider deleting and recreating users migrations")
-    
+
     # Step 4: Run migrations
     print("\n" + "=" * 50)
     if not run_command(
@@ -74,7 +73,7 @@ def main():
         print("2. Check database credentials in .env")
         print("3. Create database: python manage.py create_db")
         sys.exit(1)
-    
+
     print("\n" + "=" * 50)
     print("✅ All migrations completed successfully!")
     print("=" * 50)

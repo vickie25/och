@@ -13,42 +13,42 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(hour=2, minute=0),
         'options': {'queue': 'billing'}
     },
-    
+
     # Process dunning retries every 4 hours
     'process-dunning-retries': {
         'task': 'subscriptions.billing_tasks.process_dunning_retries',
         'schedule': crontab(minute=0, hour='*/4'),
         'options': {'queue': 'billing'}
     },
-    
+
     # Expire trial subscriptions daily at 3 AM UTC
     'expire-trial-subscriptions': {
         'task': 'subscriptions.billing_tasks.expire_trial_subscriptions',
         'schedule': crontab(hour=3, minute=0),
         'options': {'queue': 'billing'}
     },
-    
+
     # Suspend past due subscriptions daily at 4 AM UTC
     'suspend-past-due-subscriptions': {
         'task': 'subscriptions.billing_tasks.suspend_past_due_subscriptions',
         'schedule': crontab(hour=4, minute=0),
         'options': {'queue': 'billing'}
     },
-    
+
     # Expire suspended subscriptions daily at 5 AM UTC
     'expire-suspended-subscriptions': {
         'task': 'subscriptions.billing_tasks.expire_suspended_subscriptions',
         'schedule': crontab(hour=5, minute=0),
         'options': {'queue': 'billing'}
     },
-    
+
     # Send dunning notifications every 2 hours during business hours
     'send-dunning-notifications': {
         'task': 'subscriptions.billing_tasks.send_dunning_notifications',
         'schedule': crontab(minute=0, hour='8-20/2'),  # Every 2 hours from 8 AM to 8 PM
         'options': {'queue': 'notifications'}
     },
-    
+
     # Generate monthly billing report on the 1st of each month at 6 AM UTC
     'generate-monthly-billing-report': {
         'task': 'subscriptions.billing_tasks.generate_monthly_billing_report',

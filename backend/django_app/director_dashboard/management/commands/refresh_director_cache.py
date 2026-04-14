@@ -1,10 +1,11 @@
 """
 Management command to manually refresh director dashboard cache.
 """
-from django.core.management.base import BaseCommand
-from director_dashboard.services import DirectorDashboardService
 from django.contrib.auth import get_user_model
-from users.models import UserRole, Role
+from django.core.management.base import BaseCommand
+
+from director_dashboard.services import DirectorDashboardService
+from users.models import Role
 
 
 class Command(BaseCommand):
@@ -24,7 +25,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         User = get_user_model()
-        
+
         if options['director_id']:
             # Refresh specific director
             try:
@@ -40,22 +41,22 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.ERROR(f'Director with ID {options["director_id"]} not found')
                 )
-        
+
         elif options['all']:
             # Refresh all directors
             director_role = Role.objects.filter(name='program_director').first()
             if not director_role:
                 self.stdout.write(self.style.ERROR('Director role not found'))
                 return
-            
+
             directors = User.objects.filter(
                 user_roles__role=director_role,
                 user_roles__is_active=True
             ).distinct()
-            
+
             success_count = 0
             error_count = 0
-            
+
             for director in directors:
                 try:
                     cache = DirectorDashboardService.refresh_director_cache(director.id)
@@ -68,13 +69,13 @@ class Command(BaseCommand):
                     self.stdout.write(
                         self.style.ERROR(f'✗ {director.email}: {str(e)}')
                     )
-            
+
             self.stdout.write(
                 self.style.SUCCESS(
                     f'\nCompleted: {success_count} successful, {error_count} errors'
                 )
             )
-        
+
         else:
             self.stdout.write(
                 self.style.ERROR('Please specify --director-id or --all')

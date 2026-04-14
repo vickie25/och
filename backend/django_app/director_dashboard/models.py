@@ -1,10 +1,11 @@
 """
 Director Dashboard models - Cache and health tracking for Program Directors.
 """
-from django.db import models
-from django.contrib.auth import get_user_model
-from django.core.validators import MinValueValidator, MaxValueValidator
 import uuid
+
+from django.contrib.auth import get_user_model
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
 
 User = get_user_model()
 
@@ -18,7 +19,7 @@ class DirectorDashboardCache(models.Model):
         primary_key=True,
         db_index=True
     )
-    
+
     # Hero Metrics
     active_programs_count = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     active_cohorts_count = models.IntegerField(default=0, validators=[MinValueValidator(0)])
@@ -37,20 +38,20 @@ class DirectorDashboardCache(models.Model):
         default=0.00,
         validators=[MinValueValidator(0), MaxValueValidator(100)]
     )
-    
+
     # Risk Signals
     cohorts_at_risk = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     mentors_over_capacity = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     mission_bottlenecks = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     payment_overdue_seats = models.IntegerField(default=0, validators=[MinValueValidator(0)])
-    
+
     # Cache metadata
     cache_updated_at = models.DateTimeField(auto_now=True, db_index=True)
-    
+
     class Meta:
         db_table = 'director_dashboard_app_cache'
         ordering = ['-cache_updated_at']
-    
+
     def __str__(self):
         return f"Dashboard Cache - {self.director.email}"
 
@@ -73,7 +74,7 @@ class DirectorCohortHealth(models.Model):
         blank=True
     )
     cohort_name = models.CharField(max_length=255)
-    
+
     # Metrics
     seats_used_total = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     readiness_avg = models.DecimalField(
@@ -94,7 +95,7 @@ class DirectorCohortHealth(models.Model):
         default=0.00,
         validators=[MinValueValidator(0), MaxValueValidator(100)]
     )
-    
+
     # Milestone and risk tracking
     next_milestone = models.JSONField(default=dict, blank=True)
     risk_flags = models.JSONField(default=list, blank=True)
@@ -104,9 +105,9 @@ class DirectorCohortHealth(models.Model):
         default=0.0,
         validators=[MinValueValidator(0), MaxValueValidator(10)]
     )
-    
+
     updated_at = models.DateTimeField(auto_now=True, db_index=True)
-    
+
     class Meta:
         db_table = 'director_cohort_health'
         unique_together = ['director', 'cohort']
@@ -115,7 +116,7 @@ class DirectorCohortHealth(models.Model):
             models.Index(fields=['cohort', 'risk_score']),
         ]
         ordering = ['-risk_score', '-updated_at']
-    
+
     def __str__(self):
         return f"Health - {self.cohort_name} ({self.director.email})"
 

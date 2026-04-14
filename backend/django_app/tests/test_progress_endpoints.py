@@ -11,6 +11,7 @@ Endpoints tested:
 """
 import pytest
 from rest_framework import status
+
 from progress.models import Progress
 
 

@@ -2,6 +2,7 @@
 Management command to seed profiling questions for aptitude and behavioral assessments.
 """
 from django.core.management.base import BaseCommand
+
 from profiler.models import ProfilerQuestion
 
 

@@ -1,8 +1,8 @@
 """
 Recommendation API schemas.
 """
+
 from pydantic import BaseModel
-from typing import List, Optional
 
 
 class RecommendationItem(BaseModel):
@@ -12,9 +12,9 @@ class RecommendationItem(BaseModel):
     content_id: str
     content_type: str
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     score: float
-    reason: Optional[str] = None
+    reason: str | None = None
 
 
 class RecommendationRequest(BaseModel):
@@ -22,7 +22,7 @@ class RecommendationRequest(BaseModel):
     Request schema for recommendations.
     """
     user_id: int
-    content_type: Optional[str] = None
+    content_type: str | None = None
     limit: int = 10
 
 
@@ -31,7 +31,7 @@ class RecommendationResponse(BaseModel):
     Response schema for recommendations.
     """
     user_id: int
-    recommendations: List[RecommendationItem]
+    recommendations: list[RecommendationItem]
     total: int
 
 

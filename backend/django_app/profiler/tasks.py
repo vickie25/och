@@ -1,12 +1,14 @@
 """
 Background tasks for Profiler Engine.
 """
-import os
 import logging
-from django.utils import timezone
+import os
+
 from django.db import transaction
-from .models import ProfilerSession, ProfilerAnswer
+from django.utils import timezone
 from student_dashboard.services import DashboardAggregationService
+
+from .models import ProfilerAnswer, ProfilerSession
 
 logger = logging.getLogger(__name__)
 
@@ -28,19 +30,19 @@ def generate_future_you_task(session_id: str):
     try:
         session = ProfilerSession.objects.get(id=session_id)
         answers = ProfilerAnswer.objects.filter(session=session)
-        
+
         # Collect answers
         answers_data = {}
         for answer in answers:
             answers_data[answer.question_key] = answer.answer
-        
+
         # Generate persona using OpenAI or AI Coach API
         openai_key = os.environ.get('CHAT_GPT_API_KEY')
         ai_coach_url = os.environ.get('AI_COACH_API_URL', 'http://localhost:8001/api/v1')
         ai_coach_key = os.environ.get('AI_COACH_API_KEY')
-        
+
         persona = None
-        
+
         # Try AI Coach API first
         if ai_coach_key and ai_coach_url:
             try:
@@ -55,13 +57,13 @@ def generate_future_you_task(session_id: str):
                     persona = response.json()
             except Exception as e:
                 logger.error(f"AI Coach API error: {e}")
-        
+
         # Fallback to OpenAI
         if not persona and openai_key:
             try:
                 from openai import OpenAI
                 client = OpenAI(api_key=openai_key)
-                
+
                 prompt = f"""Generate a Future-You cyber persona based on these assessment answers:
 {answers_data}
 
@@ -72,7 +74,7 @@ Return JSON with:
 - track: Recommended career track
 - confidence: 0.0-1.0 confidence score
 """
-                
+
                 response = client.chat.completions.create(
                     model=os.environ.get('AI_COACH_MODEL', 'gpt-4'),
                     messages=[
@@ -82,12 +84,12 @@ Return JSON with:
                     temperature=0.7,
                     max_tokens=500
                 )
-                
+
                 import json
                 persona = json.loads(response.choices[0].message.content)
             except Exception as e:
                 logger.error(f"OpenAI error: {e}")
-        
+
         # Fallback to default persona
         if not persona:
             persona = {
@@ -97,7 +99,7 @@ Return JSON with:
                 'track': 'SOC Analyst',
                 'confidence': 0.75
             }
-        
+
         # Update session
         with transaction.atomic():
             session.futureyou_persona = persona
@@ -106,19 +108,19 @@ Return JSON with:
             session.status = 'finished'
             session.completed_at = timezone.now()
             session.save()
-            
+
             # Update user's futureyou_persona and onboarding status
             session.user.futureyou_persona = persona
             if not session.user.onboarding_complete:
                 session.user.onboarding_complete = True
             session.user.save()
-        
+
         # Trigger dashboard refresh
         DashboardAggregationService.queue_update(session.user, 'profiler_complete', 'urgent')
-        
+
         logger.info(f"Generated Future-You persona for session {session_id}")
         return {'status': 'success', 'persona': persona}
-        
+
     except ProfilerSession.DoesNotExist:
         logger.error(f"Session {session_id} not found")
         return {'status': 'error', 'message': 'Session not found'}

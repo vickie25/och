@@ -4,7 +4,6 @@ Comprehensive question set designed for high-accuracy mapping to 5 cybersecurity
 defender, offensive, innovation, leadership, grc
 """
 from .profiling import ProfilingQuestion
-from .profiling_tracks import OCH_TRACKS
 
 # Technical Aptitude Questions - Focused on cybersecurity skills
 TECHNICAL_APTITUDE_QUESTIONS = [

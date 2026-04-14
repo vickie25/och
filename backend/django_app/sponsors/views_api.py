@@ -2,42 +2,43 @@
 Sponsor/Employer API Views for OCH SMP Technical Specifications.
 Implements all required APIs for sponsor/employer dashboard operations.
 """
-import json
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 logger = logging.getLogger(__name__)
-from django.shortcuts import get_object_or_404
-from django.db import models, transaction
-from django.db.models import Sum, Count, Q
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.db.models import Count, Sum
 from django.db.models.functions import TruncMonth
 from django.db.utils import OperationalError
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
-from django.http import StreamingHttpResponse, HttpResponse
-from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework import generics, status, viewsets
-from rest_framework.decorators import api_view, permission_classes, action
+from programs.models import Enrollment
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
-from organizations.models import Organization, OrganizationMember, OrganizationEnrollmentInvoice
-from users.models import ConsentScope, UserRole, Role
-from users.utils.consent_utils import check_consent
-from programs.models import Cohort, Enrollment
+from organizations.models import Organization, OrganizationEnrollmentInvoice, OrganizationMember
+from users.models import ConsentScope, Role, UserRole
+
 from .models import (
-    Sponsor, SponsorCohort, SponsorStudentCohort, SponsorAnalytics,
-    SponsorIntervention, SponsorFinancialTransaction, SponsorCohortBilling,
-    RevenueShareTracking, SponsorCohortAssignment, ManualFinanceInvoice,
+    ManualFinanceInvoice,
+    Sponsor,
+    SponsorAnalytics,
+    SponsorCohort,
+    SponsorCohortAssignment,
+    SponsorCohortBilling,
+    SponsorFinancialTransaction,
+    SponsorStudentCohort,
 )
-from .serializers import (
-    SponsorSerializer, SponsorCohortSerializer, SponsorDashboardSerializer,
-    SponsorAnalyticsSerializer
+from .permissions import (
+    IsPlatformFinance,
+    IsSponsorAdmin,
+    IsSponsorUser,
+    check_sponsor_access,
+    is_platform_finance,
 )
-from .permissions import IsSponsorUser, IsSponsorAdmin, IsPlatformFinance, check_sponsor_access, is_platform_finance
-from . import services as sponsor_services
 
 User = get_user_model()
 
@@ -51,14 +52,14 @@ User = get_user_model()
 def sponsor_signup(request):
     """POST /api/v1/auth/signup - Create sponsor/employer admin accounts."""
     data = request.data
-    
+
     required_fields = ['email', 'password', 'first_name', 'last_name', 'organization_name']
     for field in required_fields:
         if field not in data:
             return Response({
                 'error': f'{field} is required'
             }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         with transaction.atomic():
             # Create user
@@ -69,11 +70,11 @@ def sponsor_signup(request):
                 last_name=data['last_name'],
                 user_type='sponsor_admin'
             )
-            
+
             # Create sponsor organization
             from django.utils.text import slugify
             org_slug = slugify(data['organization_name'])[:50]
-            
+
             sponsor = Sponsor.objects.create(
                 slug=org_slug,
                 name=data['organization_name'],
@@ -84,7 +85,7 @@ def sponsor_signup(request):
                 city=data.get('city'),
                 region=data.get('region')
             )
-            
+
             # Create organization record
             org = Organization.objects.create(
                 slug=org_slug,
@@ -93,14 +94,14 @@ def sponsor_signup(request):
                 status='active',
                 owner=user
             )
-            
+
             # Add user as admin member
             OrganizationMember.objects.create(
                 organization=org,
                 user=user,
                 role='admin'
             )
-            
+
             # Assign sponsor admin role
             sponsor_role, _ = Role.objects.get_or_create(
                 name='sponsor_admin',
@@ -112,14 +113,14 @@ def sponsor_signup(request):
                 scope_type='organization',
                 scope_id=str(org.id)
             )
-            
+
             return Response({
                 'user_id': str(user.id),
                 'sponsor_id': str(sponsor.id),
                 'organization_id': str(org.id),
                 'message': 'Sponsor account created successfully'
             }, status=status.HTTP_201_CREATED)
-            
+
     except Exception as e:
         return Response({
             'error': f'Failed to create sponsor account: {str(e)}'
@@ -131,18 +132,18 @@ def sponsor_signup(request):
 def create_sponsor_org(request):
     """POST /api/v1/auth/orgs - Create sponsor/employer organization entity."""
     data = request.data
-    
+
     required_fields = ['name', 'sponsor_type']
     for field in required_fields:
         if field not in data:
             return Response({
                 'error': f'{field} is required'
             }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         from django.utils.text import slugify
         org_slug = slugify(data['name'])[:50]
-        
+
         sponsor = Sponsor.objects.create(
             slug=org_slug,
             name=data['name'],
@@ -153,13 +154,13 @@ def create_sponsor_org(request):
             city=data.get('city'),
             region=data.get('region')
         )
-        
+
         return Response({
             'sponsor_id': str(sponsor.id),
             'slug': sponsor.slug,
             'message': f'Sponsor organization "{sponsor.name}" created successfully'
         }, status=status.HTTP_201_CREATED)
-        
+
     except Exception as e:
         return Response({
             'error': f'Failed to create sponsor organization: {str(e)}'
@@ -171,17 +172,17 @@ def create_sponsor_org(request):
 def add_org_members(request, org_id):
     """POST /api/v1/auth/orgs/{id}/members - Add sponsor admins or staff to the org."""
     data = request.data
-    
+
     required_fields = ['user_emails', 'role']
     for field in required_fields:
         if field not in data:
             return Response({
                 'error': f'{field} is required'
             }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         org = get_object_or_404(Organization, id=org_id, org_type='sponsor')
-        
+
         # Verify user has admin access to this org
         if not OrganizationMember.objects.filter(
             organization=org, user=request.user, role='admin'
@@ -189,7 +190,7 @@ def add_org_members(request, org_id):
             return Response({
                 'error': 'Only organization admins can add members'
             }, status=status.HTTP_403_FORBIDDEN)
-        
+
         added_members = []
         for email in data['user_emails']:
             try:
@@ -199,22 +200,22 @@ def add_org_members(request, org_id):
                     user=user,
                     defaults={'role': data['role']}
                 )
-                
+
                 if created:
                     added_members.append({
                         'user_id': str(user.id),
                         'email': email,
                         'role': data['role']
                     })
-                    
+
             except User.DoesNotExist:
                 continue
-        
+
         return Response({
             'added_members': added_members,
             'message': f'Added {len(added_members)} members to organization'
         }, status=status.HTTP_201_CREATED)
-        
+
     except Exception as e:
         return Response({
             'error': f'Failed to add organization members: {str(e)}'
@@ -226,30 +227,30 @@ def add_org_members(request, org_id):
 def assign_sponsor_roles(request, user_id):
     """POST /api/v1/auth/users/{id}/roles - Assign sponsor roles scoped to org/cohort."""
     data = request.data
-    
+
     required_fields = ['role_name', 'scope_type']
     for field in required_fields:
         if field not in data:
             return Response({
                 'error': f'{field} is required'
             }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         user = get_object_or_404(User, id=user_id)
         role = get_object_or_404(Role, name=data['role_name'])
-        
+
         user_role = UserRole.objects.create(
             user=user,
             role=role,
             scope_type=data['scope_type'],
             scope_id=data.get('scope_id')
         )
-        
+
         return Response({
             'user_role_id': str(user_role.id),
             'message': f'Role "{role.name}" assigned to user'
         }, status=status.HTTP_201_CREATED)
-        
+
     except Exception as e:
         return Response({
             'error': f'Failed to assign role: {str(e)}'
@@ -261,7 +262,7 @@ def assign_sponsor_roles(request, user_id):
 def sponsor_profile(request):
     """GET /api/v1/auth/me - Retrieve profile, roles, and consent scopes."""
     user = request.user
-    
+
     # Get user roles
     user_roles = UserRole.objects.filter(user=user).select_related('role')
     roles_data = [{
@@ -269,7 +270,7 @@ def sponsor_profile(request):
         'scope_type': ur.scope_type,
         'scope_id': ur.scope_id
     } for ur in user_roles]
-    
+
     # Get consent scopes
     consent_scopes = ConsentScope.objects.filter(user=user, granted=True)
     consents_data = [{
@@ -277,7 +278,7 @@ def sponsor_profile(request):
         'granted_at': cs.granted_at.isoformat(),
         'expires_at': cs.expires_at.isoformat() if cs.expires_at else None
     } for cs in consent_scopes]
-    
+
     # Get sponsor organizations: from OrganizationMember and from user.org_id (sponsor users often have org_id set at creation)
     sponsor_orgs = list(
         Organization.objects.filter(
@@ -303,7 +304,7 @@ def sponsor_profile(request):
             'slug': org.slug,
             'role': role,
         })
-    
+
     return Response({
         'user_id': str(user.id),
         'email': user.email,
@@ -321,14 +322,14 @@ def sponsor_profile(request):
 def update_consent_scopes(request):
     """POST /api/v1/auth/consents - Update consent scopes (e.g., employer view of candidate)."""
     data = request.data
-    
+
     required_fields = ['scope_type', 'granted']
     for field in required_fields:
         if field not in data:
             return Response({
                 'error': f'{field} is required'
             }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         consent, created = ConsentScope.objects.update_or_create(
             user=request.user,
@@ -339,14 +340,14 @@ def update_consent_scopes(request):
                 'expires_at': None
             }
         )
-        
+
         return Response({
             'consent_id': str(consent.id),
             'scope_type': consent.scope_type,
             'granted': consent.granted,
             'message': f'Consent scope "{consent.scope_type}" updated'
         })
-        
+
     except Exception as e:
         return Response({
             'error': f'Failed to update consent: {str(e)}'
@@ -362,17 +363,17 @@ def update_consent_scopes(request):
 def create_sponsored_cohort(request):
     """POST /api/v1/programs/cohorts - Create sponsored cohorts."""
     data = request.data
-    
+
     required_fields = ['name', 'track_slug', 'sponsor_slug']
     for field in required_fields:
         if field not in data:
             return Response({
                 'error': f'{field} is required'
             }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         sponsor = get_object_or_404(Sponsor, slug=data['sponsor_slug'])
-        
+
         cohort = SponsorCohort.objects.create(
             sponsor=sponsor,
             name=data['name'],
@@ -383,7 +384,7 @@ def create_sponsored_cohort(request):
             budget_allocated=data.get('budget_allocated', 0),
             placement_goal=data.get('placement_goal', 0)
         )
-        
+
         return Response({
             'cohort_id': str(cohort.id),
             'name': cohort.name,
@@ -391,7 +392,7 @@ def create_sponsored_cohort(request):
             'track_slug': cohort.track_slug,
             'message': 'Sponsored cohort created successfully'
         }, status=status.HTTP_201_CREATED)
-        
+
     except Exception as e:
         return Response({
             'error': f'Failed to create cohort: {str(e)}'
@@ -417,15 +418,15 @@ def list_sponsored_students(request, cohort_id):
     """GET /api/v1/programs/cohorts/{id}/enrollments - List sponsored students in a cohort."""
     try:
         cohort = get_object_or_404(SponsorCohort, id=cohort_id)
-        
+
         # Check sponsor access
-        sponsor = check_sponsor_access(request.user, cohort.sponsor.slug)
-        
+        check_sponsor_access(request.user, cohort.sponsor.slug)
+
         enrollments = SponsorStudentCohort.objects.filter(
             sponsor_cohort=cohort,
             is_active=True
         ).select_related('student')
-        
+
         students_data = []
         for enrollment in enrollments:
             # Check consent for employer view
@@ -434,7 +435,7 @@ def list_sponsored_students(request, cohort_id):
                 scope_type='employer_share',
                 granted=True
             ).exists()
-            
+
             student_data = {
                 'enrollment_id': str(enrollment.id),
                 'student_id': str(enrollment.student.id),
@@ -447,14 +448,14 @@ def list_sponsored_students(request, cohort_id):
                 'has_employer_consent': has_consent
             }
             students_data.append(student_data)
-        
+
         return Response({
             'cohort_id': str(cohort.id),
             'cohort_name': cohort.name,
             'students': students_data,
             'total_students': len(students_data)
         })
-        
+
     except Exception as e:
         return Response({
             'error': f'Failed to list students: {str(e)}'
@@ -467,31 +468,31 @@ def cohort_reports(request, cohort_id):
     """GET /api/v1/programs/cohorts/{id}/reports - View seat utilization, completion rates, and payments."""
     try:
         cohort = get_object_or_404(SponsorCohort, id=cohort_id)
-        
+
         # Check sponsor access
-        sponsor = check_sponsor_access(request.user, cohort.sponsor.slug)
-        
+        check_sponsor_access(request.user, cohort.sponsor.slug)
+
         # Calculate metrics
         total_enrolled = cohort.student_enrollments.filter(is_active=True).count()
         completed_students = cohort.student_enrollments.filter(enrollment_status='completed').count()
-        
+
         # Seat utilization
         seat_utilization = (total_enrolled / cohort.target_size * 100) if cohort.target_size > 0 else 0
-        
+
         # Completion rate
         completion_rate = (completed_students / total_enrolled * 100) if total_enrolled > 0 else 0
-        
+
         # Financial metrics
         billing_records = SponsorCohortBilling.objects.filter(sponsor_cohort=cohort)
         total_cost = sum(record.total_cost for record in billing_records)
         total_revenue = sum(record.revenue_share_kes for record in billing_records)
         net_cost = total_cost - total_revenue
-        
+
         # Payment status
         paid_invoices = billing_records.filter(payment_status='paid').count()
         pending_invoices = billing_records.filter(payment_status='pending').count()
         overdue_invoices = billing_records.filter(payment_status='overdue').count()
-        
+
         return Response({
             'cohort_id': str(cohort.id),
             'cohort_name': cohort.name,
@@ -520,7 +521,7 @@ def cohort_reports(request, cohort_id):
                 'total_invoices': billing_records.count()
             }
         })
-        
+
     except Exception as e:
         return Response({
             'error': f'Failed to generate reports: {str(e)}'
@@ -577,22 +578,22 @@ def billing_catalog(request):
 def create_checkout_session(request):
     """POST /api/v1/billing/checkout/sessions - Pay for sponsored seats."""
     data = request.data
-    
+
     required_fields = ['cohort_id', 'seats_count']
     for field in required_fields:
         if field not in data:
             return Response({
                 'error': f'{field} is required'
             }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         cohort = get_object_or_404(SponsorCohort, id=data['cohort_id'])
-        
+
         # Calculate amount (20,000 KES per seat per month)
         seats_count = data['seats_count']
         price_per_seat = 20000  # KES
         total_amount = seats_count * price_per_seat
-        
+
         # Create financial transaction
         transaction = SponsorFinancialTransaction.objects.create(
             sponsor=cohort.sponsor,
@@ -603,7 +604,7 @@ def create_checkout_session(request):
             currency='KES',
             status='pending'
         )
-        
+
         # In a real implementation, integrate with payment gateway
         checkout_session = {
             'session_id': str(transaction.id),
@@ -614,9 +615,9 @@ def create_checkout_session(request):
             'payment_url': f'/payment/checkout/{transaction.id}',  # Mock URL
             'expires_at': (timezone.now() + timedelta(hours=1)).isoformat()
         }
-        
+
         return Response(checkout_session, status=status.HTTP_201_CREATED)
-        
+
     except Exception as e:
         return Response({
             'error': f'Failed to create checkout session: {str(e)}'
@@ -842,6 +843,7 @@ def _paystack_initialize_for_invoice(amount_kes, email, callback_url, metadata=N
     import os
     import random
     import string
+
     import requests
     secret_key = os.environ.get('PAYSTACK_SECRET_KEY') or os.environ.get('PAYSTACK_SECRET')
     if not secret_key:
@@ -1043,6 +1045,7 @@ def verify_org_enrollment_invoice_payment(request, invoice_id):
     if inv.paystack_reference != reference:
         return Response({'error': 'Invalid reference for this invoice'}, status=status.HTTP_400_BAD_REQUEST)
     import os
+
     import requests
     secret_key = os.environ.get('PAYSTACK_SECRET_KEY') or os.environ.get('PAYSTACK_SECRET')
     if not secret_key:
@@ -1093,7 +1096,7 @@ def platform_finance_overview(request):
         total_platform_cost = float(agg.get('total_platform_cost') or 0)
         total_revenue_share = float(agg.get('total_revenue_share') or 0)
         total_hires = int(agg.get('total_hires') or 0)
-        total_net = float(agg.get('total_net') or 0)
+        float(agg.get('total_net') or 0)
         total_value_created = total_platform_cost  # proxy for display
         total_roi = (total_value_created / total_platform_cost) if total_platform_cost else 0
 
@@ -1148,7 +1151,7 @@ def revenue_dashboard(request):
     All data from DB (no dummy data).
     """
     try:
-        from subscriptions.models import SubscriptionPlan, UserSubscription, PaymentTransaction
+        from subscriptions.models import PaymentTransaction, SubscriptionPlan, UserSubscription
 
         # 1) Subscription plans bought (count of active paid subscriptions)
         subscription_plans_bought = UserSubscription.objects.filter(status='active').count()
@@ -1240,14 +1243,15 @@ def finance_roi_report_pdf(request):
     """
     try:
         from io import BytesIO
+
         from django.http import HttpResponse as HttpResp
 
         try:
-            from reportlab.lib.pagesizes import A4
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.lib.units import inch
-            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
             from reportlab.lib import colors
+            from reportlab.lib.pagesizes import A4
+            from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+            from reportlab.lib.units import inch
+            from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
         except ImportError:
             return Response(
                 {'error': 'PDF generation requires reportlab. Install: pip install reportlab'},
@@ -1458,32 +1462,32 @@ def sponsor_entitlements(request):
 def send_sponsor_message(request):
     """POST /api/v1/notifications/send - Send sponsor/employer messages to students."""
     data = request.data
-    
+
     required_fields = ['recipient_type', 'message', 'subject']
     for field in required_fields:
         if field not in data:
             return Response({
                 'error': f'{field} is required'
             }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         # Get sponsor from user
         sponsor_orgs = Organization.objects.filter(
             org_type='sponsor',
             organizationmember__user=request.user
         ).first()
-        
+
         if not sponsor_orgs:
             return Response({
                 'error': 'User is not associated with a sponsor organization'
             }, status=status.HTTP_403_FORBIDDEN)
-        
+
         sponsor = Sponsor.objects.filter(slug=sponsor_orgs.slug).first()
         if not sponsor:
             return Response({
                 'error': 'Sponsor organization not found'
             }, status=status.HTTP_404_NOT_FOUND)
-        
+
         # Get recipients based on type
         recipients = []
         if data['recipient_type'] == 'cohort' and 'cohort_id' in data:
@@ -1493,7 +1497,7 @@ def send_sponsor_message(request):
                 is_active=True
             ).select_related('student')
             recipients = [enrollment.student for enrollment in enrollments]
-            
+
         elif data['recipient_type'] == 'all_students':
             # All sponsored students
             enrollments = SponsorStudentCohort.objects.filter(
@@ -1501,13 +1505,13 @@ def send_sponsor_message(request):
                 is_active=True
             ).select_related('student')
             recipients = [enrollment.student for enrollment in enrollments]
-            
+
         elif data['recipient_type'] == 'specific_students' and 'student_ids' in data:
             recipients = User.objects.filter(id__in=data['student_ids'])
-        
+
         # TODO: Integrate with actual notification service
         # For now, just log the message
-        message_log = {
+        {
             'sender': request.user.email,
             'sponsor': sponsor.name,
             'subject': data['subject'],
@@ -1515,14 +1519,14 @@ def send_sponsor_message(request):
             'recipient_count': len(recipients),
             'sent_at': timezone.now().isoformat()
         }
-        
+
         return Response({
             'message_id': f"msg_{timezone.now().timestamp()}",
             'recipients_count': len(recipients),
             'status': 'sent',
             'message': 'Message sent successfully to sponsored students'
         }, status=status.HTTP_201_CREATED)
-        
+
     except Exception as e:
         return Response({
             'error': f'Failed to send message: {str(e)}'
@@ -1543,22 +1547,22 @@ def sponsor_consents(request):
             org_type='sponsor',
             organizationmember__user=request.user
         ).first()
-        
+
         if not sponsor_orgs:
             return Response({
                 'error': 'User is not associated with a sponsor organization'
             }, status=status.HTTP_403_FORBIDDEN)
-        
+
         sponsor = Sponsor.objects.filter(slug=sponsor_orgs.slug).first()
         if not sponsor:
             return Response({'consents': []})
-        
+
         # Get sponsored students
         sponsored_students = User.objects.filter(
             sponsor_enrollments__sponsor_cohort__sponsor=sponsor,
             sponsor_enrollments__is_active=True
         ).distinct()
-        
+
         consents_data = []
         for student in sponsored_students:
             # Get consent scopes for this student
@@ -1566,14 +1570,14 @@ def sponsor_consents(request):
                 user=student,
                 granted=True
             )
-            
+
             student_consents = {
                 'student_id': str(student.id),
                 'student_name': f"{student.first_name} {student.last_name}".strip(),
                 'student_email': student.email,
                 'consents': []
             }
-            
+
             for consent in consent_scopes:
                 consent_data = {
                     'scope_type': consent.scope_type,
@@ -1582,14 +1586,14 @@ def sponsor_consents(request):
                     'expires_at': consent.expires_at.isoformat() if consent.expires_at else None
                 }
                 student_consents['consents'].append(consent_data)
-            
+
             consents_data.append(student_consents)
-        
+
         return Response({
             'consents': consents_data,
             'total_students': len(consents_data)
         })
-        
+
     except Exception as e:
         return Response({
             'error': f'Failed to retrieve consents: {str(e)}'
@@ -1601,62 +1605,62 @@ def sponsor_consents(request):
 def check_student_consent(request):
     """POST /api/v1/privacy/check - Real-time consent check (e.g., employer viewing candidate profile)."""
     data = request.data
-    
+
     required_fields = ['student_id', 'scope_type']
     for field in required_fields:
         if field not in data:
             return Response({
                 'error': f'{field} is required'
             }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         student = get_object_or_404(User, id=data['student_id'])
-        
+
         # Check if student is sponsored by this user's organization
         sponsor_orgs = Organization.objects.filter(
             org_type='sponsor',
             organizationmember__user=request.user
         ).first()
-        
+
         if not sponsor_orgs:
             return Response({
                 'error': 'User is not associated with a sponsor organization'
             }, status=status.HTTP_403_FORBIDDEN)
-        
+
         sponsor = Sponsor.objects.filter(slug=sponsor_orgs.slug).first()
         if not sponsor:
             return Response({
                 'has_consent': False,
                 'reason': 'Sponsor organization not found'
             })
-        
+
         # Check if student is sponsored
         is_sponsored = SponsorStudentCohort.objects.filter(
             sponsor_cohort__sponsor=sponsor,
             student=student,
             is_active=True
         ).exists()
-        
+
         if not is_sponsored:
             return Response({
                 'has_consent': False,
                 'reason': 'Student is not sponsored by your organization'
             })
-        
+
         # Check consent
         has_consent = ConsentScope.objects.filter(
             user=student,
             scope_type=data['scope_type'],
             granted=True
         ).exists()
-        
+
         return Response({
             'student_id': str(student.id),
             'scope_type': data['scope_type'],
             'has_consent': has_consent,
             'checked_at': timezone.now().isoformat()
         })
-        
+
     except Exception as e:
         return Response({
             'error': f'Failed to check consent: {str(e)}'
@@ -1677,18 +1681,18 @@ def sponsor_metrics(request, metric_key):
             org_type='sponsor',
             organizationmember__user=request.user
         ).first()
-        
+
         if not sponsor_orgs:
             return Response({
                 'error': 'User is not associated with a sponsor organization'
             }, status=status.HTTP_403_FORBIDDEN)
-        
+
         sponsor = Sponsor.objects.filter(slug=sponsor_orgs.slug).first()
         if not sponsor:
             return Response({
                 'error': 'Sponsor organization not found'
             }, status=status.HTTP_404_NOT_FOUND)
-        
+
         # Get or create analytics cache
         analytics, created = SponsorAnalytics.objects.get_or_create(
             sponsor=sponsor,
@@ -1700,7 +1704,7 @@ def sponsor_metrics(request, metric_key):
                 'roi_multiplier': 1.0
             }
         )
-        
+
         # Define available metrics
         metrics_map = {
             'seat_utilization': {
@@ -1724,13 +1728,13 @@ def sponsor_metrics(request, metric_key):
                 'avg_readiness_score': float(analytics.avg_readiness_score)
             }
         }
-        
+
         if metric_key not in metrics_map:
             return Response({
                 'error': f'Unknown metric key: {metric_key}',
                 'available_metrics': list(metrics_map.keys())
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         return Response({
             'metric_key': metric_key,
             'sponsor_id': str(sponsor.id),
@@ -1738,7 +1742,7 @@ def sponsor_metrics(request, metric_key):
             'data': metrics_map[metric_key],
             'last_updated': analytics.last_updated.isoformat()
         })
-        
+
     except Exception as e:
         return Response({
             'error': f'Failed to retrieve metrics: {str(e)}'
@@ -1755,21 +1759,21 @@ def export_dashboard_pdf(request, dashboard_id):
             org_type='sponsor',
             organizationmember__user=request.user
         ).first()
-        
+
         if not sponsor_orgs:
             return Response({
                 'error': 'User is not associated with a sponsor organization'
             }, status=status.HTTP_403_FORBIDDEN)
-        
+
         sponsor = Sponsor.objects.filter(slug=sponsor_orgs.slug).first()
         if not sponsor:
             return Response({
                 'error': 'Sponsor organization not found'
             }, status=status.HTTP_404_NOT_FOUND)
-        
+
         # TODO: Implement actual PDF generation
         # For now, return a mock response
-        
+
         pdf_data = {
             'dashboard_id': dashboard_id,
             'sponsor_name': sponsor.name,
@@ -1779,9 +1783,9 @@ def export_dashboard_pdf(request, dashboard_id):
             'file_size_bytes': 1024000,  # Mock 1MB
             'status': 'ready'
         }
-        
+
         return Response(pdf_data)
-        
+
     except Exception as e:
         return Response({
             'error': f'Failed to export dashboard: {str(e)}'
@@ -1793,32 +1797,33 @@ def export_dashboard_pdf(request, dashboard_id):
 def assign_sponsors_to_cohort(request):
     """POST /api/v1/programs/cohorts/assign-sponsors - Assign sponsors to cohorts"""
     data = request.data
-    
+
     required_fields = ['cohort_id', 'sponsor_assignments']
     for field in required_fields:
         if field not in data:
             return Response({
                 'error': f'{field} is required'
             }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         from programs.models import Cohort
+
         from .models import SponsorCohortAssignment
-        
+
         cohort = get_object_or_404(Cohort, id=data['cohort_id'])
-        
+
         created_assignments = []
         for assignment_data in data['sponsor_assignments']:
             sponsor_uuid = assignment_data.get('sponsor_uuid_id')
             seat_allocation = assignment_data.get('seat_allocation', 1)
             role = assignment_data.get('role', 'funding')
-            
+
             if not sponsor_uuid:
                 continue
-                
+
             try:
                 sponsor_user = User.objects.get(uuid_id=sponsor_uuid)
-                
+
                 assignment, created = SponsorCohortAssignment.objects.get_or_create(
                     sponsor=sponsor_user,
                     cohort=cohort,
@@ -1830,7 +1835,7 @@ def assign_sponsors_to_cohort(request):
                         'funding_agreement_id': assignment_data.get('funding_agreement_id')
                     }
                 )
-                
+
                 if created:
                     created_assignments.append({
                         'assignment_id': str(assignment.id),
@@ -1839,17 +1844,17 @@ def assign_sponsors_to_cohort(request):
                         'seat_allocation': assignment.seat_allocation,
                         'role': assignment.role
                     })
-                    
+
             except User.DoesNotExist:
                 continue
-        
+
         return Response({
             'message': f'Successfully assigned {len(created_assignments)} sponsor(s) to cohort',
             'assignments': created_assignments,
             'cohort_id': str(cohort.id),
             'cohort_name': cohort.name
         }, status=status.HTTP_201_CREATED)
-        
+
     except Exception as e:
         return Response({
             'error': f'Failed to assign sponsors: {str(e)}'
@@ -1862,9 +1867,9 @@ def get_sponsor_assignments(request):
     """GET /api/v1/programs/cohorts/assignments - Get all sponsor assignments"""
     try:
         from .models import SponsorCohortAssignment
-        
+
         assignments = SponsorCohortAssignment.objects.all().select_related('sponsor', 'cohort')
-        
+
         assignments_data = []
         for assignment in assignments:
             assignment_data = {
@@ -1883,12 +1888,12 @@ def get_sponsor_assignments(request):
                 'updated_at': assignment.updated_at.isoformat()
             }
             assignments_data.append(assignment_data)
-        
+
         return Response({
             'assignments': assignments_data,
             'total_assignments': len(assignments_data)
         })
-        
+
     except Exception as e:
         return Response({
             'error': f'Failed to retrieve assignments: {str(e)}'

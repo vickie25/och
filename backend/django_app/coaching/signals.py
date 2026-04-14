@@ -1,11 +1,13 @@
 """
 Coaching OS Django Signals - Platform integrations.
 """
-from django.db.models.signals import post_save, post_delete
-from django.dispatch import receiver
-from .models import Habit, HabitLog, Goal, Reflection
-from .services import update_habit_streak, emit_coaching_event
 import logging
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+from .models import Goal, HabitLog, Reflection
+from .services import emit_coaching_event, update_habit_streak
 
 logger = logging.getLogger(__name__)
 
@@ -48,14 +50,14 @@ def on_profiler_completed(sender, instance, created, **kwargs):
     # Check if profiler is finished (status='finished')
     if instance.status == 'finished':
         from .models import Habit
-        
+
         # Create 3 core habits
         core_habits = [
             {'name': 'Learn', 'type': 'core', 'frequency': 'daily'},
             {'name': 'Practice', 'type': 'core', 'frequency': 'daily'},
             {'name': 'Reflect', 'type': 'core', 'frequency': 'daily'},
         ]
-        
+
         for habit_data in core_habits:
             Habit.objects.get_or_create(
                 user=instance.user,
@@ -66,7 +68,7 @@ def on_profiler_completed(sender, instance, created, **kwargs):
                     'is_active': True,
                 }
             )
-        
+
         logger.info(f"Created onboarding habits for user {instance.user.id}")
 
 

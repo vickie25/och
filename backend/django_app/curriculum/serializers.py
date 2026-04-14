@@ -2,16 +2,26 @@
 Curriculum Engine serializers - API responses for tracks, modules, lessons, and progress.
 """
 from rest_framework import serializers
-from django.db.models import Count, Avg
-from .models import (
-    CurriculumTrack, CurriculumLevel, CurriculumModule, CurriculumContent,
-    StrategicSession, UserTrackEnrollment, UserContentProgress, Lesson, ModuleMission,
-    RecipeRecommendation, UserTrackProgress, UserModuleProgress,
-    UserLessonProgress, UserMissionProgress, CurriculumActivity,
-    CrossTrackSubmission, CrossTrackProgramProgress,
-    CurriculumTrackMentorAssignment,
-)
 
+from .models import (
+    CrossTrackProgramProgress,
+    CrossTrackSubmission,
+    CurriculumActivity,
+    CurriculumContent,
+    CurriculumLevel,
+    CurriculumModule,
+    CurriculumTrack,
+    CurriculumTrackMentorAssignment,
+    Lesson,
+    ModuleMission,
+    RecipeRecommendation,
+    UserContentProgress,
+    UserLessonProgress,
+    UserMissionProgress,
+    UserModuleProgress,
+    UserTrackEnrollment,
+    UserTrackProgress,
+)
 
 # New Curriculum Navigation System Serializers
 
@@ -263,16 +273,16 @@ class LessonSerializer(serializers.ModelSerializer):
             'is_completed', 'user_progress', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
-    
+
     def get_is_completed(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return obj.user_progress.filter(
-                user=request.user, 
+                user=request.user,
                 status='completed'
             ).exists()
         return False
-    
+
     def get_user_progress(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -290,7 +300,7 @@ class LessonSerializer(serializers.ModelSerializer):
 class ModuleMissionSerializer(serializers.ModelSerializer):
     """Serializer for module-mission links."""
     user_progress = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = ModuleMission
         fields = [
@@ -299,7 +309,7 @@ class ModuleMissionSerializer(serializers.ModelSerializer):
             'user_progress'
         ]
         read_only_fields = ['id']
-    
+
     def get_user_progress(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -316,7 +326,7 @@ class ModuleMissionSerializer(serializers.ModelSerializer):
 
 class RecipeRecommendationSerializer(serializers.ModelSerializer):
     """Serializer for recipe recommendations."""
-    
+
     class Meta:
         model = RecipeRecommendation
         fields = [
@@ -346,7 +356,7 @@ class CurriculumModuleListSerializer(serializers.ModelSerializer):
             'completion_percentage', 'is_locked', 'mentor_notes'
         ]
         read_only_fields = ['id']
-    
+
     def get_completion_percentage(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -354,12 +364,12 @@ class CurriculumModuleListSerializer(serializers.ModelSerializer):
             if progress:
                 return float(progress.completion_percentage)
         return 0
-    
+
     def get_is_locked(self, obj):
         """Check if module is locked based on subscription tier."""
-        request = self.context.get('request')
+        self.context.get('request')
         subscription_tier = self.context.get('subscription_tier', 'free')
-        
+
         if obj.entitlement_tier == 'all':
             return False
         if obj.entitlement_tier == 'professional' and subscription_tier != 'professional':
@@ -381,7 +391,7 @@ class CurriculumModuleDetailSerializer(serializers.ModelSerializer):
 
     def get_lesson_count(self, obj):
         return obj.lessons.count()
-    
+
     class Meta:
         model = CurriculumModule
         fields = [
@@ -393,7 +403,7 @@ class CurriculumModuleDetailSerializer(serializers.ModelSerializer):
             'user_progress', 'is_locked', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
-    
+
     def get_user_progress(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -408,7 +418,7 @@ class CurriculumModuleDetailSerializer(serializers.ModelSerializer):
                     'time_spent_minutes': progress.time_spent_minutes,
                 }
         return None
-    
+
     def get_is_locked(self, obj):
         subscription_tier = self.context.get('subscription_tier', 'free')
         if obj.entitlement_tier == 'all':
@@ -434,7 +444,7 @@ class CurriculumTrackListSerializer(serializers.ModelSerializer):
             'is_active', 'user_progress'
         ]
         read_only_fields = ['id']
-    
+
     def get_user_progress(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -468,7 +478,7 @@ class CurriculumTrackDetailSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
-    
+
     def get_user_progress(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -476,7 +486,7 @@ class CurriculumTrackDetailSerializer(serializers.ModelSerializer):
             if progress:
                 return UserTrackProgressSerializer(progress).data
         return None
-    
+
     def get_recent_activities(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -486,13 +496,13 @@ class CurriculumTrackDetailSerializer(serializers.ModelSerializer):
             ).order_by('-created_at')[:5]
             return CurriculumActivitySerializer(activities, many=True).data
         return []
-    
+
     def get_next_action(self, obj):
         """Calculate the next recommended action for the user."""
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
             return None
-        
+
         # Find first incomplete required module
         user_progress = obj.user_progress.filter(user=request.user).first()
         if not user_progress or not user_progress.current_module:
@@ -513,7 +523,7 @@ class CurriculumTrackDetailSerializer(serializers.ModelSerializer):
                 user_progress__user=request.user,
                 user_progress__status='completed'
             ).first()
-            
+
             if pending_mission:
                 return {
                     'type': 'start_mission',
@@ -522,13 +532,13 @@ class CurriculumTrackDetailSerializer(serializers.ModelSerializer):
                     'mission_id': str(pending_mission.mission_id),
                     'url': f'/missions/{pending_mission.mission_id}'
                 }
-            
+
             # Check for incomplete lessons
             incomplete_lesson = current.lessons.exclude(
                 user_progress__user=request.user,
                 user_progress__status='completed'
             ).first()
-            
+
             if incomplete_lesson:
                 return {
                     'type': 'continue_lesson',
@@ -537,13 +547,13 @@ class CurriculumTrackDetailSerializer(serializers.ModelSerializer):
                     'lesson_id': str(incomplete_lesson.id),
                     'url': f'/curriculum/{obj.code}/lesson/{incomplete_lesson.id}'
                 }
-            
+
             # Module complete, move to next
             next_module = obj.modules.filter(
                 is_active=True,
                 order_index__gt=current.order_index
             ).order_by('order_index').first()
-            
+
             if next_module:
                 return {
                     'type': 'next_module',
@@ -552,7 +562,7 @@ class CurriculumTrackDetailSerializer(serializers.ModelSerializer):
                     'module_id': str(next_module.id),
                     'url': f'/curriculum/{obj.code}/module/{next_module.id}'
                 }
-        
+
         return {
             'type': 'track_complete',
             'icon': '🎉',
@@ -597,7 +607,7 @@ class UserTrackProgressSerializer(serializers.ModelSerializer):
     track_name = serializers.CharField(source='track.name', read_only=True)
     track_code = serializers.CharField(source='track.code', read_only=True)
     current_module_title = serializers.CharField(source='current_module.title', read_only=True, allow_null=True)
-    
+
     class Meta:
         model = UserTrackProgress
         fields = [
@@ -621,7 +631,7 @@ class UserTrackProgressSerializer(serializers.ModelSerializer):
 class UserModuleProgressSerializer(serializers.ModelSerializer):
     """Serializer for user module progress."""
     module_title = serializers.CharField(source='module.title', read_only=True)
-    
+
     class Meta:
         model = UserModuleProgress
         fields = [
@@ -636,7 +646,7 @@ class UserModuleProgressSerializer(serializers.ModelSerializer):
 class UserLessonProgressSerializer(serializers.ModelSerializer):
     """Serializer for user lesson progress."""
     lesson_title = serializers.CharField(source='lesson.title', read_only=True)
-    
+
     class Meta:
         model = UserLessonProgress
         fields = [
@@ -650,7 +660,7 @@ class UserLessonProgressSerializer(serializers.ModelSerializer):
 class UserMissionProgressSerializer(serializers.ModelSerializer):
     """Serializer for user mission progress."""
     mission_title = serializers.CharField(source='module_mission.mission_title', read_only=True)
-    
+
     class Meta:
         model = UserMissionProgress
         fields = [
@@ -667,7 +677,7 @@ class CurriculumActivitySerializer(serializers.ModelSerializer):
     track_name = serializers.CharField(source='track.name', read_only=True, allow_null=True)
     module_title = serializers.CharField(source='module.title', read_only=True, allow_null=True)
     lesson_title = serializers.CharField(source='lesson.title', read_only=True, allow_null=True)
-    
+
     class Meta:
         model = CurriculumActivity
         fields = [
@@ -712,7 +722,7 @@ class CrossTrackSubmissionSerializer(serializers.ModelSerializer):
     module_title = serializers.CharField(source='module.title', read_only=True, allow_null=True)
     lesson_title = serializers.CharField(source='lesson.title', read_only=True, allow_null=True)
     mentor_name = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = CrossTrackSubmission
         fields = [
@@ -726,7 +736,7 @@ class CrossTrackSubmissionSerializer(serializers.ModelSerializer):
             'metadata', 'created_at', 'updated_at', 'submitted_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'submitted_at', 'mentor_reviewed_at']
-    
+
     def get_mentor_name(self, obj):
         if obj.mentor_reviewed_by:
             return f"{obj.mentor_reviewed_by.first_name} {obj.mentor_reviewed_by.last_name}".strip() or obj.mentor_reviewed_by.email
@@ -753,7 +763,7 @@ class CrossTrackProgramProgressSerializer(serializers.ModelSerializer):
     """Serializer for cross-track program progress."""
     track_name = serializers.CharField(source='track.name', read_only=True)
     track_code = serializers.CharField(source='track.code', read_only=True)
-    
+
     class Meta:
         model = CrossTrackProgramProgress
         fields = [

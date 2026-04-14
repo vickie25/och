@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Fix all tables with user_id that should be UUID instead of BIGINT."""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')

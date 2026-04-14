@@ -2,24 +2,25 @@
 Admin API views for Subscription Engine management.
 Only accessible to admin users.
 """
-from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import action
-from rest_framework.response import Response
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
-from django.contrib.auth import get_user_model
+from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from users.utils.audit_utils import log_audit_event
 
 from .models import (
-    SubscriptionPlan,
-    UserSubscription,
-    PaymentGateway,
-    PaymentTransaction,
-    SubscriptionRule,
-    PaymentSettings,
     TIER_FREE,
+    PaymentGateway,
+    PaymentSettings,
+    PaymentTransaction,
+    SubscriptionPlan,
+    SubscriptionRule,
+    UserSubscription,
 )
 from .serializers import SubscriptionPlanSerializer, UserSubscriptionSerializer
-from users.utils.audit_utils import log_audit_event
 
 User = get_user_model()
 
@@ -47,8 +48,8 @@ class IsAdminOrDirector(permissions.BasePermission):
         from users.models import UserRole
         # Check for admin or program_director role
         return UserRole.objects.filter(
-            user=request.user, 
-            role__name__in=['admin', 'program_director'], 
+            user=request.user,
+            role__name__in=['admin', 'program_director'],
             is_active=True
         ).exists()
 
@@ -169,7 +170,7 @@ class SubscriptionPlanViewSet(viewsets.ModelViewSet):
         # For create/update/delete actions, only allow admin
         else:
             return [permissions.IsAuthenticated(), IsAdmin()]
-    
+
     def get_serializer_class(self):
         from .serializers import SubscriptionPlanSerializer
         return SubscriptionPlanSerializer
@@ -180,7 +181,7 @@ class UserSubscriptionAdminViewSet(viewsets.ModelViewSet):
     queryset = UserSubscription.objects.select_related('user', 'plan').all()
     serializer_class = UserSubscriptionSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdminOrDirector]
-    
+
     def get_queryset(self):
         queryset = super().get_queryset()
         # Filter by user email or username
@@ -200,30 +201,30 @@ class UserSubscriptionAdminViewSet(viewsets.ModelViewSet):
         if status_filter:
             queryset = queryset.filter(status=status_filter)
         return queryset
-    
+
     def update(self, request, *args, **kwargs):
         """Update subscription with audit logging."""
         instance = self.get_object()
         old_status = instance.status
         old_plan_id = str(instance.plan.id)
-        
+
         response = super().update(request, *args, **kwargs)
-        
+
         if response.status_code == status.HTTP_200_OK:
             instance.refresh_from_db()
             changes = {}
-            
+
             if 'status' in request.data and instance.status != old_status:
                 changes['status'] = {'old': old_status, 'new': instance.status}
-            
+
             if 'plan_id' in request.data:
-                new_plan_id = request.data.get('plan_id')
+                request.data.get('plan_id')
                 if str(instance.plan.id) != old_plan_id:
                     changes['plan'] = {
                         'old': {'id': old_plan_id},
                         'new': {'id': str(instance.plan.id), 'name': instance.plan.name}
                     }
-            
+
             if changes:
                 log_audit_event(
                     request=request,
@@ -238,21 +239,21 @@ class UserSubscriptionAdminViewSet(viewsets.ModelViewSet):
                         'user_id': str(instance.user.id)
                     }
                 )
-        
+
         return response
-    
+
     @action(detail=True, methods=['post'])
     def upgrade(self, request, pk=None):
         """Manually upgrade a user's subscription."""
         subscription = self.get_object()
         new_plan_id = request.data.get('plan_id')
-        
+
         if not new_plan_id:
             return Response(
                 {'error': 'plan_id is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
             new_plan = SubscriptionPlan.objects.get(id=new_plan_id)
         except SubscriptionPlan.DoesNotExist:
@@ -260,17 +261,17 @@ class UserSubscriptionAdminViewSet(viewsets.ModelViewSet):
                 {'error': 'Invalid plan'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Store old values for audit log
         old_plan_id = str(subscription.plan.id)
         old_plan_name = subscription.plan.name
         old_enhanced_access = subscription.enhanced_access_expires_at
-        
+
         # Check if it's an upgrade
         tier_levels = {'free': 0, 'starter': 1, 'premium': 2}
-        current_level = tier_levels.get(subscription.plan.tier, 0)
-        new_level = tier_levels.get(new_plan.tier, 0)
-        
+        tier_levels.get(subscription.plan.tier, 0)
+        tier_levels.get(new_plan.tier, 0)
+
         with transaction.atomic():
             subscription.plan = new_plan
             # If upgrading to starter, set enhanced access period
@@ -279,7 +280,7 @@ class UserSubscriptionAdminViewSet(viewsets.ModelViewSet):
                     timezone.now() + timezone.timedelta(days=new_plan.enhanced_access_days)
                 )
             subscription.save()
-            
+
             # Log audit event
             log_audit_event(
                 request=request,
@@ -306,24 +307,24 @@ class UserSubscriptionAdminViewSet(viewsets.ModelViewSet):
                     'new_tier': new_plan.tier
                 }
             )
-        
+
         return Response({
             'message': 'Subscription upgraded successfully',
             'subscription': UserSubscriptionSerializer(subscription).data
         })
-    
+
     @action(detail=True, methods=['post'])
     def downgrade(self, request, pk=None):
         """Schedule a downgrade (takes effect at end of billing cycle)."""
         subscription = self.get_object()
         new_plan_id = request.data.get('plan_id')
-        
+
         if not new_plan_id:
             return Response(
                 {'error': 'plan_id is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
             new_plan = SubscriptionPlan.objects.get(id=new_plan_id)
         except SubscriptionPlan.DoesNotExist:
@@ -331,19 +332,19 @@ class UserSubscriptionAdminViewSet(viewsets.ModelViewSet):
                 {'error': 'Invalid plan'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Store old values for audit log
         old_plan_id = str(subscription.plan.id)
         old_plan_name = subscription.plan.name
         old_enhanced_access = subscription.enhanced_access_expires_at
-        
+
         # Downgrades take effect at end of billing cycle
         # Store pending downgrade in metadata or separate field
         # For now, apply immediately (can be enhanced later)
         subscription.plan = new_plan
         subscription.enhanced_access_expires_at = None  # Clear enhanced access
         subscription.save()
-        
+
         # Log audit event
         log_audit_event(
             request=request,
@@ -371,7 +372,7 @@ class UserSubscriptionAdminViewSet(viewsets.ModelViewSet):
                 'scheduled_for': str(subscription.current_period_end) if subscription.current_period_end else None
             }
         )
-        
+
         return Response({
             'message': 'Subscription downgrade scheduled',
             'subscription': UserSubscriptionSerializer(subscription).data
@@ -382,18 +383,18 @@ class PaymentGatewayViewSet(viewsets.ModelViewSet):
     """Admin viewset for managing payment gateways."""
     queryset = PaymentGateway.objects.all()
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
-    
+
     def get_serializer_class(self):
         from rest_framework import serializers
-        
+
         class PaymentGatewaySerializer(serializers.ModelSerializer):
             class Meta:
                 model = PaymentGateway
                 fields = '__all__'
                 read_only_fields = ['id', 'created_at', 'updated_at']
-        
+
         return PaymentGatewaySerializer
-    
+
     @action(detail=True, methods=['post'])
     def toggle_enabled(self, request, pk=None):
         """Toggle gateway enabled status."""
@@ -410,7 +411,7 @@ class PaymentTransactionViewSet(viewsets.ModelViewSet):
     """Admin viewset for viewing and managing payment transactions."""
     queryset = PaymentTransaction.objects.select_related('user', 'gateway', 'subscription').all()
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
-    
+
     def get_serializer_class(self):
         from rest_framework import serializers
 
@@ -427,7 +428,7 @@ class PaymentTransactionViewSet(viewsets.ModelViewSet):
                 read_only_fields = ['id', 'created_at', 'updated_at']
 
         return PaymentTransactionSerializer
-    
+
     def get_queryset(self):
         queryset = super().get_queryset()
         # Filter by user — accepts user ID (int/uuid) or email substring
@@ -446,22 +447,22 @@ class PaymentTransactionViewSet(viewsets.ModelViewSet):
         if gateway_id:
             queryset = queryset.filter(gateway_id=gateway_id)
         return queryset.order_by('-created_at')
-    
+
     @action(detail=True, methods=['post'])
     def refund(self, request, pk=None):
         """Mark a transaction as refunded."""
         transaction_obj = self.get_object()
         old_status = transaction_obj.status
-        
+
         if transaction_obj.status == 'refunded':
             return Response(
                 {'error': 'Transaction is already refunded'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         transaction_obj.status = 'refunded'
         transaction_obj.save()
-        
+
         # Log audit event
         log_audit_event(
             request=request,
@@ -485,7 +486,7 @@ class PaymentTransactionViewSet(viewsets.ModelViewSet):
                 'gateway': transaction_obj.gateway.name if transaction_obj.gateway else None
             }
         )
-        
+
         return Response({
             'message': 'Transaction marked as refunded',
             'transaction': self.get_serializer(transaction_obj).data
@@ -496,16 +497,16 @@ class SubscriptionRuleViewSet(viewsets.ModelViewSet):
     """Admin viewset for managing subscription rules."""
     queryset = SubscriptionRule.objects.all()
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
-    
+
     def get_serializer_class(self):
         from rest_framework import serializers
-        
+
         class SubscriptionRuleSerializer(serializers.ModelSerializer):
             class Meta:
                 model = SubscriptionRule
                 fields = '__all__'
                 read_only_fields = ['id', 'created_at', 'updated_at']
-        
+
         return SubscriptionRuleSerializer
 
 
@@ -513,18 +514,18 @@ class PaymentSettingsViewSet(viewsets.ModelViewSet):
     """Admin viewset for managing payment settings."""
     queryset = PaymentSettings.objects.all()
     permission_classes = [permissions.IsAuthenticated, IsAdmin]
-    
+
     def get_serializer_class(self):
         from rest_framework import serializers
-        
+
         class PaymentSettingsSerializer(serializers.ModelSerializer):
             class Meta:
                 model = PaymentSettings
                 fields = '__all__'
                 read_only_fields = ['id', 'updated_at']
-            
+
             def update(self, instance, validated_data):
                 validated_data['updated_by'] = self.context['request'].user
                 return super().update(instance, validated_data)
-        
+
         return PaymentSettingsSerializer

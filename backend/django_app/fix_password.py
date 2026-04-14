@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
@@ -21,6 +22,7 @@ print(f'check_password result: {user.check_password(password)}')
 
 # Test authentication
 from django.contrib.auth import authenticate
+
 auth_user = authenticate(username=user.email, password=password)
 print(f'authenticate result: {auth_user}')
 print('Password reset complete!')

@@ -2,8 +2,8 @@
 import uuid as uuid_lib
 from datetime import date
 
-from .models import Invoice
 from .analytics import RevenueStream
+from .models import Invoice
 
 STREAM_BY_INVOICE_TYPE = {
     'subscription': 'subscription',

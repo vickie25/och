@@ -2,11 +2,12 @@
 Integration tests for Programs, Tracks, and Cohorts CRUD operations.
 Tests that frontend operations properly sync with backend database.
 """
+from datetime import timedelta
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from datetime import timedelta
-from programs.models import Program, Track, Cohort, Enrollment
+from programs.models import Cohort, Program, Track
 
 User = get_user_model()
 
@@ -50,7 +51,7 @@ class TestProgramCRUD:
             'status': 'active'
         }
         response = director_client.post('/api/v1/programs/', data)
-        
+
         assert response.status_code == 201
         result = response.json()
         assert result['name'] == 'Test Program'
@@ -67,7 +68,7 @@ class TestProgramCRUD:
             currency='USD',
             status='active'
         )
-        
+
         response = director_client.get(f'/api/v1/programs/{program.id}/')
         assert response.status_code == 200
         result = response.json()
@@ -84,11 +85,11 @@ class TestProgramCRUD:
             currency='USD',
             status='active'
         )
-        
+
         # Use PATCH for partial updates (PUT requires all fields)
         data = {'name': 'Updated Program Name'}
         response = director_client.patch(f'/api/v1/programs/{program.id}/', data)
-        
+
         assert response.status_code == 200
         result = response.json()
         assert result['name'] == 'Updated Program Name'
@@ -107,10 +108,10 @@ class TestProgramCRUD:
             status='active'
         )
         program_id = str(program.id)
-        
+
         response = director_client.delete(f'/api/v1/programs/{program.id}/')
         assert response.status_code == 204
-        
+
         assert not Program.objects.filter(id=program_id).exists()
 
     def test_list_programs(self, director_client):
@@ -133,17 +134,17 @@ class TestProgramCRUD:
             currency='USD',
             status='active'
         )
-        
+
         response = director_client.get('/api/v1/programs/')
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list) or (isinstance(data, dict) and 'results' in data)
-        
+
         if isinstance(data, dict):
             results = data['results']
         else:
             results = data
-        
+
         assert len(results) >= 2
 
 
@@ -162,7 +163,7 @@ class TestTrackCRUD:
             currency='USD',
             status='active'
         )
-        
+
         data = {
             'program': str(program.id),
             'name': 'Test Track',
@@ -171,7 +172,7 @@ class TestTrackCRUD:
             'director': str(director_user.id)
         }
         response = director_client.post('/api/v1/tracks/', data)
-        
+
         assert response.status_code == 201
         result = response.json()
         assert result['name'] == 'Test Track'
@@ -194,7 +195,7 @@ class TestTrackCRUD:
             key='read_test_track',
             description='Test'
         )
-        
+
         response = director_client.get(f'/api/v1/tracks/{track.id}/')
         assert response.status_code == 200
         result = response.json()
@@ -217,10 +218,10 @@ class TestTrackCRUD:
             key='update_test_track',
             description='Test'
         )
-        
+
         data = {'name': 'Updated Track Name'}
         response = director_client.put(f'/api/v1/tracks/{track.id}/', data)
-        
+
         assert response.status_code == 200
         result = response.json()
         assert result['name'] == 'Updated Track Name'
@@ -245,10 +246,10 @@ class TestTrackCRUD:
             description='Test'
         )
         track_id = str(track.id)
-        
+
         response = director_client.delete(f'/api/v1/tracks/{track.id}/')
         assert response.status_code == 204
-        
+
         assert not Track.objects.filter(id=track_id).exists()
 
     def test_list_tracks(self, director_client):
@@ -274,7 +275,7 @@ class TestTrackCRUD:
             key='list_test_track_2',
             description='Test'
         )
-        
+
         response = director_client.get('/api/v1/tracks/')
         assert response.status_code == 200
         data = response.json()
@@ -302,7 +303,7 @@ class TestCohortCRUD:
             key='cohort_test_track',
             description='Test'
         )
-        
+
         data = {
             'track': str(track.id),
             'name': 'Test Cohort',
@@ -314,7 +315,7 @@ class TestCohortCRUD:
             'status': 'draft'
         }
         response = director_client.post('/api/v1/cohorts/', data)
-        
+
         assert response.status_code == 201
         result = response.json()
         assert result['name'] == 'Test Cohort'
@@ -347,7 +348,7 @@ class TestCohortCRUD:
             mentor_ratio=0.1,
             status='active'
         )
-        
+
         response = director_client.get(f'/api/v1/cohorts/{cohort.id}/')
         assert response.status_code == 200
         result = response.json()
@@ -380,10 +381,10 @@ class TestCohortCRUD:
             mentor_ratio=0.1,
             status='active'
         )
-        
+
         data = {'name': 'Updated Cohort Name', 'seat_cap': 25}
         response = director_client.put(f'/api/v1/cohorts/{cohort.id}/', data)
-        
+
         assert response.status_code == 200
         result = response.json()
         assert result['name'] == 'Updated Cohort Name'
@@ -420,10 +421,10 @@ class TestCohortCRUD:
             status='draft'
         )
         cohort_id = str(cohort.id)
-        
+
         response = director_client.delete(f'/api/v1/cohorts/{cohort.id}/')
         assert response.status_code == 204
-        
+
         assert not Cohort.objects.filter(id=cohort_id).exists()
 
     def test_list_cohorts(self, director_client):
@@ -463,7 +464,7 @@ class TestCohortCRUD:
             mentor_ratio=0.1,
             status='draft'
         )
-        
+
         response = director_client.get('/api/v1/cohorts/')
         assert response.status_code == 200
         data = response.json()
@@ -491,11 +492,11 @@ class TestCascadeBehavior:
             key='cascade_test_track',
             description='Test'
         )
-        
+
         # Django CASCADE should delete tracks when program is deleted
         response = director_client.delete(f'/api/v1/programs/{program.id}/')
         assert response.status_code == 204
-        
+
         # Track should be deleted due to CASCADE
         assert not Track.objects.filter(id=track.id).exists()
 
@@ -526,11 +527,11 @@ class TestCascadeBehavior:
             mentor_ratio=0.1,
             status='draft'
         )
-        
+
         # Django CASCADE should delete cohorts when track is deleted
         response = director_client.delete(f'/api/v1/tracks/{track.id}/')
         assert response.status_code == 204
-        
+
         # Cohort should be deleted due to CASCADE
         assert not Cohort.objects.filter(id=cohort.id).exists()
 

@@ -3,6 +3,7 @@ Management command to refresh student dashboard caches.
 Run this periodically (every 5 minutes) via cron or Celery.
 """
 from django.core.management.base import BaseCommand
+
 from student_dashboard.tasks import process_dashboard_update_queue, refresh_all_stale_dashboards
 
 
@@ -28,12 +29,12 @@ class Command(BaseCommand):
             self.stdout.write('Processing dashboard update queue...')
             process_dashboard_update_queue()
             self.stdout.write(self.style.SUCCESS('Update queue processed'))
-        
+
         if not options['queue_only']:
             self.stdout.write('Refreshing stale dashboards...')
             refresh_all_stale_dashboards()
             self.stdout.write(self.style.SUCCESS('Stale dashboards refreshed'))
-        
+
         self.stdout.write(self.style.SUCCESS('Dashboard refresh complete'))
 
 

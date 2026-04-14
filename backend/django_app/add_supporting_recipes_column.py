@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Add supporting_recipes column to curriculummodules table."""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')

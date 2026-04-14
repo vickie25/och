@@ -2,10 +2,19 @@
 Finance admin interface.
 """
 from django.contrib import admin
+
 from .models import (
-    Wallet, Transaction, Credit, Contract, TaxRate,
-    MentorPayout, Invoice, Payment, ReconciliationRun,
-    PricingTier, PricingHistory
+    Contract,
+    Credit,
+    Invoice,
+    MentorPayout,
+    Payment,
+    PricingHistory,
+    PricingTier,
+    ReconciliationRun,
+    TaxRate,
+    Transaction,
+    Wallet,
 )
 
 
@@ -97,7 +106,7 @@ class PricingTierAdmin(admin.ModelAdmin):
     search_fields = ['name', 'display_name']
     readonly_fields = ['created_at', 'updated_at']
     list_editable = ['price_per_unit', 'is_active']
-    
+
     fieldsets = (
         ('Basic Information', {
             'fields': ('name', 'display_name', 'tier_type', 'is_active')
@@ -116,7 +125,7 @@ class PricingTierAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         })
     )
-    
+
     def save_model(self, request, obj, form, change):
         """Track pricing changes when updated via admin"""
         if change:  # This is an update, not a creation
@@ -141,14 +150,14 @@ class PricingHistoryAdmin(admin.ModelAdmin):
     ]
     list_filter = ['pricing_tier__tier_type', 'changed_at']
     search_fields = ['pricing_tier__name', 'change_reason', 'changed_by__email']
-    readonly_fields = ['pricing_tier', 'old_price_per_unit', 'new_price_per_unit', 
+    readonly_fields = ['pricing_tier', 'old_price_per_unit', 'new_price_per_unit',
                       'old_annual_discount', 'new_annual_discount', 'changed_by', 'changed_at']
     date_hierarchy = 'changed_at'
-    
+
     def has_add_permission(self, request):
         """Prevent manual addition of pricing history"""
         return False
-    
+
     def has_change_permission(self, request, obj=None):
         """Prevent editing of pricing history"""
         return False

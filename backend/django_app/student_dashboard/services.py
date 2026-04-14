@@ -3,14 +3,15 @@ Service layer for aggregating data from 12+ microservices.
 """
 import os
 import uuid
-import requests
 from decimal import Decimal
-from typing import Dict, List, Optional, Any
+from typing import Any
+
+import requests
 from django.utils import timezone
-from django.db import transaction
-from django.conf import settings
+
 from users.models import User
-from .models import StudentDashboardCache, DashboardUpdateQueue
+
+from .models import DashboardUpdateQueue, StudentDashboardCache
 
 
 class DashboardAggregationService:
@@ -18,7 +19,7 @@ class DashboardAggregationService:
     Aggregates data from multiple microservices into dashboard cache.
     Handles cold starts, stale data, and tier-based masking.
     """
-    
+
     @staticmethod
     def get_or_create_cache(user: User) -> StudentDashboardCache:
         """Get or create dashboard cache for user."""
@@ -31,36 +32,36 @@ class DashboardAggregationService:
             }
         )
         return cache
-    
+
     @staticmethod
     def refresh_dashboard_cache(user: User, force: bool = False) -> StudentDashboardCache:
         """
         Refresh dashboard cache by aggregating data from all services.
-        
+
         This is a placeholder that will be extended to call actual microservices.
         For now, it updates the cache with mock/computed data.
         """
         cache = DashboardAggregationService.get_or_create_cache(user)
-        
+
         # Check if refresh is needed (stale > 15min)
         if not force:
             time_since_update = timezone.now() - cache.updated_at
             if time_since_update.total_seconds() < 900:  # 15 minutes
                 return cache
-        
+
         # TODO: Replace with actual service calls
         # For now, we'll use placeholder logic
-        
+
         # Compute derived metrics
         cache = DashboardAggregationService._compute_derived_metrics(cache, user)
-        
+
         # Update timestamp
         cache.updated_at = timezone.now()
         cache.last_active_at = timezone.now()
         cache.save()
-        
+
         return cache
-    
+
     @staticmethod
     def _compute_derived_metrics(cache: StudentDashboardCache, user: User) -> StudentDashboardCache:
         """Compute derived metrics from raw data."""
@@ -69,7 +70,7 @@ class DashboardAggregationService:
             cache.portfolio_health_score = Decimal(
                 (cache.portfolio_items_approved / cache.portfolio_items_total) * 100
             ).quantize(Decimal('0.01'))
-        
+
         # Profile completeness
         cache.profile_incomplete = (
             not user.email_verified or
@@ -77,9 +78,9 @@ class DashboardAggregationService:
             not user.last_name or
             not user.country
         )
-        
+
         return cache
-    
+
     @staticmethod
     def queue_update(user: User, reason: str, priority: str = 'normal'):
         """Queue a dashboard update for background processing."""
@@ -88,41 +89,41 @@ class DashboardAggregationService:
             reason=reason,
             priority=priority
         )
-    
+
     @staticmethod
-    def mask_for_tier(data: Dict[str, Any], tier: str) -> Dict[str, Any]:
+    def mask_for_tier(data: dict[str, Any], tier: str) -> dict[str, Any]:
         """
         Mask premium fields for free tier users.
         Returns data with premium fields set to None or "upgrade_required".
         """
         if tier in ['premium', 'starter_enhanced']:
             return data
-        
+
         # Mask premium features
         masked = data.copy()
-        
+
         # Mask detailed analytics
         if 'readiness' in masked:
             if 'trend_7d' in masked['readiness']:
                 masked['readiness']['trend_7d'] = None
-        
+
         # Mask mentor feedback details
         if 'needs_mentor_feedback' in masked:
             if tier == 'free':
                 masked['needs_mentor_feedback'] = None
-        
+
         return masked
 
 
 class TalentScopeService:
     """TalentScope service client."""
-    
+
     @staticmethod
-    def get_readiness(user_id: int) -> Dict[str, Any]:
+    def get_readiness(user_id: int) -> dict[str, Any]:
         """Get readiness score and metrics from TalentScope."""
         api_url = os.environ.get('TALENTSCOPE_API_URL', 'http://localhost:8002/api/v1')
         api_key = os.environ.get('TALENTSCOPE_API_KEY')
-        
+
         if api_key and api_url:
             try:
                 response = requests.get(
@@ -141,7 +142,7 @@ class TalentScopeService:
                     }
             except Exception:
                 pass  # Fall through to mock data
-        
+
         # Mock data fallback
         return {
             'score': 67.4,
@@ -159,13 +160,13 @@ class TalentScopeService:
 
 class CoachingOSService:
     """Coaching OS service client."""
-    
+
     @staticmethod
-    def get_week_summary(user_id: int) -> Dict[str, Any]:
+    def get_week_summary(user_id: int) -> dict[str, Any]:
         """Get coaching OS week summary."""
         api_url = os.environ.get('COACHING_OS_API_URL', 'http://localhost:8003/api/v1')
         api_key = os.environ.get('COACHING_OS_API_KEY')
-        
+
         if api_key and api_url:
             try:
                 response = requests.get(
@@ -183,7 +184,7 @@ class CoachingOSService:
                     }
             except Exception:
                 pass  # Fall through to mock data
-        
+
         # Mock data fallback
         return {
             'habit_streak': 5,
@@ -195,13 +196,13 @@ class CoachingOSService:
 
 class MissionsService:
     """Missions MXP service client."""
-    
+
     @staticmethod
-    def get_status(user_id: int) -> Dict[str, Any]:
+    def get_status(user_id: int) -> dict[str, Any]:
         """Get missions status."""
         api_url = os.environ.get('MISSIONS_API_URL', 'http://localhost:8004/api/v1')
         api_key = os.environ.get('MISSIONS_API_KEY')
-        
+
         if api_key and api_url:
             try:
                 response = requests.get(
@@ -219,7 +220,7 @@ class MissionsService:
                     }
             except Exception:
                 pass  # Fall through to mock data
-        
+
         # Mock data fallback
         return {
             'in_progress': 2,
@@ -236,13 +237,13 @@ class MissionsService:
 
 class PortfolioService:
     """Portfolio service client."""
-    
+
     @staticmethod
-    def get_health(user_id: int) -> Dict[str, Any]:
+    def get_health(user_id: int) -> dict[str, Any]:
         """Get portfolio health."""
         api_url = os.environ.get('PORTFOLIO_API_URL', 'http://localhost:8005/api/v1')
         api_key = os.environ.get('PORTFOLIO_API_KEY')
-        
+
         if api_key and api_url:
             try:
                 response = requests.get(
@@ -261,7 +262,7 @@ class PortfolioService:
                     }
             except Exception:
                 pass  # Fall through to mock data
-        
+
         # Mock data fallback
         return {
             'health_score': 62.1,
@@ -274,13 +275,13 @@ class PortfolioService:
 
 class CohortService:
     """Cohort/Program service client."""
-    
+
     @staticmethod
-    def get_student_view(user_id: int) -> Dict[str, Any]:
+    def get_student_view(user_id: int) -> dict[str, Any]:
         """Get cohort information for student."""
         api_url = os.environ.get('COHORT_API_URL', 'http://localhost:8006/api/v1')
         api_key = os.environ.get('COHORT_API_KEY')
-        
+
         if api_key and api_url:
             try:
                 response = requests.get(
@@ -299,7 +300,7 @@ class CohortService:
                     }
             except Exception:
                 pass  # Fall through to mock data
-        
+
         # Mock data fallback
         return {
             'cohort_id': str(uuid.uuid4()),
@@ -316,14 +317,14 @@ class CohortService:
 
 class AICoachService:
     """AI Coach service client."""
-    
+
     @staticmethod
-    def get_nudge(user_id: int) -> Dict[str, Any]:
+    def get_nudge(user_id: int) -> dict[str, Any]:
         """Get AI coach nudge and action plan."""
         api_url = os.environ.get('AI_COACH_API_URL', 'http://localhost:8001/api/v1')
         api_key = os.environ.get('AI_COACH_API_KEY')
         openai_key = os.environ.get('CHAT_GPT_API_KEY')
-        
+
         # Try AI Coach API first
         if api_key and api_url:
             try:
@@ -340,7 +341,7 @@ class AICoachService:
                     }
             except Exception:
                 pass
-        
+
         # Try OpenAI directly if key is available
         if openai_key:
             try:
@@ -367,7 +368,7 @@ class AICoachService:
                 }
             except Exception:
                 pass  # Fall through to mock data
-        
+
         # Mock data fallback
         return {
             'nudge': 'Your DFIR gap is blocking SOC readiness. Prioritize the SIEM mission this week.',
@@ -381,13 +382,13 @@ class AICoachService:
 
 class NotificationService:
     """Notification service client."""
-    
+
     @staticmethod
-    def get_summary(user_id: int) -> Dict[str, Any]:
+    def get_summary(user_id: int) -> dict[str, Any]:
         """Get notifications summary."""
         api_url = os.environ.get('NOTIFICATIONS_API_URL', 'http://localhost:8007/api/v1')
         api_key = os.environ.get('NOTIFICATIONS_API_KEY')
-        
+
         if api_key and api_url:
             try:
                 response = requests.get(
@@ -404,7 +405,7 @@ class NotificationService:
                     }
             except Exception:
                 pass  # Fall through to mock data
-        
+
         # Mock data fallback
         return {
             'unread': 3,
@@ -419,13 +420,13 @@ class NotificationService:
 
 class LeaderboardService:
     """Leaderboard service client."""
-    
+
     @staticmethod
-    def get_rankings(user_id: int) -> Dict[str, Any]:
+    def get_rankings(user_id: int) -> dict[str, Any]:
         """Get leaderboard rankings."""
         api_url = os.environ.get('LEADERBOARD_API_URL', 'http://localhost:8008/api/v1')
         api_key = os.environ.get('LEADERBOARD_API_KEY')
-        
+
         if api_key and api_url:
             try:
                 response = requests.get(
@@ -441,7 +442,7 @@ class LeaderboardService:
                     }
             except Exception:
                 pass  # Fall through to mock data
-        
+
         # Mock data fallback
         return {
             'global_rank': 1247,

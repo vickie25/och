@@ -2,30 +2,27 @@
 Student-facing mission API views.
 Implements complete MXP specification.
 """
-from datetime import datetime, timedelta
-from django.utils import timezone
-from django.db.models import Q, Count, Avg, F
+import logging
+
+from django.core.cache import cache
 from django.db import transaction
-from django.core.exceptions import ObjectDoesNotExist
-from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes, parser_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from rest_framework.response import Response
-from users.models import User
+from django.db.models import Q
+from django.utils import timezone
 from programs.models import Enrollment
-from .models import Mission, MissionSubmission, MissionArtifact, AIFeedback
+from rest_framework import status
+from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from student_dashboard.services import DashboardAggregationService
+from subscriptions.models import UserSubscription
+from subscriptions.utils import get_user_tier
+
+from .models import AIFeedback, Mission, MissionArtifact, MissionSubmission
 from .serializers import (
-    MissionSerializer,
     MissionSubmissionSerializer,
 )
-from subscriptions.utils import get_user_tier
-from subscriptions.models import UserSubscription, SubscriptionPlan
-from .tasks import process_mission_ai_review
-from student_dashboard.services import DashboardAggregationService
-from django.core.cache import cache
-from .services import upload_file_to_storage, generate_presigned_upload_url
-import logging
+from .services import upload_file_to_storage
 
 logger = logging.getLogger(__name__)
 
@@ -38,40 +35,40 @@ def get_mission_funnel(request):
     Get mission funnel summary with priorities.
     """
     user = request.user
-    
+
     # Cache key
     cache_key = f'mission_funnel:{user.id}'
     cached_data = cache.get(cache_key)
     if cached_data:
         return Response(cached_data, status=status.HTTP_200_OK)
-    
+
     # Get user's enrollment for track/cohort info
     enrollment = Enrollment.objects.filter(user=user, status='active').first()
     track_name = enrollment.track.name if enrollment and enrollment.track else None
     cohort_name = enrollment.cohort.name if enrollment and enrollment.cohort else None
-    
+
     # Count submissions by status
     submissions = MissionSubmission.objects.filter(student=user)
-    
+
     pending = submissions.filter(status__in=['draft', 'submitted']).count()
     in_progress = submissions.filter(status='draft').count()
     in_ai_review = submissions.filter(status='in_ai_review').count()
     in_mentor_review = submissions.filter(status='in_mentor_review').count()
     approved = submissions.filter(status='approved').count()
     failed = submissions.filter(status='failed').count()
-    
+
     total_reviewed = approved + failed
     approval_rate = (approved / total_reviewed * 100) if total_reviewed > 0 else 0
-    
+
     # Get priorities (urgent/recommended)
     priorities = []
-    
+
     # Urgent: missions with deadlines approaching
     # Note: requirements field doesn't exist in Mission model yet
     # urgent_submissions = submissions.filter(
     #     status__in=['draft', 'submitted'],
     # ).select_related('mission')[:3]
-    
+
     # Recommended: based on AI recommendations from dashboard
     try:
         dashboard_data = DashboardAggregationService.get_dashboard(user.id)
@@ -92,7 +89,7 @@ def get_mission_funnel(request):
                     pass
     except Exception:
         pass
-    
+
     response_data = {
         'funnel': {
             'pending': pending,
@@ -107,10 +104,10 @@ def get_mission_funnel(request):
         'cohort_name': cohort_name,
         'priorities': priorities[:5],
     }
-    
+
     # Cache for 30 seconds
     cache.set(cache_key, response_data, 30)
-    
+
     return Response(response_data, status=status.HTTP_200_OK)
 
 
@@ -164,24 +161,23 @@ def list_student_missions(request):
         # Subscription system not available - allow access for development
         logger.warning(f"Subscription check failed (table may not exist): {e}")
         tier = 'professional'
-    
+
     # Get filters
     status_filter = request.query_params.get('status', 'all')
     difficulty_filter = request.query_params.get('difficulty', 'all')
     track_filter = request.query_params.get('track', 'all')
     tier_filter = request.query_params.get('tier', 'all')
     search = request.query_params.get('search', '').strip()
-    recommended = request.query_params.get('recommended', 'false').lower() == 'true'
-    urgent = request.query_params.get('urgent', 'false').lower() == 'true'
+    request.query_params.get('recommended', 'false').lower() == 'true'
+    request.query_params.get('urgent', 'false').lower() == 'true'
 
     # --- Student context: cohorts and track ---
     try:
         enrollments = Enrollment.objects.filter(user=user, status='active').select_related('cohort', 'cohort__track')
-        cohort_ids = list(enrollments.values_list('cohort_id', flat=True))
+        list(enrollments.values_list('cohort_id', flat=True))
         enrollment = enrollments.first()
         student_track_raw = getattr(user, 'track_key', None) or (enrollment.track_key if enrollment and getattr(enrollment, 'track_key', None) else None)
     except Exception:
-        cohort_ids = []
         enrollment = None
         student_track_raw = None
 
@@ -341,7 +337,7 @@ def list_student_missions(request):
             'is_locked': is_locked,
             'lock_reason': lock_reason,
         }
-        
+
         if submission:
             mission_data['status'] = submission.status
             mission_data['progress_percent'] = 0
@@ -371,9 +367,9 @@ def list_student_missions(request):
         else:
             mission_data['status'] = 'not_started'
             mission_data['progress_percent'] = 0
-        
+
         results.append(mission_data)
-    
+
     return Response({
         'results': results,
         'count': len(results),
@@ -564,7 +560,7 @@ def submit_mission_for_ai(request, mission_id):
                         }, status=status.HTTP_403_FORBIDDEN)
         except Exception:
             pass
-    
+
     try:
         mission = Mission.objects.get(id=mission_id)
     except Mission.DoesNotExist:
@@ -631,14 +627,14 @@ def submit_mission_for_ai(request, mission_id):
     # Update content (notes)
     if 'notes' in request.data:
         submission.content = request.data['notes']
-    
+
     # Handle file uploads (files already retrieved for validation)
-    
+
     for file in files:
         try:
             # Upload to S3 or local storage
             file_url = upload_file_to_storage(file, str(submission.id))
-            
+
             # Create artifact
             MissionArtifact.objects.create(
                 submission=submission,
@@ -658,7 +654,7 @@ def submit_mission_for_ai(request, mission_id):
                 {'error': 'Failed to upload file'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-    
+
     # Handle URLs
     if 'github_url' in request.data and request.data['github_url']:
         MissionArtifact.objects.create(
@@ -683,12 +679,12 @@ def submit_mission_for_ai(request, mission_id):
             file_url=request.data['video_url'],
             file_name='video_link',
         )
-    
+
     # Update submission status
     submission.status = 'submitted'
     submission.submitted_at = timezone.now()
     submission.save()
-    
+
     # Trigger AI review (with fallback)
     try:
         from .tasks import process_mission_ai_review
@@ -708,11 +704,11 @@ def submit_mission_for_ai(request, mission_id):
             process_mission_ai_review(str(submission.id))
         except Exception as e2:
             logger.error(f"Direct AI review also failed: {e2}")
-    
+
     # Invalidate cache
     cache_key = f'mission_funnel:{user.id}'
     cache.delete(cache_key)
-    
+
     # Queue dashboard update
     try:
         DashboardAggregationService.queue_update(user, 'mission_submitted', 'high')
@@ -737,19 +733,19 @@ def upload_mission_artifacts(request, submission_id):
         submission = MissionSubmission.objects.get(id=submission_id, student=user)
     except MissionSubmission.DoesNotExist:
         return Response({'error': 'Submission not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     if submission.status == 'approved':
         return Response({'error': 'Cannot modify approved submission'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     artifacts = []
-    
+
     # Handle file uploads
     files = request.FILES.getlist('files', [])
     for file in files:
         try:
             # Upload to S3 or local storage
             file_url = upload_file_to_storage(file, str(submission.id))
-            
+
             artifact = MissionArtifact.objects.create(
                 submission=submission,
                 file_type='document',
@@ -769,7 +765,7 @@ def upload_mission_artifacts(request, submission_id):
                 {'error': 'Failed to upload file'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-    
+
     # Handle URLs
     if 'github_url' in request.data and request.data['github_url']:
         artifact = MissionArtifact.objects.create(
@@ -820,7 +816,7 @@ def save_mission_draft(request, mission_id):
     Save mission submission as draft.
     """
     user = request.user
-    
+
     try:
         mission = Mission.objects.get(id=mission_id)
     except Mission.DoesNotExist:
@@ -848,7 +844,7 @@ def save_mission_draft(request, mission_id):
 
     submission.status = 'draft'
     submission.save()
-    
+
     serializer = MissionSubmissionSerializer(submission)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -862,7 +858,7 @@ def submit_for_mentor_review(request, submission_id):
     Submit for mentor review (7-tier only).
     """
     user = request.user
-    
+
     # Check entitlement
     tier = get_user_tier(user)
     if tier != 'professional_7':
@@ -880,24 +876,24 @@ def submit_for_mentor_review(request, submission_id):
         return Response({
             'error': 'Submission must be AI reviewed before mentor review'
         }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     submission.status = 'in_mentor_review'
     submission.save()
-    
+
     # Invalidate cache
     cache_key = f'mission_funnel:{user.id}'
     cache.delete(cache_key)
-    
+
     # Create mentor work queue item
     try:
-        from mentorship_coordination.tasks import create_mission_review_queue_item
         from mentorship_coordination.models import MenteeMentorAssignment
-        
+        from mentorship_coordination.tasks import create_mission_review_queue_item
+
         assignment = MenteeMentorAssignment.objects.filter(
             mentee=user,
             status='active'
         ).first()
-        
+
         if assignment:
             create_mission_review_queue_item.delay(
                 str(submission.id),
@@ -905,7 +901,7 @@ def submit_for_mentor_review(request, submission_id):
             )
     except Exception:
         pass
-    
+
     serializer = MissionSubmissionSerializer(submission)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -918,21 +914,21 @@ def start_mission_student(request, mission_id):
     Start a mission for the authenticated student.
     """
     from .models_mxp import MissionProgress
-    
+
     user = request.user
-    
+
     try:
         mission = Mission.objects.get(id=mission_id, is_active=True)
     except Mission.DoesNotExist:
         return Response({'error': 'Mission not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     # Check if mission already in progress
     existing_progress = MissionProgress.objects.filter(
         user=user,
         mission=mission,
         status__in=['in_progress', 'submitted', 'ai_reviewed', 'mentor_review']
     ).first()
-    
+
     if existing_progress:
         return Response({
             'progress_id': str(existing_progress.id),
@@ -940,7 +936,7 @@ def start_mission_student(request, mission_id):
             'current_subtask': existing_progress.current_subtask,
             'message': 'Mission already started'
         }, status=status.HTTP_200_OK)
-    
+
     # Create new progress entry
     with transaction.atomic():
         progress = MissionProgress.objects.create(
@@ -979,9 +975,9 @@ def get_mission_progress(request, mission_id):
     Get or update mission progress for execution interface.
     """
     from .models_mxp import MissionProgress
-    
+
     user = request.user
-    
+
     try:
         progress = MissionProgress.objects.select_related('mission').get(
             user=user,
@@ -992,7 +988,7 @@ def get_mission_progress(request, mission_id):
             {'error': 'Mission progress not found. Please start the mission first.'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     if request.method == 'GET':
         # Return progress with mission details
         return Response({
@@ -1014,26 +1010,26 @@ def get_mission_progress(request, mission_id):
             'time_spent_minutes': 0,  # calculate_time_spent function doesn't exist
             'started_at': progress.started_at.isoformat() if progress.started_at else None,
         }, status=status.HTTP_200_OK)
-    
+
     elif request.method == 'PATCH':
         # Update progress
         data = request.data
-        
+
         if 'current_subtask_index' in data:
             progress.current_subtask = data['current_subtask_index'] + 1  # Convert to 1-indexed
-        
+
         if 'notes' in data:
             # Store notes in subtasks_progress
             subtask_key = str(progress.current_subtask)
             if subtask_key not in progress.subtasks_progress:
                 progress.subtasks_progress[subtask_key] = {}
             progress.subtasks_progress[subtask_key]['notes'] = data['notes']
-        
+
         if 'status' in data and data['status'] in ['in_progress', 'paused']:
             progress.status = data['status']
-        
+
         progress.save()
-        
+
         return Response({'success': True}, status=status.HTTP_200_OK)
 
 
@@ -1041,13 +1037,13 @@ def calculate_progress_percent(progress):
     """Calculate progress percentage based on completed subtasks."""
     if not progress.mission.subtasks:
         return 0
-    
+
     total = len(progress.mission.subtasks)
     completed = sum(
         1 for key, val in progress.subtasks_progress.items()
         if isinstance(val, dict) and val.get('completed', False)
     )
-    
+
     return int((completed / total) * 100) if total > 0 else 0
 
 
@@ -1055,12 +1051,12 @@ def calculate_time_spent(progress):
     """Calculate time spent on mission in minutes."""
     if not progress.started_at:
         return 0
-    
+
     if progress.submitted_at:
         delta = progress.submitted_at - progress.started_at
     else:
         delta = timezone.now() - progress.started_at
-    
+
     return int(delta.total_seconds() / 60)
 
 
@@ -1072,9 +1068,9 @@ def complete_subtask(request, mission_id, subtask_index):
     Mark a subtask as complete and move to next.
     """
     from .models_mxp import MissionProgress
-    
+
     user = request.user
-    
+
     try:
         progress = MissionProgress.objects.select_related('mission').get(
             user=user,
@@ -1085,7 +1081,7 @@ def complete_subtask(request, mission_id, subtask_index):
             {'error': 'Mission progress not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     # Validate subtask index
     subtasks = progress.mission.subtasks or []
     if subtask_index >= len(subtasks):
@@ -1093,18 +1089,18 @@ def complete_subtask(request, mission_id, subtask_index):
             {'error': 'Invalid subtask index'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     # Mark subtask as complete
     subtask_key = str(subtask_index + 1)  # Convert to 1-indexed
     if subtask_key not in progress.subtasks_progress:
         progress.subtasks_progress[subtask_key] = {}
-    
+
     progress.subtasks_progress[subtask_key]['completed'] = True
     progress.subtasks_progress[subtask_key]['completed_at'] = timezone.now().isoformat()
-    
+
     if 'notes' in request.data:
         progress.subtasks_progress[subtask_key]['notes'] = request.data['notes']
-    
+
     # Move to next subtask or mark as ready for submission
     if subtask_index < len(subtasks) - 1:
         progress.current_subtask = subtask_index + 2  # Move to next (1-indexed)

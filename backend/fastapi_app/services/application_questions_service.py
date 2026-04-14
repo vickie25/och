@@ -2,9 +2,9 @@
 AI-powered application question generation service.
 Uses OpenAI via the new client (same pattern as GPTProfilerService).
 """
-import os
 import json
-from typing import List, Dict, Any
+import os
+from typing import Any
 
 from openai import OpenAI
 
@@ -27,10 +27,10 @@ class ApplicationQuestionAIService:
     def generate_questions(
         self,
         cohort_name: str,
-        tracks: List[str],
-        categories: List[str],
+        tracks: list[str],
+        categories: list[str],
         count: int = 4,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Ask GPT to synthesize application questions.
 
@@ -97,7 +97,7 @@ each with: type, question_text, options, correct_answer, scoring_weight.
                 raise
 
         questions = data.get("questions") or []
-        result: List[Dict[str, Any]] = []
+        result: list[dict[str, Any]] = []
         for q in questions:
             qtype = (q.get("type") or "mcq").lower()
             if qtype not in ("mcq", "scenario", "behavioral"):

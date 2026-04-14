@@ -8,6 +8,7 @@ Endpoints tested:
 """
 import pytest
 from rest_framework import status
+
 from users.auth_models import MFAMethod
 
 
@@ -71,7 +72,7 @@ class TestMFAVerifyEndpoint:
         # First enroll
         enroll_data = {'method': 'totp'}
         enroll_response = authenticated_client.post('/api/v1/auth/mfa/enroll', enroll_data, format='json')
-        
+
         if enroll_response.status_code in [200, 201]:
             # Try to verify (may need actual TOTP code)
             data = {

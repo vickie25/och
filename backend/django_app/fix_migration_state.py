@@ -5,6 +5,7 @@ Removes the incorrectly applied 0003 migration record so we can apply in correct
 """
 import os
 import sys
+
 import django
 
 # Setup Django
@@ -14,44 +15,45 @@ django.setup()
 
 from django.db import connection
 
+
 def fix_migration_state():
     """Remove the incorrectly applied 0003 migration record."""
     with connection.cursor() as cursor:
         # Check current state
         cursor.execute("""
-            SELECT app, name 
-            FROM django_migrations 
-            WHERE app = 'student_dashboard' 
+            SELECT app, name
+            FROM django_migrations
+            WHERE app = 'student_dashboard'
             ORDER BY name;
         """)
         current = cursor.fetchall()
         print("Current student_dashboard migrations in database:")
-        for app, name in current:
+        for _app, name in current:
             print(f"  - {name}")
-        
+
         # Remove the incorrectly applied 0003 migration
         print("\nRemoving incorrectly applied 0003_add_rls_policies migration...")
         cursor.execute("""
-            DELETE FROM django_migrations 
-            WHERE app = 'student_dashboard' 
+            DELETE FROM django_migrations
+            WHERE app = 'student_dashboard'
             AND name = '0003_add_rls_policies';
         """)
-        
+
         affected = cursor.rowcount
         print(f"Removed {affected} migration record(s)")
-        
+
         # Verify removal
         cursor.execute("""
-            SELECT app, name 
-            FROM django_migrations 
-            WHERE app = 'student_dashboard' 
+            SELECT app, name
+            FROM django_migrations
+            WHERE app = 'student_dashboard'
             ORDER BY name;
         """)
         after = cursor.fetchall()
         print("\nRemaining student_dashboard migrations in database:")
-        for app, name in after:
+        for _app, name in after:
             print(f"  - {name}")
-        
+
         print("\n✅ Migration state fixed! You can now run: python manage.py migrate")
 
 if __name__ == '__main__':

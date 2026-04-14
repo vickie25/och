@@ -1,10 +1,11 @@
 """
 Prometheus metrics configuration for FastAPI.
 """
-from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+import os
+
 from fastapi import Response
 from fastapi.responses import PlainTextResponse
-import os
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 
 # Metrics
 http_requests_total = Counter(
@@ -41,7 +42,7 @@ async def metrics_endpoint():
     """Prometheus metrics endpoint."""
     if not os.getenv('ENABLE_METRICS', 'False').lower() == 'true':
         return PlainTextResponse('Metrics disabled', status_code=403)
-    
+
     return Response(
         content=generate_latest(),
         media_type=CONTENT_TYPE_LATEST

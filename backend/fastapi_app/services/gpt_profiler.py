@@ -3,10 +3,11 @@ GPT-powered profiler analysis service.
 Uses OpenAI to analyze user responses and recommend tracks from database.
 Generates personalized descriptions, reasoning, and Future-You personas.
 """
-import os
-import logging
 import json
-from typing import Dict, List, Any, Optional
+import logging
+import os
+from typing import Any
+
 from openai import OpenAI
 
 logger = logging.getLogger(__name__)
@@ -18,21 +19,21 @@ class GPTProfilerService:
         if self.api_key:
             self.client = OpenAI(api_key=self.api_key)
             logger.info("GPT Profiler Service initialized with OpenAI")
-    
+
     def analyze_and_recommend(
-        self, 
-        responses: List[Dict[str, Any]], 
-        available_tracks: List[Dict[str, Any]],
-        user_reflection: Dict[str, str] = None
-    ) -> Dict[str, Any]:
+        self,
+        responses: list[dict[str, Any]],
+        available_tracks: list[dict[str, Any]],
+        user_reflection: dict[str, str] = None
+    ) -> dict[str, Any]:
         """
         Use GPT to analyze responses and recommend best track from database.
-        
+
         Args:
             responses: List of user responses with questions and answers
             available_tracks: List of tracks from database
             user_reflection: Optional reflection responses
-            
+
         Returns:
             {
                 "recommended_track": track_key,
@@ -45,7 +46,7 @@ class GPTProfilerService:
         if not self.api_key:
             logger.warning("No OpenAI API key found, using fallback")
             return self._fallback_recommendation(available_tracks)
-        
+
         if not self.client:
             logger.warning("OpenAI client not initialized")
             return self._fallback_recommendation(available_tracks)
@@ -73,32 +74,32 @@ class GPTProfilerService:
         except Exception as e:
             logger.error(f"GPT analysis failed: {e}")
             return self._fallback_recommendation(available_tracks)
-    
+
     def _build_analysis_prompt(
-        self, 
-        responses: List[Dict], 
-        tracks: List[Dict],
-        reflection: Dict = None
+        self,
+        responses: list[dict],
+        tracks: list[dict],
+        reflection: dict = None
     ) -> str:
         """Build prompt for GPT analysis."""
-        
+
         # Format responses
         responses_text = "\n".join([
             f"Q: {r.get('question', 'N/A')}\nA: {r.get('answer', 'N/A')}"
             for r in responses[:20]  # Limit to avoid token limits
         ])
-        
+
         # Format tracks
         tracks_text = "\n".join([
             f"- {t['key']}: {t['name']}\n  Description: {t.get('description', 'N/A')}"
             for t in tracks
         ])
-        
+
         # Add reflection if available
         reflection_text = ""
         if reflection:
             reflection_text = f"\n\nUser Reflection:\nWhy Cybersecurity: {reflection.get('why_cyber', 'N/A')}\nGoals: {reflection.get('what_achieve', 'N/A')}"
-        
+
         prompt = f"""Analyze these profiling responses and recommend the BEST cybersecurity track from the available options.
 
 USER RESPONSES:
@@ -121,10 +122,10 @@ REASONING: [why this track]
 CONFIDENCE: [0.0-1.0]
 ALTERNATIVES: [track_key1, track_key2]
 MESSAGE: [personalized message]"""
-        
+
         return prompt
-    
-    def _parse_gpt_response(self, gpt_text: str, tracks: List[Dict]) -> Dict[str, Any]:
+
+    def _parse_gpt_response(self, gpt_text: str, tracks: list[dict]) -> dict[str, Any]:
         """Parse GPT response into structured format."""
         lines = gpt_text.strip().split('\n')
         result = {
@@ -134,7 +135,7 @@ MESSAGE: [personalized message]"""
             "alternative_tracks": [],
             "personalized_message": ""
         }
-        
+
         for line in lines:
             if line.startswith('TRACK:'):
                 track_key = line.replace('TRACK:', '').strip()
@@ -151,20 +152,20 @@ MESSAGE: [personalized message]"""
                 result["alternative_tracks"] = [a.strip() for a in alts.split(',')]
             elif line.startswith('MESSAGE:'):
                 result["personalized_message"] = line.replace('MESSAGE:', '').strip()
-        
+
         # Validate track exists
         track_keys = [t['key'] for t in tracks]
         if result["recommended_track"] not in track_keys:
             result["recommended_track"] = track_keys[0] if track_keys else None
-        
+
         return result
-    
+
     def generate_personalized_descriptions(
         self,
-        responses: List[Dict[str, Any]],
-        tracks: List[Dict[str, Any]],
-        scores: Dict[str, float]
-    ) -> Dict[str, str]:
+        responses: list[dict[str, Any]],
+        tracks: list[dict[str, Any]],
+        scores: dict[str, float]
+    ) -> dict[str, str]:
         """
         Generate personalized track descriptions based on user responses.
         Returns a dict mapping track_key -> personalized_description
@@ -227,7 +228,7 @@ Format as JSON:
             logger.error(f"Failed to generate personalized descriptions: {e}")
             return {t['key']: t.get('description', '') for t in tracks}
 
-    def _summarize_responses(self, responses: List[Dict]) -> str:
+    def _summarize_responses(self, responses: list[dict]) -> str:
         """Create a concise summary of user responses."""
         summary_points = []
 
@@ -242,10 +243,10 @@ Format as JSON:
 
     def generate_future_you_persona(
         self,
-        responses: List[Dict[str, Any]],
+        responses: list[dict[str, Any]],
         recommended_track: str,
-        track_info: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        track_info: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Generate enhanced Future-You persona with AI.
         Returns persona with name, archetype, skills, vision, etc.
@@ -306,7 +307,7 @@ Format as JSON:
             logger.error(f"Failed to generate Future-You persona: {e}")
             return self._fallback_persona(recommended_track)
 
-    def _fallback_persona(self, track: str) -> Dict[str, Any]:
+    def _fallback_persona(self, track: str) -> dict[str, Any]:
         """Fallback persona when AI is unavailable."""
         personas = {
             "defensive-security": {"name": "Cyber Sentinel", "archetype": "Defender"},
@@ -326,7 +327,7 @@ Format as JSON:
             "track": track
         }
 
-    def _fallback_recommendation(self, tracks: List[Dict]) -> Dict[str, Any]:
+    def _fallback_recommendation(self, tracks: list[dict]) -> dict[str, Any]:
         """Fallback when GPT is unavailable."""
         return {
             "recommended_track": tracks[0]['key'] if tracks else None,

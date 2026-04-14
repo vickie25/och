@@ -1,7 +1,7 @@
-from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand
+
 from users.models import Role, UserRole
-from organizations.models import Organization
 
 User = get_user_model()
 
@@ -45,7 +45,7 @@ class Command(BaseCommand):
             name='sponsor',
             defaults={'description': 'Sponsor role'}
         )
-        
+
         UserRole.objects.create(
             user=user,
             role=sponsor_role,
@@ -66,7 +66,7 @@ class Command(BaseCommand):
                     }
                 )
                 org.members.add(user)
-                
+
                 if created:
                     self.stdout.write(f'Created organization: {org_name}')
                 else:

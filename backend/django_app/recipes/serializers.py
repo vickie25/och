@@ -1,9 +1,10 @@
 """
 Recipe Engine serializers - API responses for recipes and user progress.
 """
+from django.db.models import Q
 from rest_framework import serializers
-from django.db.models import Count, Avg, Q
-from .models import Recipe, UserRecipeProgress, RecipeContextLink, UserRecipeBookmark, RecipeSource
+
+from .models import Recipe, RecipeContextLink, RecipeSource, UserRecipeBookmark, UserRecipeProgress
 
 
 class RecipeListSerializer(serializers.ModelSerializer):
@@ -60,7 +61,7 @@ class RecipeListSerializer(serializers.ModelSerializer):
     def get_source_type(self, obj):
         """Map source_type or default to manual."""
         return getattr(obj, 'source_type', 'manual')
-    
+
     def get_is_bookmarked(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -69,7 +70,7 @@ class RecipeListSerializer(serializers.ModelSerializer):
                 recipe=obj
             ).exists()
         return False
-    
+
     def get_user_status(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -80,7 +81,7 @@ class RecipeListSerializer(serializers.ModelSerializer):
             if progress:
                 return progress.status
         return None
-    
+
     def get_user_rating(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -91,25 +92,25 @@ class RecipeListSerializer(serializers.ModelSerializer):
             if progress and progress.rating:
                 return progress.rating
         return None
-    
+
     def get_context_labels(self, obj):
         """Get context labels showing where this recipe is used."""
         # Get a sample of context links (limit to 3 for performance)
         context_links = RecipeContextLink.objects.filter(
             recipe=obj
         ).select_related('recipe')[:3]
-        
+
         labels = []
         for link in context_links:
             if link.context_type == 'mission':
-                labels.append(f"Used in Mission")
+                labels.append("Used in Mission")
             elif link.context_type == 'module':
-                labels.append(f"Used in Module")
+                labels.append("Used in Module")
             elif link.context_type == 'project':
-                labels.append(f"Used in Project")
+                labels.append("Used in Project")
             elif link.context_type == 'mentor_session':
-                labels.append(f"Used in Mentorship")
-        
+                labels.append("Used in Mentorship")
+
         return labels[:2]  # Return max 2 labels
 
     def get_tags(self, obj):
@@ -127,7 +128,7 @@ class RecipeListSerializer(serializers.ModelSerializer):
             return obj.validation_checks
         if obj.validation_steps and isinstance(obj.validation_steps, dict):
             checks = []
-            for key, value in obj.validation_steps.items():
+            for _key, value in obj.validation_steps.items():
                 if isinstance(value, str):
                     checks.append(value)
             return checks
@@ -220,7 +221,7 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
             return obj.validation_checks
         if obj.validation_steps and isinstance(obj.validation_steps, dict):
             checks = []
-            for key, value in obj.validation_steps.items():
+            for _key, value in obj.validation_steps.items():
                 if isinstance(value, str):
                     checks.append(value)
             return checks
@@ -234,7 +235,7 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
                 recipe=obj
             ).exists()
         return False
-    
+
     def get_user_progress(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -251,7 +252,7 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
                     'completed_at': progress.completed_at,
                 }
         return None
-    
+
     def get_related_recipes(self, obj):
         """Get recipes with similar skills or tools."""
         related = Recipe.objects.filter(
@@ -261,7 +262,7 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
                 Q(tools_used__overlap=obj.tools_used)
             )
         ).exclude(id=obj.id)[:6]
-        
+
         return RecipeListSerializer(related, many=True, context=self.context).data
 
 
@@ -269,7 +270,7 @@ class UserRecipeProgressSerializer(serializers.ModelSerializer):
     """Serializer for user recipe progress."""
     recipe_title = serializers.CharField(source='recipe.title', read_only=True)
     recipe_slug = serializers.SlugField(source='recipe.slug', read_only=True)
-    
+
     class Meta:
         model = UserRecipeProgress
         fields = [
@@ -287,7 +288,7 @@ class RecipeContextLinkSerializer(serializers.ModelSerializer):
     recipe_summary = serializers.CharField(source='recipe.summary', read_only=True)
     recipe_difficulty = serializers.CharField(source='recipe.difficulty', read_only=True)
     recipe_estimated_minutes = serializers.IntegerField(source='recipe.estimated_minutes', read_only=True)
-    
+
     class Meta:
         model = RecipeContextLink
         fields = [
@@ -301,7 +302,7 @@ class RecipeContextLinkSerializer(serializers.ModelSerializer):
 class RecipeBookmarkSerializer(serializers.ModelSerializer):
     """Serializer for recipe bookmarks."""
     recipe = RecipeListSerializer(read_only=True)
-    
+
     class Meta:
         model = UserRecipeBookmark
         fields = ['id', 'recipe', 'bookmarked_at']

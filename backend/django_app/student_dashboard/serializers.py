@@ -2,7 +2,6 @@
 Serializers for Student Dashboard API responses.
 """
 from rest_framework import serializers
-from .models import StudentDashboardCache, DashboardUpdateQueue
 
 
 class ReadinessSerializer(serializers.Serializer):

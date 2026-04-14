@@ -2,7 +2,8 @@
 Coaching OS Admin Configuration.
 """
 from django.contrib import admin
-from .models import Habit, HabitLog, Goal, Reflection, AICoachSession, AICoachMessage
+
+from .models import AICoachMessage, AICoachSession, Goal, Habit, HabitLog, Reflection
 
 
 @admin.register(Habit)

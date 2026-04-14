@@ -1,15 +1,10 @@
 """
 URL patterns for institutional billing system.
 """
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from .institutional_views import (
-    InstitutionalContractViewSet,
-    InstitutionalBillingViewSet,
-    InstitutionalStudentViewSet,
-    institutional_analytics,
-    process_scheduled_billing,
-)
+
+from .institutional_additional_urls import additional_urlpatterns
 from .institutional_management_views import (
     InstitutionalBulkImportViewSet,
     InstitutionalSeatPoolViewSet,
@@ -19,7 +14,13 @@ from .institutional_management_views import (
     student_progress_report,
     user_portal_access,
 )
-from .institutional_additional_urls import additional_urlpatterns
+from .institutional_views import (
+    InstitutionalBillingViewSet,
+    InstitutionalContractViewSet,
+    InstitutionalStudentViewSet,
+    institutional_analytics,
+    process_scheduled_billing,
+)
 
 # Create router for viewsets
 router = DefaultRouter()

@@ -1,5 +1,6 @@
-import psycopg2
 import os
+
+import psycopg2
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,11 +16,11 @@ def fix():
         )
         conn.autocommit = True
         cur = conn.cursor()
-        
+
         print("Checking for conflicting index...")
         cur.execute("DROP INDEX IF EXISTS curriculum_tracks_slug_869ab9cd_like;")
         print("Conflicting index dropped (if it existed).")
-        
+
         cur.close()
         conn.close()
     except Exception as e:

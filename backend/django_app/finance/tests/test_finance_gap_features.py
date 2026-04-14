@@ -1,13 +1,13 @@
 """Smoke tests for reconciliation, revenue recognition, cohort finance helpers."""
-from decimal import Decimal
 from datetime import date, timedelta
+from decimal import Decimal
 
-from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.test import TestCase
 
+from finance.models import ReconciliationRun
 from finance.reconciliation_service import compute_book_total_for_period, run_reconciliation
 from finance.revenue_recognition import recognize_revenue_for_period
-from finance.models import ReconciliationRun
 
 User = get_user_model()
 

@@ -1,10 +1,10 @@
 """
 Management command to fix invalid profiling_session_id values in the database.
 """
+import uuid
+
 from django.core.management.base import BaseCommand
 from django.db import connection
-from users.models import User
-import uuid
 
 
 class Command(BaseCommand):
@@ -12,21 +12,21 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.stdout.write('Checking for invalid profiling_session_id values...')
-        
+
         with connection.cursor() as cursor:
             # Get all users with profiling_session_id
             cursor.execute("""
-                SELECT id, email, profiling_session_id 
-                FROM users 
+                SELECT id, email, profiling_session_id
+                FROM users
                 WHERE profiling_session_id IS NOT NULL
             """)
-            
+
             fixed_count = 0
             cleared_count = 0
-            
+
             for row in cursor.fetchall():
                 user_id, email, profiling_session_id = row
-                
+
                 # Try to validate the UUID
                 try:
                     # If it's already a valid UUID string, skip
@@ -43,7 +43,7 @@ class Command(BaseCommand):
                             f'Found invalid profiling_session_id for user {email}: {profiling_session_id}'
                         )
                     )
-                    
+
                     # Try to find a valid session for this user
                     from profiler.models import ProfilerSession
                     valid_session = ProfilerSession.objects.filter(
@@ -51,11 +51,11 @@ class Command(BaseCommand):
                         status='finished',
                         is_locked=True
                     ).order_by('-completed_at').first()
-                    
+
                     if valid_session:
                         # Update with valid session ID
                         cursor.execute("""
-                            UPDATE users 
+                            UPDATE users
                             SET profiling_session_id = %s::uuid
                             WHERE id = %s
                         """, [str(valid_session.id), user_id])
@@ -68,7 +68,7 @@ class Command(BaseCommand):
                     else:
                         # No valid session found - clear the invalid value
                         cursor.execute("""
-                            UPDATE users 
+                            UPDATE users
                             SET profiling_session_id = NULL
                             WHERE id = %s
                         """, [user_id])
@@ -78,7 +78,7 @@ class Command(BaseCommand):
                                 f'Cleared invalid profiling_session_id for user {email} (no valid session found)'
                             )
                         )
-            
+
             self.stdout.write(
                 self.style.SUCCESS(
                     f'Fixed {fixed_count} invalid UUIDs, cleared {cleared_count} invalid values'

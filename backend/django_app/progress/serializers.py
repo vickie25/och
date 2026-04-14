@@ -2,8 +2,10 @@
 Progress serializers for DRF.
 """
 from rest_framework import serializers
-from .models import Progress
+
 from users.serializers import UserSerializer
+
+from .models import Progress
 
 
 class ProgressSerializer(serializers.ModelSerializer):
@@ -11,7 +13,7 @@ class ProgressSerializer(serializers.ModelSerializer):
     Serializer for Progress model.
     """
     user = UserSerializer(read_only=True)
-    
+
     class Meta:
         model = Progress
         fields = [

@@ -3,25 +3,32 @@ Mentor Dashboard API Views
 Complete mentor command center with student management, scheduling, and analytics.
 """
 import logging
-from datetime import datetime, timedelta
-from django.utils import timezone
-from django.db.models import Q, Avg, Count, F
+from datetime import timedelta
+
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import status
-from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
+from rest_framework.viewsets import ModelViewSet
 
 from users.permissions import IsMentor
-from .models import Mentor, MentorStudentAssignment, MentorStudentNote, MentorSession, MentorRating, MentorCredit, CreditTransaction, CreditRedemption
+
+from .models import (
+    CreditRedemption,
+    Mentor,
+    MentorRating,
+    MentorSession,
+    MentorStudentAssignment,
+    MentorStudentNote,
+)
 from .serializers import (
     MentorDashboardSerializer,
+    MentorSessionCreateSerializer,
+    MentorSessionSerializer,
     MentorStudentDetailSerializer,
     MentorStudentNoteSerializer,
-    MentorSessionSerializer,
-    MentorSessionCreateSerializer,
 )
 from .services import MentorCreditService
 
@@ -440,14 +447,14 @@ class MentorBoostView(APIView):
         if boost_type == 'student':
             interventions = [
                 f"Sent personalized recipe: '{track_slug} Fundamentals Review'",
-                f"Scheduled 15-minute intervention session",
-                f"Activated progress nudge campaign"
+                "Scheduled 15-minute intervention session",
+                "Activated progress nudge campaign"
             ]
         elif boost_type == 'cohort':
             interventions = [
                 f"Deployed track-specific recipe campaign for {len(target_ids)} students",
-                f"Scheduled weekly progress check-in",
-                f"Activated NudgeEngine escalation protocols"
+                "Scheduled weekly progress check-in",
+                "Activated NudgeEngine escalation protocols"
             ]
 
         return {

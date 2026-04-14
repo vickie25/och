@@ -1,24 +1,26 @@
 """
 Grades Service - Calculate and manage cohort grades.
 """
-from django.db.models import Avg, Count, Q
 from decimal import Decimal
-from cohorts.models import CohortGrade, CohortExamSubmission
-from programs.models import Enrollment
+
+from django.db.models import Avg
 from missions.models_mxp import MissionProgress
+from programs.models import Enrollment
+
+from cohorts.models import CohortExamSubmission, CohortGrade
 
 
 class GradesService:
     """Service for managing cohort grades."""
-    
+
     @staticmethod
     def get_or_create_grade(enrollment_id):
         """
         Get or create grade record for enrollment.
-        
+
         Args:
             enrollment_id: Enrollment UUID
-        
+
         Returns:
             CohortGrade instance
         """
@@ -34,15 +36,15 @@ class GradesService:
             }
         )
         return grade
-    
+
     @staticmethod
     def calculate_missions_score(enrollment):
         """
         Calculate missions score for student.
-        
+
         Args:
             enrollment: Enrollment instance
-        
+
         Returns:
             Decimal score (0-100)
         """
@@ -51,33 +53,33 @@ class GradesService:
             user=enrollment.user,
             status__in=['completed', 'approved']
         )
-        
+
         if not missions.exists():
             return Decimal('0.00')
-        
+
         # Calculate average score
         total_score = 0
         count = 0
-        
+
         for mission in missions:
             if mission.mentor_score:
                 total_score += float(mission.mentor_score)
                 count += 1
-        
+
         if count == 0:
             return Decimal('0.00')
-        
+
         avg_score = total_score / count
         return Decimal(str(round(avg_score, 2)))
-    
+
     @staticmethod
     def calculate_capstones_score(enrollment):
         """
         Calculate capstones score for student.
-        
+
         Args:
             enrollment: Enrollment instance
-        
+
         Returns:
             Decimal score (0-100)
         """
@@ -87,32 +89,32 @@ class GradesService:
             mission__mission_type='capstone',
             status__in=['completed', 'approved']
         )
-        
+
         if not capstones.exists():
             return Decimal('0.00')
-        
+
         total_score = 0
         count = 0
-        
+
         for capstone in capstones:
             if capstone.mentor_score:
                 total_score += float(capstone.mentor_score)
                 count += 1
-        
+
         if count == 0:
             return Decimal('0.00')
-        
+
         avg_score = total_score / count
         return Decimal(str(round(avg_score, 2)))
-    
+
     @staticmethod
     def calculate_labs_score(enrollment):
         """
         Calculate practice labs score for student.
-        
+
         Args:
             enrollment: Enrollment instance
-        
+
         Returns:
             Decimal score (0-100)
         """
@@ -122,32 +124,32 @@ class GradesService:
             mission__mission_type='lab',
             status__in=['completed', 'approved']
         )
-        
+
         if not labs.exists():
             return Decimal('0.00')
-        
+
         total_score = 0
         count = 0
-        
+
         for lab in labs:
             if lab.mentor_score:
                 total_score += float(lab.mentor_score)
                 count += 1
-        
+
         if count == 0:
             return Decimal('0.00')
-        
+
         avg_score = total_score / count
         return Decimal(str(round(avg_score, 2)))
-    
+
     @staticmethod
     def calculate_exams_score(enrollment):
         """
         Calculate exams score for student.
-        
+
         Args:
             enrollment: Enrollment instance
-        
+
         Returns:
             Decimal score (0-100)
         """
@@ -155,62 +157,62 @@ class GradesService:
             enrollment=enrollment,
             status='graded'
         )
-        
+
         if not exams.exists():
             return Decimal('0.00')
-        
+
         avg_score = exams.aggregate(avg=Avg('score'))['avg']
         return Decimal(str(round(avg_score, 2))) if avg_score else Decimal('0.00')
-    
+
     @staticmethod
     def calculate_participation_score(enrollment):
         """
         Calculate participation score based on attendance and engagement.
-        
+
         Args:
             enrollment: Enrollment instance
-        
+
         Returns:
             Decimal score (0-100)
         """
         # This is a placeholder - implement based on your attendance tracking
         # For now, return a default score
         return Decimal('80.00')
-    
+
     @staticmethod
     def recalculate_grade(enrollment_id):
         """
         Recalculate all grade components for a student.
-        
+
         Args:
             enrollment_id: Enrollment UUID
-        
+
         Returns:
             CohortGrade instance with updated scores
         """
         enrollment = Enrollment.objects.get(id=enrollment_id)
         grade = GradesService.get_or_create_grade(enrollment_id)
-        
+
         # Calculate each component
         grade.missions_score = GradesService.calculate_missions_score(enrollment)
         grade.capstones_score = GradesService.calculate_capstones_score(enrollment)
         grade.labs_score = GradesService.calculate_labs_score(enrollment)
         grade.exams_score = GradesService.calculate_exams_score(enrollment)
         grade.participation_score = GradesService.calculate_participation_score(enrollment)
-        
+
         # Calculate overall score
         grade.calculate_overall()
-        
+
         return grade
-    
+
     @staticmethod
     def get_cohort_rankings(cohort_id):
         """
         Get rankings for all students in a cohort.
-        
+
         Args:
             cohort_id: Cohort UUID
-        
+
         Returns:
             list of dicts with student rankings
         """
@@ -218,9 +220,9 @@ class GradesService:
             cohort_id=cohort_id,
             status='active'
         ).select_related('user')
-        
+
         rankings = []
-        
+
         for enrollment in enrollments:
             grade = GradesService.get_or_create_grade(enrollment.id)
             rankings.append({
@@ -236,10 +238,10 @@ class GradesService:
                 'exams_score': float(grade.exams_score),
                 'participation_score': float(grade.participation_score),
             })
-        
+
         # Sort by overall score descending
         rankings.sort(key=lambda x: x['overall_score'], reverse=True)
-        
+
         # Assign ranks
         for i, ranking in enumerate(rankings, 1):
             ranking['rank'] = i
@@ -247,46 +249,46 @@ class GradesService:
             grade = CohortGrade.objects.get(enrollment_id=ranking['enrollment_id'])
             grade.rank = i
             grade.save(update_fields=['rank'])
-        
+
         return rankings
-    
+
     @staticmethod
     def get_grade_breakdown(enrollment_id):
         """
         Get detailed grade breakdown for a student.
-        
+
         Args:
             enrollment_id: Enrollment UUID
-        
+
         Returns:
             dict with detailed breakdown
         """
         grade = GradesService.get_or_create_grade(enrollment_id)
         enrollment = Enrollment.objects.get(id=enrollment_id)
-        
+
         # Get component details
         missions_count = MissionProgress.objects.filter(
             user=enrollment.user,
             status__in=['completed', 'approved']
         ).count()
-        
+
         capstones_count = MissionProgress.objects.filter(
             user=enrollment.user,
             mission__mission_type='capstone',
             status__in=['completed', 'approved']
         ).count()
-        
+
         labs_count = MissionProgress.objects.filter(
             user=enrollment.user,
             mission__mission_type='lab',
             status__in=['completed', 'approved']
         ).count()
-        
+
         exams_count = CohortExamSubmission.objects.filter(
             enrollment=enrollment,
             status='graded'
         ).count()
-        
+
         return {
             'overall_score': float(grade.overall_score),
             'letter_grade': grade.letter_grade,

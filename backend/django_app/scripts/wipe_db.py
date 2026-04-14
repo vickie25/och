@@ -1,5 +1,6 @@
 from django.db import connection
 
+
 def wipe_db():
     with connection.cursor() as cursor:
         cursor.execute("DROP SCHEMA public CASCADE;")

@@ -1,14 +1,13 @@
 """
 Unit tests for mission serializers.
 """
-from django.test import TestCase
 from django.contrib.auth import get_user_model
-from missions.models import Mission, MissionSubmission, MissionArtifact, AIFeedback
+from django.test import TestCase
+
+from missions.models import Mission, MissionSubmission
 from missions.serializers import (
     MissionSerializer,
     MissionSubmissionSerializer,
-    MissionArtifactSerializer,
-    AIFeedbackSerializer
 )
 
 User = get_user_model()
@@ -16,7 +15,7 @@ User = get_user_model()
 
 class MissionSerializerTest(TestCase):
     """Test MissionSerializer."""
-    
+
     def setUp(self):
         self.mission = Mission.objects.create(
             code='TEST-01',
@@ -29,7 +28,7 @@ class MissionSerializerTest(TestCase):
             competencies=['siem'],
             requirements={}
         )
-    
+
     def test_mission_serialization(self):
         """Test mission can be serialized."""
         serializer = MissionSerializer(self.mission)
@@ -41,7 +40,7 @@ class MissionSerializerTest(TestCase):
 
 class MissionSubmissionSerializerTest(TestCase):
     """Test MissionSubmissionSerializer."""
-    
+
     def setUp(self):
         self.user = User.objects.create_user(
             email='test@example.com',
@@ -57,7 +56,7 @@ class MissionSubmissionSerializerTest(TestCase):
             user=self.user,
             status='draft'
         )
-    
+
     def test_submission_serialization(self):
         """Test submission can be serialized."""
         serializer = MissionSubmissionSerializer(self.submission)

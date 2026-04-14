@@ -1,16 +1,15 @@
 """
 Employer-facing job application management views.
 """
-from django.db import models
-from django.utils import timezone
-from django.contrib.auth import get_user_model
-from rest_framework import generics, permissions, status
-from rest_framework.exceptions import NotFound, ValidationError, PermissionDenied
-from rest_framework.response import Response
-from rest_framework.decorators import action
 import logging
 
-from .models import JobPosting, JobApplication, Employer
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from rest_framework import generics, permissions
+from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.response import Response
+
+from .models import JobApplication, JobPosting
 from .serializers import (
     JobApplicationSerializer,
 )
@@ -47,7 +46,7 @@ def _prefetch_applicants(applications):
 class EmployerJobApplicationsView(generics.ListAPIView):
     """
     GET /api/v1/marketplace/jobs/<job_id>/applications
-    
+
     Employers can view all applications for a specific job posting.
     """
     permission_classes = [permissions.IsAuthenticated]
@@ -57,14 +56,14 @@ class EmployerJobApplicationsView(generics.ListAPIView):
     def get_queryset(self):
         job_id = self.kwargs.get('job_id')
         user = self.request.user
-        
+
         # Get employer - either direct profile or via role
         employer = get_employer_for_user(user)
-        
+
         if not employer:
             logger.warning(f'User {user.id} ({user.email}) has no employer profile')
             return JobApplication.objects.none()
-        
+
         # Find job by ID and verify ownership via employer.user match
         # This handles cases where employer profiles might have been created at different times
         try:
@@ -79,7 +78,7 @@ class EmployerJobApplicationsView(generics.ListAPIView):
         except JobPosting.DoesNotExist:
             logger.warning(f'Job posting {job_id} not found')
             raise NotFound('Job posting not found or you do not have permission to view it')
-        
+
         # Return all applications for this job (no select_related('applicant') to avoid varchar vs bigint join)
         return JobApplication.objects.filter(
             job_posting=job
@@ -96,7 +95,7 @@ class EmployerJobApplicationsView(generics.ListAPIView):
 class EmployerAllApplicationsView(generics.ListAPIView):
     """
     GET /api/v1/marketplace/applications/employer
-    
+
     Employers can view all applications across all their job postings.
     """
     permission_classes = [permissions.IsAuthenticated]
@@ -105,16 +104,16 @@ class EmployerAllApplicationsView(generics.ListAPIView):
     def get_queryset(self):
         user = self.request.user
         employer = get_employer_for_user(user)
-        
+
         if not employer:
             logger.warning(f'User {user.id} ({user.email}) has no employer profile')
             return JobApplication.objects.none()
-        
+
         # Get all applications for jobs posted by this employer (no select_related('applicant') to avoid varchar vs bigint join)
         return JobApplication.objects.filter(
             job_posting__employer__user=user
         ).select_related('job_posting', 'job_posting__employer').order_by('-applied_at')
-    
+
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         applications = list(queryset)
@@ -133,7 +132,7 @@ class EmployerApplicationDetailView(generics.RetrieveUpdateAPIView):
     """
     GET /api/v1/marketplace/applications/<id>
     PATCH /api/v1/marketplace/applications/<id>
-    
+
     Employers can view and update application details (status, notes).
     """
     permission_classes = [permissions.IsAuthenticated]
@@ -143,11 +142,11 @@ class EmployerApplicationDetailView(generics.RetrieveUpdateAPIView):
     def get_queryset(self):
         user = self.request.user
         employer = get_employer_for_user(user)
-        
+
         if not employer:
             logger.warning(f'User {user.id} ({user.email}) has no employer profile')
             return JobApplication.objects.none()
-        
+
         # Match by employer.user (no select_related('applicant') to avoid varchar vs bigint join)
         return JobApplication.objects.filter(
             job_posting__employer__user=user
@@ -163,20 +162,20 @@ class EmployerApplicationDetailView(generics.RetrieveUpdateAPIView):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         _prefetch_applicants([instance])
-        
+
         # Only allow updating status and notes
         allowed_fields = ['status', 'notes']
         data = {k: v for k, v in request.data.items() if k in allowed_fields}
-        
+
         serializer = self.get_serializer(instance, data=data, partial=partial)
         serializer.is_valid(raise_exception=True)
-        
+
         # Update status_changed_at when status changes
         if 'status' in data and data['status'] != instance.status:
             serializer.save(status_changed_at=timezone.now())
         else:
             serializer.save()
-        
+
         # Send notification to student if status changed
         if 'status' in data and data['status'] != instance.status:
             try:
@@ -190,14 +189,14 @@ class EmployerApplicationDetailView(generics.RetrieveUpdateAPIView):
                 )
             except Exception as e:
                 logger.warning(f'Failed to send status update notification: {e}')
-        
+
         return Response(serializer.data)
 
 
 class EmployerApplicationStatusUpdateView(generics.UpdateAPIView):
     """
     PATCH /api/v1/marketplace/applications/<id>/status
-    
+
     Quick endpoint to update only the application status.
     """
     permission_classes = [permissions.IsAuthenticated]
@@ -207,11 +206,11 @@ class EmployerApplicationStatusUpdateView(generics.UpdateAPIView):
     def get_queryset(self):
         user = self.request.user
         employer = get_employer_for_user(user)
-        
+
         if not employer:
             logger.warning(f'User {user.id} ({user.email}) has no employer profile')
             return JobApplication.objects.none()
-        
+
         # Match by employer.user (no select_related('applicant') to avoid varchar vs bigint join)
         return JobApplication.objects.filter(
             job_posting__employer__user=user
@@ -221,20 +220,20 @@ class EmployerApplicationStatusUpdateView(generics.UpdateAPIView):
         instance = self.get_object()
         _prefetch_applicants([instance])
         new_status = request.data.get('status')
-        
+
         if not new_status:
             raise ValidationError({'status': 'Status is required'})
-        
+
         # Validate status
         valid_statuses = [choice[0] for choice in JobApplication.STATUS_CHOICES]
         if new_status not in valid_statuses:
             raise ValidationError({'status': f'Invalid status. Must be one of: {", ".join(valid_statuses)}'})
-        
+
         old_status = instance.status
         instance.status = new_status
         instance.status_changed_at = timezone.now()
         instance.save(update_fields=['status', 'status_changed_at'])
-        
+
         # Send notification
         try:
             from services.email_service import EmailService
@@ -247,6 +246,6 @@ class EmployerApplicationStatusUpdateView(generics.UpdateAPIView):
             )
         except Exception as e:
             logger.warning(f'Failed to send status update notification: {e}')
-        
+
         serializer = self.get_serializer(instance)
         return Response(serializer.data)

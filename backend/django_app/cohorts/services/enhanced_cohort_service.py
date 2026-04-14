@@ -1,30 +1,32 @@
 """
 Enhanced Cohort Service - Advanced cohort management with subscription integration.
 """
-from django.db import transaction
-from django.utils import timezone
-from django.db.models import Q, Count, Sum, Avg
-from programs.models import Cohort, Enrollment, Track, Module
-from cohorts.models import CohortDayMaterial, CohortPayment
-from subscriptions.models import UserSubscription, SubscriptionPlan, TIER_STARTER, TIER_PREMIUM
-from decimal import Decimal
 import logging
+from decimal import Decimal
+
+from django.db import transaction
+from django.db.models import Count, Sum
+from django.utils import timezone
+from programs.models import Enrollment
+from subscriptions.models import TIER_PREMIUM, TIER_STARTER, SubscriptionPlan, UserSubscription
+
+from cohorts.models import CohortDayMaterial, CohortPayment
 
 logger = logging.getLogger(__name__)
 
 
 class EnhancedCohortService:
     """Enhanced service for cohort management with subscription integration."""
-    
+
     @staticmethod
     def check_subscription_cohort_eligibility(user, cohort):
         """
         Check if user can enroll in cohort based on subscription status.
-        
+
         Args:
             user: User instance
             cohort: Cohort instance
-        
+
         Returns:
             dict: {eligible: bool, reason: str, discount: float}
         """
@@ -40,7 +42,7 @@ class EnhancedCohortService:
                 )
                 .first()
             )
-            
+
             if not active_subscription:
                 return {
                     'eligible': True,
@@ -48,7 +50,7 @@ class EnhancedCohortService:
                     'discount': 0.0,
                     'subscription_benefit': None
                 }
-            
+
             # Subscription holders get benefits based on tier
             # Map our plan.tier values to benefit profiles
             subscription_benefits = {
@@ -74,7 +76,7 @@ class EnhancedCohortService:
                 plan_tier,
                 {'label': str(plan_tier), 'discount': 0.0, 'priority_enrollment': False},
             )
-            
+
             return {
                 'eligible': True,
                 'reason': f'Active {benefits["label"]} subscription - {int(benefits["discount"]*100)}% discount',
@@ -85,7 +87,7 @@ class EnhancedCohortService:
                     'subscription_id': str(active_subscription.id)
                 }
             }
-            
+
         except Exception as e:
             logger.error(f"Subscription eligibility check error: {str(e)}")
             return {
@@ -94,22 +96,22 @@ class EnhancedCohortService:
                 'discount': 0.0,
                 'subscription_benefit': None
             }
-    
+
     @staticmethod
     def calculate_cohort_pricing(cohort, user=None, seat_type='paid'):
         """
         Calculate cohort pricing with discounts and seat type considerations.
-        
+
         Args:
             cohort: Cohort instance
             user: Optional user for subscription discounts
             seat_type: 'paid', 'scholarship', 'sponsored'
-        
+
         Returns:
             dict: Pricing breakdown
         """
         base_price = cohort.track.program.default_price if cohort.track else Decimal('100.00')
-        
+
         # Seat type adjustments
         if seat_type == 'scholarship':
             return {
@@ -127,19 +129,19 @@ class EnhancedCohortService:
                 'discount_reason': 'Sponsored seat',
                 'seat_type': seat_type
             }
-        
+
         # Check subscription discounts for paid seats
         discount_amount = Decimal('0.00')
         discount_reason = 'No discount'
-        
+
         if user:
             eligibility = EnhancedCohortService.check_subscription_cohort_eligibility(user, cohort)
             if eligibility['discount'] > 0:
                 discount_amount = base_price * Decimal(str(eligibility['discount']))
                 discount_reason = eligibility['reason']
-        
+
         final_price = base_price - discount_amount
-        
+
         return {
             'base_price': base_price,
             'final_price': final_price,
@@ -147,35 +149,35 @@ class EnhancedCohortService:
             'discount_reason': discount_reason,
             'seat_type': seat_type
         }
-    
+
     @staticmethod
     def get_available_seats(cohort):
         """
         Get detailed seat availability for a cohort.
-        
+
         Args:
             cohort: Cohort instance
-        
+
         Returns:
             dict: Seat availability breakdown
         """
         total_enrolled = cohort.enrollments.filter(
             status__in=['active', 'pending_payment']
         ).count()
-        
+
         # Get seat pool configuration
         seat_pool = cohort.seat_pool or {}
         paid_seats = seat_pool.get('paid', cohort.seat_cap)
         scholarship_seats = seat_pool.get('scholarship', 0)
         sponsored_seats = seat_pool.get('sponsored', 0)
-        
+
         # Count by seat type
         enrolled_by_type = cohort.enrollments.filter(
             status__in=['active', 'pending_payment']
         ).values('seat_type').annotate(count=Count('id'))
-        
+
         enrolled_counts = {item['seat_type']: item['count'] for item in enrolled_by_type}
-        
+
         return {
             'total_capacity': cohort.seat_cap,
             'total_enrolled': total_enrolled,
@@ -200,20 +202,20 @@ class EnhancedCohortService:
             'is_full': total_enrolled >= cohort.seat_cap,
             'waitlist_count': cohort.waitlist_entries.filter(active=True).count()
         }
-    
+
     @staticmethod
     @transaction.atomic
     def enroll_user_in_cohort(user, cohort, seat_type='paid', enrollment_type='self', org=None):
         """
         Enroll user in cohort with comprehensive checks and payment setup.
-        
+
         Args:
             user: User instance
             cohort: Cohort instance
             seat_type: 'paid', 'scholarship', 'sponsored'
             enrollment_type: 'self', 'invite', 'director'
             org: Optional organization for sponsored seats
-        
+
         Returns:
             dict: Enrollment result with payment info
         """
@@ -223,32 +225,32 @@ class EnhancedCohortService:
                 user=user,
                 cohort=cohort
             ).first()
-            
+
             if existing_enrollment:
                 return {
                     'success': False,
                     'error': 'User already enrolled in this cohort',
                     'enrollment_id': str(existing_enrollment.id)
                 }
-            
+
             # Check seat availability
             seat_availability = EnhancedCohortService.get_available_seats(cohort)
             seat_info = seat_availability['seat_breakdown'][seat_type]
-            
+
             if seat_info['available'] <= 0:
                 return {
                     'success': False,
                     'error': f'No {seat_type} seats available',
                     'available_seats': seat_availability
                 }
-            
+
             # Calculate pricing
             pricing = EnhancedCohortService.calculate_cohort_pricing(cohort, user, seat_type)
-            
+
             # Determine payment status
             payment_status = 'waived' if seat_type in ['scholarship', 'sponsored'] else 'pending'
             enrollment_status = 'active' if payment_status == 'waived' else 'pending_payment'
-            
+
             # Create enrollment
             enrollment = Enrollment.objects.create(
                 cohort=cohort,
@@ -259,7 +261,7 @@ class EnhancedCohortService:
                 payment_status=payment_status,
                 status=enrollment_status
             )
-            
+
             # Create payment record if needed
             payment_info = None
             if payment_status == 'pending' and pricing['final_price'] > 0:
@@ -275,7 +277,7 @@ class EnhancedCohortService:
                     'currency': payment.currency,
                     'payment_deadline': (timezone.now() + timezone.timedelta(days=7)).isoformat()
                 }
-            
+
             return {
                 'success': True,
                 'enrollment_id': str(enrollment.id),
@@ -285,52 +287,52 @@ class EnhancedCohortService:
                 'payment_info': payment_info,
                 'message': 'Enrollment successful'
             }
-            
+
         except Exception as e:
             logger.error(f"Cohort enrollment error: {str(e)}")
             return {
                 'success': False,
                 'error': str(e)
             }
-    
+
     @staticmethod
     def get_cohort_analytics(cohort):
         """
         Get comprehensive analytics for a cohort.
-        
+
         Args:
             cohort: Cohort instance
-        
+
         Returns:
             dict: Analytics data
         """
         enrollments = cohort.enrollments.all()
         active_enrollments = enrollments.filter(status='active')
-        
+
         # Basic metrics
         total_enrolled = enrollments.count()
         completion_rate = 0
         if total_enrolled > 0:
             completed = enrollments.filter(status='completed').count()
             completion_rate = (completed / total_enrolled) * 100
-        
+
         # Revenue metrics
         payments = CohortPayment.objects.filter(
             enrollment__cohort=cohort,
             status='completed'
         )
         total_revenue = payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        
+
         # Progress metrics
         total_materials = CohortDayMaterial.objects.filter(cohort=cohort).count()
-        
+
         # Engagement metrics
         avg_progress = 0
         if active_enrollments.exists():
             # This would need to be calculated based on material progress
             # Placeholder calculation
             avg_progress = 65.0  # Would calculate from actual progress data
-        
+
         return {
             'enrollment_metrics': {
                 'total_enrolled': total_enrolled,
@@ -354,15 +356,15 @@ class EnhancedCohortService:
                 'days_remaining': max(0, (cohort.end_date - timezone.now().date()).days)
             }
         }
-    
+
     @staticmethod
     def get_user_cohort_status(user):
         """
         Get user's current cohort enrollments and eligibility.
-        
+
         Args:
             user: User instance
-        
+
         Returns:
             dict: User cohort status
         """
@@ -371,16 +373,16 @@ class EnhancedCohortService:
             user=user,
             status__in=['active', 'pending_payment']
         ).select_related('cohort', 'cohort__track')
-        
+
         # Completed cohorts
         completed_enrollments = Enrollment.objects.filter(
             user=user,
             status='completed'
         ).select_related('cohort', 'cohort__track')
-        
+
         # Check subscription status
         subscription_status = EnhancedCohortService.check_subscription_cohort_eligibility(user, None)
-        
+
         return {
             'current_cohorts': [
                 {

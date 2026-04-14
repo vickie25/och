@@ -4,6 +4,7 @@ Create foundations_modules table
 """
 import os
 import sys
+
 import django
 
 # Setup Django

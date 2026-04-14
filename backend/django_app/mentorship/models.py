@@ -2,8 +2,10 @@
 Mentorship models for chat messages and file attachments.
 """
 import uuid
-from django.db import models
+
 from django.core.validators import FileExtensionValidator
+from django.db import models
+
 from users.models import User
 
 
@@ -37,7 +39,7 @@ class ChatMessage(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'chat_messages'
         indexes = [
@@ -45,10 +47,10 @@ class ChatMessage(models.Model):
             models.Index(fields=['mentor', 'created_at']),
         ]
         ordering = ['-created_at']
-    
+
     def __str__(self):
         return f"Chat: {self.mentee.email} -> {self.mentor.email if self.mentor else 'All'}"
-    
+
     @property
     def sender_name(self):
         """Get sender name."""
@@ -77,16 +79,16 @@ class ChatAttachment(models.Model):
     file_size = models.IntegerField(help_text='File size in bytes')
     content_type = models.CharField(max_length=100)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'chat_attachments'
         indexes = [
             models.Index(fields=['message', 'created_at']),
         ]
-    
+
     def __str__(self):
         return f"Attachment: {self.filename} ({self.message.id})"
-    
+
     @property
     def url(self):
         """Get file URL."""

@@ -2,41 +2,37 @@
 API views for Sponsor Dashboard.
 """
 import logging
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from datetime import timedelta
+
+from django.conf import settings
 from django.db import connection
 from django.db.models import Q
 from django.utils import timezone
-from django.conf import settings
-from datetime import timedelta
-from organizations.models import Organization, OrganizationMember
 from programs.models import Cohort, Enrollment
-from users.models import User, ConsentScope, UserRole, Role
-from users.models import SponsorStudentLink
-from users.utils.consent_utils import check_consent
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from organizations.models import Organization, OrganizationMember
+from users.models import ConsentScope, SponsorStudentLink, User
+
 from .models import (
-    SponsorDashboardCache,
-    SponsorCohortDashboard,
-    SponsorStudentAggregates,
     SponsorCode,
+    SponsorCohortDashboard,
+    SponsorDashboardCache,
     SponsorReportRequest,
+    SponsorStudentAggregates,
 )
 from .serializers import (
-    SponsorDashboardSummarySerializer,
-    SponsorCohortListSerializer,
-    SponsorCohortDetailSerializer,
-    SponsorCodeSerializer,
     SponsorCodeGenerateSerializer,
-    SponsorSeatAssignSerializer,
-    SponsorInvoiceSerializer,
+    SponsorCodeSerializer,
+    SponsorCohortDetailSerializer,
+    SponsorDashboardSummarySerializer,
 )
 from .services import (
-    SponsorDashboardService,
     SponsorCodeService,
-    TalentScopeService,
-    BillingService,
+    SponsorDashboardService,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,7 +44,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
     Requires authentication and org membership.
     """
     permission_classes = [IsAuthenticated]
-    
+
     def get_org(self, request):
         """Get sponsor organization from user."""
         user = request.user
@@ -56,17 +52,17 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
         org = user.org_id
         if org and hasattr(org, 'org_type') and org.org_type == 'sponsor':
             return org
-        
+
         # Check if user is a member of any sponsor organization
         sponsor_orgs = Organization.objects.filter(
             org_type='sponsor',
             status='active',
             organizationmember__user=user
         ).distinct().first()
-        
+
         if sponsor_orgs:
             return sponsor_orgs
-        
+
         # In development mode, auto-create a sponsor organization for the user
         if settings.DEBUG:
             try:
@@ -75,7 +71,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 email_prefix = user.email.split('@')[0]
                 user_slug = slugify(email_prefix)[:20]  # Limit length
                 slug = f'sponsor-{user_slug}-{user.id}'[:50]  # Ensure slug is within max length
-                
+
                 # Get or create organization
                 org, created = Organization.objects.get_or_create(
                     slug=slug,
@@ -99,10 +95,10 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 logger = logging.getLogger(__name__)
                 logger.error(f'Failed to auto-create sponsor org for user {user.id}: {e}', exc_info=True)
                 return None
-        
+
         # If no sponsor org found, return None
         return None
-    
+
     @action(detail=False, methods=['get'])
     def summary(self, request):
         """
@@ -116,7 +112,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                     {'detail': 'User is not associated with a sponsor organization'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            
+
             # Get or create cache - use get_or_create to avoid race conditions
             cache, created = SponsorDashboardCache.objects.get_or_create(
                 org=org,
@@ -135,7 +131,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                     'low_utilization_cohorts': 0,
                 }
             )
-            
+
             # Try to refresh cache if it's empty or stale (older than 5 minutes)
             cache_age = timezone.now() - cache.cache_updated_at
             if created or cache_age > timedelta(minutes=5):
@@ -147,7 +143,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                     logger = logging.getLogger(__name__)
                     logger.warning(f'Failed to refresh sponsor cache for org {org.id}: {e}. Using existing cache.', exc_info=True)
                     # Continue with existing cache or empty cache
-            
+
             try:
                 serializer = SponsorDashboardSummarySerializer(cache)
                 return Response(serializer.data)
@@ -179,7 +175,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 {'detail': f'An unexpected error occurred: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-    
+
     @action(detail=False, methods=['get'])
     def cohorts(self, request):
         """
@@ -193,28 +189,28 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                     {'detail': 'User is not associated with a sponsor organization'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            
+
             limit = int(request.query_params.get('limit', 20))
             offset = int(request.query_params.get('offset', 0))
-            cursor = request.query_params.get('cursor')
-            
+            request.query_params.get('cursor')
+
             # Get cohorts that have sponsor assignments for users in this org
             try:
-                from sponsors.models import SponsorCohortAssignment
                 from programs.models import Cohort
-                
+                from sponsors.models import SponsorCohortAssignment
+
                 # Get users from this organization
                 org_users = User.objects.filter(
                     Q(org_id=org) | Q(organizationmember__organization=org)
                 ).distinct()
-                
+
                 # Get cohorts that have assignments from these users
                 assigned_cohorts = SponsorCohortAssignment.objects.filter(
                     sponsor_uuid_id__in=org_users
                 ).select_related('cohort_id', 'cohort_id__track').values_list('cohort_id', flat=True).distinct()
-                
+
                 cohorts = Cohort.objects.filter(id__in=assigned_cohorts).select_related('track')[offset:offset + limit]
-                
+
                 results = []
                 for cohort in cohorts:
                     # Get assignment details for this cohort
@@ -222,7 +218,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                         cohort_id=cohort,
                         sponsor_uuid_id__in=org_users
                     ).first()
-                    
+
                     results.append({
                         'cohort_id': str(cohort.id),
                         'cohort_name': cohort.name,
@@ -239,13 +235,13 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                         'start_date': cohort.start_date.isoformat() if cohort.start_date else None,
                         'end_date': cohort.end_date.isoformat() if cohort.end_date else None,
                     })
-                
+
                 return Response({
                     'results': results,
                     'next_cursor': None,
                     'count': len(results),
                 })
-                
+
             except Exception as e:
                 # If query fails, return empty list
                 import logging
@@ -266,7 +262,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 'next_cursor': None,
                 'count': 0,
             })
-    
+
     @action(detail=True, methods=['get'])
     def cohort_detail(self, request, pk=None):
         """
@@ -279,16 +275,16 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 {'detail': 'User is not associated with a sponsor organization'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         try:
             dashboard = SponsorCohortDashboard.objects.get(org=org, cohort_id=pk)
         except SponsorCohortDashboard.DoesNotExist:
             # Refresh if doesn't exist
             dashboard = SponsorDashboardService.refresh_cohort_details(org.id, pk)
-        
+
         serializer = SponsorCohortDetailSerializer(dashboard)
         return Response(serializer.data)
-    
+
     @action(detail=False, methods=['get'])
     def students(self, request):
         """
@@ -324,7 +320,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 cursor.execute(sql, params)
                 rows = cursor.fetchall()
                 columns = [col[0] for col in cursor.description]
-            enrollment_rows = [dict(zip(columns, row)) for row in rows]
+            enrollment_rows = [dict(zip(columns, row, strict=False)) for row in rows]
             if not enrollment_rows:
                 return Response([])
             cohort_ids = list({r['cohort_id'] for r in enrollment_rows})
@@ -374,7 +370,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
         except Exception as e:
             logger.error('Error in sponsor dashboard students endpoint: %s', e, exc_info=True)
             return Response([])
-    
+
     @action(detail=False, methods=['get'], url_path='cohort-enrollments')
     def cohort_enrollments(self, request):
         """
@@ -522,7 +518,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
     def seats_assign(self, request):
         """
         POST /api/v1/sponsor/seats/assign
-        DISABLED: Sponsors cannot enroll students. 
+        DISABLED: Sponsors cannot enroll students.
         Sponsors can only post jobs and connect with job-ready students.
         """
         return Response(
@@ -532,7 +528,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
             },
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     @action(detail=False, methods=['post'])
     def codes_generate(self, request):
         """
@@ -545,14 +541,14 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 {'detail': 'User is not associated with a sponsor organization'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         serializer = SponsorCodeGenerateSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
         count = serializer.validated_data.get('count', 1)
         codes = []
-        
+
         for _ in range(count):
             code = SponsorCodeService.generate_code(
                 org.id,
@@ -563,10 +559,10 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 max_usage=serializer.validated_data.get('max_usage'),
             )
             codes.append(code)
-        
+
         serializer = SponsorCodeSerializer(codes, many=True)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
+
     @action(detail=False, methods=['get'])
     def codes(self, request):
         """
@@ -579,11 +575,11 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 {'detail': 'User is not associated with a sponsor organization'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         queryset = SponsorCode.objects.filter(org=org).order_by('-created_at')
         serializer = SponsorCodeSerializer(queryset, many=True)
         return Response(serializer.data)
-    
+
     @action(detail=False, methods=['get'])
     def invoices(self, request):
         """
@@ -596,7 +592,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 {'detail': 'User is not associated with a sponsor organization'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         # TODO: Integrate with billing service
         # For now, return empty list
         return Response([])
@@ -726,7 +722,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
             resp['Content-Disposition'] = f'attachment; filename="cohort-{cohort.name[:30].replace(chr(32), "_")}-report.csv"'
             return resp
         return Response(report_data)
-    
+
     @action(detail=False, methods=['get'], url_path='students/(?P<student_id>[^/.]+)')
     def student_profile(self, request, student_id=None):
         """
@@ -739,7 +735,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 {'detail': 'User is not associated with a sponsor organization'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         try:
             student = User.objects.get(id=student_id)
         except User.DoesNotExist:
@@ -747,7 +743,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 {'detail': 'Student not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         # Check if student is sponsored by this organization
         from programs.models import Enrollment
         enrollment = Enrollment.objects.filter(
@@ -755,13 +751,13 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
             org=org,
             seat_type='sponsored'
         ).first()
-        
+
         if not enrollment:
             return Response(
                 {'detail': 'Student is not sponsored by your organization'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         # Check consent for employer.view_candidate_profile (employer_share scope)
         has_consent = ConsentScope.objects.filter(
             user=student,
@@ -769,7 +765,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
             granted=True,
             expires_at__isnull=True
         ).exists()
-        
+
         if not has_consent:
             return Response(
                 {
@@ -778,7 +774,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 },
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         # Get student aggregate data
         try:
             aggregate = SponsorStudentAggregates.objects.get(
@@ -794,11 +790,11 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 student=student,
                 cohort=enrollment.cohort
             )
-        
+
         # Return profile data
         from users.serializers import UserSerializer
-        user_data = UserSerializer(student).data
-        
+        UserSerializer(student).data
+
         return Response({
             'student_id': str(student.id),
             'name': f"{student.first_name} {student.last_name}".strip() or student.email,
@@ -812,7 +808,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
             },
             'enrollment_status': enrollment.status,
         })
-    
+
     @action(detail=False, methods=['get'], url_path='students/(?P<student_id>[^/.]+)/portfolio')
     def student_portfolio(self, request, student_id=None):
         """
@@ -825,7 +821,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 {'detail': 'User is not associated with a sponsor organization'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         try:
             student = User.objects.get(id=student_id)
         except User.DoesNotExist:
@@ -833,7 +829,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 {'detail': 'Student not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         # Check if student is sponsored by this organization
         from programs.models import Enrollment
         enrollment = Enrollment.objects.filter(
@@ -841,13 +837,13 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
             org=org,
             seat_type='sponsored'
         ).first()
-        
+
         if not enrollment:
             return Response(
                 {'detail': 'Student is not sponsored by your organization'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         # Check consent for portfolio.public_page (public_portfolio scope)
         has_consent = ConsentScope.objects.filter(
             user=student,
@@ -855,7 +851,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
             granted=True,
             expires_at__isnull=True
         ).exists()
-        
+
         if not has_consent:
             return Response(
                 {
@@ -864,7 +860,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 },
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         # Get portfolio items
         portfolio_items = []
         try:
@@ -879,13 +875,13 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
             } for item in items]
         except ImportError:
             pass
-        
+
         return Response({
             'student_id': str(student.id),
             'portfolio_items': portfolio_items,
             'total_items': len(portfolio_items),
         })
-    
+
     @action(detail=False, methods=['get'])
     def competencies(self, request):
         """
@@ -898,17 +894,17 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 {'detail': 'User is not associated with a sponsor organization'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         # Get competencies from Mission model
         from missions.models import Mission
         missions = Mission.objects.all().values('competencies').distinct()
-        
+
         # Extract unique competencies
         competencies = set()
         for mission in missions:
             if mission.get('competencies'):
                 competencies.update(mission['competencies'])
-        
+
         # Format as list of competency definitions
         competency_definitions = []
         for comp in sorted(competencies):
@@ -917,7 +913,7 @@ class SponsorDashboardViewSet(viewsets.ViewSet):
                 'name': comp,
                 'description': f"Competency in {comp}",
             })
-        
+
         return Response({
             'competencies': competency_definitions,
             'count': len(competency_definitions),

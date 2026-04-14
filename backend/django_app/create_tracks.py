@@ -1,11 +1,14 @@
 import os
+
 os.environ['DJANGO_SETTINGS_MODULE'] = 'core.settings.development'
 os.environ['USE_SQLITE'] = 'false'
 os.environ['DB_PASSWORD'] = 'brian001'
 os.chdir(r'C:\Users\HP\PycharmProjects\och\backend\django_app')
 import sys
+
 sys.path.insert(0, '.')
 import django
+
 django.setup()
 
 from programs.models import Program, Track

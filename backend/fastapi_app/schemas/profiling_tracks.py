@@ -3,7 +3,7 @@ OCH Track Definitions for AI Profiling Engine
 Maps users to 5 specific cybersecurity tracks: defender, offensive, innovation, leadership, grc
 """
 
-from typing import List
+
 from pydantic import BaseModel
 
 
@@ -12,8 +12,8 @@ class TrackInfo(BaseModel):
     key: str
     name: str
     description: str
-    focus_areas: List[str]
-    career_paths: List[str]
+    focus_areas: list[str]
+    career_paths: list[str]
 
 # OCH Tracks Definition - 5 Cybersecurity Specializations
 OCH_TRACKS = {

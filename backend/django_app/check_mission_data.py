@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Check what data exists for the mission."""
 import os
+
 import django
-import json
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from missions.models import Mission
 from django.db import connection
+from missions.models import Mission
 
 print("=" * 80)
 print("MISSION DATA INSPECTION")

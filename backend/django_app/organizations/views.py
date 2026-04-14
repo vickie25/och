@@ -1,15 +1,16 @@
 """
 Organization views for DRF.
 """
-from rest_framework import viewsets, permissions, status
+from django.conf import settings
+from django.core.mail import send_mail
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.core.mail import send_mail
-from django.conf import settings
-from django.utils import timezone
-from users.models import User, UserRole, Role
+
+from users.models import Role, User, UserRole
+
 from .models import Organization, OrganizationMember
-from .serializers import OrganizationSerializer, OrganizationMemberSerializer
+from .serializers import OrganizationMemberSerializer, OrganizationSerializer
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -20,7 +21,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     serializer_class = OrganizationSerializer
     permission_classes = [permissions.IsAuthenticated]
     lookup_field = 'slug'
-    
+
     def get_queryset(self):
         """
         Filter organizations by user membership.
@@ -29,7 +30,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         return Organization.objects.filter(
             members=user
         ).distinct()
-    
+
     def perform_create(self, serializer):
         """
         Set the owner when creating an organization.
@@ -54,7 +55,7 @@ class OrganizationMemberViewSet(viewsets.ModelViewSet):
         return OrganizationMember.objects.filter(
             organization__members=self.request.user
         )
-    
+
     @action(detail=False, methods=['post'])
     def invite(self, request):
         """
@@ -65,13 +66,13 @@ class OrganizationMemberViewSet(viewsets.ModelViewSet):
         org_slug = request.data.get('org_slug')
         org_role = request.data.get('org_role', 'member')  # OrganizationMember role
         system_role_name = request.data.get('system_role')  # Optional system role to assign
-        
+
         if not email or not org_slug:
             return Response(
                 {'detail': 'email and org_slug are required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Get organization
         try:
             org = Organization.objects.get(slug=org_slug)
@@ -80,7 +81,7 @@ class OrganizationMemberViewSet(viewsets.ModelViewSet):
                 {'detail': 'Organization not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         # Check if user has permission (must be org admin or owner)
         user = request.user
         is_owner = org.owner == user
@@ -89,13 +90,13 @@ class OrganizationMemberViewSet(viewsets.ModelViewSet):
             user=user,
             role='admin'
         ).exists()
-        
+
         if not (is_owner or is_admin):
             return Response(
                 {'detail': 'You do not have permission to invite members'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         # Get or create user by email
         try:
             invited_user = User.objects.get(email=email)
@@ -159,7 +160,7 @@ class OrganizationMemberViewSet(viewsets.ModelViewSet):
             'role': member.role,
             'joined_at': member.joined_at.isoformat() if member.joined_at else None,
         }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
-    
+
     @action(detail=True, methods=['post'])
     def assign_role(self, request, pk=None):
         """
@@ -169,7 +170,7 @@ class OrganizationMemberViewSet(viewsets.ModelViewSet):
         member = self.get_object()
         org = member.organization
         system_role_name = request.data.get('system_role')
-        
+
         # Check permission
         user = request.user
         is_owner = org.owner == user
@@ -178,19 +179,19 @@ class OrganizationMemberViewSet(viewsets.ModelViewSet):
             user=user,
             role='admin'
         ).exists()
-        
+
         if not (is_owner or is_admin):
             return Response(
                 {'detail': 'You do not have permission to assign roles'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         if not system_role_name:
             return Response(
                 {'detail': 'system_role is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
             system_role = Role.objects.get(name=system_role_name)
         except Role.DoesNotExist:
@@ -198,7 +199,7 @@ class OrganizationMemberViewSet(viewsets.ModelViewSet):
                 {'detail': f'Role "{system_role_name}" not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         # Assign role scoped to organization
         user_role, created = UserRole.objects.get_or_create(
             user=member.user,
@@ -209,12 +210,12 @@ class OrganizationMemberViewSet(viewsets.ModelViewSet):
             assigned_by=user,
             defaults={'is_active': True}
         )
-        
+
         if not created:
             user_role.is_active = True
             user_role.assigned_by = user
             user_role.save()
-        
+
         return Response({
             'detail': f'Role "{system_role.display_name}" assigned successfully',
             'user_role_id': str(user_role.id),

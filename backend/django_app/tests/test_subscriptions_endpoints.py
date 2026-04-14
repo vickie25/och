@@ -54,7 +54,7 @@ class TestUpgradeSubscriptionEndpoint:
     def test_upgrade_subscription_success(self, authenticated_client):
         """Test upgrading subscription successfully."""
         # Create subscription plan
-        plan = SubscriptionPlan.objects.create(
+        SubscriptionPlan.objects.create(
             name='premium',
             tier='premium',
             price_monthly=29.99
@@ -103,7 +103,7 @@ class TestStripeWebhookEndpoint:
         import os
         os.environ['STRIPE_WEBHOOK_SECRET'] = 'test_secret'
         os.environ['STRIPE_SECRET_KEY'] = 'test_key'
-        
+
         response = authenticated_client.post(
             '/api/v1/subscription/webhooks/stripe',
             {'type': 'test'},

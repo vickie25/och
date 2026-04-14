@@ -1,13 +1,13 @@
 """
 FastAPI router for student coaching endpoints.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import Optional, List
-from pydantic import BaseModel
-from datetime import datetime, date
+from datetime import date, datetime
 from uuid import UUID
+
 import httpx
 from config import settings
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/student/coaching", tags=["student-coaching"])
 
@@ -17,8 +17,8 @@ class HabitResponse(BaseModel):
     name: str
     is_core: bool
     frequency: str
-    streak_current: Optional[int] = 0
-    streak_longest: Optional[int] = 0
+    streak_current: int | None = 0
+    streak_longest: int | None = 0
     today_logged: bool = False
 
 
@@ -26,24 +26,24 @@ class GoalResponse(BaseModel):
     id: UUID
     title: str
     scope: str
-    description: Optional[str] = None
-    target_date: Optional[date] = None
+    description: str | None = None
+    target_date: date | None = None
     status: str
-    progress_percent: Optional[float] = None
+    progress_percent: float | None = None
 
 
 class ReflectionResponse(BaseModel):
     id: UUID
     content: str
-    ai_sentiment: Optional[str] = None
-    ai_tags: List[str] = []
+    ai_sentiment: str | None = None
+    ai_tags: list[str] = []
     created_at: datetime
 
 
 class CoachingOverviewResponse(BaseModel):
-    habits: List[HabitResponse]
-    active_goals: List[GoalResponse]
-    today_reflection_status: Optional[str] = None
+    habits: list[HabitResponse]
+    active_goals: list[GoalResponse]
+    today_reflection_status: str | None = None
     streaks: dict
 
 
@@ -55,15 +55,15 @@ class HabitLogRequest(BaseModel):
 class GoalCreateRequest(BaseModel):
     title: str
     scope: str
-    description: Optional[str] = None
-    target_date: Optional[date] = None
+    description: str | None = None
+    target_date: date | None = None
 
 
 class GoalUpdateRequest(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    target_date: Optional[date] = None
-    status: Optional[str] = None
+    title: str | None = None
+    description: str | None = None
+    target_date: date | None = None
+    status: str | None = None
 
 
 class ReflectionCreateRequest(BaseModel):
@@ -71,9 +71,9 @@ class ReflectionCreateRequest(BaseModel):
 
 
 class AICoachResponse(BaseModel):
-    weekly_plan: List[str]
-    suggestions: List[str]
-    insights: List[str]
+    weekly_plan: list[str]
+    suggestions: list[str]
+    insights: list[str]
 
 
 async def get_current_user_id() -> UUID:
@@ -140,7 +140,7 @@ async def log_habit(
             )
 
 
-@router.get("/goals", response_model=List[GoalResponse])
+@router.get("/goals", response_model=list[GoalResponse])
 async def list_goals(user_id: UUID = Depends(get_current_user_id)):
     """List user goals."""
     async with httpx.AsyncClient() as client:
@@ -225,7 +225,7 @@ async def create_reflection(
             )
 
 
-@router.get("/reflections/recent", response_model=List[ReflectionResponse])
+@router.get("/reflections/recent", response_model=list[ReflectionResponse])
 async def get_recent_reflections(user_id: UUID = Depends(get_current_user_id)):
     """Get recent reflections."""
     async with httpx.AsyncClient() as client:

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Recreate mission_progress table with correct foreign key."""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')

@@ -5,9 +5,8 @@ Usage: python scripts/test_missions_api.py
 """
 import os
 import sys
+
 import requests
-import json
-from datetime import datetime
 
 # API configuration
 DJANGO_API_URL = 'http://localhost:8000'
@@ -51,11 +50,11 @@ def test_missions_api():
         print(f"❌ Cannot access mission funnel endpoint: {e}")
 
     print("\n📋 API Endpoint Status:")
-    print(f"   GET /api/v1/student/missions - Requires Auth")
-    print(f"   GET /api/v1/student/missions/funnel - Requires Auth")
-    print(f"   GET /api/v1/student/missions/{{id}} - Requires Auth")
-    print(f"   POST /api/v1/student/missions/{{id}}/submit - Requires Auth")
-    print(f"   POST /api/v1/student/missions/{{id}}/draft - Requires Auth")
+    print("   GET /api/v1/student/missions - Requires Auth")
+    print("   GET /api/v1/student/missions/funnel - Requires Auth")
+    print("   GET /api/v1/student/missions/{id} - Requires Auth")
+    print("   POST /api/v1/student/missions/{id}/submit - Requires Auth")
+    print("   POST /api/v1/student/missions/{id}/draft - Requires Auth")
 
     print("\n🔐 Authentication Required:")
     print("   To test with authentication, you'll need to:")

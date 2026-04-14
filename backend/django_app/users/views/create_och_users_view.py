@@ -2,14 +2,15 @@
 API endpoint to create OCH users
 POST /api/v1/users/create-och-users/
 """
+from community import signals
+from django.contrib.auth import get_user_model
+from django.db.models.signals import post_save
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework import status
-from django.contrib.auth import get_user_model
+
 from users.models import Role, UserRole
-from django.db.models.signals import post_save
-from community import signals
 
 User = get_user_model()
 
@@ -90,7 +91,7 @@ def create_och_users(request):
         for user_data in och_users:
             role_name = user_data.pop('role')
             email = user_data['email']
-            
+
             try:
                 user = User.objects.get(email=email)
                 user.set_password(password)
@@ -113,7 +114,7 @@ def create_och_users(request):
                 )
                 created_count += 1
                 results.append({'email': email, 'role': role_name, 'action': 'created'})
-            
+
             # Assign role
             role, _ = Role.objects.get_or_create(name=role_name)
             UserRole.objects.get_or_create(

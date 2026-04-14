@@ -1,11 +1,11 @@
 """
 Configuration settings for FastAPI application.
 """
-from pydantic_settings import BaseSettings
-from typing import List
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
+from pydantic_settings import BaseSettings
 
 # Load environment variables from .env file (same as Django does)
 # Priority: 1) Project root, 2) backend/django_app (for compatibility), 3) backend/fastapi_app (legacy), 4) backend (legacy)
@@ -50,43 +50,43 @@ class Settings(BaseSettings):
     # Application
     APP_NAME: str = "Ongoza CyberHub AI API"
     DEBUG: bool = False
-    
+
     # Database - Vector Store (PGVector)
     VECTOR_DB_HOST: str = "localhost"
     VECTOR_DB_PORT: int = 5433
     VECTOR_DB_NAME: str = "ongozacyberhub_vector"
     VECTOR_DB_USER: str = "postgres"
     VECTOR_DB_PASSWORD: str = "postgres"
-    
+
     # Alternative: Pinecone
     USE_PINECONE: bool = False
     PINECONE_API_KEY: str = ""
     PINECONE_ENVIRONMENT: str = ""
     PINECONE_INDEX_NAME: str = "ongozacyberhub"
-    
+
     # Django API Communication
     DJANGO_API_URL: str = "http://localhost:8000"
     DJANGO_API_TIMEOUT: int = 30
-    
+
     # Embedding Model
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
     EMBEDDING_DIMENSION: int = 384
-    
+
     # CORS
-    CORS_ORIGINS: List[str] = [
+    CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "https://cybochengine.africa",
         "https://www.cybochengine.africa",
     ]
-    
+
     # JWT (shared with Django)
     # Both Django and FastAPI use JWT_SECRET_KEY from environment
     # If not set, fallback to DJANGO_SECRET_KEY for backward compatibility
     DJANGO_SECRET_KEY: str = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-change-me-in-production')
     JWT_SECRET_KEY: str = os.getenv('JWT_SECRET_KEY', '')  # Primary JWT secret key
     JWT_ALGORITHM: str = os.getenv('JWT_ALGORITHM', 'HS256')
-    
+
     class Config:
         # Pydantic will use this path as fallback, but we've already loaded via load_dotenv above
         # Point to root .env if it exists, otherwise use default

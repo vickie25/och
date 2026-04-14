@@ -1,20 +1,20 @@
 """
 Cohort Lifecycle Management API for Directors.
 """
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.db import transaction
-from django.utils import timezone
+import logging
 from datetime import datetime, timedelta
 
-from ..models import Cohort, Enrollment, CalendarEvent
-from ..serializers import CohortSerializer
-from ..permissions import IsProgramDirector
-from ..services.certificate_service import CertificateService
+from django.db import transaction
+from django.utils import timezone
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
-import logging
+from ..models import CalendarEvent, Cohort
+from ..permissions import IsProgramDirector
+from ..serializers import CohortSerializer
+from ..services.certificate_service import CertificateService
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class DirectorCohortLifecycleViewSet(viewsets.ViewSet):
     """Director Cohort Lifecycle Management API."""
     permission_classes = [IsAuthenticated, IsProgramDirector]
-    
+
     def get_cohort(self, cohort_id, user):
         """Get cohort with permission check."""
         try:
@@ -32,7 +32,7 @@ class DirectorCohortLifecycleViewSet(viewsets.ViewSet):
             return cohort
         except Cohort.DoesNotExist:
             return None
-    
+
     @action(detail=True, methods=['post'])
     def transition_status(self, request, pk=None):
         """Transition cohort to new status with validation."""
@@ -42,14 +42,14 @@ class DirectorCohortLifecycleViewSet(viewsets.ViewSet):
                 {'error': 'Cohort not found or access denied'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         new_status = request.data.get('status')
         if new_status not in dict(Cohort.STATUS_CHOICES):
             return Response(
                 {'error': 'Invalid status'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Status transition validation
         valid_transitions = {
             'draft': ['active'],
@@ -58,13 +58,13 @@ class DirectorCohortLifecycleViewSet(viewsets.ViewSet):
             'closing': ['closed'],
             'closed': []
         }
-        
+
         if new_status not in valid_transitions.get(cohort.status, []):
             return Response(
                 {'error': f'Cannot transition from {cohort.status} to {new_status}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Perform transition with side effects
         with transaction.atomic():
             old_status = cohort.status
@@ -79,7 +79,7 @@ class DirectorCohortLifecycleViewSet(viewsets.ViewSet):
                 })
 
             cohort.status = new_status
-            
+
             # Handle status-specific logic
             if new_status == 'active':
                 # Validate cohort is ready to be active
@@ -88,24 +88,24 @@ class DirectorCohortLifecycleViewSet(viewsets.ViewSet):
                         {'error': 'Start and end dates required for active status'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                
+
                 # Auto-generate calendar events if none exist
                 if not cohort.calendar_events.exists():
                     self._generate_default_events(cohort)
-            
+
             elif new_status == 'running':
                 # Mark all pending enrollments as active
                 cohort.enrollments.filter(status='pending_payment').update(
                     status='active'
                 )
-            
+
             cohort.save()
-        
+
         return Response({
             'message': f'Cohort status changed from {old_status} to {new_status}',
             'cohort': CohortSerializer(cohort).data
         })
-    
+
     @action(detail=True, methods=['put'])
     def advanced_edit(self, request, pk=None):
         """Advanced cohort editing with validation."""
@@ -115,14 +115,14 @@ class DirectorCohortLifecycleViewSet(viewsets.ViewSet):
                 {'error': 'Cohort not found or access denied'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         # Prevent editing of closed cohorts
         if cohort.status == 'closed':
             return Response(
                 {'error': 'Cannot edit closed cohorts'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         serializer = CohortSerializer(cohort, data=request.data, partial=True)
         if serializer.is_valid():
             # Validate seat cap changes
@@ -132,12 +132,12 @@ class DirectorCohortLifecycleViewSet(viewsets.ViewSet):
                     {'error': 'Cannot reduce seat cap below current active enrollments'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             cohort = serializer.save()
             return Response(CohortSerializer(cohort).data)
-        
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
     @action(detail=True, methods=['get'])
     def lifecycle_info(self, request, pk=None):
         """Get cohort lifecycle information and available transitions."""
@@ -147,7 +147,7 @@ class DirectorCohortLifecycleViewSet(viewsets.ViewSet):
                 {'error': 'Cohort not found or access denied'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         valid_transitions = {
             'draft': ['active'],
             'active': ['running', 'draft'],
@@ -155,12 +155,12 @@ class DirectorCohortLifecycleViewSet(viewsets.ViewSet):
             'closing': ['closed'],
             'closed': []
         }
-        
+
         # Calculate lifecycle metrics
         total_enrollments = cohort.enrollments.count()
         active_enrollments = cohort.enrollments.filter(status='active').count()
         completed_enrollments = cohort.enrollments.filter(status='completed').count()
-        
+
         # Check readiness for transitions
         readiness_checks = {}
         if cohort.status == 'draft':
@@ -172,7 +172,7 @@ class DirectorCohortLifecycleViewSet(viewsets.ViewSet):
                     {'check': 'seat_cap', 'status': cohort.seat_cap > 0, 'message': 'Seat capacity required'},
                 ]
             }
-        
+
         return Response({
             'current_status': cohort.status,
             'available_transitions': valid_transitions.get(cohort.status, []),
@@ -186,14 +186,14 @@ class DirectorCohortLifecycleViewSet(viewsets.ViewSet):
                 'days_until_end': (cohort.end_date - timezone.now().date()).days if cohort.end_date else None,
             }
         })
-    
+
     def _generate_default_events(self, cohort):
         """Generate default calendar events for cohort."""
         if not cohort.start_date or not cohort.end_date:
             return
-        
+
         duration_days = (cohort.end_date - cohort.start_date).days
-        
+
         events = [
             {
                 'type': 'orientation',
@@ -224,12 +224,12 @@ class DirectorCohortLifecycleViewSet(viewsets.ViewSet):
                 'duration_hours': 3
             }
         ]
-        
+
         for event_data in events:
             event_date = cohort.start_date + timedelta(days=event_data['days_offset'])
             start_time = datetime.combine(event_date, datetime.min.time().replace(hour=10))
             end_time = start_time + timedelta(hours=event_data['duration_hours'])
-            
+
             CalendarEvent.objects.create(
                 cohort=cohort,
                 type=event_data['type'],

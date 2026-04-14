@@ -1,8 +1,9 @@
 """
 Seed sponsors and cohorts for demonstration.
 """
-from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand
+
 from sponsors.models import Sponsor, SponsorCohort, SponsorStudentCohort
 
 User = get_user_model()

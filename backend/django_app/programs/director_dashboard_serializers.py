@@ -2,12 +2,13 @@
 Serializers for Director Dashboard models.
 """
 from rest_framework import serializers
-from programs.director_dashboard_models import DirectorDashboardCache, DirectorCohortDashboard
+
+from programs.director_dashboard_models import DirectorCohortDashboard, DirectorDashboardCache
 
 
 class DirectorDashboardCacheSerializer(serializers.ModelSerializer):
     """Serializer for director dashboard cache."""
-    
+
     class Meta:
         model = DirectorDashboardCache
         fields = [
@@ -36,7 +37,7 @@ class DirectorDashboardCacheSerializer(serializers.ModelSerializer):
 class DirectorCohortDashboardSerializer(serializers.ModelSerializer):
     """Serializer for cohort dashboard detail."""
     cohort_id = serializers.UUIDField(source='cohort.id', read_only=True)
-    
+
     class Meta:
         model = DirectorCohortDashboard
         fields = [

@@ -1,13 +1,13 @@
 """
 FastAPI router for student dashboard endpoints.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import Optional, List
-from pydantic import BaseModel
-from datetime import datetime, date
+from datetime import date
 from uuid import UUID
+
 import httpx
 from config import settings
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/student/dashboard", tags=["student-dashboard"])
 
@@ -32,7 +32,7 @@ class CohortProgress(BaseModel):
     total_modules: int
     completed_modules: int
     estimated_time_remaining: int
-    graduation_date: Optional[date] = None
+    graduation_date: date | None = None
 
 
 class PortfolioMetrics(BaseModel):
@@ -47,7 +47,7 @@ class MentorshipData(BaseModel):
     next_session_date: date
     next_session_time: str
     mentor_name: str
-    mentor_avatar: Optional[str] = None
+    mentor_avatar: str | None = None
     session_type: str
     status: str
 
@@ -69,8 +69,8 @@ class QuickStats(BaseModel):
 
 class SubscriptionInfo(BaseModel):
     tier: str
-    expiry: Optional[date] = None
-    days_left: Optional[int] = None
+    expiry: date | None = None
+    days_left: int | None = None
 
 
 class DashboardOverviewResponse(BaseModel):
@@ -90,11 +90,11 @@ class DashboardMetricsResponse(BaseModel):
 class ActionItem(BaseModel):
     id: str
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     type: str
     urgency: str
-    progress: Optional[float] = None
-    due_date: Optional[date] = None
+    progress: float | None = None
+    due_date: date | None = None
     action_url: str
 
 
@@ -102,12 +102,12 @@ class EventItem(BaseModel):
     id: str
     title: str
     date: date
-    time: Optional[str] = None
+    time: str | None = None
     type: str
     urgency: str
     rsvp_required: bool
-    rsvp_status: Optional[str] = None
-    action_url: Optional[str] = None
+    rsvp_status: str | None = None
+    action_url: str | None = None
 
 
 class TrackMilestone(BaseModel):
@@ -121,7 +121,7 @@ class TrackMilestone(BaseModel):
 class TrackOverview(BaseModel):
     track_name: str
     track_key: str
-    milestones: List[TrackMilestone]
+    milestones: list[TrackMilestone]
     completed_milestones: int
     total_milestones: int
 
@@ -133,7 +133,7 @@ class CommunityActivity(BaseModel):
     timestamp: str
     likes: int
     type: str
-    action_url: Optional[str] = None
+    action_url: str | None = None
 
 
 class LeaderboardEntry(BaseModel):
@@ -141,7 +141,7 @@ class LeaderboardEntry(BaseModel):
     user_id: str
     user_name: str
     points: int
-    avatar: Optional[str] = None
+    avatar: str | None = None
     is_current_user: bool
 
 
@@ -158,8 +158,8 @@ class AICoachNudge(BaseModel):
     id: str
     message: str
     recommendation: str
-    action_url: Optional[str] = None
-    action_label: Optional[str] = None
+    action_url: str | None = None
+    action_label: str | None = None
     dismissible: bool
 
 
@@ -170,14 +170,14 @@ async def get_dashboard_overview(user_id: UUID = Depends(get_current_user_id)):
     """
     try:
         django_url = f"{settings.DJANGO_API_URL}/api/v1/student/dashboard/overview"
-        
+
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 django_url,
                 headers={"X-User-ID": user_id},
                 timeout=10.0
             )
-            
+
             if response.status_code == 200:
                 return response.json()
             else:
@@ -199,14 +199,14 @@ async def get_dashboard_metrics(user_id: UUID = Depends(get_current_user_id)):
     """
     try:
         django_url = f"{settings.DJANGO_API_URL}/api/v1/student/dashboard/metrics"
-        
+
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 django_url,
                 headers={"X-User-ID": user_id},
                 timeout=10.0
             )
-            
+
             if response.status_code == 200:
                 return response.json()
             else:
@@ -221,21 +221,21 @@ async def get_dashboard_metrics(user_id: UUID = Depends(get_current_user_id)):
         )
 
 
-@router.get("/next-actions", response_model=List[ActionItem])
+@router.get("/next-actions", response_model=list[ActionItem])
 async def get_next_actions(user_id: UUID = Depends(get_current_user_id)):
     """
     Get prioritized next actions for the student.
     """
     try:
         django_url = f"{settings.DJANGO_API_URL}/api/v1/student/dashboard/next-actions"
-        
+
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 django_url,
                 headers={"X-User-ID": user_id},
                 timeout=10.0
             )
-            
+
             if response.status_code == 200:
                 return response.json()
             else:
@@ -250,21 +250,21 @@ async def get_next_actions(user_id: UUID = Depends(get_current_user_id)):
         )
 
 
-@router.get("/events", response_model=List[EventItem])
+@router.get("/events", response_model=list[EventItem])
 async def get_dashboard_events(user_id: UUID = Depends(get_current_user_id)):
     """
     Get upcoming events timeline with RSVP status.
     """
     try:
         django_url = f"{settings.DJANGO_API_URL}/api/v1/student/dashboard/events"
-        
+
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 django_url,
                 headers={"X-User-ID": user_id},
                 timeout=10.0
             )
-            
+
             if response.status_code == 200:
                 return response.json()
             else:
@@ -286,14 +286,14 @@ async def get_track_overview(user_id: UUID = Depends(get_current_user_id)):
     """
     try:
         django_url = f"{settings.DJANGO_API_URL}/api/v1/student/dashboard/track-overview"
-        
+
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 django_url,
                 headers={"X-User-ID": user_id},
                 timeout=10.0
             )
-            
+
             if response.status_code == 200:
                 return response.json()
             else:
@@ -308,21 +308,21 @@ async def get_track_overview(user_id: UUID = Depends(get_current_user_id)):
         )
 
 
-@router.get("/community-feed", response_model=List[CommunityActivity])
+@router.get("/community-feed", response_model=list[CommunityActivity])
 async def get_community_feed(user_id: UUID = Depends(get_current_user_id)):
     """
     Get latest community activities.
     """
     try:
         django_url = f"{settings.DJANGO_API_URL}/api/v1/student/dashboard/community-feed"
-        
+
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 django_url,
                 headers={"X-User-ID": user_id},
                 timeout=10.0
             )
-            
+
             if response.status_code == 200:
                 return response.json()
             else:
@@ -337,21 +337,21 @@ async def get_community_feed(user_id: UUID = Depends(get_current_user_id)):
         )
 
 
-@router.get("/leaderboard", response_model=List[LeaderboardEntry])
+@router.get("/leaderboard", response_model=list[LeaderboardEntry])
 async def get_leaderboard(user_id: UUID = Depends(get_current_user_id)):
     """
     Get cohort top performers.
     """
     try:
         django_url = f"{settings.DJANGO_API_URL}/api/v1/student/dashboard/leaderboard"
-        
+
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 django_url,
                 headers={"X-User-ID": user_id},
                 timeout=10.0
             )
-            
+
             if response.status_code == 200:
                 return response.json()
             else:
@@ -366,21 +366,21 @@ async def get_leaderboard(user_id: UUID = Depends(get_current_user_id)):
         )
 
 
-@router.get("/habits", response_model=List[HabitStatus])
+@router.get("/habits", response_model=list[HabitStatus])
 async def get_dashboard_habits(user_id: UUID = Depends(get_current_user_id)):
     """
     Get daily habit tracking status.
     """
     try:
         django_url = f"{settings.DJANGO_API_URL}/api/v1/student/dashboard/habits"
-        
+
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 django_url,
                 headers={"X-User-ID": user_id},
                 timeout=10.0
             )
-            
+
             if response.status_code == 200:
                 return response.json()
             else:
@@ -402,14 +402,14 @@ async def get_ai_coach_nudge(user_id: UUID = Depends(get_current_user_id)):
     """
     try:
         django_url = f"{settings.DJANGO_API_URL}/api/v1/student/dashboard/ai-coach-nudge"
-        
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 django_url,
                 headers={"X-User-ID": user_id},
                 timeout=10.0
             )
-            
+
             if response.status_code == 200:
                 return response.json()
             else:

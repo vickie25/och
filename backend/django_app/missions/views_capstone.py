@@ -2,16 +2,16 @@
 Capstone Project API Views
 Endpoints for Capstone Project CRUD and phase completion.
 """
+from django.db import transaction
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
-from django.shortcuts import get_object_or_404
-from django.utils import timezone
-from django.db import transaction
-from .models_capstone import CapstoneProject
+
 from .models import Mission
-from users.models import User
+from .models_capstone import CapstoneProject
 
 
 @api_view(['POST'])
@@ -23,15 +23,15 @@ def create_capstone_project(request):
     """
     user = request.user
     mission_id = request.data.get('mission_id')
-    
+
     if not mission_id:
         return Response({'error': 'mission_id is required'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         mission = Mission.objects.get(id=mission_id, tier='mastery', is_active=True)
     except Mission.DoesNotExist:
         return Response({'error': 'Mission not found or not a Mastery mission'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     # Check if capstone project already exists
     existing = CapstoneProject.objects.filter(user=user, mission=mission).first()
     if existing:
@@ -39,7 +39,7 @@ def create_capstone_project(request):
             'error': 'Capstone project already exists',
             'capstone_project_id': str(existing.id)
         }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     with transaction.atomic():
         capstone = CapstoneProject.objects.create(
             user=user,
@@ -48,7 +48,7 @@ def create_capstone_project(request):
             status='not_started',
             started_at=timezone.now()
         )
-    
+
     return Response({
         'id': str(capstone.id),
         'mission_id': str(mission.id),
@@ -69,11 +69,11 @@ def get_capstone_project(request, capstone_id):
     """
     user = request.user
     capstone = get_object_or_404(CapstoneProject, id=capstone_id)
-    
+
     # Verify user owns this capstone
     if capstone.user != user:
         return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     return Response({
         'id': str(capstone.id),
         'mission_id': str(capstone.mission.id),
@@ -131,11 +131,11 @@ def update_capstone_project(request, capstone_id):
     """
     user = request.user
     capstone = get_object_or_404(CapstoneProject, id=capstone_id)
-    
+
     # Verify user owns this capstone
     if capstone.user != user:
         return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     # Update fields based on request data
     if 'investigation_findings' in request.data:
         capstone.investigation_findings = request.data['investigation_findings']
@@ -161,9 +161,9 @@ def update_capstone_project(request, capstone_id):
         capstone.presentation_type = request.data['presentation_type']
     if 'presentation_notes' in request.data:
         capstone.presentation_notes = request.data['presentation_notes']
-    
+
     capstone.save()
-    
+
     return Response({
         'id': str(capstone.id),
         'status': capstone.status,
@@ -178,16 +178,16 @@ def complete_capstone_phase(request, capstone_id, phase):
     """
     POST /api/v1/capstone-projects/{id}/complete-phase/{phase}/
     Complete a specific phase of the capstone project.
-    
+
     Phases: investigation, decision_making, design_remediation, reporting, presentation
     """
     user = request.user
     capstone = get_object_or_404(CapstoneProject, id=capstone_id)
-    
+
     # Verify user owns this capstone
     if capstone.user != user:
         return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     phase_map = {
         'investigation': ('investigation_completed_at', 'investigation'),
         'decision_making': ('decision_making_completed_at', 'decision_making'),
@@ -195,12 +195,12 @@ def complete_capstone_phase(request, capstone_id, phase):
         'reporting': ('reporting_completed_at', 'reporting'),
         'presentation': ('presentation_completed_at', 'presentation'),
     }
-    
+
     if phase not in phase_map:
         return Response({'error': f'Invalid phase: {phase}'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     field_name, phase_status = phase_map[phase]
-    
+
     # Check if previous phases are complete (if required)
     if phase == 'decision_making' and not capstone.investigation_completed_at:
         return Response({'error': 'Investigation phase must be completed first'}, status=status.HTTP_400_BAD_REQUEST)
@@ -210,19 +210,19 @@ def complete_capstone_phase(request, capstone_id, phase):
         return Response({'error': 'Design/remediation phase must be completed first'}, status=status.HTTP_400_BAD_REQUEST)
     if phase == 'presentation' and not capstone.reporting_completed_at:
         return Response({'error': 'Reporting phase must be completed first'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     with transaction.atomic():
         setattr(capstone, field_name, timezone.now())
-        
+
         # Update status based on phase
         if phase == 'presentation':
             capstone.status = 'submitted'
             capstone.submitted_at = timezone.now()
         else:
             capstone.status = phase_status
-        
+
         capstone.save()
-    
+
     return Response({
         'id': str(capstone.id),
         'phase': phase,
@@ -242,20 +242,20 @@ def submit_capstone_project(request, capstone_id):
     """
     user = request.user
     capstone = get_object_or_404(CapstoneProject, id=capstone_id)
-    
+
     # Verify user owns this capstone
     if capstone.user != user:
         return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     # Verify all phases are complete
     if not capstone.presentation_completed_at:
         return Response({'error': 'Presentation phase must be completed before submission'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     with transaction.atomic():
         capstone.status = 'submitted'
         capstone.submitted_at = timezone.now()
         capstone.save()
-    
+
     return Response({
         'id': str(capstone.id),
         'status': capstone.status,
@@ -274,16 +274,16 @@ def list_user_capstone_projects(request):
     user = request.user
     track = request.query_params.get('track')
     status_filter = request.query_params.get('status')
-    
+
     queryset = CapstoneProject.objects.filter(user=user)
-    
+
     if track:
         queryset = queryset.filter(track=track)
     if status_filter:
         queryset = queryset.filter(status=status_filter)
-    
+
     capstones = queryset.select_related('mission').order_by('-created_at')
-    
+
     return Response({
         'results': [{
             'id': str(c.id),

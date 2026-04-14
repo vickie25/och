@@ -1,11 +1,12 @@
 """
 AI Coach recommendation generation.
 """
+import logging
+
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -19,23 +20,24 @@ def generate_recommendation(request):
     """
     user = request.user
     progress = request.data.get('progress', {})
-    
+
     try:
         import os
+
         from openai import OpenAI
-        
+
         api_key = os.environ.get('CHAT_GPT_API_KEY') or os.environ.get('OPENAI_API_KEY')
         if not api_key:
             raise Exception('OpenAI API key not configured')
-        
+
         client = OpenAI(api_key=api_key)
-        
+
         # Get track info (UserTrackEnrollment, user.track_key, programs.Enrollment, ProfilerSession)
         from .services import get_user_track_info
         track_info, _, _ = get_user_track_info(user)
         if track_info == "Not enrolled in any track yet":
             track_info = "Not enrolled yet"
-        
+
         prompt = f"""As {user.first_name}'s AI Coach, provide a personalized recommendation.
 
 Student Profile:
@@ -54,24 +56,24 @@ Provide:
 3. A motivational message
 
 Keep it under 100 words. Be specific and actionable."""
-        
+
         response = client.chat.completions.create(
             model='gpt-3.5-turbo',
             messages=[{'role': 'user', 'content': prompt}],
             max_tokens=150,
             temperature=0.7,
         )
-        
+
         recommendation = response.choices[0].message.content.strip()
-        
+
         # Log as AI coach message for usage tracking
-        from .models import AICoachSession, AICoachMessage
+        from .models import AICoachMessage, AICoachSession
         session, _ = AICoachSession.objects.get_or_create(
             user=user,
             session_type='recommendation',
             defaults={'prompt_count': 0}
         )
-        
+
         AICoachMessage.objects.create(
             session=session,
             role='assistant',
@@ -79,12 +81,12 @@ Keep it under 100 words. Be specific and actionable."""
             context='recommendation',
             metadata={'progress': progress}
         )
-        
+
         session.prompt_count += 1
         session.save()
-        
+
         return Response({'recommendation': recommendation}, status=status.HTTP_200_OK)
-        
+
     except Exception as e:
         logger.error(f'Recommendation error: {e}')
         return Response({

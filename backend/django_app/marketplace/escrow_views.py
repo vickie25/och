@@ -3,11 +3,11 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import MarketplaceEscrow, MarketplaceCommissionLedger, JobApplication, Employer
 from .escrow_serializers import (
-    MarketplaceEscrowSerializer,
     MarketplaceEscrowCreateSerializer,
+    MarketplaceEscrowSerializer,
 )
+from .models import Employer, JobApplication, MarketplaceCommissionLedger, MarketplaceEscrow
 
 
 class MarketplaceEscrowViewSet(viewsets.ModelViewSet):

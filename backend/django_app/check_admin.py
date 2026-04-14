@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import os
-import django
 from pathlib import Path
+
+import django
 
 # Setup Django
 BASE_DIR = Path(__file__).resolve().parent
@@ -9,6 +10,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
 from django.contrib.auth import get_user_model
+
 User = get_user_model()
 
 def main():

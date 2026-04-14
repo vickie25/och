@@ -3,23 +3,29 @@ Enhanced Billing API Views - Complete Implementation
 Includes academic discounts, promotional codes, enhanced trial management, and grace periods
 """
 
-from rest_framework import status, viewsets
-from rest_framework.decorators import api_view, permission_classes, action
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from rest_framework.response import Response
-from django.shortcuts import get_object_or_404
-from django.db import transaction
-from django.utils import timezone
-from django.core.exceptions import ValidationError
 import logging
 
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from rest_framework import status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.response import Response
+
 from .enhanced_models import (
-    AcademicDiscount, PromotionalCode, PromoCodeRedemption,
-    EnhancedSubscriptionPlan, EnhancedSubscription
+    AcademicDiscount,
+    EnhancedSubscription,
+    EnhancedSubscriptionPlan,
+    PromoCodeRedemption,
+    PromotionalCode,
 )
 from .enhanced_services import (
-    AcademicDiscountService, PromotionalCodeService,
-    EnhancedTrialService, GracePeriodService, EnhancedBillingService
+    AcademicDiscountService,
+    EnhancedBillingService,
+    EnhancedTrialService,
+    PromotionalCodeService,
 )
 
 logger = logging.getLogger(__name__)
@@ -28,11 +34,11 @@ logger = logging.getLogger(__name__)
 @permission_classes([IsAuthenticated])
 def academic_discount_view(request, user_id=None):
     """Handle academic discount requests"""
-    
+
     if request.method == 'GET':
         # Check academic discount status
         user = request.user if not user_id else get_object_or_404(User, id=user_id)
-        
+
         try:
             discount = user.academic_discount
             return Response({
@@ -53,14 +59,14 @@ def academic_discount_view(request, user_id=None):
                 'auto_eligible': is_academic_email,
                 'message': 'Academic discount available for .edu emails' if is_academic_email else 'Not eligible for academic discount'
             })
-    
+
     elif request.method == 'POST':
         # Apply for academic discount
         user = request.user
         verification_method = request.data.get('verification_method', 'edu_email')
         institution_name = request.data.get('institution_name', '')
         student_id = request.data.get('student_id', '')
-        
+
         try:
             discount = AcademicDiscountService.create_academic_discount(
                 user=user,
@@ -68,7 +74,7 @@ def academic_discount_view(request, user_id=None):
                 institution_name=institution_name,
                 student_id=student_id
             )
-            
+
             return Response({
                 'success': True,
                 'discount_id': str(discount.id),
@@ -76,7 +82,7 @@ def academic_discount_view(request, user_id=None):
                 'message': 'Academic discount created successfully',
                 'auto_verified': discount.status == 'verified'
             }, status=status.HTTP_201_CREATED)
-            
+
         except Exception as e:
             return Response({
                 'success': False,
@@ -87,10 +93,10 @@ def academic_discount_view(request, user_id=None):
 @permission_classes([IsAdminUser])
 def verify_academic_discount(request, discount_id):
     """Admin endpoint to verify academic discounts"""
-    
+
     approved = request.data.get('approved', True)
     rejection_reason = request.data.get('rejection_reason', '')
-    
+
     try:
         discount = AcademicDiscountService.verify_academic_discount(
             discount_id=discount_id,
@@ -98,14 +104,14 @@ def verify_academic_discount(request, discount_id):
             approved=approved,
             rejection_reason=rejection_reason
         )
-        
+
         return Response({
             'success': True,
             'discount_id': str(discount.id),
             'status': discount.status,
             'message': f'Academic discount {"approved" if approved else "rejected"}'
         })
-        
+
     except ValidationError as e:
         return Response({
             'success': False,
@@ -116,42 +122,42 @@ def verify_academic_discount(request, discount_id):
 @permission_classes([IsAuthenticated])
 def validate_promo_code(request):
     """Validate promotional code"""
-    
+
     code = request.data.get('code', '').strip().upper()
     plan_id = request.data.get('plan_id')
-    
+
     if not code:
         return Response({
             'valid': False,
             'error': 'Promotional code is required'
         }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     result = PromotionalCodeService.validate_promo_code(
         code=code,
         user=request.user,
         plan_id=plan_id
     )
-    
+
     return Response(result)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def subscription_status(request, user_id=None):
     """Get comprehensive subscription status"""
-    
+
     user = request.user if not user_id else get_object_or_404(User, id=user_id)
-    
+
     try:
         subscription = user.enhanced_subscriptions.filter(
             status__in=['trial', 'active', 'past_due', 'suspended']
         ).first()
-        
+
         if not subscription:
             return Response({
                 'has_subscription': False,
                 'message': 'No active subscription found'
             })
-        
+
         # Get trial information
         trial_info = {}
         if subscription.is_in_trial():
@@ -162,7 +168,7 @@ def subscription_status(request, user_id=None):
                 'days_remaining': subscription.days_until_trial_end(),
                 'requires_credit_card': subscription.plan.requires_credit_card
             }
-        
+
         # Get grace period information
         grace_info = {}
         if subscription.is_in_grace_period():
@@ -172,7 +178,7 @@ def subscription_status(request, user_id=None):
                 'grace_period_end': subscription.grace_period_end,
                 'days_remaining': subscription.days_until_grace_period_end()
             }
-        
+
         # Get discount information
         discount_info = {
             'academic_discount_applied': subscription.academic_discount_applied,
@@ -181,7 +187,7 @@ def subscription_status(request, user_id=None):
             'discount_amount': float(subscription.discount_amount),
             'final_amount': float(subscription.final_amount)
         }
-        
+
         return Response({
             'has_subscription': True,
             'subscription': {
@@ -205,7 +211,7 @@ def subscription_status(request, user_id=None):
                 **discount_info
             }
         })
-        
+
     except Exception as e:
         logger.error(f"Error getting subscription status for user {user.id}: {str(e)}")
         return Response({
@@ -216,18 +222,18 @@ def subscription_status(request, user_id=None):
 @permission_classes([IsAuthenticated])
 def available_plans(request):
     """Get available subscription plans with pricing"""
-    
+
     plans = EnhancedSubscriptionPlan.objects.filter(is_active=True).order_by('sort_order', 'price')
     user = request.user
-    
+
     plans_data = []
     for plan in plans:
         # Calculate pricing with user's discounts
         pricing = plan.calculate_price_with_discounts(user=user)
-        
+
         # Get trial configuration
         trial_config = plan.get_trial_config()
-        
+
         plans_data.append({
             'id': str(plan.id),
             'name': plan.name,
@@ -245,7 +251,7 @@ def available_plans(request):
             'grace_period_days': plan.get_grace_period_days(),
             'is_featured': plan.is_featured
         })
-    
+
     return Response(plans_data)
 
 @api_view(['POST'])
@@ -253,17 +259,17 @@ def available_plans(request):
 @transaction.atomic
 def create_subscription(request):
     """Create new subscription"""
-    
+
     plan_id = request.data.get('plan_id')
     promo_code = request.data.get('promo_code')
     start_trial = request.data.get('start_trial', True)
     payment_method = request.data.get('payment_method')
-    
+
     if not plan_id:
         return Response({
             'error': 'Plan ID is required'
         }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         subscription = EnhancedBillingService.create_subscription(
             user=request.user,
@@ -272,14 +278,14 @@ def create_subscription(request):
             promo_code=promo_code,
             start_trial=start_trial
         )
-        
+
         return Response({
             'success': True,
             'subscription_id': str(subscription.id),
             'status': subscription.status,
             'message': 'Subscription created successfully'
         }, status=status.HTTP_201_CREATED)
-        
+
     except ValidationError as e:
         return Response({
             'error': str(e)
@@ -295,36 +301,36 @@ def create_subscription(request):
 @transaction.atomic
 def change_plan(request):
     """Change subscription plan"""
-    
+
     user_id = request.data.get('user_id', request.user.id)
     new_plan_id = request.data.get('new_plan_id')
     promo_code = request.data.get('promo_code')
     prorate = request.data.get('prorate', True)
-    
+
     if not new_plan_id:
         return Response({
             'error': 'New plan ID is required'
         }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         # Get user's active subscription
         user = request.user if user_id == request.user.id else get_object_or_404(User, id=user_id)
         subscription = user.enhanced_subscriptions.filter(
             status__in=['trial', 'active']
         ).first()
-        
+
         if not subscription:
             return Response({
                 'error': 'No active subscription found'
             }, status=status.HTTP_404_NOT_FOUND)
-        
+
         updated_subscription = EnhancedBillingService.change_plan(
             subscription=subscription,
             new_plan_id=new_plan_id,
             promo_code=promo_code,
             prorate=prorate
         )
-        
+
         return Response({
             'success': True,
             'subscription_id': str(updated_subscription.id),
@@ -332,7 +338,7 @@ def change_plan(request):
             'final_amount': float(updated_subscription.final_amount),
             'message': 'Plan changed successfully'
         })
-        
+
     except ValidationError as e:
         return Response({
             'error': str(e)
@@ -348,16 +354,16 @@ def change_plan(request):
 @transaction.atomic
 def convert_trial(request):
     """Convert trial to paid subscription"""
-    
+
     subscription_id = request.data.get('subscription_id')
     promo_code = request.data.get('promo_code')
     payment_method = request.data.get('payment_method')
-    
+
     if not subscription_id:
         return Response({
             'error': 'Subscription ID is required'
         }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         subscription = get_object_or_404(
             EnhancedSubscription,
@@ -365,7 +371,7 @@ def convert_trial(request):
             user=request.user,
             status='trial'
         )
-        
+
         # Validate promo code if provided
         validated_promo = None
         if promo_code:
@@ -377,13 +383,13 @@ def convert_trial(request):
                     'error': validation_result['error']
                 }, status=status.HTTP_400_BAD_REQUEST)
             validated_promo = PromotionalCode.objects.get(code=promo_code.upper())
-        
+
         converted_subscription = EnhancedTrialService.convert_trial(
             subscription=subscription,
             payment_method=payment_method,
             promo_code=validated_promo
         )
-        
+
         return Response({
             'success': True,
             'subscription_id': str(converted_subscription.id),
@@ -392,7 +398,7 @@ def convert_trial(request):
             'next_billing_date': converted_subscription.next_billing_date,
             'message': 'Trial converted successfully'
         })
-        
+
     except ValidationError as e:
         return Response({
             'error': str(e)
@@ -407,17 +413,17 @@ def convert_trial(request):
 @permission_classes([IsAuthenticated])
 def billing_history(request, user_id=None):
     """Get billing history with discount details"""
-    
+
     user = request.user if not user_id else get_object_or_404(User, id=user_id)
-    
+
     # Get subscription history
     subscriptions = user.enhanced_subscriptions.all().order_by('-created_at')
-    
+
     # Get promo code redemptions
     redemptions = user.promo_redemptions.all().order_by('-redeemed_at')
-    
+
     history = []
-    
+
     # Add subscription events
     for sub in subscriptions:
         history.append({
@@ -430,7 +436,7 @@ def billing_history(request, user_id=None):
             'promo_code': sub.promo_code_applied.code if sub.promo_code_applied else None,
             'status': sub.status
         })
-        
+
         if sub.trial_converted_at:
             history.append({
                 'type': 'trial_conversion',
@@ -439,7 +445,7 @@ def billing_history(request, user_id=None):
                 'amount': float(sub.final_amount),
                 'discount_amount': float(sub.discount_amount)
             })
-    
+
     # Add promo code redemptions
     for redemption in redemptions:
         history.append({
@@ -450,10 +456,10 @@ def billing_history(request, user_id=None):
             'discount_amount': float(redemption.discount_applied),
             'final_amount': float(redemption.final_amount)
         })
-    
+
     # Sort by date
     history.sort(key=lambda x: x['date'], reverse=True)
-    
+
     return Response({
         'billing_history': history,
         'total_items': len(history)
@@ -463,10 +469,10 @@ def billing_history(request, user_id=None):
 @permission_classes([IsAdminUser])
 def billing_analytics(request):
     """Get comprehensive billing analytics"""
-    
+
     user_id = request.query_params.get('user_id')
     analytics = EnhancedBillingService.get_subscription_analytics(user_id=user_id)
-    
+
     # Add promotional code analytics
     promo_analytics = {
         'total_promo_codes': PromotionalCode.objects.count(),
@@ -476,7 +482,7 @@ def billing_analytics(request):
             r.discount_applied for r in PromoCodeRedemption.objects.all()
         )
     }
-    
+
     # Add academic discount analytics
     academic_analytics = {
         'total_academic_discounts': AcademicDiscount.objects.count(),
@@ -486,7 +492,7 @@ def billing_analytics(request):
             s.discount_amount for s in EnhancedSubscription.objects.filter(academic_discount_applied=True)
         )
     }
-    
+
     return Response({
         'subscription_analytics': analytics,
         'promotional_analytics': promo_analytics,
@@ -498,14 +504,14 @@ def billing_analytics(request):
 class PromotionalCodeViewSet(viewsets.ModelViewSet):
     queryset = PromotionalCode.objects.all()
     permission_classes = [IsAdminUser]
-    
+
     def get_queryset(self):
         queryset = super().get_queryset()
         status_filter = self.request.query_params.get('status')
         if status_filter:
             queryset = queryset.filter(status=status_filter)
         return queryset.order_by('-created_at')
-    
+
     @action(detail=True, methods=['post'])
     def deactivate(self, request, pk=None):
         """Deactivate promotional code"""
@@ -513,13 +519,13 @@ class PromotionalCodeViewSet(viewsets.ModelViewSet):
         promo_code.status = 'inactive'
         promo_code.save()
         return Response({'message': 'Promotional code deactivated'})
-    
+
     @action(detail=True, methods=['get'])
     def usage_stats(self, request, pk=None):
         """Get usage statistics for promotional code"""
         promo_code = self.get_object()
         redemptions = promo_code.redemptions.all()
-        
+
         stats = {
             'total_redemptions': redemptions.count(),
             'total_savings': sum(r.discount_applied for r in redemptions),
@@ -528,5 +534,5 @@ class PromotionalCodeViewSet(viewsets.ModelViewSet):
                 'user__email', 'discount_applied', 'redeemed_at'
             )
         }
-        
+
         return Response(stats)

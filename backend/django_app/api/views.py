@@ -2,10 +2,10 @@
 API views for health check and monitoring.
 """
 from django.http import JsonResponse
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
 
 
 @api_view(['GET'])
@@ -29,8 +29,8 @@ def dashboard_metrics(request):
     GET /api/v1/metrics/dashboard
     Requires authentication and admin role.
     """
-    from student_dashboard.monitoring import get_dashboard_metrics, get_dashboard_health
-    
+    from student_dashboard.monitoring import get_dashboard_health, get_dashboard_metrics
+
     # Check if user is admin
     user = request.user
     if not user.is_staff and not user.user_roles.filter(role__name='admin', is_active=True).exists():
@@ -38,10 +38,10 @@ def dashboard_metrics(request):
             {'error': 'Access denied. Admin role required.'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     metrics = get_dashboard_metrics()
     health = get_dashboard_health()
-    
+
     return Response({
         'health': health,
         'metrics': metrics,

@@ -1,7 +1,8 @@
-from django.db import models
-from django.contrib.auth import get_user_model
-from django.utils import timezone
 import uuid
+
+from django.contrib.auth import get_user_model
+from django.db import models
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -18,13 +19,13 @@ class Notification(models.Model):
         ('subscription_changed', 'Subscription Changed'),
         ('system_announcement', 'System Announcement'),
     ]
-    
+
     PRIORITY_LEVELS = [
         ('low', 'Low'),
         ('medium', 'Medium'),
         ('high', 'High'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='core_notifications')
     notification_type = models.CharField(max_length=50, choices=NOTIFICATION_TYPES)
@@ -39,7 +40,7 @@ class Notification(models.Model):
     send_email = models.BooleanField(default=False)
     email_sent = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'notifications'
         ordering = ['-created_at']
@@ -47,7 +48,7 @@ class Notification(models.Model):
             models.Index(fields=['user', '-created_at']),
             models.Index(fields=['user', 'is_read']),
         ]
-    
+
     def mark_as_read(self):
         if not self.is_read:
             self.is_read = True
@@ -62,6 +63,6 @@ class NotificationPreference(models.Model):
     email_mission_reviewed = models.BooleanField(default=True)
     email_mentor_feedback = models.BooleanField(default=True)
     email_achievements = models.BooleanField(default=True)
-    
+
     class Meta:
         db_table = 'notification_preferences'

@@ -3,6 +3,7 @@ Django management command to seed subscription plans.
 Based on DSD spec: Free Tier, $3 Starter (+ 6-month Enhanced Access), $7 Professional.
 """
 from django.core.management.base import BaseCommand
+
 from subscriptions.models import SubscriptionPlan
 
 

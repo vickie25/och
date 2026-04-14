@@ -2,35 +2,52 @@
 Coaching OS API Views - Full behavioral transformation engine.
 Habits, Goals, Reflections, AI Coach with platform integrations.
 """
-from datetime import date, timedelta
-from django.utils import timezone
-from django.db.models import Q, Count, Sum, Avg
+import logging
+from datetime import date
+
 from django.db import transaction
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
-from users.models import User
-from .models import (
-    Habit, HabitLog, Goal, Reflection, AICoachSession, AICoachMessage,
-    StudentAnalytics, UserRecipeProgress, UserTrackProgress, UserMissionProgress,
-    CommunityActivitySummary, MentorshipSession, CoachingSession
-)
-from .serializers import (
-    HabitSerializer, HabitLogSerializer, GoalSerializer,
-    ReflectionSerializer, AICoachSessionSerializer, AICoachMessageSerializer,
-    StudentAnalyticsSerializer, UserRecipeProgressSerializer, UserTrackProgressSerializer,
-    UserMissionProgressSerializer, CommunityActivitySummarySerializer,
-    MentorshipSessionSerializer, CoachingSessionSerializer
-)
-from .services import (
-    update_habit_streak, calculate_coaching_metrics,
-    check_coaching_entitlement, emit_coaching_event
-)
 from subscriptions.utils import get_user_tier
 from talentscope.models import BehaviorSignal
-import logging
+
+from .models import (
+    AICoachMessage,
+    AICoachSession,
+    CoachingSession,
+    CommunityActivitySummary,
+    Goal,
+    Habit,
+    HabitLog,
+    MentorshipSession,
+    Reflection,
+    StudentAnalytics,
+    UserMissionProgress,
+    UserRecipeProgress,
+    UserTrackProgress,
+)
+from .serializers import (
+    AICoachSessionSerializer,
+    CoachingSessionSerializer,
+    CommunityActivitySummarySerializer,
+    GoalSerializer,
+    HabitLogSerializer,
+    HabitSerializer,
+    MentorshipSessionSerializer,
+    ReflectionSerializer,
+    StudentAnalyticsSerializer,
+    UserMissionProgressSerializer,
+    UserRecipeProgressSerializer,
+    UserTrackProgressSerializer,
+)
+from .services import (
+    calculate_coaching_metrics,
+    check_coaching_entitlement,
+    emit_coaching_event,
+    update_habit_streak,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,12 +63,12 @@ def habits_list(request):
     List or create habits.
     """
     user = request.user
-    
+
     if request.method == 'GET':
         habits = Habit.objects.filter(user=user, is_active=True).order_by('-created_at')
         serializer = HabitSerializer(habits, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
+
     # POST - Create habit
     serializer = HabitSerializer(data=request.data)
     if serializer.is_valid():
@@ -62,16 +79,16 @@ def habits_list(request):
                     {'error': 'Custom habits require subscription upgrade'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-        
+
         habit = serializer.save(user=user)
-        
+
         # Emit event
         emit_coaching_event('habit.created', {
             'user_id': str(user.id),
             'habit_id': str(habit.id),
             'type': habit.type,
         })
-        
+
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -87,18 +104,18 @@ def habit_detail(request, habit_id):
             {'error': 'Habit not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     if request.method == 'GET':
         serializer = HabitSerializer(habit)
         return Response(serializer.data)
-    
+
     elif request.method == 'PATCH':
         serializer = HabitSerializer(habit, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
     elif request.method == 'DELETE':
         habit.is_active = False
         habit.save()
@@ -117,13 +134,13 @@ def log_habit(request):
     status_value = request.data.get('status', 'completed')
     notes = request.data.get('notes', '')
     log_date = request.data.get('date', date.today().isoformat())
-    
+
     if not habit_id:
         return Response(
             {'error': 'habit_id is required'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     try:
         habit = Habit.objects.get(id=habit_id, user=user)
     except Habit.DoesNotExist:
@@ -131,7 +148,7 @@ def log_habit(request):
             {'error': 'Habit not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     with transaction.atomic():
         # Upsert habit log
         log, created = HabitLog.objects.update_or_create(
@@ -143,11 +160,11 @@ def log_habit(request):
                 'notes': notes,
             }
         )
-        
+
         # Update streak
         update_habit_streak(habit.id)
         habit.refresh_from_db()
-        
+
         # Emit event for platform integrations
         emit_coaching_event('habit.logged', {
             'user_id': str(user.id),
@@ -155,7 +172,7 @@ def log_habit(request):
             'status': status_value,
             'date': log_date,
         })
-        
+
         # Create TalentScope behavior signal
         if status_value == 'completed':
             BehaviorSignal.objects.create(
@@ -166,7 +183,7 @@ def log_habit(request):
                 source_id=habit.id,
                 metadata={'habit_name': habit.name, 'streak': habit.streak}
             )
-    
+
     serializer = HabitLogSerializer(log)
     return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
@@ -182,17 +199,17 @@ def habit_logs(request, habit_id):
             {'error': 'Habit not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     start_date = request.query_params.get('start_date')
     end_date = request.query_params.get('end_date')
-    
+
     logs = HabitLog.objects.filter(habit=habit)
-    
+
     if start_date:
         logs = logs.filter(date__gte=start_date)
     if end_date:
         logs = logs.filter(date__lte=end_date)
-    
+
     serializer = HabitLogSerializer(logs.order_by('-date'), many=True)
     return Response(serializer.data)
 
@@ -204,17 +221,17 @@ def habit_logs(request, habit_id):
 def goals_list(request):
     """List or create goals."""
     user = request.user
-    
+
     if request.method == 'GET':
         goal_type = request.query_params.get('type')
         goals = Goal.objects.filter(user=user, status='active')
-        
+
         if goal_type:
             goals = goals.filter(type=goal_type)
-        
+
         serializer = GoalSerializer(goals.order_by('-created_at'), many=True)
         return Response(serializer.data)
-    
+
     # POST - Create goal
     serializer = GoalSerializer(data=request.data)
     if serializer.is_valid():
@@ -223,13 +240,13 @@ def goals_list(request):
             user=user,
             subscription_tier=user_tier
         )
-        
+
         emit_coaching_event('goal.created', {
             'user_id': str(user.id),
             'goal_id': str(goal.id),
             'type': goal.type,
         })
-        
+
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -245,17 +262,17 @@ def goal_detail(request, goal_id):
             {'error': 'Goal not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     if request.method == 'GET':
         serializer = GoalSerializer(goal)
         return Response(serializer.data)
-    
+
     # PATCH - Update goal
     serializer = GoalSerializer(goal, data=request.data, partial=True)
     if serializer.is_valid():
         old_status = goal.status
         goal = serializer.save()
-        
+
         # Check if goal was completed
         if old_status != 'completed' and goal.status == 'completed':
             emit_coaching_event('goal.completed', {
@@ -263,7 +280,7 @@ def goal_detail(request, goal_id):
                 'goal_id': str(goal.id),
                 'type': goal.type,
             })
-            
+
             # TalentScope signal
             BehaviorSignal.objects.create(
                 mentee=request.user,
@@ -273,7 +290,7 @@ def goal_detail(request, goal_id):
                 source_id=goal.id,
                 metadata={'goal_type': goal.type, 'title': goal.title}
             )
-        
+
         return Response(serializer.data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -285,27 +302,27 @@ def goal_detail(request, goal_id):
 def reflections_list(request):
     """List or create reflections."""
     user = request.user
-    
+
     if request.method == 'GET':
         reflections = Reflection.objects.filter(user=user).order_by('-date')
         serializer = ReflectionSerializer(reflections, many=True)
         return Response(serializer.data)
-    
+
     # POST - Create reflection
     serializer = ReflectionSerializer(data=request.data)
     if serializer.is_valid():
         reflection_date = serializer.validated_data.get('date', date.today())
         content = serializer.validated_data.get('content', '')
-        
+
         # Calculate word count
         word_count = len(content.split())
-        
+
         reflection = serializer.save(
             user=user,
             date=reflection_date,
             word_count=word_count
         )
-        
+
         # Emit event
         emit_coaching_event('reflection.saved', {
             'user_id': str(user.id),
@@ -313,7 +330,7 @@ def reflections_list(request):
             'sentiment': reflection.sentiment,
             'word_count': word_count,
         })
-        
+
         # TalentScope signal
         BehaviorSignal.objects.create(
             mentee=user,
@@ -326,7 +343,7 @@ def reflections_list(request):
                 'word_count': word_count
             }
         )
-        
+
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -342,7 +359,7 @@ def reflection_detail(request, reflection_id):
             {'error': 'Reflection not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     serializer = ReflectionSerializer(reflection)
     return Response(serializer.data)
 
@@ -357,31 +374,31 @@ def ai_coach_message(request):
     Send message to AI Coach.
     """
     user = request.user
-    
+
     # Check entitlement
     if not check_coaching_entitlement(user, 'ai_coach_full'):
         return Response(
             {'error': 'AI Coach requires subscription upgrade'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     message = request.data.get('message')
     context = request.data.get('context', 'general')
     metadata = request.data.get('metadata', {})
-    
+
     if not message:
         return Response(
             {'error': 'message is required'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     # Get or create session
     session, _ = AICoachSession.objects.get_or_create(
         user=user,
         session_type=context,
         defaults={'prompt_count': 0}
     )
-    
+
     # Check rate limiting
     from .services import check_ai_coach_rate_limit
     if not check_ai_coach_rate_limit(user, session):
@@ -389,7 +406,7 @@ def ai_coach_message(request):
             {'error': 'Rate limit exceeded. Please upgrade for unlimited access.'},
             status=status.HTTP_429_TOO_MANY_REQUESTS
         )
-    
+
     # Create user message
     user_msg = AICoachMessage.objects.create(
         session=session,
@@ -398,7 +415,7 @@ def ai_coach_message(request):
         context=context,
         metadata=metadata
     )
-    
+
     # Generate AI response (async)
     try:
         from .tasks import generate_ai_coach_response
@@ -425,18 +442,18 @@ def ai_coach_message(request):
             )
         except Exception as fallback_error:
             logger.error(f"Failed to create fallback response: {fallback_error}")
-    
+
     # Increment prompt count
     session.prompt_count += 1
     session.save()
-    
+
     # Emit event
     emit_coaching_event('ai_coach.session', {
         'user_id': str(user.id),
         'session_id': str(session.id),
         'context': context,
     })
-    
+
     return Response({
         'session_id': str(session.id),
         'user_message_id': str(user_msg.id),
@@ -453,24 +470,24 @@ def ai_coach_chat(request):
     Chat with AI Coach using ChatGPT API with student progress context.
     """
     user = request.user
-    
+
     message = request.data.get('message')
     context = request.data.get('context', 'general')
     progress = request.data.get('progress', {})
-    
+
     if not message:
         return Response(
             {'error': 'message is required'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     # Get or create session
     session, _ = AICoachSession.objects.get_or_create(
         user=user,
         session_type=context,
         defaults={'prompt_count': 0}
     )
-    
+
     # Check rate limiting
     from .services import check_ai_coach_rate_limit
     if not check_ai_coach_rate_limit(user, session):
@@ -478,28 +495,29 @@ def ai_coach_chat(request):
             {'error': 'Rate limit exceeded. Please upgrade for unlimited access.'},
             status=status.HTTP_429_TOO_MANY_REQUESTS
         )
-    
+
     # Create user message
-    user_msg = AICoachMessage.objects.create(
+    AICoachMessage.objects.create(
         session=session,
         role='user',
         content=message,
         context=context,
         metadata={'progress': progress}
     )
-    
+
     # Generate AI response using ChatGPT
     try:
         import os
+
         from openai import OpenAI
-        
+
         api_key = os.environ.get('CHAT_GPT_API_KEY') or os.environ.get('OPENAI_API_KEY') or os.environ.get('CHATGPT_API_KEY')
-        
+
         if not api_key:
             raise Exception('OpenAI API key not configured')
-        
+
         client = OpenAI(api_key=api_key)
-        
+
         # Get comprehensive user data (uses UserTrackEnrollment, user.track_key, programs.Enrollment, ProfilerSession)
         from .services import get_user_track_info
         track_info, track_level, match_score = get_user_track_info(user)
@@ -508,7 +526,8 @@ def ai_coach_chat(request):
         # Get student's current curriculum points for their track
         user_points = 0
         try:
-            from curriculum.models import CurriculumTrack, UserTrackProgress as CurriculumUserTrackProgress
+            from curriculum.models import CurriculumTrack
+            from curriculum.models import UserTrackProgress as CurriculumUserTrackProgress
 
             track_slug = (getattr(user, "track_key", "") or "").lower()
             if track_slug:
@@ -570,7 +589,7 @@ def ai_coach_chat(request):
             "Profiler not completed yet – this track may have been assigned directly "
             "based on enrollment or director review."
         )
-        
+
         # If we have a completed profiler session, override with detailed profiler-based info
         try:
             from profiler.models import ProfilerSession
@@ -588,7 +607,7 @@ def ai_coach_chat(request):
                 )
         except Exception as e:
             logger.debug(f"Profiler info enrichment: {e}")
-        
+
         # Build comprehensive system prompt
         system_prompt = f"""You are {user.first_name or user.email}'s personal AI Coach at Ongoza Cyber Hub (OCH).
 
@@ -633,21 +652,21 @@ YOUR ROLE:
 - ALWAYS refer to the platform as "Ongoza Cyber Hub" or "OCH"
 
 Remember: You are their personal coach who knows everything about their journey in Ongoza Cyber Hub. Be specific and personal in EVERY response."""
-        
+
         # Get recent conversation history
         recent_messages = AICoachMessage.objects.filter(
             session=session
         ).order_by('-created_at')[:10]
-        
+
         conversation = [{'role': 'system', 'content': system_prompt}]
-        
+
         for msg in reversed(list(recent_messages)):
             if msg.role in ['user', 'assistant']:
                 conversation.append({
                     'role': msg.role,
                     'content': msg.content
                 })
-        
+
         # Call OpenAI API
         response = client.chat.completions.create(
             model='gpt-3.5-turbo',
@@ -655,9 +674,9 @@ Remember: You are their personal coach who knows everything about their journey 
             max_tokens=500,
             temperature=0.7,
         )
-        
+
         ai_response = response.choices[0].message.content
-        
+
         # Save AI response
         AICoachMessage.objects.create(
             session=session,
@@ -665,23 +684,23 @@ Remember: You are their personal coach who knows everything about their journey 
             content=ai_response,
             context=context,
         )
-        
+
         # Increment prompt count
         session.prompt_count += 1
         session.save()
-        
+
         # Emit event
         emit_coaching_event('ai_coach.chat', {
             'user_id': str(user.id),
             'session_id': str(session.id),
             'context': context,
         })
-        
+
         return Response({
             'response': ai_response,
             'session_id': str(session.id),
         }, status=status.HTTP_200_OK)
-        
+
     except Exception as e:
         logger.error(f'AI Coach error: {e}')
         return Response(
@@ -696,7 +715,7 @@ def ai_coach_history(request):
     """Get AI Coach conversation history."""
     user = request.user
     limit = int(request.query_params.get('limit', 50))
-    
+
     sessions = AICoachSession.objects.filter(user=user).order_by('-created_at')[:limit]
     serializer = AICoachSessionSerializer(sessions, many=True)
     return Response(serializer.data)
@@ -725,7 +744,7 @@ def student_analytics(request):
     GET /api/v1/coaching/student-analytics
     POST /api/v1/coaching/student-analytics (create)
     PUT /api/v1/coaching/student-analytics (update)
-    
+
     Includes profiler results for coaching OS guidance.
     """
     user = request.user
@@ -743,25 +762,25 @@ def student_analytics(request):
                 'next_goals': [],
             }
         )
-        
+
         serializer = StudentAnalyticsSerializer(analytics)
         data = serializer.data
-        
+
         # Add profiler results for coaching OS
         try:
-            from profiler.models import ProfilerSession, ProfilerResult
+            from profiler.models import ProfilerResult, ProfilerSession
             profiler_session = ProfilerSession.objects.filter(
                 user=user,
                 status__in=['finished', 'locked']
             ).order_by('-completed_at').first()
-            
+
             if profiler_session:
                 profiler_result = None
                 try:
                     profiler_result = profiler_session.result
                 except ProfilerResult.DoesNotExist:
                     pass
-                
+
                 data['profiler'] = {
                     'completed': True,
                     'session_id': str(profiler_session.id),
@@ -786,7 +805,7 @@ def student_analytics(request):
         except Exception as e:
             logger.warning(f"Could not fetch profiler data for coaching OS: {e}")
             data['profiler'] = None
-        
+
         return Response(data, status=status.HTTP_200_OK)
 
     elif request.method in ['POST', 'PUT']:

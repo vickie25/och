@@ -3,9 +3,11 @@ Student Dashboard models for OCH Cyber Talent Engine.
 Aggregates data from 12+ microservices into a performant cache layer.
 """
 import uuid
+
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
+
 from users.models import User
 
 
@@ -20,7 +22,7 @@ class StudentDashboardCache(models.Model):
         related_name='dashboard_cache',
         primary_key=True
     )
-    
+
     # TalentScope Readiness
     readiness_score = models.DecimalField(
         max_digits=4,
@@ -44,7 +46,7 @@ class StudentDashboardCache(models.Model):
         blank=True,
         help_text='Top 3 skill gaps: ["DFIR", "Python", "AWS"]'
     )
-    
+
     # Coaching OS Summary
     habit_streak_current = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     habit_completion_week = models.DecimalField(
@@ -56,7 +58,7 @@ class StudentDashboardCache(models.Model):
     )
     goals_active_count = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     goals_completed_week = models.IntegerField(default=0, validators=[MinValueValidator(0)])
-    
+
     # Missions Status
     missions_in_progress = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     missions_in_review = models.IntegerField(default=0, validators=[MinValueValidator(0)])
@@ -66,7 +68,7 @@ class StudentDashboardCache(models.Model):
         blank=True,
         help_text='{id, title, difficulty, est_hours}'
     )
-    
+
     # Portfolio Health
     portfolio_health_score = models.DecimalField(
         max_digits=4,
@@ -79,7 +81,7 @@ class StudentDashboardCache(models.Model):
     portfolio_items_approved = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     public_profile_enabled = models.BooleanField(default=False)
     public_profile_slug = models.CharField(max_length=255, blank=True, null=True)
-    
+
     # Cohort/Calendar
     cohort_id = models.UUIDField(null=True, blank=True, db_index=True)
     cohort_name = models.CharField(max_length=255, blank=True)
@@ -95,15 +97,15 @@ class StudentDashboardCache(models.Model):
         default=0,
         validators=[MinValueValidator(0), MaxValueValidator(100)]
     )
-    
+
     # Community/Leaderboard
     leaderboard_rank_global = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
     leaderboard_rank_cohort = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
-    
+
     # Notifications
     notifications_unread = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     notifications_urgent = models.IntegerField(default=0, validators=[MinValueValidator(0)])
-    
+
     # Curriculum Progress
     curriculum_progress_pct = models.DecimalField(
         max_digits=4,
@@ -112,7 +114,7 @@ class StudentDashboardCache(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(100)]
     )
     next_module_title = models.CharField(max_length=255, blank=True)
-    
+
     # AI Coach
     ai_coach_nudge = models.TextField(blank=True)
     ai_action_plan = models.JSONField(
@@ -120,11 +122,11 @@ class StudentDashboardCache(models.Model):
         blank=True,
         help_text='Array of prioritized actions'
     )
-    
+
     # Subscription
     days_to_renewal = models.IntegerField(null=True, blank=True)
     can_upgrade_to_premium = models.BooleanField(default=False)
-    
+
     # Future-You & Identity (from Profiler)
     future_you_persona = models.CharField(
         max_length=255,
@@ -149,7 +151,7 @@ class StudentDashboardCache(models.Model):
         blank=True,
         help_text='e.g., "Q2 2026"'
     )
-    
+
     # Coaching OS Extended
     reflections_last_7d = models.IntegerField(
         default=0,
@@ -163,7 +165,7 @@ class StudentDashboardCache(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(100)],
         help_text='Goals completed percentage'
     )
-    
+
     # AI Recommendations
     top_recommendation = models.JSONField(
         default=dict,
@@ -175,7 +177,7 @@ class StudentDashboardCache(models.Model):
         blank=True,
         help_text='[{type: "habit_broken", action: "..."}]'
     )
-    
+
     # Subscription Extended
     subscription_tier = models.CharField(
         max_length=50,
@@ -194,12 +196,12 @@ class StudentDashboardCache(models.Model):
         blank=True,
         help_text='Next billing date'
     )
-    
+
     # Real-time Flags
     needs_mentor_feedback = models.BooleanField(default=False)
     payment_overdue = models.BooleanField(default=False)
     profile_incomplete = models.BooleanField(default=True)
-    
+
     # Metadata
     updated_at = models.DateTimeField(auto_now=True, db_index=True)
     last_active_at = models.DateTimeField(auto_now_add=True)
@@ -208,7 +210,7 @@ class StudentDashboardCache(models.Model):
         db_index=True,
         help_text='When cache was last refreshed'
     )
-    
+
     class Meta:
         db_table = 'student_dashboard_cache'
         indexes = [
@@ -216,7 +218,7 @@ class StudentDashboardCache(models.Model):
             models.Index(fields=['cohort_id']),
             models.Index(fields=['leaderboard_rank_global']),
         ]
-    
+
     def __str__(self):
         return f"Dashboard Cache: {self.user.email}"
 
@@ -232,7 +234,7 @@ class DashboardUpdateQueue(models.Model):
         ('normal', 'Normal'),
         ('low', 'Low'),
     ]
-    
+
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -251,7 +253,7 @@ class DashboardUpdateQueue(models.Model):
     )
     queued_at = models.DateTimeField(auto_now_add=True, db_index=True)
     processed_at = models.DateTimeField(null=True, blank=True)
-    
+
     class Meta:
         db_table = 'dashboard_update_queue'
         indexes = [
@@ -260,7 +262,7 @@ class DashboardUpdateQueue(models.Model):
             models.Index(fields=['processed_at']),
         ]
         ordering = ['-priority', 'queued_at']
-    
+
     def __str__(self):
         return f"Update Queue: {self.user.email} - {self.reason} ({self.priority})"
 
@@ -279,7 +281,7 @@ class StudentMissionProgress(models.Model):
         ('approved', 'Approved'),
         ('failed', 'Failed'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
         User,
@@ -324,7 +326,7 @@ class StudentMissionProgress(models.Model):
     )
     updated_at = models.DateTimeField(auto_now=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'student_mission_progress'
         unique_together = ['user', 'mission']
@@ -333,7 +335,7 @@ class StudentMissionProgress(models.Model):
             models.Index(fields=['user', 'updated_at']),
             models.Index(fields=['mission', 'status']),
         ]
-    
+
     def __str__(self):
         return f"Progress: {self.user.email} - {self.mission.title} ({self.status})"
 

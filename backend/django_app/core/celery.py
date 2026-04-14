@@ -2,8 +2,8 @@
 Celery configuration for OCH Platform
 """
 import os
+
 from celery import Celery
-from django.conf import settings
 
 # Set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.base')
@@ -28,7 +28,7 @@ app.conf.beat_schedule = {
         'task': 'subscriptions.tasks.process_grace_period_expiry',
         'schedule': 60.0 * 60 * 6,  # Every 6 hours
     },
-    
+
     # Cohort management
     'send-cohort-daily-reminders': {
         'task': 'cohorts.tasks.send_daily_reminders',
@@ -38,19 +38,19 @@ app.conf.beat_schedule = {
         'task': 'cohorts.tasks.update_cohort_analytics',
         'schedule': 60.0 * 60 * 2,  # Every 2 hours
     },
-    
+
     # Email processing
     'process-email-queue': {
         'task': 'notifications.tasks.process_email_queue',
         'schedule': 60.0 * 5,  # Every 5 minutes
     },
-    
+
     # Mentorship
     'send-mentorship-reminders': {
         'task': 'mentorship.tasks.send_session_reminders',
         'schedule': 60.0 * 60,  # Every hour
     },
-    
+
     # Analytics and reporting
     'generate-daily-reports': {
         'task': 'director_dashboard.tasks.generate_daily_reports',

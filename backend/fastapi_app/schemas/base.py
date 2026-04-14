@@ -1,9 +1,9 @@
 """
 Base Pydantic schemas shared across the application.
 """
-from pydantic import BaseModel, ConfigDict
 from datetime import datetime
-from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
 
 
 class BaseSchema(BaseModel):

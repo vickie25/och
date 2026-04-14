@@ -3,7 +3,8 @@ Django management command to seed initial roles and permissions.
 Usage: python manage.py seed_roles_permissions
 """
 from django.core.management.base import BaseCommand
-from users.models import Role, Permission
+
+from users.models import Permission, Role
 
 
 class Command(BaseCommand):
@@ -11,7 +12,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.stdout.write("Seeding roles and permissions...")
-        
+
         # Define permissions
         permissions_data = [
             # User permissions
@@ -21,7 +22,7 @@ class Command(BaseCommand):
             ('delete_user', 'user', 'delete', 'Delete users'),
             ('list_users', 'user', 'list', 'List users'),
             ('manage_users', 'user', 'manage', 'Manage all users'),
-            
+
             # Organization permissions
             ('create_organization', 'organization', 'create', 'Create organizations'),
             ('read_organization', 'organization', 'read', 'Read organization details'),
@@ -29,7 +30,7 @@ class Command(BaseCommand):
             ('delete_organization', 'organization', 'delete', 'Delete organizations'),
             ('list_organizations', 'organization', 'list', 'List organizations'),
             ('manage_organizations', 'organization', 'manage', 'Manage all organizations'),
-            
+
             # Cohort permissions
             ('create_cohort', 'cohort', 'create', 'Create cohorts'),
             ('read_cohort', 'cohort', 'read', 'Read cohort details'),
@@ -37,7 +38,7 @@ class Command(BaseCommand):
             ('delete_cohort', 'cohort', 'delete', 'Delete cohorts'),
             ('list_cohorts', 'cohort', 'list', 'List cohorts'),
             ('manage_cohorts', 'cohort', 'manage', 'Manage all cohorts'),
-            
+
             # Track permissions
             ('create_track', 'track', 'create', 'Create tracks'),
             ('read_track', 'track', 'read', 'Read track details'),
@@ -45,7 +46,7 @@ class Command(BaseCommand):
             ('delete_track', 'track', 'delete', 'Delete tracks'),
             ('list_tracks', 'track', 'list', 'List tracks'),
             ('manage_tracks', 'track', 'manage', 'Manage all tracks'),
-            
+
             # Portfolio permissions
             ('create_portfolio', 'portfolio', 'create', 'Create portfolios'),
             ('read_portfolio', 'portfolio', 'read', 'Read portfolio details'),
@@ -53,41 +54,41 @@ class Command(BaseCommand):
             ('delete_portfolio', 'portfolio', 'delete', 'Delete portfolios'),
             ('list_portfolios', 'portfolio', 'list', 'List portfolios'),
             ('manage_portfolios', 'portfolio', 'manage', 'Manage all portfolios'),
-            
+
             # Profiling permissions
             ('create_profiling', 'profiling', 'create', 'Create profiling data'),
             ('read_profiling', 'profiling', 'read', 'Read profiling data'),
             ('update_profiling', 'profiling', 'update', 'Update profiling data'),
             ('list_profiling', 'profiling', 'list', 'List profiling data'),
-            
+
             # Mentorship permissions
             ('create_mentorship', 'mentorship', 'create', 'Create mentorship relationships'),
             ('read_mentorship', 'mentorship', 'read', 'Read mentorship data'),
             ('update_mentorship', 'mentorship', 'update', 'Update mentorship data'),
             ('list_mentorship', 'mentorship', 'list', 'List mentorship relationships'),
-            
+
             # Analytics permissions
             ('read_analytics', 'analytics', 'read', 'Read analytics data'),
             ('list_analytics', 'analytics', 'list', 'List analytics reports'),
-            
+
             # Billing permissions
             ('read_billing', 'billing', 'read', 'Read billing information'),
             ('update_billing', 'billing', 'update', 'Update billing information'),
             ('manage_billing', 'billing', 'manage', 'Manage billing'),
-            
+
             # Invoice permissions
             ('create_invoice', 'invoice', 'create', 'Create invoices'),
             ('read_invoice', 'invoice', 'read', 'Read invoice details'),
             ('update_invoice', 'invoice', 'update', 'Update invoices'),
             ('list_invoices', 'invoice', 'list', 'List invoices'),
             ('delete_invoice', 'invoice', 'delete', 'Delete invoices'),
-            
+
             # API Key permissions
             ('create_api_key', 'api_key', 'create', 'Create API keys'),
             ('read_api_key', 'api_key', 'read', 'Read API key details'),
             ('revoke_api_key', 'api_key', 'delete', 'Revoke API keys'),
             ('list_api_keys', 'api_key', 'list', 'List API keys'),
-            
+
             # Webhook permissions
             ('create_webhook', 'webhook', 'create', 'Create webhook endpoints'),
             ('read_webhook', 'webhook', 'read', 'Read webhook details'),
@@ -103,7 +104,7 @@ class Command(BaseCommand):
             ('list_problem_codes', 'problem_code', 'list', 'List problem tracking codes'),
             ('manage_problem_codes', 'problem_code', 'manage', 'Create/update/delete problem codes'),
         ]
-        
+
         # Create permissions
         created_permissions = {}
         for name, resource_type, action, description in permissions_data:
@@ -118,7 +119,7 @@ class Command(BaseCommand):
             created_permissions[name] = permission
             if created:
                 self.stdout.write(self.style.SUCCESS(f"Created permission: {name}"))
-        
+
         # Define roles with their permissions
         # Permissions map to sidebars: see frontend utils/rbac.ts (DIRECTOR_NAV, ADMIN_NAV) and nav components
         roles_data = [
@@ -127,7 +128,7 @@ class Command(BaseCommand):
                 'display_name': 'Admin',
                 'description': 'Full platform admin; manage roles/policies, tenants, secrets',
                 # Admin sidebar: Overview, Users, Subscriptions, Recipes, Marketplace, Roles, Audit, Settings, API Keys
-                'permissions': [p for p in created_permissions.keys()],  # All permissions
+                'permissions': list(created_permissions.keys()),  # All permissions
             },
             {
                 'name': 'program_director',
@@ -243,7 +244,7 @@ class Command(BaseCommand):
                 ],
             },
         ]
-        
+
         # Create roles
         for role_data in roles_data:
             permissions_list = role_data.pop('permissions')
@@ -251,15 +252,15 @@ class Command(BaseCommand):
                 name=role_data['name'],
                 defaults=role_data
             )
-            
+
             # Assign permissions
             role_permissions = [created_permissions[p] for p in permissions_list if p in created_permissions]
             role.permissions.set(role_permissions)
-            
+
             if created:
                 self.stdout.write(self.style.SUCCESS(f"Created role: {role.display_name}"))
             else:
                 self.stdout.write(self.style.WARNING(f"Role already exists: {role.display_name}"))
-        
+
         self.stdout.write(self.style.SUCCESS("\nSuccessfully seeded roles and permissions!"))
 

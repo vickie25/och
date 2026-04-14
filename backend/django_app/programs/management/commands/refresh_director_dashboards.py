@@ -2,9 +2,13 @@
 Management command to refresh director dashboard caches.
 Can be run via cron every 5 minutes or manually.
 """
-from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
-from programs.director_dashboard_tasks import refresh_director_dashboard_cache_task, refresh_all_directors_cache_task
+from django.core.management.base import BaseCommand
+
+from programs.director_dashboard_tasks import (
+    refresh_all_directors_cache_task,
+    refresh_director_dashboard_cache_task,
+)
 
 User = get_user_model()
 
@@ -39,9 +43,11 @@ class Command(BaseCommand):
             try:
                 director = User.objects.get(id=director_id)
                 self.stdout.write(f'Refreshing dashboard cache for director {director.email}...')
-                
+
                 if sync:
-                    from programs.director_dashboard_services import DirectorDashboardAggregationService
+                    from programs.director_dashboard_services import (
+                        DirectorDashboardAggregationService,
+                    )
                     cache = DirectorDashboardAggregationService.refresh_director_cache(director)
                     self.stdout.write(
                         self.style.SUCCESS(
@@ -58,11 +64,11 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.ERROR(f'Director {director_id} not found')
                 )
-        
+
         elif refresh_all:
             # Refresh all directors
             self.stdout.write('Refreshing dashboard caches for all directors...')
-            
+
             if sync:
                 from programs.director_dashboard_services import DirectorDashboardAggregationService
                 directors = User.objects.filter(directed_tracks__isnull=False).distinct()
@@ -81,9 +87,9 @@ class Command(BaseCommand):
             else:
                 result = refresh_all_directors_cache_task.delay()
                 self.stdout.write(
-                    self.style.SUCCESS(f'Queued refresh tasks for all directors')
+                    self.style.SUCCESS('Queued refresh tasks for all directors')
                 )
-        
+
         else:
             self.stdout.write(
                 self.style.ERROR('Please specify --director-id or --all')

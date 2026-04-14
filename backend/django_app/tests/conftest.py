@@ -5,8 +5,9 @@ import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
-from users.models import Role, UserRole
+
 from organizations.models import Organization
+from users.models import Role, UserRole
 
 User = get_user_model()
 

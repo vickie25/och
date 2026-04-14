@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Add sample subtasks to the alpha mission."""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')

@@ -1,11 +1,12 @@
 """
 Django settings for core project - Base configuration.
 """
-import os
-from pathlib import Path
-from datetime import timedelta
-from dotenv import load_dotenv
 import logging
+import os
+from datetime import timedelta
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -15,13 +16,13 @@ if not os.environ.get('DEBUG', 'False').lower() == 'true' and os.environ.get('SE
     import sentry_sdk
     from sentry_sdk.integrations.django import DjangoIntegration
     from sentry_sdk.integrations.logging import LoggingIntegration
-    
+
     # Configure Sentry to exclude PII
     sentry_logging = LoggingIntegration(
         level=logging.INFO,
         event_level=logging.ERROR,
     )
-    
+
     def _sentry_before_send(event, hint):
         """Remove PII from Sentry events."""
         if 'request' in event and 'data' in event['request']:
@@ -33,7 +34,7 @@ if not os.environ.get('DEBUG', 'False').lower() == 'true' and os.environ.get('SE
             if 'secret' in event['request']['data']:
                 event['request']['data']['secret'] = '[FILTERED]'
         return event
-    
+
     sentry_sdk.init(
         dsn=os.environ.get('SENTRY_DSN'),
         integrations=[
@@ -129,13 +130,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.postgres',
-    
+
     # Third-party apps
     'rest_framework',
     'rest_framework_simplejwt',
     'drf_spectacular',
     'corsheaders',
-    
+
     # Local apps (order matters - users before organizations)
     'users',
     'organizations',
@@ -494,7 +495,7 @@ SPECTACULAR_SETTINGS = {
     'TITLE': 'OCH Cyber Talent Engine API',
     'DESCRIPTION': '''
     Comprehensive API for the OCH Cyber Talent Engine platform.
-    
+
     This API provides endpoints for:
     - User authentication and management
     - Program, Track, and Cohort management
@@ -502,7 +503,7 @@ SPECTACULAR_SETTINGS = {
     - Student dashboards and progress tracking
     - Missions and portfolio management
     - Director dashboards and analytics
-    
+
     **Authentication**: Use JWT Bearer tokens. Obtain tokens via `/api/v1/auth/login` or `/api/v1/auth/login/`
     ''',
     'VERSION': '1.0.0',

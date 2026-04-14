@@ -3,18 +3,17 @@ Redis session management for profiling autosave functionality.
 Autosaves responses every 10 seconds to allow students to resume sessions.
 """
 import json
-import hashlib
 import secrets
-from datetime import timedelta
-from django.utils import timezone
-from django.conf import settings
+from typing import Any
+
 import redis
-from typing import Optional, Dict, Any
+from django.conf import settings
+from django.utils import timezone
 
 
 class ProfilerSessionManager:
     """Manages profiling sessions in Redis for autosave functionality."""
-    
+
     def __init__(self):
         """Initialize Redis connection."""
         try:
@@ -58,22 +57,22 @@ class ProfilerSessionManager:
                     socket_connect_timeout=5,
                     socket_timeout=5,
                 )
-            
+
             # Test connection
             self.redis_client.ping()
         except Exception as e:
             print(f"Warning: Redis connection failed: {e}. Autosave functionality will be limited.")
             self.redis_client = None
-    
+
     def generate_session_token(self) -> str:
         """Generate a unique session token."""
         return secrets.token_urlsafe(32)
-    
+
     def get_session_key(self, session_token: str) -> str:
         """Get Redis key for session."""
         return f"profiler:session:{session_token}"
-    
-    def save_session(self, session_token: str, data: Dict[str, Any], ttl: int = 3600) -> bool:
+
+    def save_session(self, session_token: str, data: dict[str, Any], ttl: int = 3600) -> bool:
         """
         Save session data to Redis.
         TTL defaults to 1 hour (3600 seconds).
@@ -91,8 +90,8 @@ class ProfilerSessionManager:
         except Exception as e:
             print(f"Error saving session to Redis: {e}")
             return False
-    
-    def get_session(self, session_token: str) -> Optional[Dict[str, Any]]:
+
+    def get_session(self, session_token: str) -> dict[str, Any] | None:
         """Retrieve session data from Redis."""
         if not self.redis_client:
             return None
@@ -105,8 +104,8 @@ class ProfilerSessionManager:
         except Exception as e:
             print(f"Error retrieving session from Redis: {e}")
             return None
-    
-    def update_session(self, session_token: str, updates: Dict[str, Any], ttl: int = 3600) -> bool:
+
+    def update_session(self, session_token: str, updates: dict[str, Any], ttl: int = 3600) -> bool:
         """Update session data in Redis."""
         try:
             existing = self.get_session(session_token) or {}
@@ -115,7 +114,7 @@ class ProfilerSessionManager:
         except Exception as e:
             print(f"Error updating session in Redis: {e}")
             return False
-    
+
     def delete_session(self, session_token: str) -> bool:
         """Delete session from Redis."""
         if not self.redis_client:
@@ -127,7 +126,7 @@ class ProfilerSessionManager:
         except Exception as e:
             print(f"Error deleting session from Redis: {e}")
             return False
-    
+
     def autosave_response(self, session_token: str, question_id: str, answer: Any) -> bool:
         """
         Autosave a single response (called every 10 seconds).
@@ -145,8 +144,8 @@ class ProfilerSessionManager:
         except Exception as e:
             print(f"Error autosaving response: {e}")
             return False
-    
-    def get_all_responses(self, session_token: str) -> Dict[str, Any]:
+
+    def get_all_responses(self, session_token: str) -> dict[str, Any]:
         """Get all autosaved responses."""
         session_data = self.get_session(session_token) or {}
         return session_data.get('responses', {})

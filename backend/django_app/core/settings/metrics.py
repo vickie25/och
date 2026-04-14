@@ -1,9 +1,9 @@
 """
 Prometheus metrics configuration for Django.
 """
-from prometheus_client import Counter, Histogram, Gauge
-from django.http import HttpResponse
 from django.conf import settings
+from django.http import HttpResponse
+from prometheus_client import Counter, Gauge, Histogram
 
 # Metrics
 http_requests_total = Counter(
@@ -34,9 +34,9 @@ def metrics_view(request):
     """Prometheus metrics endpoint."""
     if not getattr(settings, 'ENABLE_METRICS', False):
         return HttpResponse('Metrics disabled', status=403)
-    
-    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-    
+
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
     return HttpResponse(
         generate_latest(),
         content_type=CONTENT_TYPE_LATEST

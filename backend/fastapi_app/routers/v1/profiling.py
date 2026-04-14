@@ -1,16 +1,16 @@
 """
 FastAPI router for AI profiling endpoints.
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from typing import List, Optional
-from uuid import UUID
-import time
-import logging
 import hashlib
+import logging
+import time
 
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from schemas.profiling import (
-    ProfilingSession, ProfilingResult, ProfilingProgress,
-    TrackRecommendation, SubmitResponseRequest
+    ProfilingProgress,
+    ProfilingResult,
+    ProfilingSession,
+    SubmitResponseRequest,
 )
 from schemas.profiling_tracks import OCH_TRACKS
 from services.profiling_service_enhanced import enhanced_profiling_service
@@ -25,50 +25,50 @@ async def get_current_user_id(user_id: int = Depends(verify_token)) -> int:
 router = APIRouter(prefix="/profiling", tags=["ai-profiling"])
 
 
-def _detect_suspicious_patterns(session: ProfilingSession) -> List[str]:
+def _detect_suspicious_patterns(session: ProfilingSession) -> list[str]:
     """Detect suspicious patterns in responses."""
     patterns = []
-    
+
     if not hasattr(session, 'response_times') or not session.response_times or len(session.response_times) < 3:
         return patterns
-    
+
     response_times = session.response_times
-    
+
     # Check for too-fast responses (less than 2 seconds average)
     avg_time = sum(r.get('time_ms', 0) for r in response_times) / len(response_times)
     if avg_time < 2000:  # Less than 2 seconds per question
         patterns.append('too_fast')
-    
+
     # Check for identical response times (possible automation)
     if len(response_times) >= 5:
         times = [r.get('time_ms', 0) for r in response_times[-5:]]
         if len(set(times)) == 1:  # All identical
             patterns.append('identical_response_times')
-    
+
     # Check for too-consistent timing (within 100ms of each other)
     if len(response_times) >= 5:
         times = [r.get('time_ms', 0) for r in response_times[-5:]]
         time_range = max(times) - min(times) if times else 0
         if time_range < 100:  # All within 100ms
             patterns.append('too_consistent_timing')
-    
+
     # Check for identical responses (same option selected repeatedly)
     if len(session.responses) >= 5:
         recent_responses = session.responses[-5:]
         selected_options = [r.selected_option for r in recent_responses]
         if len(set(selected_options)) == 1:  # All same option
             patterns.append('identical_responses')
-    
+
     return patterns
 
 
 def _calculate_anti_cheat_score(session: ProfilingSession) -> float:
     """Calculate anti-cheat confidence score (0-100, higher = more suspicious)."""
     score = 0.0
-    
+
     if not hasattr(session, 'suspicious_patterns') or not session.suspicious_patterns:
         return score
-    
+
     # Base score from suspicious patterns
     pattern_weights = {
         'too_fast': 30.0,
@@ -76,10 +76,10 @@ def _calculate_anti_cheat_score(session: ProfilingSession) -> float:
         'too_consistent_timing': 20.0,
         'identical_responses': 25.0,
     }
-    
+
     for pattern in session.suspicious_patterns:
         score += pattern_weights.get(pattern, 10.0)
-    
+
     # Cap at 100
     return min(100.0, score)
 
@@ -116,24 +116,24 @@ async def start_profiling_session(
 
     # Create new session
     session = enhanced_profiling_service.create_session(user_id)
-    
+
     # Anti-cheat: Capture IP and user agent
     client_host = request.client.host if request.client else None
     user_agent = request.headers.get('user-agent', '')
-    
+
     # Store anti-cheat metadata
     session.ip_address = client_host
     session.user_agent = user_agent
-    
+
     # Generate device fingerprint
     fingerprint_data = f"{client_host}:{user_agent}:{user_id}"
     session.device_fingerprint = hashlib.sha256(fingerprint_data.encode()).hexdigest()[:32]
-    
+
     # Initialize anti-cheat tracking
     session.response_times = []
     session.suspicious_patterns = []
     session.anti_cheat_score = 0.0
-    
+
     _active_sessions[session.id] = session
 
     progress = enhanced_profiling_service.get_progress(session)
@@ -171,7 +171,7 @@ async def get_session_progress(
     return progress
 
 
-@router.get("/questions", response_model=List[dict])
+@router.get("/questions", response_model=list[dict])
 async def get_profiling_questions(user_id: int = Depends(get_current_user_id)):
     """
     Get all profiling questions for the assessment.
@@ -181,7 +181,7 @@ async def get_profiling_questions(user_id: int = Depends(get_current_user_id)):
     """
     questions_by_module = enhanced_profiling_service.get_all_questions()
     # Flatten questions from all modules into a single list
-    flat_questions: List[dict] = []
+    flat_questions: list[dict] = []
     for module_questions in questions_by_module.values():
         flat_questions.extend(module_questions)
     return flat_questions
@@ -281,17 +281,17 @@ async def submit_question_response(
         if response.question_id == question_id:
             response.response_time_ms = response_time_ms
             break
-    
+
     # Anti-cheat: Track response times and detect suspicious patterns
     if not hasattr(session, 'response_times'):
         session.response_times = []
-    
+
     session.response_times.append({
         'question_id': question_id,
         'time_ms': response_time_ms,
         'timestamp': time.time()
     })
-    
+
     # Detect suspicious patterns
     suspicious_patterns = _detect_suspicious_patterns(session)
     if suspicious_patterns:
@@ -299,7 +299,7 @@ async def submit_question_response(
             session.suspicious_patterns = []
         session.suspicious_patterns.extend(suspicious_patterns)
         session.suspicious_patterns = list(set(session.suspicious_patterns))  # Remove duplicates
-    
+
     # Calculate anti-cheat score
     session.anti_cheat_score = _calculate_anti_cheat_score(session)
 
@@ -412,12 +412,12 @@ async def get_profiling_results(
     # Reconstruct result from session data using enhanced engine
     recommendations = enhanced_profiling_service.generate_recommendations(session.scores)
     primary_track = OCH_TRACKS[session.recommended_track]
-    
+
     # Generate deep insights from session data
     deep_insights = enhanced_profiling_service._generate_deep_insights(
         session, session.scores, recommendations
     )
-    
+
     # Generate assessment summary with recommendations and deep insights
     assessment_summary = enhanced_profiling_service._generate_assessment_summary(
         recommendations, deep_insights
@@ -445,7 +445,7 @@ async def check_profiling_status(user_id: int = Depends(get_current_user_id)):
     # Check for completed session
     completed_session = None
     active_session = None
-    
+
     # Check for completed or active sessions for this user
     for session in _active_sessions.values():
         if session.user_id == user_id:
@@ -453,7 +453,7 @@ async def check_profiling_status(user_id: int = Depends(get_current_user_id)):
                 completed_session = session
             elif session.completed_at is None:
                 active_session = session
-    
+
     if completed_session:
         module_progress = enhanced_profiling_service.get_module_progress(completed_session)
         return {
@@ -463,7 +463,7 @@ async def check_profiling_status(user_id: int = Depends(get_current_user_id)):
             "has_active_session": False,
             "module_progress": module_progress,
         }
-    
+
     if active_session:
         progress = enhanced_profiling_service.get_progress(active_session)
         module_progress = enhanced_profiling_service.get_module_progress(active_session)
@@ -474,7 +474,7 @@ async def check_profiling_status(user_id: int = Depends(get_current_user_id)):
             "progress": progress.dict(),
             "module_progress": module_progress,
         }
-    
+
     return {
         "completed": False,
         "session_id": None,
@@ -565,14 +565,14 @@ async def get_enhanced_profiling_questions(user_id: int = Depends(get_current_us
     }
 
 
-@router.get("/enhanced/module/{module_name}/questions", response_model=List[dict])
+@router.get("/enhanced/module/{module_name}/questions", response_model=list[dict])
 async def get_questions_by_module(
     module_name: str,
     user_id: int = Depends(get_current_user_id)
 ):
     """
     Get questions for a specific module.
-    Module names: identity_value, cyber_aptitude, technical_exposure, 
+    Module names: identity_value, cyber_aptitude, technical_exposure,
     scenario_preference, work_style, difficulty_selection
     """
     questions = enhanced_profiling_service.get_questions_by_module(module_name)
@@ -650,7 +650,7 @@ async def verify_difficulty_selection(
     verification = enhanced_profiling_service.verify_difficulty_selection(
         session, selected_difficulty
     )
-    
+
     # Store verification in session
     session.difficulty_verification = verification
 
@@ -694,20 +694,21 @@ async def complete_enhanced_profiling_session(
     try:
         # Get algorithmic result first
         result = enhanced_profiling_service.complete_session(session)
-        
+
         # Enhance with GPT analysis
         try:
-            from services.gpt_profiler import gpt_profiler_service
-            import requests
             import os
-            
+
+            import requests
+            from services.gpt_profiler import gpt_profiler_service
+
             # Fetch tracks from Django DB
             django_api_url = os.getenv('DJANGO_API_URL', 'http://localhost:8000')
             tracks_response = requests.get(f"{django_api_url}/api/v1/programs/tracks/", timeout=5)
-            
+
             if tracks_response.status_code == 200:
                 db_tracks = tracks_response.json()
-                
+
                 # Format responses for GPT
                 formatted_responses = [
                     {
@@ -716,27 +717,27 @@ async def complete_enhanced_profiling_session(
                     }
                     for r in session.responses
                 ]
-                
+
                 # Get reflection
                 reflection = getattr(session, 'reflection_responses', None) or {}
-                
+
                 # Get GPT recommendation
                 gpt_result = gpt_profiler_service.analyze_and_recommend(
                     formatted_responses,
                     db_tracks,
                     reflection
                 )
-                
+
                 # Override primary track with GPT recommendation if confidence is high
                 if gpt_result.get('confidence', 0) > 0.75 and gpt_result.get('recommended_track'):
                     recommended_key = gpt_result['recommended_track']
                     if recommended_key in OCH_TRACKS:
                         result.primary_track = OCH_TRACKS[recommended_key]
                         session.recommended_track = recommended_key
-                        
+
                         # Add GPT insights to assessment summary
                         result.assessment_summary = f"{gpt_result.get('personalized_message', '')}\n\n{result.assessment_summary}\n\nAI Analysis: {gpt_result.get('reasoning', '')}"
-                        
+
                         logger.info(f"GPT recommended track '{recommended_key}' with confidence {gpt_result.get('confidence')}")
         except Exception as gpt_error:
             logger.warning(f"GPT enhancement failed, using algorithmic result: {gpt_error}")
@@ -744,7 +745,7 @@ async def complete_enhanced_profiling_session(
 
         # Mark session as completed
         session.completed_at = result.completed_at
-        
+
         # Create first portfolio entry (Value Statement) automatically
         try:
             enhanced_profiling_service.create_value_statement_portfolio_entry(session, result)
@@ -792,12 +793,12 @@ async def get_och_blueprint(
     # Reconstruct result from session
     recommendations = enhanced_profiling_service.generate_recommendations(session.scores)
     primary_track = OCH_TRACKS[session.recommended_track]
-    
+
     # Generate deep insights
     deep_insights = enhanced_profiling_service._generate_deep_insights(
         session, session.scores, recommendations
     )
-    
+
     # Generate assessment summary
     assessment_summary = enhanced_profiling_service._generate_assessment_summary(
         recommendations, deep_insights

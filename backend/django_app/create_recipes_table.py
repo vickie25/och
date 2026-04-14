@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Create recipes table manually."""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')

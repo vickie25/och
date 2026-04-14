@@ -4,36 +4,45 @@ Provides dashboard data and management endpoints for sponsors.
 """
 import json
 from datetime import datetime
+
+from django.contrib.auth import get_user_model
+from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
-from django.db import models
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
-from django.http import StreamingHttpResponse
-from rest_framework import generics, status
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.contrib.auth import get_user_model
 
-from .models import Sponsor, SponsorCohort, SponsorStudentCohort, SponsorAnalytics, SponsorCohortAssignment
+from users.models import UserRole
+
 from . import services as sponsor_services
+from .audit_service import SponsorAuditService
+from .export_service import SponsorExportService
+from .models import (
+    Sponsor,
+    SponsorCohort,
+    SponsorCohortAssignment,
+    SponsorStudentCohort,
+)
+from .permissions import (
+    IsSponsorAdmin,
+    IsSponsorUser,
+    check_sponsor_access,
+    check_sponsor_admin_access,
+)
+from .serializers import (
+    CohortDetailResponseSerializer,
+    CohortListResponseSerializer,
+    SponsorCohortAssignmentSerializer,
+    SponsorDashboardSerializer,
+    SponsorSerializer,
+)
 from .services.cohorts_service import SponsorCohortsService
 from .services.finance_service import FinanceDataService
 from .services.payment_service import PaymentService
-from users.models import UserRole
-from .permissions import IsSponsorUser, IsSponsorAdmin, check_sponsor_access, check_sponsor_admin_access
-from .export_service import SponsorExportService
-from .audit_service import SponsorAuditService
-from .serializers import (
-    SponsorSerializer,
-    SponsorCohortSerializer,
-    SponsorDashboardSerializer,
-    SponsorAnalyticsSerializer,
-    CohortListResponseSerializer,
-    CohortDetailResponseSerializer,
-    SponsorCohortAssignmentSerializer
-)
 
 User = get_user_model()
 
@@ -373,8 +382,8 @@ def sponsor_stream(request, slug):
     sponsor = get_object_or_404(Sponsor, slug=slug, is_active=True)
 
     # Return SSE response
-    from django.http import StreamingHttpResponse
     from django.core.cache import cache
+    from django.http import StreamingHttpResponse
 
     def event_generator():
         """Generate SSE events for dashboard updates"""
@@ -910,7 +919,7 @@ class PaymentTermsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, slug):
-        sponsor = get_object_or_404(Sponsor, slug=slug, is_active=True)
+        get_object_or_404(Sponsor, slug=slug, is_active=True)
 
         # TODO: Add sponsor access control
         # For now, return default terms
@@ -1024,7 +1033,7 @@ def sponsor_assignments(request):
         assignments = SponsorCohortAssignment.objects.all()
         serializer = SponsorCohortAssignmentSerializer(assignments, many=True)
         return Response(serializer.data)
-    
+
     elif request.method == 'POST':
         serializer = SponsorCohortAssignmentSerializer(data=request.data)
         if serializer.is_valid():

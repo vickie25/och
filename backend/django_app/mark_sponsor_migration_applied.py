@@ -3,6 +3,7 @@ Mark sponsor_dashboard migrations as applied after creating the table manually.
 """
 import os
 import sys
+
 import django
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -12,16 +13,17 @@ django.setup()
 from django.db import connection
 from django.utils import timezone
 
+
 def mark_migration_applied(app_name, migration_name):
     """Mark a migration as applied in django_migrations table."""
     with connection.cursor() as cursor:
         # Check if already exists
         cursor.execute("""
-            SELECT COUNT(*) FROM django_migrations 
+            SELECT COUNT(*) FROM django_migrations
             WHERE app = %s AND name = %s;
         """, [app_name, migration_name])
         exists = cursor.fetchone()[0] > 0
-        
+
         if not exists:
             cursor.execute("""
                 INSERT INTO django_migrations (app, name, applied)

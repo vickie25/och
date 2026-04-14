@@ -1,6 +1,6 @@
+
 import paramiko
-import sys
-import time
+
 
 def deploy():
     host = '69.30.235.220'
@@ -29,13 +29,13 @@ def deploy():
             stdin, stdout, stderr = ssh.exec_command(cmd, get_pty=True)
             stdin.write(password + '\n')
             stdin.flush()
-            
+
             while True:
                 line = stdout.readline()
                 if not line:
                     break
                 print(line.strip())
-            
+
             err = stderr.read().decode().strip()
             if err:
                 print(f"Error output: {err}")

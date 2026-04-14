@@ -13,8 +13,8 @@ Endpoints tested:
 """
 import pytest
 from rest_framework import status
-from users.models import Role, UserRole
-from organizations.models import Organization
+
+from users.models import UserRole
 
 
 @pytest.mark.django_db

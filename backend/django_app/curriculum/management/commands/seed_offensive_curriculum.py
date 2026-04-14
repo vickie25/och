@@ -4,11 +4,15 @@ Creates tracks, levels, modules, videos, quizzes, and assessments for Offensive.
 """
 
 import json
+
 from django.core.management.base import BaseCommand
-from django.utils import timezone
+
 from curriculum.models import (
-    CurriculumTrack, CurriculumLevel, CurriculumModule,
-    CurriculumContent, AssessmentBlock
+    AssessmentBlock,
+    CurriculumContent,
+    CurriculumLevel,
+    CurriculumModule,
+    CurriculumTrack,
 )
 
 

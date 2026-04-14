@@ -2,6 +2,7 @@
 Consent management utilities.
 """
 from django.utils import timezone
+
 from users.models import ConsentScope
 
 
@@ -27,14 +28,14 @@ def grant_consent(user, scope_type, expires_at=None):
             'expires_at': expires_at,
         }
     )
-    
+
     if not created:
         consent.granted = True
         consent.granted_at = timezone.now()
         consent.revoked_at = None
         consent.expires_at = expires_at
         consent.save()
-    
+
     return consent
 
 

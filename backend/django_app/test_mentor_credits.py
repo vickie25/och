@@ -5,6 +5,7 @@ Run with: python3 test_mentor_credits.py
 """
 import os
 import sys
+
 import django
 
 # Setup Django
@@ -13,7 +14,7 @@ sys.path.insert(0, '/Users/airm1/Projects/och/backend/django_app')
 django.setup()
 
 from django.contrib.auth import get_user_model
-from mentors.models import Mentor, MentorRating, MentorCredit, CreditTransaction, CreditRedemption
+from mentors.models import CreditRedemption, Mentor, MentorCredit, MentorRating
 from mentors.services import MentorCreditService
 
 User = get_user_model()
@@ -21,7 +22,7 @@ User = get_user_model()
 def test_credit_calculation():
     """Test that credit values are calculated correctly for each star rating."""
     print("\n=== Testing Credit Calculation ===")
-    
+
     test_cases = [
         (5, 10),  # 5 stars = 10 credits
         (4, 8),   # 4 stars = 8 credits
@@ -29,23 +30,23 @@ def test_credit_calculation():
         (2, 4),   # 2 stars = 4 credits
         (1, 2),   # 1 star = 2 credits
     ]
-    
+
     for stars, expected_credits in test_cases:
         rating = MentorRating(rating=stars)
         actual_credits = rating.calculate_credits()
-        
+
         if actual_credits == expected_credits:
             print(f"✓ {stars} stars = {actual_credits} credits (expected: {expected_credits})")
         else:
             print(f"✗ {stars} stars = {actual_credits} credits (expected: {expected_credits}) - FAILED")
             return False
-    
+
     return True
 
 def test_redemption_costs():
     """Test that redemption costs are correct."""
     print("\n=== Testing Redemption Costs ===")
-    
+
     expected_costs = {
         'course': 50,
         'certificate': 30,
@@ -53,22 +54,22 @@ def test_redemption_costs():
         'priority_matching': 40,
         'featured_profile': 100,
     }
-    
+
     for redemption_type, expected_cost in expected_costs.items():
         actual_cost = CreditRedemption.get_cost(redemption_type)
-        
+
         if actual_cost == expected_cost:
             print(f"✓ {redemption_type} = {actual_cost} credits")
         else:
             print(f"✗ {redemption_type} = {actual_cost} credits (expected: {expected_cost}) - FAILED")
             return False
-    
+
     return True
 
 def test_credit_service_methods():
     """Test MentorCreditService methods exist and are callable."""
     print("\n=== Testing Credit Service Methods ===")
-    
+
     methods_to_test = [
         'award_credits_for_rating',
         'redeem_credits',
@@ -76,20 +77,20 @@ def test_credit_service_methods():
         'get_transaction_history',
         'get_redemption_options',
     ]
-    
+
     for method_name in methods_to_test:
         if hasattr(MentorCreditService, method_name):
             print(f"✓ MentorCreditService.{method_name} exists")
         else:
             print(f"✗ MentorCreditService.{method_name} not found - FAILED")
             return False
-    
+
     return True
 
 def test_model_creation():
     """Test that models can be instantiated."""
     print("\n=== Testing Model Creation ===")
-    
+
     try:
         # Create test user
         test_user, _ = User.objects.get_or_create(
@@ -99,7 +100,7 @@ def test_model_creation():
                 'last_name': 'User',
             }
         )
-        
+
         # Create mentor
         mentor, _ = Mentor.objects.get_or_create(
             user=test_user,
@@ -109,7 +110,7 @@ def test_model_creation():
             }
         )
         print(f"✓ Mentor created: {mentor.mentor_slug}")
-        
+
         # Create student user
         student_user, _ = User.objects.get_or_create(
             email='test_student_credit@example.com',
@@ -118,7 +119,7 @@ def test_model_creation():
                 'last_name': 'Student',
             }
         )
-        
+
         # Create rating
         rating, created = MentorRating.objects.get_or_create(
             mentor=mentor,
@@ -129,7 +130,7 @@ def test_model_creation():
             }
         )
         print(f"✓ Rating {'created' if created else 'updated'}: {rating.rating} stars")
-        
+
         # Check credit balance was created
         try:
             credit_balance = mentor.credit_balance
@@ -137,7 +138,7 @@ def test_model_creation():
         except MentorCredit.DoesNotExist:
             print("✗ Credit balance not created - FAILED")
             return False
-        
+
         # Check transaction was recorded
         transactions = mentor.credit_transactions.filter(related_rating=rating)
         if transactions.exists():
@@ -145,9 +146,9 @@ def test_model_creation():
         else:
             print("✗ Transaction not recorded - FAILED")
             return False
-        
+
         return True
-        
+
     except Exception as e:
         print(f"✗ Error during model creation test: {e}")
         import traceback
@@ -159,14 +160,14 @@ def main():
     print("="*60)
     print("MENTOR CREDIT & RATING SYSTEM TEST")
     print("="*60)
-    
+
     tests = [
         ("Credit Calculation", test_credit_calculation),
         ("Redemption Costs", test_redemption_costs),
         ("Credit Service Methods", test_credit_service_methods),
         ("Model Creation", test_model_creation),
     ]
-    
+
     results = []
     for test_name, test_func in tests:
         try:
@@ -177,21 +178,21 @@ def main():
             import traceback
             traceback.print_exc()
             results.append((test_name, False))
-    
+
     # Summary
     print("\n" + "="*60)
     print("TEST SUMMARY")
     print("="*60)
-    
+
     passed = sum(1 for _, result in results if result)
     total = len(results)
-    
+
     for test_name, result in results:
         status = "✓ PASSED" if result else "✗ FAILED"
         print(f"{status}: {test_name}")
-    
+
     print(f"\nTotal: {passed}/{total} tests passed")
-    
+
     if passed == total:
         print("\n🎉 All tests passed! Mentor credit system is working correctly.")
         return 0

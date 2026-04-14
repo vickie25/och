@@ -1,18 +1,18 @@
 """
 Management command to initialize dynamic pricing tiers with current hardcoded values
 """
-from django.core.management.base import BaseCommand
-from django.utils import timezone
 from decimal import Decimal
+
+from django.core.management.base import BaseCommand
 from finance.models import PricingTier
 
 
 class Command(BaseCommand):
     help = 'Initialize dynamic pricing tiers with current hardcoded values'
-    
+
     def handle(self, *args, **options):
         """Create pricing tiers based on current hardcoded values"""
-        
+
         # Institution Tiers
         institution_tiers = [
             {
@@ -56,7 +56,7 @@ class Command(BaseCommand):
                 'annual_discount_percent': Decimal('2.0'),
             },
         ]
-        
+
         # Employer Plans
         employer_tiers = [
             {
@@ -90,11 +90,11 @@ class Command(BaseCommand):
                 'annual_discount_percent': Decimal('0.0'),
             },
         ]
-        
+
         all_tiers = institution_tiers + employer_tiers
         created_count = 0
         updated_count = 0
-        
+
         for tier_data in all_tiers:
             tier, created = PricingTier.objects.update_or_create(
                 name=tier_data['name'],
@@ -102,7 +102,7 @@ class Command(BaseCommand):
                 currency=tier_data['currency'],
                 defaults=tier_data
             )
-            
+
             if created:
                 created_count += 1
                 self.stdout.write(
@@ -113,7 +113,7 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.WARNING(f"Updated pricing tier: {tier.display_name}")
                 )
-        
+
         self.stdout.write(
             self.style.SUCCESS(
                 f"\nPricing setup complete!\n"

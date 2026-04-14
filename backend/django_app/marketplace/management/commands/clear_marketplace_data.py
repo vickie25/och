@@ -13,14 +13,16 @@ Usage:
     python manage.py clear_marketplace_data --confirm
 """
 import logging
+
 from django.core.management.base import BaseCommand
 from django.db import transaction
+
 from marketplace.models import (
-    JobApplication,
+    Employer,
     EmployerInterestLog,
+    JobApplication,
     JobPosting,
     MarketplaceProfile,
-    Employer,
 )
 
 logger = logging.getLogger(__name__)

@@ -1,36 +1,52 @@
 """
 Finance views for wallet, credits, contracts, and financial management.
 """
-from decimal import Decimal
+import logging
 from datetime import timedelta
-from django.utils import timezone
-from django.db.models import Q, Sum
+from decimal import Decimal
+
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.db import transaction
-from rest_framework import status, viewsets, permissions
+from django.db.models import Q, Sum
+from django.utils import timezone
+from programs.permissions import user_has_finance_role
+from rest_framework import permissions, status, viewsets
+from rest_framework import serializers as drf_serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework import serializers as drf_serializers
-from users.utils.sms_utils import send_sms_message
-import logging
 from rest_framework.views import APIView
-from django.contrib.auth import get_user_model
+from subscriptions.models import UserSubscription
+
+from organizations.models import OrganizationMember
+from users.utils.permission_utils import has_admin_role
+from users.utils.sms_utils import send_sms_message
+
 from .models import (
-    Wallet, Transaction, Credit, Contract, TaxRate,
-    MentorPayout, Invoice, Payment, ReconciliationRun,
-    PricingTier, PricingHistory
+    Contract,
+    Credit,
+    Invoice,
+    MentorPayout,
+    Payment,
+    PricingHistory,
+    PricingTier,
+    TaxRate,
+    Transaction,
+    Wallet,
 )
 from .serializers import (
-    WalletSerializer, TransactionSerializer, CreditSerializer,
-    ContractSerializer, TaxRateSerializer, MentorPayoutSerializer,
-    InvoiceSerializer, PaymentSerializer,
-    PricingTierSerializer, PricingHistorySerializer
+    ContractSerializer,
+    CreditSerializer,
+    InvoiceSerializer,
+    MentorPayoutSerializer,
+    PaymentSerializer,
+    PricingHistorySerializer,
+    PricingTierSerializer,
+    TaxRateSerializer,
+    TransactionSerializer,
+    WalletSerializer,
 )
-from subscriptions.models import UserSubscription
-from programs.permissions import user_has_finance_role
-from organizations.models import OrganizationMember
-from users.utils.permission_utils import has_admin_role, can_manage_users
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -39,52 +55,52 @@ User = get_user_model()
 class WalletViewSet(viewsets.ModelViewSet):
     serializer_class = WalletSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_queryset(self):
         if has_admin_role(self.request.user, ['admin', 'finance']):
             return Wallet.objects.all()
         return Wallet.objects.filter(user=self.request.user)
-    
+
     @action(detail=False, methods=['get'])
     def my_wallet(self, request):
         """Get current user's wallet."""
         wallet, created = Wallet.objects.get_or_create(user=request.user)
         serializer = self.get_serializer(wallet)
         return Response(serializer.data)
-    
+
     @action(detail=True, methods=['post'])
     def top_up(self, request, pk=None):
         """Add balance to wallet."""
         wallet = self.get_object()
         if wallet.user != request.user and not has_admin_role(request.user, ['admin', 'finance']):
             return Response(
-                {'error': 'Permission denied'}, 
+                {'error': 'Permission denied'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         serializer = WalletTopUpSerializer(data=request.data)
         if serializer.is_valid():
             amount = serializer.validated_data['amount']
             description = serializer.validated_data['description']
-            
+
             wallet.add_balance(amount, description)
-            
+
             return Response({
                 'message': 'Wallet topped up successfully',
                 'new_balance': wallet.balance
             })
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
     @action(detail=True, methods=['get'])
     def transactions(self, request, pk=None):
         """Get wallet transaction history."""
         wallet = self.get_object()
         if wallet.user != request.user and not has_admin_role(request.user, ['admin', 'finance']):
             return Response(
-                {'error': 'Permission denied'}, 
+                {'error': 'Permission denied'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         transactions = wallet.transactions.all()[:50]  # Last 50 transactions
         serializer = TransactionSerializer(transactions, many=True)
         return Response(serializer.data)
@@ -93,7 +109,7 @@ class WalletViewSet(viewsets.ModelViewSet):
 class TransactionViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = TransactionSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_queryset(self):
         if has_admin_role(self.request.user, ['admin', 'finance']):
             return Transaction.objects.all()
@@ -103,12 +119,12 @@ class TransactionViewSet(viewsets.ReadOnlyModelViewSet):
 class CreditViewSet(viewsets.ModelViewSet):
     serializer_class = CreditSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_queryset(self):
         if has_admin_role(self.request.user, ['admin', 'finance']):
             return Credit.objects.all()
         return Credit.objects.filter(user=self.request.user)
-    
+
     @action(detail=False, methods=['post'])
     def purchase(self, request):
         """Purchase credits."""
@@ -117,11 +133,11 @@ class CreditViewSet(viewsets.ModelViewSet):
             amount = serializer.validated_data['amount']
             credit_type = serializer.validated_data['type']
             expires_days = serializer.validated_data.get('expires_days')
-            
+
             expires_at = None
             if expires_days:
                 expires_at = timezone.now() + timedelta(days=expires_days)
-            
+
             credit = Credit.objects.create(
                 user=request.user,
                 type=credit_type,
@@ -129,23 +145,23 @@ class CreditViewSet(viewsets.ModelViewSet):
                 remaining=amount,
                 expires_at=expires_at
             )
-            
+
             # Add to wallet
             wallet, _ = Wallet.objects.get_or_create(user=request.user)
             wallet.add_balance(amount, f"Credit purchase - {credit_type}")
-            
+
             return Response({
                 'message': 'Credits purchased successfully',
                 'credit_id': credit.id,
                 'amount': amount
             })
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
     @action(detail=False, methods=['get'])
     def summary(self, request):
         """Get user's credit summary."""
         credits = self.get_queryset().filter(remaining__gt=0)
-        
+
         # Group by type
         summary = {}
         for credit in credits:
@@ -158,14 +174,14 @@ class CreditViewSet(viewsets.ModelViewSet):
             summary[credit.type]['total_amount'] += credit.amount
             summary[credit.type]['total_remaining'] += credit.remaining
             summary[credit.type]['count'] += 1
-        
+
         return Response(summary)
 
 
 class ContractViewSet(viewsets.ModelViewSet):
     serializer_class = ContractSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_queryset(self):
         user = self.request.user
         if user.is_staff or user_has_finance_role(user):
@@ -637,7 +653,7 @@ class ContractViewSet(viewsets.ModelViewSet):
                 'next': next_path,
             }
         )
-    
+
     @action(detail=False, methods=['get'])
     def active(self, request):
         """Get active contracts."""
@@ -648,7 +664,7 @@ class ContractViewSet(viewsets.ModelViewSet):
         )
         serializer = self.get_serializer(active_contracts, many=True)
         return Response(serializer.data)
-    
+
     @action(detail=False, methods=['get'])
     def expiring_soon(self, request):
         """Get contracts expiring in next 30 days."""
@@ -667,7 +683,7 @@ class TaxRateViewSet(viewsets.ModelViewSet):
     serializer_class = TaxRateSerializer
     # Default to admin-only; see get_permissions for read override
     permission_classes = [permissions.IsAdminUser]
-    
+
     def get_permissions(self):
         """
         Allow any authenticated user to READ tax rates,
@@ -676,20 +692,20 @@ class TaxRateViewSet(viewsets.ModelViewSet):
         if self.request.method in permissions.SAFE_METHODS:
             return [permissions.IsAuthenticated()]
         return [permissions.IsAdminUser()]
-    
+
     @action(detail=False, methods=['get'])
     def by_location(self, request):
         """Get tax rate by country and region."""
         country = request.query_params.get('country')
         region = request.query_params.get('region', '')
         tax_type = request.query_params.get('type', 'VAT')
-        
+
         if not country:
             return Response(
-                {'error': 'Country parameter required'}, 
+                {'error': 'Country parameter required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         rate = TaxRate.get_tax_rate(country, region, tax_type)
         return Response({'rate': rate, 'country': country, 'region': region})
 
@@ -716,53 +732,53 @@ class MentorPayoutViewSet(viewsets.ModelViewSet):
         if mode in ('paid', 'volunteer'):
             qs = qs.filter(compensation_mode=mode)
         return qs
-    
+
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
         """Approve mentor payout (admin only)."""
         if not request.user.is_staff:
             return Response(
-                {'error': 'Permission denied'}, 
+                {'error': 'Permission denied'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         payout = self.get_object()
         payout.status = 'approved'
         payout.save()
-        
+
         return Response({'message': 'Payout approved'})
-    
+
     @action(detail=True, methods=['post'])
     def mark_paid(self, request, pk=None):
         """Mark payout as paid (admin only)."""
         if not request.user.is_staff:
             return Response(
-                {'error': 'Permission denied'}, 
+                {'error': 'Permission denied'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         payout = self.get_object()
         payout.status = 'paid'
         payout.save()
-        
+
         return Response({'message': 'Payout marked as paid'})
 
 
 class InvoiceViewSet(viewsets.ModelViewSet):
     serializer_class = InvoiceSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_queryset(self):
         user = self.request.user
         if user.is_staff or user_has_finance_role(user):
             return Invoice.objects.all()
-        
+
         # Users can see their own invoices and organization invoices
         user_orgs = user.organizations.all()
         return Invoice.objects.filter(
             Q(user=user) | Q(organization__in=user_orgs)
         )
-    
+
     @action(detail=True, methods=['post'])
     def mark_paid(self, request, pk=None):
         """Mark invoice as paid."""
@@ -770,23 +786,23 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         invoice.status = 'paid'
         invoice.paid_date = timezone.now()
         invoice.save()
-        
+
         return Response({'message': 'Invoice marked as paid'})
 
 
 class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = PaymentSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_queryset(self):
         user = self.request.user
         if user.is_staff or user_has_finance_role(user):
             return Payment.objects.all()
-        
+
         # Users can see payments for their invoices
         user_orgs = user.organizations.all()
         return Payment.objects.filter(
-            Q(invoice__user=user) | 
+            Q(invoice__user=user) |
             Q(invoice__organization__in=user_orgs)
         )
 
@@ -794,7 +810,7 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
 class FinancialDashboardView(APIView):
     """Financial dashboard with key metrics."""
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get(self, request):
         user = request.user
         range_key = (request.query_params.get('range') or '30d').lower()
@@ -806,10 +822,10 @@ class FinancialDashboardView(APIView):
         }
         days = range_days_map.get(range_key, 30)
         window_start = timezone.now() - timedelta(days=days)
-        
+
         # Get user's wallet
         wallet, _ = Wallet.objects.get_or_create(user=user)
-        
+
         # Get user's credits
         active_credits = Credit.objects.filter(
             user=user,
@@ -817,20 +833,20 @@ class FinancialDashboardView(APIView):
         ).aggregate(
             total=Sum('remaining')
         )['total'] or Decimal('0')
-        
+
         # Get user's invoices
         user_orgs = user.organizations.all()
         invoices = Invoice.objects.filter(
             Q(user=user) | Q(organization__in=user_orgs)
         )
         invoices_in_window = invoices.filter(created_at__gte=window_start)
-        
+
         pending_invoices = invoices_in_window.filter(status__in=['draft', 'sent']).count()
         overdue_invoices = invoices_in_window.filter(
             status='sent',
             due_date__lt=timezone.now()
         ).count()
-        
+
         # Get recent transactions
         recent_transactions = Transaction.objects.filter(
             wallet=wallet
@@ -884,33 +900,33 @@ class PricingTierViewSet(viewsets.ModelViewSet):
     """API endpoint for managing dynamic pricing tiers"""
     serializer_class = PricingTierSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_queryset(self):
         tier_type = self.request.query_params.get('tier_type')
         currency = self.request.query_params.get('currency', 'USD')
         is_active = self.request.query_params.get('is_active')
-        
+
         queryset = PricingTier.objects.all()
-        
+
         if tier_type:
             queryset = queryset.filter(tier_type=tier_type)
         if currency:
             queryset = queryset.filter(currency=currency)
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
-        
+
         return queryset.order_by('tier_type', 'min_quantity')
-    
+
     @action(detail=False, methods=['get'])
     def active(self, request):
         """Get only active pricing tiers"""
         tier_type = request.query_params.get('tier_type')
         currency = request.query_params.get('currency', 'USD')
-        
+
         tiers = PricingTier.get_active_tiers(tier_type, currency)
         serializer = self.get_serializer(tiers, many=True)
         return Response(serializer.data)
-    
+
     @action(detail=True, methods=['post'])
     def update_price(self, request, pk=None):
         """Update pricing for a tier with history tracking"""
@@ -918,13 +934,13 @@ class PricingTierViewSet(viewsets.ModelViewSet):
         new_price = request.data.get('price_per_unit')
         new_discount = request.data.get('annual_discount_percent')
         reason = request.data.get('reason', 'Price update via API')
-        
+
         if not new_price:
             return Response(
                 {'error': 'price_per_unit is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
             from .services import DynamicPricingService
             DynamicPricingService.update_pricing_record(
@@ -934,18 +950,18 @@ class PricingTierViewSet(viewsets.ModelViewSet):
                 reason=reason,
                 changed_by_user=request.user
             )
-            
+
             # Refresh and return updated tier
             tier.refresh_from_db()
             serializer = self.get_serializer(tier)
             return Response(serializer.data)
-            
+
         except Exception as e:
             return Response(
                 {'error': f'Failed to update pricing: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-    
+
     @action(detail=False, methods=['get'])
     def calculate_price(self, request):
         """Calculate price for given parameters"""
@@ -953,13 +969,13 @@ class PricingTierViewSet(viewsets.ModelViewSet):
         quantity = request.query_params.get('quantity')
         billing_frequency = request.query_params.get('billing_frequency', 'monthly')
         currency = request.query_params.get('currency', 'USD')
-        
+
         if not tier_type or not quantity:
             return Response(
                 {'error': 'tier_type and quantity are required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
             quantity = int(quantity)
         except ValueError:
@@ -967,9 +983,9 @@ class PricingTierViewSet(viewsets.ModelViewSet):
                 {'error': 'quantity must be a valid integer'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         from .services import DynamicPricingService
-        
+
         if tier_type == 'institution':
             rate = DynamicPricingService.get_institution_rate(quantity, currency)
             if not rate:
@@ -977,16 +993,16 @@ class PricingTierViewSet(viewsets.ModelViewSet):
                     {'error': 'No pricing tier found for given student count'},
                     status=status.HTTP_404_NOT_FOUND
                 )
-            
+
             # Create mock contract for calculation
             mock_contract = type('MockContract', (), {
                 'seat_cap': quantity,
                 'institution_pricing_tier': 'auto',  # Will be determined by quantity
                 'billing_cycle': billing_frequency,
             })()
-            
+
             amount = DynamicPricingService.calculate_institution_invoice(mock_contract, billing_frequency)
-            
+
         elif tier_type == 'employer':
             plan = request.query_params.get('plan')
             if not plan:
@@ -994,28 +1010,28 @@ class PricingTierViewSet(viewsets.ModelViewSet):
                     {'error': 'plan is required for employer tier_type'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             rate = DynamicPricingService.get_employer_rate(plan, currency)
             if not rate:
                 return Response(
                     {'error': f'No pricing tier found for plan: {plan}'},
                     status=status.HTTP_404_NOT_FOUND
                 )
-            
+
             # Create mock contract for calculation
             mock_contract = type('MockContract', (), {
                 'employer_plan': plan,
                 'total_value': None,
             })()
-            
+
             amount = DynamicPricingService.calculate_employer_invoice(mock_contract)
-            
+
         else:
             return Response(
                 {'error': 'tier_type must be either "institution" or "employer"'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         return Response({
             'tier_type': tier_type,
             'quantity': quantity,
@@ -1031,22 +1047,22 @@ class PricingHistoryViewSet(viewsets.ReadOnlyModelViewSet):
     """API endpoint for viewing pricing history (read-only)"""
     serializer_class = PricingHistorySerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_queryset(self):
         tier_id = self.request.query_params.get('tier_id')
         queryset = PricingHistory.objects.all()
-        
+
         if tier_id:
             queryset = queryset.filter(pricing_tier_id=tier_id)
-        
+
         return queryset.order_by('-changed_at')
-    
+
     @action(detail=False, methods=['get'])
     def recent(self, request):
         """Get recent pricing changes"""
         days = int(request.query_params.get('days', 30))
         since = timezone.now() - timedelta(days=days)
-        
+
         queryset = self.get_queryset().filter(changed_at__gte=since)
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)

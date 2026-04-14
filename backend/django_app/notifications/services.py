@@ -6,10 +6,10 @@ def create_notification(user, notification_type, title, message, **kwargs):
     Create a notification for a user
     """
     prefs, _ = NotificationPreference.objects.get_or_create(user=user)
-    
+
     if not prefs.enable_in_system:
         return None
-    
+
     notification = Notification.objects.create(
         user=user,
         notification_type=notification_type,
@@ -21,7 +21,7 @@ def create_notification(user, notification_type, title, message, **kwargs):
         metadata=kwargs.get('metadata', {}),
         send_email=kwargs.get('send_email', False) and prefs.enable_email,
     )
-    
+
     return notification
 
 

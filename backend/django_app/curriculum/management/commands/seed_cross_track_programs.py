@@ -9,8 +9,8 @@ Creates the 5 cross-track programs:
 5. Mission Leadership (10 videos)
 """
 from django.core.management.base import BaseCommand
-from curriculum.models import CurriculumTrack, CurriculumModule, Lesson
 
+from curriculum.models import CurriculumModule, CurriculumTrack, Lesson
 
 CROSS_TRACK_PROGRAMS = [
     {

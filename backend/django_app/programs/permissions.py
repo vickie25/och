@@ -2,6 +2,7 @@
 ABAC Permissions for Program Director.
 """
 from rest_framework import permissions
+
 from programs.services.director_service import DirectorService
 from users.utils.policy_engine import check_permission
 
@@ -25,7 +26,7 @@ def _has_any_director_permission(user):
 
 class IsProgramDirector(permissions.BasePermission):
     """RBAC: requires program_director or admin role AND at least one director-related permission."""
-    
+
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
@@ -48,7 +49,7 @@ class IsProgramDirector(permissions.BasePermission):
 
 class IsDirectorOrAdmin(permissions.BasePermission):
     """RBAC: same as IsProgramDirector - requires role AND at least one director permission."""
-    
+
     def has_permission(self, request, view):
         return IsProgramDirector().has_permission(request, view)
 
@@ -84,34 +85,34 @@ class IsFinanceUser(permissions.BasePermission):
 
 class CanManageProgram(permissions.BasePermission):
     """Permission check for program management."""
-    
+
     def has_object_permission(self, request, view, obj):
         """Check if user can manage the program."""
         if request.user.is_staff:
             return True
-        
+
         return DirectorService.can_manage_program(request.user, obj)
 
 
 class CanManageTrack(permissions.BasePermission):
     """Permission check for track management."""
-    
+
     def has_object_permission(self, request, view, obj):
         """Check if user can manage the track."""
         if request.user.is_staff:
             return True
-        
+
         return DirectorService.can_manage_track(request.user, obj)
 
 
 class CanManageCohort(permissions.BasePermission):
     """Permission check for cohort management."""
-    
+
     def has_object_permission(self, request, view, obj):
         """Check if user can manage the cohort."""
         if request.user.is_staff:
             return True
-        
+
         return DirectorService.can_manage_cohort(request.user, obj)
 
 
@@ -138,12 +139,12 @@ def _is_director_or_admin(user):
 
 class IsDirectorOrAdminOrMentorCohortsReadOnly(permissions.BasePermission):
     """Directors/admins get full access; mentors get list/retrieve only for cohorts they're assigned to."""
-    
+
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
         return True
-    
+
     def has_object_permission(self, request, view, obj):
         if _is_director_or_admin(request.user):
             return True

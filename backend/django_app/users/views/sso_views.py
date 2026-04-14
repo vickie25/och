@@ -2,28 +2,28 @@
 SSO authentication views for Google, Microsoft, Apple, and Okta.
 Per specification: OIDC/SAML SSO with JIT user creation and role mapping.
 """
+
+import jwt
+import requests
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.contrib.auth import get_user_model
-from django.utils import timezone
-from django.conf import settings
-from users.models import Role, UserRole
-from users.auth_models import SSOProvider, SSOConnection
+
+from users.auth_models import SSOConnection, SSOProvider
+from users.serializers import UserSerializer
+from users.utils.auth_utils import create_user_session
+from users.utils.consent_utils import get_consent_scopes_for_token
+from users.utils.risk_utils import calculate_risk_score
 from users.views.auth_views import (
     _assign_default_student_role,
-    _log_audit_event,
     _get_client_ip,
+    _log_audit_event,
 )
-from users.utils.auth_utils import create_user_session
-from users.utils.risk_utils import calculate_risk_score
-from users.utils.consent_utils import get_consent_scopes_for_token
-from users.serializers import UserSerializer
-import requests
-import jwt
-import json
 
 User = get_user_model()
 
@@ -42,7 +42,7 @@ class SSOLoginView(APIView):
         Per spec: OIDC flow with PKCE, JIT user creation, role mapping.
         """
         provider_name = provider.lower()
-        
+
         # Get provider configuration
         try:
             sso_provider = SSOProvider.objects.get(name=provider_name, is_active=True)
@@ -68,7 +68,7 @@ class SSOLoginView(APIView):
         try:
             # Verify token and get user info
             user_info = self._verify_token(sso_provider, id_token, access_token, code, request.data)
-            
+
             if not user_info:
                 return Response(
                     {'detail': f'Invalid {provider_name} token'},
@@ -79,7 +79,7 @@ class SSOLoginView(APIView):
             email = user_info.get('email')
             external_id = user_info.get('sub') or user_info.get('id')
             email_verified = user_info.get('email_verified', False)
-            
+
             # Map attributes based on provider configuration
             attribute_mapping = sso_provider.attribute_mapping or {}
             first_name = user_info.get(attribute_mapping.get('first_name', 'given_name'), '')
@@ -142,7 +142,7 @@ class SSOLoginView(APIView):
                     {'detail': 'Account is inactive. Please contact support.'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            
+
             # Check account status
             if user.account_status != 'active':
                 _log_audit_event(user, 'sso_login', 'user', 'failure', {'reason': 'inactive_account_status', 'provider': provider_name, 'status': user.account_status})
@@ -207,7 +207,7 @@ class SSOLoginView(APIView):
         Verify SSO token and return user info.
         Supports OIDC ID tokens and OAuth2 authorization codes.
         """
-        provider_name = sso_provider.name.lower()
+        sso_provider.name.lower()
 
         # If authorization code provided, exchange for token
         if code:
@@ -235,7 +235,7 @@ class SSOLoginView(APIView):
         if not sso_provider.token_endpoint:
             return None
 
-        redirect_uri = (request_data.get('redirect_uri') if request_data 
+        redirect_uri = (request_data.get('redirect_uri') if request_data
                        else settings.FRONTEND_URL)
 
         data = {
@@ -259,7 +259,7 @@ class SSOLoginView(APIView):
         """
         Verify OIDC ID token and fetch user info.
         """
-        provider_name = sso_provider.name.lower()
+        sso_provider.name.lower()
 
         # Decode token (without verification for now - should verify in production)
         try:

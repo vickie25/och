@@ -3,14 +3,15 @@ Django admin configuration for marketplace models
 """
 
 from django.contrib import admin
+
 from .models import (
     Employer,
-    MarketplaceProfile,
     EmployerInterestLog,
-    JobPosting,
     JobApplication,
-    MarketplaceEscrow,
+    JobPosting,
     MarketplaceCommissionLedger,
+    MarketplaceEscrow,
+    MarketplaceProfile,
 )
 
 

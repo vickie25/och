@@ -6,14 +6,14 @@ Used across apps (programs, missions, etc.) to record director/admin actions for
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from django.utils import timezone
 
 from users.audit_models import AuditLog
 
 
-def _get_client_ip(request) -> Optional[str]:
+def _get_client_ip(request) -> str | None:
     """Best-effort client IP extraction."""
     if request is None:
         return None
@@ -30,12 +30,12 @@ def log_audit_event(
     user,
     action: str,
     resource_type: str,
-    resource_id: Optional[str] = None,
+    resource_id: str | None = None,
     result: str = "success",
-    metadata: Optional[Dict[str, Any]] = None,
-    changes: Optional[Dict[str, Any]] = None,
-    error_message: Optional[str] = None,
-) -> Optional[AuditLog]:
+    metadata: dict[str, Any] | None = None,
+    changes: dict[str, Any] | None = None,
+    error_message: str | None = None,
+) -> AuditLog | None:
     """
     Create an AuditLog entry.
 
@@ -70,7 +70,7 @@ def log_audit_event(
         return None
 
 
-def log_analytics_access(request, user, resource_type: str, resource_id: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None):
+def log_analytics_access(request, user, resource_type: str, resource_id: str | None = None, metadata: dict[str, Any] | None = None):
     """
     Log analytics read/export for compliance (audit logs for all analytics queries).
     Use for TalentScope, profiler analytics, and analyst dashboard access.

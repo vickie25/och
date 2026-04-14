@@ -3,8 +3,8 @@ Custom permissions for OCH platform.
 Role-based access control for different user types.
 Uses RBAC (Role→Permission) + ABAC (policy_engine) when HasResourcePermission is used.
 """
-from rest_framework.permissions import BasePermission
 from django.core.exceptions import ObjectDoesNotExist
+from rest_framework.permissions import BasePermission
 
 
 class HasResourcePermission(BasePermission):

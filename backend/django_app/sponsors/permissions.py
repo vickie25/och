@@ -4,11 +4,12 @@ Custom permissions for sponsor-related operations.
 Implements ABAC-style checks: org-level segregation and scoped roles
 (sponsor_admin, finance, finance_admin, analyst) via OrganizationMember and UserRole.
 """
-from rest_framework.permissions import BasePermission
 from django.shortcuts import get_object_or_404
+from rest_framework.permissions import BasePermission
 
 from organizations.models import Organization, OrganizationMember
 from users.models import UserRole
+
 from .models import Sponsor
 
 

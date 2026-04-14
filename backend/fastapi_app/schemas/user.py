@@ -1,9 +1,9 @@
 """
 User schemas matching Django serializers.
 """
-from pydantic import BaseModel, EmailStr
 from datetime import datetime
-from typing import Optional
+
+from pydantic import BaseModel, EmailStr
 
 
 class UserBase(BaseModel):
@@ -14,8 +14,8 @@ class UserBase(BaseModel):
     username: str
     first_name: str
     last_name: str
-    bio: Optional[str] = None
-    avatar_url: Optional[str] = None
+    bio: str | None = None
+    avatar_url: str | None = None
 
 
 class UserResponse(UserBase):
@@ -26,7 +26,7 @@ class UserResponse(UserBase):
     is_active: bool
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = {
         "from_attributes": True,
     }

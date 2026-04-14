@@ -1,8 +1,8 @@
 """
 Email utilities for sending magic links, OTP codes, and verification emails.
 """
-from django.core.mail import send_mail
 from django.conf import settings
+from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
@@ -10,22 +10,22 @@ from django.utils.html import strip_tags
 def send_magic_link_email(user, code, magic_link_url):
     """
     Send magic link email to user.
-    
+
     Args:
         user: User instance
         code: Magic link code
         magic_link_url: Full URL with code (e.g., https://app.example.com/auth/verify?code=xxx)
     """
     subject = 'Sign in to Ongoza CyberHub'
-    
+
     html_message = render_to_string('emails/magic_link.html', {
         'user': user,
         'magic_link_url': magic_link_url,
         'code': code,
     })
-    
+
     plain_message = strip_tags(html_message)
-    
+
     send_mail(
         subject=subject,
         message=plain_message,
@@ -39,20 +39,20 @@ def send_magic_link_email(user, code, magic_link_url):
 def send_otp_email(user, code):
     """
     Send OTP code via email.
-    
+
     Args:
         user: User instance
         code: OTP code (6-digit)
     """
     subject = 'Your Ongoza CyberHub verification code'
-    
+
     html_message = render_to_string('emails/otp_code.html', {
         'user': user,
         'code': code,
     })
-    
+
     plain_message = f'Your verification code is: {code}\n\nThis code will expire in 10 minutes.'
-    
+
     send_mail(
         subject=subject,
         message=plain_message,
@@ -66,20 +66,20 @@ def send_otp_email(user, code):
 def send_verification_email(user, verification_url):
     """
     Send email verification link via EmailService (Django SMTP / console backend).
-    
+
     Args:
         user: User instance
         verification_url: Full verification URL with code and email
     """
     try:
-        from services.email_service import email_service
-        
         # Extract code from URL if present
         import urllib.parse
+
+        from services.email_service import email_service
         parsed_url = urllib.parse.urlparse(verification_url)
         query_params = urllib.parse.parse_qs(parsed_url.query)
-        code = query_params.get('code', [None])[0]
-        
+        query_params.get('code', [None])[0]
+
         # Create HTML content for verification email
         html_content = f"""
         <!DOCTYPE html>
@@ -104,13 +104,13 @@ def send_verification_email(user, verification_url):
                     <div style="color: #334155; line-height: 1.6; font-size: 16px;">
                         <p>Hi {user.first_name or 'Explorer'},</p>
                         <p>Thank you for signing up! Please verify your email address by clicking the button below:</p>
-                        
+
                         <div style="text-align: center; margin-top: 32px;">
                             <a href="{verification_url}" style="background-color: #1E3A8A; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block; font-size: 16px;">
                                 Verify Email Address
                             </a>
                         </div>
-                        
+
                         <p style="background: #F8FAFC; padding: 12px; border-radius: 6px; font-size: 14px; color: #475569; margin-top: 24px;">
                             <strong>Security Note:</strong> This verification link will expire in 60 minutes. If you didn't create an account, please ignore this email.
                         </p>
@@ -127,7 +127,7 @@ def send_verification_email(user, verification_url):
         </body>
         </html>
         """
-        
+
         return email_service._execute_send(
             user.email,
             "Verify your Ongoza CyberHub email",
@@ -172,7 +172,9 @@ def send_onboarding_email(user):
     """
     import logging
     import secrets
+
     from services.email_service import email_service
+
     from users.utils.auth_utils import create_mfa_code
 
     logger = logging.getLogger(__name__)
@@ -251,19 +253,19 @@ def send_onboarding_email(user):
                 <div style="color: #334155; line-height: 1.6; font-size: 16px;">
                     <p>Hi {user.first_name or 'Explorer'},</p>
                     <p>Welcome to Ongoza CyberHub! We're excited to have you join our community of cybersecurity professionals.</p>
-                    
+
                     <p>To get started, please click the button below to begin your self-onboarding:</p>
-                    
+
                     <div style="text-align: center; margin-top: 32px;">
                         <a href="{onboarding_url}" style="background-color: #1E3A8A; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block; font-size: 16px;">
                             Get Started
                         </a>
                     </div>
-                    
+
                     <p style="margin-top: 24px;">
                         If you have any questions, feel free to reach out to our support team.
                     </p>
-                    
+
                     <p style="background: #F8FAFC; padding: 12px; border-radius: 6px; font-size: 14px; color: #475569; margin-top: 24px;">
                         <strong>What happens next:</strong><br>
                         1. Set up your password (this verifies your email and activates your account)<br>
@@ -281,7 +283,7 @@ def send_onboarding_email(user):
                 </p>
             </div>
         </div>
-        
+
         <!-- Tracking pixel -->
         {tracking_pixel}
     </body>
@@ -315,20 +317,20 @@ def send_onboarding_email(user):
 def send_password_reset_email(user, reset_url):
     """
     Send password reset link.
-    
+
     Args:
         user: User instance
         reset_url: Full password reset URL with token
     """
     subject = 'Reset your Ongoza CyberHub password'
-    
+
     html_message = render_to_string('emails/password_reset.html', {
         'user': user,
         'reset_url': reset_url,
     })
-    
+
     plain_message = strip_tags(html_message)
-    
+
     send_mail(
         subject=subject,
         message=plain_message,
@@ -398,20 +400,20 @@ def send_application_test_email(to_email: str, cohort_name: str, applicant_name:
 def send_mfa_enrollment_email(user, method):
     """
     Send MFA enrollment confirmation email.
-    
+
     Args:
         user: User instance
         method: MFA method ('totp', 'sms', 'email')
     """
     subject = 'MFA enabled on your Ongoza CyberHub account'
-    
+
     html_message = render_to_string('emails/mfa_enabled.html', {
         'user': user,
         'method': method,
     })
-    
+
     plain_message = f'MFA has been enabled on your account using {method}.'
-    
+
     send_mail(
         subject=subject,
         message=plain_message,

@@ -3,13 +3,6 @@ Signals for sponsor financial automation.
 Handles automatic revenue share tracking when students get hired.
 """
 import logging
-from decimal import Decimal
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from django.core.exceptions import ObjectDoesNotExist
-
-from sponsors.models import SponsorCohort, RevenueShareTracking, SponsorFinancialTransaction
-from sponsors.services.finance_service import FinanceDataService
 
 logger = logging.getLogger(__name__)
 

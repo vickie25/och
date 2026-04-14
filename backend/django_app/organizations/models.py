@@ -2,8 +2,9 @@
 Organization models for the Ongoza CyberHub platform.
 """
 import uuid
-from django.db import models
+
 from django.contrib.auth import get_user_model
+from django.db import models
 
 User = get_user_model()
 
@@ -19,12 +20,12 @@ class Organization(models.Model):
         ('sponsor', 'Sponsor'),
         ('partner', 'Partner'),
     ]
-    
+
     STATUS_CHOICES = [
         ('active', 'Active'),
         ('inactive', 'Inactive'),
     ]
-    
+
     name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True)
     org_type = models.CharField(max_length=20, choices=ORG_TYPES, default='sponsor')
@@ -32,18 +33,18 @@ class Organization(models.Model):
     logo_url = models.URLField(blank=True, null=True)
     website = models.URLField(blank=True, null=True)
     country = models.CharField(max_length=2, null=True, blank=True)  # ISO 3166-1 alpha-2
-    
+
     # Billing contact (used when director enrolls students from this org; invoice is sent here)
     contact_person_name = models.CharField(max_length=255, blank=True, null=True)
     contact_email = models.EmailField(max_length=254, blank=True, null=True)
     contact_phone = models.CharField(max_length=50, blank=True, null=True)
-    
+
     # Metadata
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)  # Deprecated, use status instead
-    
+
     # Relationships
     owner = models.ForeignKey(
         User,
@@ -55,11 +56,11 @@ class Organization(models.Model):
         through='OrganizationMember',
         related_name='organizations'
     )
-    
+
     class Meta:
         db_table = 'organizations'
         ordering = ['-created_at']
-    
+
     def __str__(self):
         return self.name
 
@@ -73,16 +74,16 @@ class OrganizationMember(models.Model):
         ('member', 'Member'),
         ('viewer', 'Viewer'),
     ]
-    
+
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='member')
     joined_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'organization_members'
         unique_together = ['organization', 'user']
-    
+
     def __str__(self):
         return f"{self.user.email} - {self.organization.name} ({self.role})"
 
@@ -134,14 +135,6 @@ class OrganizationEnrollmentInvoice(models.Model):
 
 
 # Stream B: institutional contracts / billing — keep models discoverable for migrations
-from .institutional_models import (  # noqa: E402, F401
-    InstitutionalBilling,
-    InstitutionalBillingSchedule,
-    InstitutionalContract,
-    InstitutionalSeatAdjustment,
-    InstitutionalStudent,
-)
-
 # Stream B: seat pools, portal access, bulk import (management layer)
 from .institutional_management_models import (  # noqa: E402, F401
     InstitutionalAcademicCalendar,
@@ -152,5 +145,12 @@ from .institutional_management_models import (  # noqa: E402, F401
     InstitutionalSSO,
     InstitutionalStudentAllocation,
     InstitutionalTrackAssignment,
+)
+from .institutional_models import (  # noqa: E402, F401
+    InstitutionalBilling,
+    InstitutionalBillingSchedule,
+    InstitutionalContract,
+    InstitutionalSeatAdjustment,
+    InstitutionalStudent,
 )
 

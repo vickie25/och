@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
@@ -27,6 +28,7 @@ print(f'MFA required by policy: {mfa_required}')
 
 # Trust the device
 from users.utils.auth_utils import trust_device
+
 device_fingerprint = "web-1770014642954"
 device_name = "Web Browser"
 ip_address = "127.0.0.1"

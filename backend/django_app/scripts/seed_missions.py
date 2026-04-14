@@ -5,8 +5,9 @@ Usage: python scripts/seed_missions.py
 """
 import os
 import sys
-import django
 from pathlib import Path
+
+import django
 
 # Setup Django using the current project settings
 BASE_DIR = Path(__file__).resolve().parent
@@ -17,6 +18,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
 from missions.models import Mission
+
 
 def seed_missions():
     """Seed missions with OCH data"""
@@ -217,7 +219,7 @@ def seed_missions():
             updated_count += 1
             print(f'🔄 Updated mission: {mission.code} - {mission.title}')
 
-    print(f'\n🎯 Mission seeding complete!')
+    print('\n🎯 Mission seeding complete!')
     print(f'   Created: {created_count} missions')
     print(f'   Updated: {updated_count} missions')
     print(f'   Total: {created_count + updated_count} missions processed')

@@ -3,12 +3,16 @@ Management command to seed comprehensive curriculum data for all 5 OCH tracks.
 Tiers covered: Beginner (Tier 2), Intermediate (Tier 3), Advanced (Tier 4), Mastery (Tier 5).
 """
 import uuid
+
 from django.core.management.base import BaseCommand
-from django.utils import timezone
+
 from curriculum.models import (
-    CurriculumTrack, CurriculumModule, Lesson, ModuleMission,
-    RecipeRecommendation
+    CurriculumModule,
+    CurriculumTrack,
+    Lesson,
+    ModuleMission,
 )
+
 
 class Command(BaseCommand):
     help = 'Seed comprehensive curriculum data for all 5 OCH tracks across 4 tiers'
@@ -87,10 +91,10 @@ class Command(BaseCommand):
         ]
 
         for track_info in tracks_data:
-            for tier_num, tier_name, level_choice in tiers:
+            for tier_num, tier_name, _level_choice in tiers:
                 track_code = f"{track_info['code']}_{tier_num}"
                 track_name = f"{track_info['name']} - {tier_name}"
-                
+
                 # Tier 2 (Beginner) uses spec-exact category descriptions
                 if tier_num == 2 and track_info.get('beginner_description'):
                     desc = f"Beginner — {track_info['name']}. {track_info['beginner_description']}"

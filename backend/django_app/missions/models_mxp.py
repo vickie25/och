@@ -3,14 +3,11 @@ MXP Mission Progress and Files Models
 Additional models for full MXP implementation
 """
 import uuid
+
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
-from django.utils import timezone
+
 from users.models import User
-from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
-from django.utils import timezone
-import uuid
 
 
 class MissionProgress(models.Model):
@@ -26,13 +23,13 @@ class MissionProgress(models.Model):
         ('failed', 'Failed'),
         ('revision_requested', 'Revision Requested'),
     ]
-    
+
     FINAL_STATUS_CHOICES = [
         ('pass', 'Pass'),
         ('fail', 'Fail'),
         ('pending', 'Pending'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
         User,
@@ -105,7 +102,7 @@ class MissionProgress(models.Model):
     mentor_feedback_video_url = models.URLField(blank=True, null=True, max_length=500, help_text='URL to mentor video feedback')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'mission_progress'
         indexes = [
@@ -115,14 +112,14 @@ class MissionProgress(models.Model):
             models.Index(fields=['user', 'final_status']),
         ]
         unique_together = [['mission', 'user']]
-    
+
     def check_subtask_unlockable(self, subtask_id):
         """
         Check if a subtask can be unlocked based on dependencies.
-        
+
         Args:
             subtask_id: The ID or order_index of the subtask to check
-            
+
         Returns:
             dict: {
                 'unlockable': bool,
@@ -132,7 +129,7 @@ class MissionProgress(models.Model):
         """
         if not self.mission.subtasks:
             return {'unlockable': True, 'reason': None, 'dependencies': []}
-        
+
         # Find the subtask in the mission's subtasks array
         subtask = None
         for st in self.mission.subtasks:
@@ -141,44 +138,44 @@ class MissionProgress(models.Model):
                 if st.get('id') == subtask_id or st.get('order_index') == subtask_id:
                     subtask = st
                     break
-        
+
         if not subtask:
             return {'unlockable': False, 'reason': 'Subtask not found', 'dependencies': []}
-        
+
         # Check if subtask has dependencies
         dependencies = subtask.get('dependencies', [])
         if not dependencies:
             return {'unlockable': True, 'reason': None, 'dependencies': []}
-        
+
         # Check if all dependencies are completed
         completed_subtasks = self.subtasks_progress or {}
         missing_dependencies = []
-        
+
         for dep_id in dependencies:
             # Check if dependency subtask is completed
             dep_completed = False
             for st_id, st_progress in completed_subtasks.items():
                 if isinstance(st_progress, dict):
                     # Match by id or order_index
-                    if (str(st_id) == str(dep_id) or 
+                    if (str(st_id) == str(dep_id) or
                         st_progress.get('subtask_id') == dep_id or
                         st_progress.get('order_index') == dep_id):
                         if st_progress.get('completed', False):
                             dep_completed = True
                             break
-            
+
             if not dep_completed:
                 missing_dependencies.append(dep_id)
-        
+
         if missing_dependencies:
             return {
                 'unlockable': False,
                 'reason': f'Complete subtasks {missing_dependencies} first',
                 'dependencies': missing_dependencies
             }
-        
+
         return {'unlockable': True, 'reason': None, 'dependencies': []}
-    
+
     def __str__(self):
         return f"Progress: {self.mission.code} by {self.user.email} ({self.status})"
 
@@ -193,7 +190,7 @@ class MissionFile(models.Model):
         ('video', 'Video'),
         ('other', 'Other'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     mission_progress = models.ForeignKey(
         MissionProgress,
@@ -219,14 +216,14 @@ class MissionFile(models.Model):
         help_text='Additional file metadata'
     )
     uploaded_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'mission_files'
         indexes = [
             models.Index(fields=['mission_progress', 'subtask_number']),
             models.Index(fields=['mission_progress', 'uploaded_at']),
         ]
-    
+
     def __str__(self):
         return f"File: {self.filename} (Subtask {self.subtask_number})"
 

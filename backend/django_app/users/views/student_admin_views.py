@@ -2,14 +2,14 @@
 Admin views for student management - onboarding emails and tracking.
 """
 import logging
+
 from django.contrib.auth import get_user_model
-from django.conf import settings
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from users.permissions import IsAdminOrDirector
-from services.email_service import EmailService
 from users.utils.email_utils import send_onboarding_email
 
 logger = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ class TrackOnboardingEmailView(APIView):
 
         try:
             user = User.objects.get(id=user_id)
-            
+
             # Verify token matches
             if user.metadata and user.metadata.get('onboarding_email_token') == token:
                 # Update status to 'sent_and_seen'

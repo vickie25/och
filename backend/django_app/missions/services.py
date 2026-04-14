@@ -3,7 +3,6 @@ Missions Engine services for difficulty mapping, mission assignment, and
 secure artifact upload handling.
 """
 import logging
-from typing import Optional
 
 from django.core.files.storage import default_storage
 from django.utils.crypto import get_random_string
@@ -35,30 +34,30 @@ DISALLOWED_CONTENT_TYPES = {
 def map_profiler_difficulty_to_mission_difficulty(profiler_difficulty: str) -> int:
     """
     Map profiler difficulty_selection to mission difficulty (1-5).
-    
+
     Mission difficulty scale:
     1 = Beginner
     2 = Intermediate
     3 = Advanced
     4 = Expert
     5 = Master
-    
+
     Profiler difficulty options:
     - novice: No experience
     - beginner: Some awareness
     - intermediate: Some training
     - advanced: Professional experience
     - elite: Expert level
-    
+
     Args:
         profiler_difficulty: Profiler difficulty_selection value
-        
+
     Returns:
         Mission difficulty level (1-5), defaults to 1 (Beginner)
     """
     if not profiler_difficulty:
         return 1  # Default to beginner
-    
+
     mapping = {
         'novice': 1,      # Beginner missions
         'beginner': 1,    # Beginner missions
@@ -66,33 +65,33 @@ def map_profiler_difficulty_to_mission_difficulty(profiler_difficulty: str) -> i
         'advanced': 3,    # Advanced missions
         'elite': 4,       # Expert missions (can access up to Expert level)
     }
-    
+
     difficulty = mapping.get(profiler_difficulty.lower(), 1)
     logger.debug(f"Mapped profiler difficulty '{profiler_difficulty}' to mission difficulty {difficulty}")
     return difficulty
 
 
-def get_user_profiler_difficulty(user) -> Optional[str]:
+def get_user_profiler_difficulty(user) -> str | None:
     """
     Get user's profiler difficulty selection.
-    
+
     Args:
         user: User instance
-        
+
     Returns:
         Profiler difficulty_selection string or None if not available
     """
     try:
         from profiler.models import ProfilerSession
-        
+
         profiler_session = ProfilerSession.objects.filter(
             user=user,
             status__in=['finished', 'locked']
         ).order_by('-completed_at').first()
-        
+
         if profiler_session and profiler_session.difficulty_selection:
             return profiler_session.difficulty_selection
-        
+
         return None
     except Exception as e:
         logger.warning(f"Failed to get profiler difficulty for user {user.id}: {e}", exc_info=True)
@@ -102,17 +101,17 @@ def get_user_profiler_difficulty(user) -> Optional[str]:
 def get_max_mission_difficulty_for_user(user) -> int:
     """
     Get maximum mission difficulty level user can access based on profiler.
-    
+
     Args:
         user: User instance
-        
+
     Returns:
         Maximum mission difficulty (1-5)
     """
     profiler_difficulty = get_user_profiler_difficulty(user)
     if profiler_difficulty:
         return map_profiler_difficulty_to_mission_difficulty(profiler_difficulty)
-    
+
     # Default to beginner if no profiler data
     return 1
 
@@ -189,12 +188,12 @@ def generate_presigned_upload_url(identifier: str, filename: str, content_type: 
     object store in production. For now it returns a simple
     structure suitable for frontend integration without
     breaking the API.
-    
+
     Args:
         identifier: Unique identifier for the upload
         filename: Name of the file to upload
         content_type: Optional MIME type
-        
+
     Returns:
         Dictionary with url and fields for presigned upload
     """

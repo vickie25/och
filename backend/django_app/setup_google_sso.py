@@ -3,6 +3,7 @@ Script to set up Google SSO provider in the database.
 Run with: python manage.py shell < setup_google_sso.py
 """
 import os
+
 from users.auth_models import SSOProvider
 
 # Get credentials from environment
@@ -30,9 +31,9 @@ provider, created = SSOProvider.objects.update_or_create(
 )
 
 if created:
-    print(f"✅ Created Google SSO provider")
+    print("✅ Created Google SSO provider")
 else:
-    print(f"✅ Updated Google SSO provider")
+    print("✅ Updated Google SSO provider")
 
 print(f"   Client ID: {client_id}")
-print(f"   Status: Active")
+print("   Status: Active")

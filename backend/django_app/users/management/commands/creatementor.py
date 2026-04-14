@@ -1,5 +1,6 @@
-from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand
+
 from users.models import Role, UserRole
 
 User = get_user_model()
@@ -49,7 +50,7 @@ class Command(BaseCommand):
             name='mentor',
             defaults={'description': 'Mentor role'}
         )
-        
+
         UserRole.objects.create(
             user=user,
             role=mentor_role,

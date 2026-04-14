@@ -3,9 +3,10 @@ Django management command to import recipes from JSON files.
 """
 
 import json
-import os
 from pathlib import Path
+
 from django.core.management.base import BaseCommand
+
 from recipes.models import Recipe
 
 
@@ -26,9 +27,6 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        import json
-        import uuid
-        import os
         # Use absolute path
         base_dir = Path(__file__).parent.parent.parent.parent.parent
         data_dir = base_dir / 'frontend' / 'nextjs_app' / 'data' / 'recipes'
@@ -60,7 +58,7 @@ class Command(BaseCommand):
 
         for json_file in sorted(json_files):
             try:
-                with open(json_file, 'r', encoding='utf-8') as f:
+                with open(json_file, encoding='utf-8') as f:
                     recipe_data = json.load(f)
 
                 # Skip if recipe already exists

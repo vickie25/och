@@ -3,6 +3,7 @@ Verification script to confirm all implementations are complete and functional.
 """
 import os
 import sys
+
 import django
 
 # Setup Django
@@ -12,9 +13,9 @@ django.setup()
 
 from django.conf import settings
 from django.urls import get_resolver
-from student_dashboard.models import StudentDashboardCache, DashboardUpdateQueue
-from mentorship.models import ChatMessage, ChatAttachment
-from users.models import User
+from mentorship.models import ChatAttachment, ChatMessage
+from student_dashboard.models import DashboardUpdateQueue, StudentDashboardCache
+
 
 def check_models():
     """Verify all models are properly defined."""
@@ -33,7 +34,7 @@ def check_urls():
     """Verify all URL patterns are registered."""
     print("✓ Checking URL patterns...")
     resolver = get_resolver()
-    
+
     required_paths = [
         'api/v1/student/dashboard',
         'api/v1/student/dashboard/action',
@@ -41,7 +42,7 @@ def check_urls():
         'api/v1/mentorships',
         'api/v1/metrics/dashboard',
     ]
-    
+
     found_paths = []
     for path in required_paths:
         try:
@@ -49,7 +50,7 @@ def check_urls():
             found_paths.append(path)
         except:
             pass
-    
+
     print(f"  ✓ Found {len(found_paths)}/{len(required_paths)} required paths")
     return len(found_paths) == len(required_paths)
 
@@ -62,17 +63,17 @@ def check_settings():
         'FILE_UPLOAD_MAX_MEMORY_SIZE',
         'DATA_UPLOAD_MAX_MEMORY_SIZE',
     ]
-    
+
     for setting in required_settings:
         assert hasattr(settings, setting), f"Setting {setting} is missing"
-    
+
     print(f"  ✓ {len(required_settings)} settings verified")
     return True
 
 def check_environment_variables():
     """Check if environment variables are documented."""
     print("✓ Checking environment variables...")
-    
+
     env_vars = [
         'DJANGO_SECRET_KEY',
         'DB_NAME',
@@ -89,32 +90,32 @@ def check_environment_variables():
         'OPENAI_API_KEY',
         'ANTHROPIC_API_KEY',
     ]
-    
+
     documented = []
     for var in env_vars:
         if os.path.exists('.env.example'):
-            with open('.env.example', 'r') as f:
+            with open('.env.example') as f:
                 if var in f.read():
                     documented.append(var)
-    
+
     print(f"  ✓ {len(documented)}/{len(env_vars)} environment variables documented")
     return len(documented) > 0
 
 def check_services():
     """Verify service clients are implemented."""
     print("✓ Checking service clients...")
-    
+
     from student_dashboard.services import (
-        TalentScopeService,
-        CoachingOSService,
-        MissionsService,
-        PortfolioService,
-        CohortService,
         AICoachService,
-        NotificationService,
+        CoachingOSService,
+        CohortService,
         LeaderboardService,
+        MissionsService,
+        NotificationService,
+        PortfolioService,
+        TalentScopeService,
     )
-    
+
     services = [
         TalentScopeService,
         CoachingOSService,
@@ -125,14 +126,14 @@ def check_services():
         NotificationService,
         LeaderboardService,
     ]
-    
+
     for service in services:
         assert hasattr(service, 'get_readiness') or hasattr(service, 'get_week_summary') or \
                hasattr(service, 'get_status') or hasattr(service, 'get_health') or \
                hasattr(service, 'get_student_view') or hasattr(service, 'get_nudge') or \
                hasattr(service, 'get_summary') or hasattr(service, 'get_rankings'), \
                f"Service {service.__name__} is missing required methods"
-    
+
     print(f"  ✓ {len(services)} service clients verified")
     return True
 
@@ -142,7 +143,7 @@ def main():
     print("IMPLEMENTATION VERIFICATION")
     print("=" * 60)
     print()
-    
+
     checks = [
         ("Models", check_models),
         ("URLs", check_urls),
@@ -150,7 +151,7 @@ def main():
         ("Environment Variables", check_environment_variables),
         ("Services", check_services),
     ]
-    
+
     results = []
     for name, check_func in checks:
         try:
@@ -160,21 +161,21 @@ def main():
             print(f"  ✗ Error: {str(e)}")
             results.append((name, False))
         print()
-    
+
     print("=" * 60)
     print("SUMMARY")
     print("=" * 60)
-    
+
     passed = sum(1 for _, result in results if result)
     total = len(results)
-    
+
     for name, result in results:
         status = "✓ PASS" if result else "✗ FAIL"
         print(f"{status} - {name}")
-    
+
     print()
     print(f"Total: {passed}/{total} checks passed")
-    
+
     if passed == total:
         print("\n✓ All implementations verified and functional!")
         return 0

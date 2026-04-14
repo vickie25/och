@@ -3,13 +3,10 @@ Invoice PDF Generation Service
 Creates professional PDF invoices for sponsor billing.
 """
 import os
-import uuid
-from datetime import datetime, date
-from decimal import Decimal
+from datetime import date, datetime
+
 from django.conf import settings
-from django.template.loader import render_to_string
-from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
+
 # Import locally to avoid circular import
 from ..models import Sponsor, SponsorCohortBilling, SponsorFinancialTransaction
 
@@ -240,7 +237,6 @@ class InvoiceService:
     @staticmethod
     def _render_invoice_html(invoice_data: dict) -> str:
         """Render invoice HTML template"""
-        template_path = 'sponsors/invoice_template.html'
 
         # For now, return a simple HTML string
         # In production, use Django templates

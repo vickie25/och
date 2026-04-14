@@ -13,7 +13,7 @@ import json
 import re
 import uuid
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from django.core.management.base import BaseCommand
 from django.db import connection, transaction
@@ -28,7 +28,7 @@ TRACK_ALIASES = {
 }
 
 
-def _norm_track(raw: Optional[str]) -> str:
+def _norm_track(raw: str | None) -> str:
     if not raw:
         return 'offensive'
     k = raw.strip().lower()
@@ -39,7 +39,7 @@ def _norm_track(raw: Optional[str]) -> str:
     return k if k in ('defender', 'offensive', 'grc', 'innovation', 'leadership') else 'offensive'
 
 
-def _norm_tier(raw: Optional[str]) -> str:
+def _norm_tier(raw: str | None) -> str:
     t = (raw or 'beginner').strip().lower()
     if t in ('beginner', 'intermediate', 'advanced', 'mastery'):
         return t
@@ -56,7 +56,7 @@ def _difficulty_varchar(tier: str) -> str:
     return 'beginner'
 
 
-def _type_varchar(code: Optional[str], tier: str) -> str:
+def _type_varchar(code: str | None, tier: str) -> str:
     """Legacy missions.type is lab|scenario|project|capstone."""
     if code and 'CAP' in str(code).upper():
         return 'capstone'

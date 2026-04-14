@@ -2,7 +2,8 @@
 Serializers for Director Dashboard API.
 """
 from rest_framework import serializers
-from .models import DirectorDashboardCache, DirectorCohortHealth
+
+from .models import DirectorCohortHealth
 
 
 class DirectorDashboardHeroSerializer(serializers.Serializer):
@@ -48,7 +49,7 @@ class DirectorCohortHealthSerializer(serializers.ModelSerializer):
     risk_score = serializers.DecimalField(max_digits=4, decimal_places=1, coerce_to_string=False)
     next_milestone = serializers.JSONField(read_only=True)
     risk_flags = serializers.JSONField(read_only=True)
-    
+
     class Meta:
         model = DirectorCohortHealth
         fields = [
@@ -62,7 +63,7 @@ class DirectorCohortHealthSerializer(serializers.ModelSerializer):
             'next_milestone',
             'risk_flags',
         ]
-    
+
     def get_seats_used(self, obj):
         """Format seats used."""
         cohort = obj.cohort

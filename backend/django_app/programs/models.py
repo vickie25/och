@@ -2,9 +2,10 @@
 Programs, Tracks, Cohorts, and Enrollment models.
 """
 import uuid
-from django.db import models
+
 from django.contrib.auth import get_user_model
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
 from django.utils import timezone
 
 User = get_user_model()
@@ -18,13 +19,13 @@ class Program(models.Model):
         ('mentorship', 'Mentorship'),
         ('executive', 'Executive'),
     ]
-    
+
     STATUS_CHOICES = [
         ('active', 'Active'),
         ('inactive', 'Inactive'),
         ('archived', 'Archived'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=200)
     category = models.CharField(max_length=20, choices=PROGRAM_CATEGORY_CHOICES, help_text='Primary category (kept for backward compatibility)')
@@ -43,11 +44,11 @@ class Program(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'programs'
         ordering = ['-created_at']
-    
+
     def __str__(self):
         if self.categories:
             cats = ', '.join(self.categories)
@@ -61,7 +62,7 @@ class Track(models.Model):
         ('primary', 'Primary Track'),  # Defenders, Offensive, GRC, Innovation
         ('cross_track', 'Cross-Track Program'),  # Entrepreneurship, Soft Skills, etc.
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     program = models.ForeignKey(Program, on_delete=models.CASCADE, related_name='tracks')
     name = models.CharField(max_length=200)
@@ -80,12 +81,12 @@ class Track(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'tracks'
         unique_together = ['program', 'key']
         ordering = ['name']
-    
+
     def __str__(self):
         return f"{self.name} ({self.program.name})"
 
@@ -100,12 +101,12 @@ class Milestone(models.Model):
     duration_weeks = models.IntegerField(validators=[MinValueValidator(1)], null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'milestones'
         ordering = ['track', 'order']
         unique_together = ['track', 'order']
-    
+
     def __str__(self):
         return f"{self.name} ({self.track.name})"
 
@@ -120,7 +121,7 @@ class Module(models.Model):
         ('lab', 'Lab'),
         ('workshop', 'Workshop'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     milestone = models.ForeignKey(Milestone, on_delete=models.CASCADE, related_name='modules')
     name = models.CharField(max_length=200)
@@ -139,12 +140,12 @@ class Module(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'modules'
         ordering = ['milestone', 'order']
         unique_together = ['milestone', 'order']
-    
+
     def __str__(self):
         return f"{self.name} ({self.milestone.name})"
 
@@ -159,11 +160,11 @@ class Specialization(models.Model):
     duration_weeks = models.IntegerField(validators=[MinValueValidator(1)])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'specializations'
         ordering = ['name']
-    
+
     def __str__(self):
         return f"{self.name} ({self.track.name})"
 
@@ -175,7 +176,7 @@ class Cohort(models.Model):
         ('virtual', 'Virtual'),
         ('hybrid', 'Hybrid'),
     ]
-    
+
     STATUS_CHOICES = [
         ('draft', 'Draft'),
         ('active', 'Active'),
@@ -183,7 +184,7 @@ class Cohort(models.Model):
         ('closing', 'Closing'),
         ('closed', 'Closed'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     track = models.ForeignKey(Track, on_delete=models.CASCADE, related_name='cohorts', null=True, blank=True)
     curriculum_tracks = models.JSONField(
@@ -245,20 +246,20 @@ class Cohort(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'cohorts'
         ordering = ['-start_date']
-    
+
     def __str__(self):
         return f"{self.name} ({self.track.name})"
-    
+
     @property
     def seat_utilization(self):
         """Calculate seat utilization percentage."""
         enrolled_count = self.enrollments.filter(status='active').count()
         return (enrolled_count / self.seat_cap * 100) if self.seat_cap > 0 else 0
-    
+
     @property
     def completion_rate(self):
         """Calculate completion rate percentage."""
@@ -274,19 +275,19 @@ class Enrollment(models.Model):
         ('invite', 'Invite'),
         ('director', 'Director assign'),
     ]
-    
+
     SEAT_TYPE_CHOICES = [
         ('paid', 'Paid'),
         ('scholarship', 'Scholarship'),
         ('sponsored', 'Sponsored'),
     ]
-    
+
     PAYMENT_STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('paid', 'Paid'),
         ('waived', 'Waived'),
     ]
-    
+
     STATUS_CHOICES = [
         ('pending_payment', 'Pending Payment'),
         ('active', 'Active'),
@@ -295,7 +296,7 @@ class Enrollment(models.Model):
         ('completed', 'Completed'),
         ('incomplete', 'Incomplete'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     cohort = models.ForeignKey(Cohort, on_delete=models.CASCADE, related_name='enrollments')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='enrollments', to_field='id', db_column='user_id')
@@ -312,7 +313,7 @@ class Enrollment(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending_payment')
     joined_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
-    
+
     class Meta:
         db_table = 'enrollments'
         unique_together = ['cohort', 'user']
@@ -323,21 +324,21 @@ class Enrollment(models.Model):
                 name='pending_payment_requires_pending_payment_status'
             ),
         ]
-    
+
     @property
     def track_key(self):
         """Get the track key from the enrollment's cohort's track."""
         if self.cohort and self.cohort.track:
             return self.cohort.track.key
         return None
-    
+
     @property
     def track(self):
         """Get the track object from the enrollment's cohort."""
         if self.cohort:
             return self.cohort.track
         return None
-    
+
     def __str__(self):
         return f"{self.user.email} - {self.cohort.name}"
 
@@ -353,13 +354,13 @@ class CalendarEvent(models.Model):
         ('holiday', 'Holiday'),
         ('closure', 'Closure'),
     ]
-    
+
     STATUS_CHOICES = [
         ('scheduled', 'Scheduled'),
         ('done', 'Done'),
         ('cancelled', 'Cancelled'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     cohort = models.ForeignKey(Cohort, on_delete=models.CASCADE, related_name='calendar_events')
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)
@@ -375,11 +376,11 @@ class CalendarEvent(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'calendar_events'
         ordering = ['start_ts']
-    
+
     def __str__(self):
         return f"{self.title} - {self.cohort.name}"
 
@@ -391,19 +392,19 @@ class MentorAssignment(models.Model):
         ('support', 'Support'),
         ('guest', 'Guest'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     cohort = models.ForeignKey(Cohort, on_delete=models.CASCADE, related_name='mentor_assignments')
     mentor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cohort_mentor_assignments')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='support')
     assigned_at = models.DateTimeField(auto_now_add=True)
     active = models.BooleanField(default=True)
-    
+
     class Meta:
         db_table = 'mentor_assignments'
         unique_together = ['cohort', 'mentor']
         ordering = ['-assigned_at']
-    
+
     def __str__(self):
         return f"{self.mentor.email} - {self.cohort.name} ({self.role})"
 
@@ -443,11 +444,11 @@ class ProgramRule(models.Model):
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'program_rules'
         ordering = ['-version', '-created_at']
-    
+
     def __str__(self):
         return f"Rule v{self.version} - {self.program.name}"
 
@@ -471,7 +472,7 @@ class Waitlist(models.Model):
     notified_at = models.DateTimeField(null=True, blank=True, help_text='When user was notified of seat availability')
     promoted_at = models.DateTimeField(null=True, blank=True, help_text='When user was promoted from waitlist')
     active = models.BooleanField(default=True, help_text='False if user was promoted or removed')
-    
+
     class Meta:
         db_table = 'waitlist'
         unique_together = ['cohort', 'user', 'active']
@@ -479,7 +480,7 @@ class Waitlist(models.Model):
         indexes = [
             models.Index(fields=['cohort', 'active', 'position']),
         ]
-    
+
     def __str__(self):
         return f"Waitlist #{self.position} - {self.user.email} - {self.cohort.name}"
 
@@ -578,22 +579,22 @@ class Certificate(models.Model):
         ('renewed', 'RENEWED'),
         ('suspended', 'SUSPENDED'),
     ]
-    
+
     # Renewal method choices
     RENEWAL_METHOD_CHOICES = [
         ('activity', 'ACTIVITY'),
         ('mission', 'MISSION'),
         ('contribution_and_mission', 'CONTRIBUTION_AND_MISSION'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     enrollment = models.OneToOneField(Enrollment, on_delete=models.CASCADE, related_name='certificate')
     file_uri = models.URLField(blank=True)
-    
+
     # Core certificate dates
     issue_date = models.DateField(help_text="Original date of certificate issuance")
     expiry_date = models.DateField(help_text="Current expiry date (recalculated on renewal)")
-    
+
     # Lifecycle status
     status = models.CharField(
         max_length=20,
@@ -601,7 +602,7 @@ class Certificate(models.Model):
         default='active',
         help_text="Certificate lifecycle status"
     )
-    
+
     # Renewal tracking
     renewal_count = models.IntegerField(default=0, help_text="Number of times this certificate has been renewed")
     last_renewal_date = models.DateField(null=True, blank=True, help_text="Date of most recent renewal")
@@ -620,7 +621,7 @@ class Certificate(models.Model):
         related_name='renewal_certificates',
         help_text="Reference to renewal mission record"
     )
-    
+
     # Notification tracking
     next_notification_date = models.DateField(
         null=True,
@@ -632,19 +633,19 @@ class Certificate(models.Model):
         blank=True,
         help_text="End date of grace period (expiry_date + 30 days)"
     )
-    
+
     # Additional metrics for certificate
     total_hours = models.IntegerField(default=0, help_text="Total learning hours logged")
     missions_completed = models.IntegerField(default=0, help_text="Total missions completed in track")
     grade = models.CharField(max_length=10, blank=True, help_text="Grade achieved")
-    
+
     # Template and generation
     template_used = models.CharField(max_length=100, default='default', help_text="Certificate template used")
-    
+
     # Metadata
     issued_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'certificates'
         ordering = ['-issued_at']
@@ -653,31 +654,31 @@ class Certificate(models.Model):
             models.Index(fields=['next_notification_date']),
             models.Index(fields=['enrollment']),
         ]
-    
+
     def __str__(self):
         return f"Certificate - {self.enrollment.user.email} - {self.status}"
-    
+
     def save(self, *args, **kwargs):
         """Override save to set default dates and calculate grace period."""
         is_new = self._state.adding
-        
+
         if is_new:
             # Set issue date if not set
             if not self.issue_date:
                 self.issue_date = timezone.now().date()
-            
+
             # Set expiry date if not set (default 1 year from issue)
             if not self.expiry_date:
                 from datetime import timedelta
                 self.expiry_date = self.issue_date + timedelta(days=365)
-        
+
         # Always recalculate grace period end
         if self.expiry_date:
             from datetime import timedelta
             self.grace_period_end = self.expiry_date + timedelta(days=30)
-        
+
         super().save(*args, **kwargs)
-    
+
     @property
     def certificate_id_formatted(self):
         """Generate formatted certificate ID: OCH-{TRACK}-{LEVEL}-{YYYYMMDD}-{RANDOM}"""
@@ -685,14 +686,14 @@ class Certificate(models.Model):
         date_str = self.issue_date.strftime('%Y%m%d')
         random_suffix = str(self.id)[:8].upper()
         return f"OCH-{track_key}-L1-{date_str}-{random_suffix}"
-    
+
     def needs_renewal_notification(self):
         """Check if certificate needs renewal notification."""
         if not self.next_notification_date:
             return False
         from datetime import date
         return date.today() >= self.next_notification_date
-    
+
     def is_in_grace_period(self):
         """Check if certificate is currently in grace period."""
         from datetime import date

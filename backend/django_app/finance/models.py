@@ -4,9 +4,11 @@ Implements wallet, credits, contracts, and tax management.
 """
 import uuid
 from decimal import Decimal
+
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
+
 from users.models import User
 
 
@@ -46,7 +48,7 @@ class Wallet(models.Model):
         self.balance += amount
         self.last_transaction_at = timezone.now()
         self.save()
-        
+
         Transaction.objects.create(
             wallet=self,
             type='credit',
@@ -60,11 +62,11 @@ class Wallet(models.Model):
         """Deduct balance from wallet and create transaction record."""
         if self.balance < amount:
             raise ValueError("Insufficient balance")
-        
+
         self.balance -= amount
         self.last_transaction_at = timezone.now()
         self.save()
-        
+
         Transaction.objects.create(
             wallet=self,
             type='debit',
@@ -81,7 +83,7 @@ class Transaction(models.Model):
         ('credit', 'Credit'),
         ('debit', 'Debit'),
     ]
-    
+
     REFERENCE_TYPE_CHOICES = [
         ('subscription', 'Subscription'),
         ('cohort', 'Cohort'),
@@ -179,10 +181,10 @@ class Credit(models.Model):
         """Use credit amount and return actual amount used."""
         if self.remaining <= 0:
             return 0
-        
+
         if self.expires_at and timezone.now() > self.expires_at:
             return 0
-        
+
         used_amount = min(amount, self.remaining)
         self.remaining -= used_amount
         self.save()
@@ -195,7 +197,7 @@ class Contract(models.Model):
         ('institution', 'Institution'),
         ('employer', 'Employer'),
     ]
-    
+
     STATUS_CHOICES = [
         ('proposal', 'Proposal'),
         ('negotiation', 'Negotiation'),
@@ -388,7 +390,7 @@ class MentorPayout(models.Model):
         ('paid', 'Paid'),
         ('rejected', 'Rejected'),
     ]
-    
+
     PAYOUT_METHOD_CHOICES = [
         ('bank_transfer', 'Bank Transfer'),
         ('mobile_money', 'Mobile Money'),
@@ -506,7 +508,7 @@ class Invoice(models.Model):
         ('cohort', 'Cohort'),
         ('contract', 'Contract'),
     ]
-    
+
     STATUS_CHOICES = [
         ('draft', 'Draft'),
         ('sent', 'Sent'),
@@ -622,13 +624,13 @@ class Invoice(models.Model):
         last_invoice = Invoice.objects.filter(
             invoice_number__startswith=f'INV-{year}-'
         ).order_by('-invoice_number').first()
-        
+
         if last_invoice:
             last_num = int(last_invoice.invoice_number.split('-')[-1])
             new_num = last_num + 1
         else:
             new_num = 1
-        
+
         return f'INV-{year}-{new_num:06d}'
 
 
@@ -639,7 +641,7 @@ class Payment(models.Model):
         ('success', 'Success'),
         ('failed', 'Failed'),
     ]
-    
+
     PAYMENT_METHOD_CHOICES = [
         ('card', 'Card'),
         ('mobile_money', 'Mobile Money'),
@@ -690,13 +692,13 @@ class PricingTier(models.Model):
         ('institution', 'Institution'),
         ('employer', 'Employer'),
     ]
-    
+
     CURRENCY_CHOICES = [
         ('USD', 'US Dollar'),
         ('KES', 'Kenyan Shilling'),
         ('EUR', 'Euro'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(
         max_length=50,
@@ -764,7 +766,7 @@ class PricingTier(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'pricing_tiers'
         ordering = ['tier_type', 'min_quantity']
@@ -775,10 +777,10 @@ class PricingTier(models.Model):
             models.Index(fields=['tier_type', 'is_active']),
             models.Index(fields=['effective_date', 'expiry_date']),
         ]
-    
+
     def __str__(self):
         return f"{self.display_name} ({self.tier_type}): {self.price_per_unit} {self.currency}/{self.billing_frequency}"
-    
+
     @classmethod
     def get_active_tiers(cls, tier_type, currency='USD'):
         """Get all active pricing tiers for a specific type and currency."""
@@ -790,11 +792,11 @@ class PricingTier(models.Model):
         ).filter(
             models.Q(expiry_date__isnull=True) | models.Q(expiry_date__gt=timezone.now())
         ).order_by('min_quantity')
-    
+
     def calculate_price(self, quantity, billing_frequency='monthly'):
         """Calculate total price for given quantity and billing frequency."""
         base_price = self.price_per_unit * quantity
-        
+
         if billing_frequency == 'quarterly':
             return base_price * 3
         elif billing_frequency == 'annual':
@@ -803,7 +805,7 @@ class PricingTier(models.Model):
             return annual_price - discount
         else:
             return base_price
-    
+
     def is_quantity_in_range(self, quantity):
         """Check if quantity falls within this tier's range."""
         if quantity < self.min_quantity:
@@ -854,13 +856,13 @@ class PricingHistory(models.Model):
         related_name='pricing_changes'
     )
     changed_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'pricing_history'
         ordering = ['-changed_at']
         indexes = [
             models.Index(fields=['pricing_tier', 'changed_at']),
         ]
-    
+
     def __str__(self):
         return f"Price change for {self.pricing_tier.name} at {self.changed_at}"

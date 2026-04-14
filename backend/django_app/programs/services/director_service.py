@@ -2,18 +2,14 @@
 Program Director Service - Comprehensive director operations.
 Handles all director-specific business logic for programs, tracks, cohorts, and analytics.
 """
-from django.db.models import Q, Count, Avg, Sum, F, Case, When, IntegerField
-from django.db import transaction
-from django.utils import timezone
-from decimal import Decimal
-from typing import Dict, List, Optional, Any
 import logging
+from typing import Any
 
-from programs.models import (
-    Program, Track, Cohort, Enrollment, MentorAssignment,
-    CalendarEvent, ProgramRule, Certificate, Waitlist
-)
-from progress.models import Progress
+from django.db import transaction
+from django.db.models import Count, Q
+from django.utils import timezone
+
+from programs.models import Certificate, Cohort, Enrollment, MentorAssignment, Program, Track
 from users.models import User
 
 logger = logging.getLogger(__name__)
@@ -21,16 +17,16 @@ logger = logging.getLogger(__name__)
 
 class DirectorService:
     """Service for Program Director operations."""
-    
+
     @staticmethod
-    def get_director_programs(user: User) -> List[Program]:
+    def get_director_programs(user: User) -> list[Program]:
         """Get all programs where user is a director."""
         return Program.objects.filter(
             tracks__director=user
         ).distinct()
-    
+
     @staticmethod
-    def get_director_tracks(user: User, program_id: Optional[str] = None) -> 'QuerySet[Track]':
+    def get_director_tracks(user: User, program_id: str | None = None) -> 'QuerySet[Track]':
         """Get all tracks where user is a director."""
         # For admin users, return all tracks (they can see everything)
         if user.is_staff:
@@ -40,42 +36,42 @@ class DirectorService:
             queryset = Track.objects.filter(
                 Q(director=user) | Q(program__tracks__director=user)
             ).distinct()
-        
+
         if program_id:
             queryset = queryset.filter(program_id=program_id)
-        
+
         return queryset
-    
+
     @staticmethod
-    def get_director_cohorts(user: User, status: Optional[str] = None) -> List[Cohort]:
+    def get_director_cohorts(user: User, status: str | None = None) -> list[Cohort]:
         """Get all cohorts where user is a director."""
         queryset = Cohort.objects.filter(track__director=user)
         if status:
             queryset = queryset.filter(status=status)
         return queryset.distinct()
-    
+
     @staticmethod
     def can_manage_program(user: User, program: Program) -> bool:
         """Check if user can manage a program."""
         if user.is_staff:
             return True
         return program.tracks.filter(director=user).exists()
-    
+
     @staticmethod
     def can_manage_track(user: User, track: Track) -> bool:
         """Check if user can manage a track."""
         if user.is_staff:
             logger.debug(f"User {user.email} is staff - allowing track management")
             return True
-        
+
         # Check if user is the direct director of the track
         if track.director == user:
             logger.debug(f"User {user.email} is director of track {track.id} - allowing track management")
             return True
-        
+
         # Check if user has program_director role
         # Program directors can manage any track (consistent with how they can see all tracks)
-        from users.models import UserRole, Role
+        from users.models import Role, UserRole
         director_role = Role.objects.filter(name='program_director').first()
         if director_role:
             has_director_role = UserRole.objects.filter(
@@ -83,34 +79,34 @@ class DirectorService:
                 role=director_role,
                 is_active=True
             ).exists()
-            
+
             if has_director_role:
                 logger.debug(f"User {user.email} has program_director role - allowing track management")
                 return True
-        
+
         logger.debug(f"User {user.email} cannot manage track {track.id} - track director: {track.director}, user: {user}")
         return False
-    
+
     @staticmethod
     def can_manage_cohort(user: User, cohort: Cohort) -> bool:
         """Check if user can manage a cohort."""
         if user.is_staff:
             logger.debug(f"User {user.email} is staff - allowing cohort management")
             return True
-        
+
         # Safety check: cohort must have a track
         if not cohort.track:
             logger.warning(f"Cohort {cohort.id} has no track assigned")
             return False
-        
+
         # Check if user is the direct director of the cohort's track
         if cohort.track.director == user:
             logger.debug(f"User {user.email} is director of track {cohort.track.id} - allowing cohort management")
             return True
-        
+
         # Check if user has program_director role
         # Program directors can manage cohorts (consistent with TrackViewSet behavior)
-        from users.models import UserRole, Role
+        from users.models import Role, UserRole
         director_role = Role.objects.filter(name='program_director').first()
         if director_role:
             has_director_role = UserRole.objects.filter(
@@ -118,15 +114,15 @@ class DirectorService:
                 role=director_role,
                 is_active=True
             ).exists()
-            
+
             if has_director_role:
                 logger.debug(f"User {user.email} has program_director role - allowing cohort management")
                 # Program directors can manage any cohort (consistent with how they can see all tracks)
                 return True
-        
+
         logger.debug(f"User {user.email} cannot manage cohort {cohort.id} - track director: {cohort.track.director}, user: {user}")
         return False
-    
+
     @staticmethod
     @transaction.atomic
     def create_program(
@@ -134,8 +130,8 @@ class DirectorService:
         name: str,
         description: str,
         duration_weeks: int,
-        pricing: Dict[str, Any],
-        outcomes: List[str],
+        pricing: dict[str, Any],
+        outcomes: list[str],
         **kwargs
     ) -> Program:
         """Create a new program."""
@@ -149,7 +145,7 @@ class DirectorService:
         )
         logger.info(f"Program {program.id} created by director {user.email}")
         return program
-    
+
     @staticmethod
     @transaction.atomic
     def create_track(
@@ -157,14 +153,14 @@ class DirectorService:
         program: Program,
         name: str,
         key: str,
-        competencies: List[str],
-        missions: List[str],
+        competencies: list[str],
+        missions: list[str],
         **kwargs
     ) -> Track:
         """Create a new track."""
         if not DirectorService.can_manage_program(user, program):
             raise PermissionError("User cannot manage this program")
-        
+
         track = Track.objects.create(
             program=program,
             name=name,
@@ -176,7 +172,7 @@ class DirectorService:
         )
         logger.info(f"Track {track.id} created by director {user.email}")
         return track
-    
+
     @staticmethod
     @transaction.atomic
     def create_cohort(
@@ -188,14 +184,14 @@ class DirectorService:
         mode: str,
         seat_cap: int,
         mentor_ratio: float,
-        seat_pool: Optional[Dict[str, int]] = None,
-        calendar_template_id: Optional[str] = None,
+        seat_pool: dict[str, int] | None = None,
+        calendar_template_id: str | None = None,
         **kwargs
     ) -> Cohort:
         """Create a new cohort."""
         if not DirectorService.can_manage_track(user, track):
             raise PermissionError("User cannot manage this track")
-        
+
         cohort = Cohort.objects.create(
             track=track,
             name=name,
@@ -211,7 +207,7 @@ class DirectorService:
         )
         logger.info(f"Cohort {cohort.id} created by director {user.email}")
         return cohort
-    
+
     @staticmethod
     @transaction.atomic
     def update_cohort_status(cohort: Cohort, new_status: str, user: User) -> Cohort:
@@ -224,22 +220,22 @@ class DirectorService:
             'closed': [],  # Terminal state
             'cancelled': []  # Terminal state
         }
-        
+
         current_status = cohort.status
         if new_status not in valid_transitions.get(current_status, []):
             raise ValueError(f"Invalid status transition: {current_status} -> {new_status}")
-        
+
         cohort.status = new_status
         cohort.save()
-        
+
         # Trigger actions based on status
         if new_status == 'closed':
             # Trigger certificate generation and analytics pipeline
             DirectorService._trigger_cohort_closure(cohort, user)
-        
+
         logger.info(f"Cohort {cohort.id} status updated: {current_status} -> {new_status}")
         return cohort
-    
+
     @staticmethod
     def _trigger_cohort_closure(cohort: Cohort, user: User):
         """Trigger cohort closure actions."""
@@ -247,61 +243,61 @@ class DirectorService:
         # Archive cohort and issue certificates
         result = CertificateService.archive_cohort_and_issue_certificates(cohort)
         logger.info(f"Cohort closure triggered: {result}")
-        
+
         # TODO: Trigger analytics pipeline
         # TODO: Generate closure report
         # TODO: Notify stakeholders
-    
+
     @staticmethod
     @transaction.atomic
-    def manage_seat_pool(cohort: Cohort, seat_pool: Dict[str, int], user: User) -> Cohort:
+    def manage_seat_pool(cohort: Cohort, seat_pool: dict[str, int], user: User) -> Cohort:
         """Update cohort seat pool allocations."""
         if not DirectorService.can_manage_cohort(user, cohort):
             raise PermissionError("User cannot manage this cohort")
-        
+
         # Validate seat pool totals don't exceed seat_cap
         total_allocated = sum(seat_pool.values())
         if total_allocated > cohort.seat_cap:
             raise ValueError(f"Seat pool total ({total_allocated}) exceeds seat cap ({cohort.seat_cap})")
-        
+
         cohort.seat_pool = seat_pool
         cohort.save()
         logger.info(f"Seat pool updated for cohort {cohort.id}")
         return cohort
-    
+
     @staticmethod
     @transaction.atomic
     def approve_enrollment(enrollment: Enrollment, user: User) -> Enrollment:
         """Approve enrollment (override payment requirement)."""
         if not DirectorService.can_manage_cohort(user, enrollment.cohort):
             raise PermissionError("User cannot manage this cohort")
-        
+
         enrollment.status = 'active'
         enrollment.payment_status = 'waived'  # Director override
         enrollment.save()
         logger.info(f"Enrollment {enrollment.id} approved by director {user.email}")
         return enrollment
-    
+
     @staticmethod
     @transaction.atomic
-    def bulk_approve_enrollments(cohort: Cohort, enrollment_ids: List[str], user: User) -> Dict[str, Any]:
+    def bulk_approve_enrollments(cohort: Cohort, enrollment_ids: list[str], user: User) -> dict[str, Any]:
         """Bulk approve enrollments."""
         if not DirectorService.can_manage_cohort(user, cohort):
             raise PermissionError("User cannot manage this cohort")
-        
+
         enrollments = Enrollment.objects.filter(
             id__in=enrollment_ids,
             cohort=cohort,
             status='pending_payment'
         )
-        
+
         approved_count = 0
         for enrollment in enrollments:
             enrollment.status = 'active'
             enrollment.payment_status = 'waived'
             enrollment.save()
             approved_count += 1
-        
+
         logger.info(f"Bulk approved {approved_count} enrollments for cohort {cohort.id}")
         return {'approved': approved_count, 'total': len(enrollment_ids)}
 
@@ -309,10 +305,10 @@ class DirectorService:
     @transaction.atomic
     def bulk_update_enrollments_status(
         cohort: Cohort,
-        enrollment_ids: List[str],
+        enrollment_ids: list[str],
         new_status: str,
         user: User
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Bulk update enrollment status for a cohort."""
         if not DirectorService.can_manage_cohort(user, cohort):
             raise PermissionError("User cannot manage this cohort")
@@ -341,7 +337,7 @@ class DirectorService:
 
     @staticmethod
     @transaction.atomic
-    def bulk_remove_enrollments(cohort: Cohort, enrollment_ids: List[str], user: User) -> Dict[str, Any]:
+    def bulk_remove_enrollments(cohort: Cohort, enrollment_ids: list[str], user: User) -> dict[str, Any]:
         """Bulk delete enrollments for a cohort."""
         if not DirectorService.can_manage_cohort(user, cohort):
             raise PermissionError("User cannot manage this cohort")
@@ -351,28 +347,29 @@ class DirectorService:
         qs.delete()
         logger.info(f"Bulk removed {deleted_count} enrollments for cohort {cohort.id}")
         return {'deleted': deleted_count, 'total': len(enrollment_ids)}
-    
+
     @staticmethod
     @transaction.atomic
     def bulk_create_enrollments(
         cohort: Cohort,
-        user_ids: List[str],
+        user_ids: list[str],
         user: User,
         seat_type: str = 'paid',
         enrollment_type: str = 'director'
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Bulk create enrollments for multiple users."""
         if not DirectorService.can_manage_cohort(user, cohort):
             raise PermissionError("User cannot manage this cohort")
-        
-        from programs.core_services import EnrollmentService
+
         from django.contrib.auth import get_user_model
+
+        from programs.core_services import EnrollmentService
         UserModel = get_user_model()
-        
+
         created = []
         waitlisted = []
         errors = []
-        
+
         for user_id in user_ids:
             try:
                 # Convert user_id to int if needed
@@ -382,14 +379,14 @@ class DirectorService:
                     except ValueError:
                         errors.append({'user_id': str(user_id), 'error': 'Invalid user ID format'})
                         continue
-                
+
                 # Get user
                 try:
                     target_user = UserModel.objects.get(id=user_id)
                 except UserModel.DoesNotExist:
                     errors.append({'user_id': str(user_id), 'error': 'User not found'})
                     continue
-                
+
                 # Create enrollment using EnrollmentService
                 enrollment, is_waitlisted, error = EnrollmentService.create_enrollment(
                     user=target_user,
@@ -398,7 +395,7 @@ class DirectorService:
                     seat_type=seat_type,
                     org=None
                 )
-                
+
                 if error:
                     errors.append({'user_id': str(user_id), 'error': error})
                 elif is_waitlisted:
@@ -412,13 +409,13 @@ class DirectorService:
                         'user_id': str(user_id),
                         'status': enrollment.status
                     })
-                    
+
             except Exception as e:
                 logger.error(f"Error creating enrollment for user {user_id}: {e}")
                 errors.append({'user_id': str(user_id), 'error': str(e)})
-        
+
         logger.info(f"Bulk created {len(created)} enrollments, {len(waitlisted)} waitlisted, {len(errors)} errors for cohort {cohort.id}")
-        
+
         return {
             'created': created,
             'waitlisted': waitlisted,
@@ -428,20 +425,20 @@ class DirectorService:
             'waitlisted_count': len(waitlisted),
             'error_count': len(errors)
         }
-    
+
     @staticmethod
-    def get_cohort_readiness_analytics(cohort: Cohort) -> Dict[str, Any]:
+    def get_cohort_readiness_analytics(cohort: Cohort) -> dict[str, Any]:
         """Get cohort readiness dashboard data."""
         enrollments = Enrollment.objects.filter(cohort=cohort, status='active')
-        
+
         # Calculate readiness scores (mock - should come from TalentScope)
         readiness_scores = []
-        for enrollment in enrollments:
+        for _enrollment in enrollments:
             # Mock readiness score (0-100)
             readiness_scores.append(75.0)  # TODO: Get from TalentScope
-        
+
         avg_readiness = sum(readiness_scores) / len(readiness_scores) if readiness_scores else 0
-        
+
         # Distribution buckets
         distribution = {
             'excellent': len([s for s in readiness_scores if s >= 90]),
@@ -449,7 +446,7 @@ class DirectorService:
             'fair': len([s for s in readiness_scores if 50 <= s < 70]),
             'poor': len([s for s in readiness_scores if s < 50]),
         }
-        
+
         return {
             'cohort_id': str(cohort.id),
             'avg_readiness': round(avg_readiness, 2),
@@ -457,12 +454,12 @@ class DirectorService:
             'total_students': len(readiness_scores),
             'trend': []  # TODO: Historical trend data
         }
-    
+
     @staticmethod
-    def get_mission_funnel_analytics(cohort: Cohort) -> Dict[str, Any]:
+    def get_mission_funnel_analytics(cohort: Cohort) -> dict[str, Any]:
         """Get mission completion funnel analytics."""
-        enrollments = Enrollment.objects.filter(cohort=cohort, status='active')
-        
+        Enrollment.objects.filter(cohort=cohort, status='active')
+
         # Mission completion stats (mock - should come from Missions module)
         mission_stats = {
             'total_missions': 20,
@@ -478,15 +475,15 @@ class DirectorService:
                 'p95_hours': 48.0,
             }
         }
-        
+
         return mission_stats
-    
+
     @staticmethod
-    def get_portfolio_coverage_heatmap(cohort: Cohort) -> Dict[str, Any]:
+    def get_portfolio_coverage_heatmap(cohort: Cohort) -> dict[str, Any]:
         """Get portfolio coverage heatmap by competency."""
         # Mock data - should query Portfolio module
         competencies = cohort.track.competencies or []
-        
+
         heatmap = {}
         for competency in competencies:
             heatmap[competency] = {
@@ -494,43 +491,43 @@ class DirectorService:
                 'avg_items': 3.2,  # Average portfolio items per student
                 'gap_count': 5,  # Students missing this competency
             }
-        
+
         return {
             'cohort_id': str(cohort.id),
             'competencies': heatmap,
             'overall_coverage': 0.68,  # Overall portfolio coverage
         }
-    
+
     @staticmethod
-    def get_at_risk_students(cohort: Cohort) -> List[Dict[str, Any]]:
+    def get_at_risk_students(cohort: Cohort) -> list[dict[str, Any]]:
         """Get list of at-risk students."""
         enrollments = Enrollment.objects.filter(cohort=cohort, status='active')
-        
+
         at_risk = []
         for enrollment in enrollments:
             risk_factors = []
             risk_score = 0
-            
+
             # Check engagement (mock - should come from analytics)
             if False:  # Low engagement
                 risk_factors.append('low_engagement')
                 risk_score += 30
-            
+
             # Check broken streaks (mock)
             if False:  # Broken streak
                 risk_factors.append('broken_streak')
                 risk_score += 20
-            
+
             # Check payment issues
             if enrollment.payment_status == 'pending':
                 risk_factors.append('payment_pending')
                 risk_score += 25
-            
+
             # Check low completion
             if enrollment.cohort.completion_rate < 50:
                 risk_factors.append('low_completion')
                 risk_score += 25
-            
+
             if risk_score > 0:
                 at_risk.append({
                     'enrollment_id': str(enrollment.id),
@@ -539,9 +536,9 @@ class DirectorService:
                     'risk_score': risk_score,
                     'risk_factors': risk_factors,
                 })
-        
+
         return sorted(at_risk, key=lambda x: x['risk_score'], reverse=True)
-    
+
     @staticmethod
     @transaction.atomic
     def assign_mentor(
@@ -554,7 +551,7 @@ class DirectorService:
         """Assign mentor to mentee."""
         if user and not DirectorService.can_manage_cohort(user, cohort):
             raise PermissionError("User cannot manage this cohort")
-        
+
         # Check if assignment already exists
         existing = MentorAssignment.objects.filter(
             cohort=cohort,
@@ -562,12 +559,12 @@ class DirectorService:
             mentee=mentee,
             active=True
         ).first()
-        
+
         if existing:
             existing.is_primary = is_primary
             existing.save()
             return existing
-        
+
         assignment = MentorAssignment.objects.create(
             cohort=cohort,
             mentor=mentor,
@@ -577,9 +574,9 @@ class DirectorService:
         )
         logger.info(f"Mentor {mentor.email} assigned to {mentee.email} in cohort {cohort.id}")
         return assignment
-    
+
     @staticmethod
-    def get_mentor_workload(cohort: Cohort) -> List[Dict[str, Any]]:
+    def get_mentor_workload(cohort: Cohort) -> list[dict[str, Any]]:
         """Get mentor workload analysis."""
         assignments = MentorAssignment.objects.filter(
             cohort=cohort,
@@ -588,7 +585,7 @@ class DirectorService:
             mentee_count=Count('mentee'),
             primary_count=Count('id', filter=Q(is_primary=True))
         )
-        
+
         workload = []
         for assignment in assignments:
             mentor = User.objects.get(id=assignment['mentor'])
@@ -599,19 +596,19 @@ class DirectorService:
                 'primary_count': assignment['primary_count'],
                 'is_overloaded': assignment['mentee_count'] > (cohort.mentor_ratio * 10),  # Threshold
             })
-        
+
         return workload
-    
+
     @staticmethod
     @transaction.atomic
-    def rebalance_mentors(cohort: Cohort, user: User) -> Dict[str, Any]:
+    def rebalance_mentors(cohort: Cohort, user: User) -> dict[str, Any]:
         """Rebalance mentor assignments to optimize workload."""
         if not DirectorService.can_manage_cohort(user, cohort):
             raise PermissionError("User cannot manage this cohort")
-        
+
         workload = DirectorService.get_mentor_workload(cohort)
         overloaded = [w for w in workload if w['is_overloaded']]
-        
+
         # TODO: Implement rebalancing algorithm
         # For now, return analysis
         return {
@@ -621,12 +618,12 @@ class DirectorService:
                 for w in overloaded
             ]
         }
-    
+
     @staticmethod
-    def generate_cohort_closure_pack(cohort: Cohort) -> Dict[str, Any]:
+    def generate_cohort_closure_pack(cohort: Cohort) -> dict[str, Any]:
         """Generate cohort closure report pack."""
         enrollments = Enrollment.objects.filter(cohort=cohort)
-        
+
         stats = {
             'cohort_id': str(cohort.id),
             'cohort_name': cohort.name,
@@ -638,14 +635,14 @@ class DirectorService:
             'certificates_issued': Certificate.objects.filter(enrollment__cohort=cohort).count(),
             'closure_date': timezone.now().isoformat(),
         }
-        
+
         return stats
-    
+
     @staticmethod
     def export_cohort_data(cohort: Cohort, format: str = 'json') -> bytes:
         """Export cohort data in specified format."""
         enrollments = Enrollment.objects.filter(cohort=cohort)
-        
+
         data = []
         for enrollment in enrollments:
             data.append({
@@ -656,7 +653,7 @@ class DirectorService:
                 'enrolled_at': enrollment.enrolled_at.isoformat() if enrollment.enrolled_at else None,
                 'completed_at': enrollment.completed_at.isoformat() if enrollment.completed_at else None,
             })
-        
+
         if format == 'json':
             import json
             return json.dumps(data, indent=2).encode('utf-8')

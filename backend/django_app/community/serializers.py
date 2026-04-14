@@ -1,20 +1,43 @@
 """
 Serializers for Community module.
 """
-from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.db.models import Count
+from rest_framework import serializers
+
 from .models import (
-    University, UniversityDomain, UniversityMembership, Post, Comment, Reaction,
-    CommunityEvent, EventParticipant, Badge, UserBadge,
-    Leaderboard, UserCommunityStats, PollVote, Follow, ModerationLog,
+    AISummary,
+    Badge,
     # Advanced features
-    Channel, ChannelMembership, StudySquad, SquadMembership,
-    CommunityReputation, AISummary, CollabRoom, CollabRoomParticipant,
-    CommunityContribution, EnterpriseCohort,
-    # Discord-style community
-    CommunitySpace, CommunityChannel, CommunityThread, CommunityMessage,
-    CommunityMessageReaction, CommunitySpaceMember, CommunityRole
+    Channel,
+    ChannelMembership,
+    CollabRoom,
+    CollabRoomParticipant,
+    Comment,
+    CommunityChannel,
+    CommunityContribution,
+    CommunityEvent,
+    CommunityMessage,
+    CommunityMessageReaction,
+    CommunityReputation,
+    CommunitySpace,
+    CommunitySpaceMember,
+    CommunityThread,
+    EnterpriseCohort,
+    EventParticipant,
+    Follow,
+    Leaderboard,
+    ModerationLog,
+    PollVote,
+    Post,
+    Reaction,
+    SquadMembership,
+    StudySquad,
+    University,
+    UniversityDomain,
+    UniversityMembership,
+    UserBadge,
+    UserCommunityStats,
 )
 
 User = get_user_model()
@@ -26,7 +49,7 @@ class UserMiniSerializer(serializers.ModelSerializer):
     university_name = serializers.SerializerMethodField()
     current_circle = serializers.SerializerMethodField()
     badge_count = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = User
         fields = ['id', 'first_name', 'last_name', 'email', 'avatar_url',
@@ -46,15 +69,15 @@ class UserMiniSerializer(serializers.ModelSerializer):
 
         full_name = f"{obj.first_name or ''} {obj.last_name or ''}".strip()
         return full_name if full_name else obj.email
-    
+
     def get_university_name(self, obj):
         membership = obj.university_memberships.filter(is_primary=True).first()
         return membership.university.name if membership else None
-    
+
     def get_current_circle(self, obj):
         # Integration with Profiler/Circles - placeholder
         return None
-    
+
     def get_badge_count(self, obj):
         return obj.earned_badges.count()
 
@@ -69,7 +92,7 @@ class UniversityDomainSerializer(serializers.ModelSerializer):
 class UniversitySerializer(serializers.ModelSerializer):
     """Full university details."""
     domains = UniversityDomainSerializer(many=True, read_only=True)
-    
+
     class Meta:
         model = University
         fields = [
@@ -102,7 +125,7 @@ class UniversityMembershipSerializer(serializers.ModelSerializer):
     """User's university membership."""
     university = UniversityListSerializer(read_only=True)
     university_id = serializers.UUIDField(write_only=True)
-    
+
     class Meta:
         model = UniversityMembership
         fields = [
@@ -120,7 +143,7 @@ class UniversityMembershipSerializer(serializers.ModelSerializer):
 class ReactionSerializer(serializers.ModelSerializer):
     """Reaction on post/comment."""
     user = UserMiniSerializer(read_only=True)
-    
+
     class Meta:
         model = Reaction
         fields = ['id', 'user', 'reaction_type', 'created_at']
@@ -140,7 +163,7 @@ class CommentSerializer(serializers.ModelSerializer):
     replies = serializers.SerializerMethodField()
     reaction_counts = serializers.SerializerMethodField()
     user_reaction = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Comment
         fields = [
@@ -149,20 +172,20 @@ class CommentSerializer(serializers.ModelSerializer):
             'replies', 'reaction_counts', 'user_reaction',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'author', 'is_edited', 'is_deleted', 
+        read_only_fields = ['id', 'author', 'is_edited', 'is_deleted',
                            'reaction_count', 'reply_count', 'created_at', 'updated_at']
-    
+
     def get_replies(self, obj):
         if obj.parent is None:  # Only get replies for top-level comments
             replies = obj.replies.filter(is_deleted=False)[:5]
             return CommentSerializer(replies, many=True, context=self.context).data
         return []
-    
+
     def get_reaction_counts(self, obj):
         from django.db.models import Count
         counts = obj.reactions.values('reaction_type').annotate(count=Count('id'))
         return list(counts)
-    
+
     def get_user_reaction(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -188,7 +211,7 @@ class PostSerializer(serializers.ModelSerializer):
     user_reaction = serializers.SerializerMethodField()
     user_poll_vote = serializers.SerializerMethodField()
     top_comments = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Post
         fields = [
@@ -214,19 +237,19 @@ class PostSerializer(serializers.ModelSerializer):
             'view_count', 'trending_score', 'poll_total_votes',
             'pinned_by_user', 'pinned_at', 'created_at', 'updated_at'
         ]
-    
+
     def get_reaction_counts(self, obj):
         from django.db.models import Count
         counts = obj.reactions.values('reaction_type').annotate(count=Count('id'))
         return list(counts)
-    
+
     def get_user_reaction(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             reaction = obj.reactions.filter(user=request.user).first()
             return reaction.reaction_type if reaction else None
         return None
-    
+
     def get_user_poll_vote(self, obj):
         """Get the option(s) the current user voted for."""
         if obj.post_type != 'poll':
@@ -236,7 +259,7 @@ class PostSerializer(serializers.ModelSerializer):
             votes = PollVote.objects.filter(post=obj, user=request.user)
             return [v.option_id for v in votes]
         return None
-    
+
     def get_top_comments(self, obj):
         comments = obj.comments.filter(parent=None, is_deleted=False).order_by('-reaction_count')[:3]
         return CommentSerializer(comments, many=True, context=self.context).data
@@ -256,32 +279,32 @@ class PostCreateSerializer(serializers.ModelSerializer):
             # Poll post fields
             'poll_options', 'poll_ends_at', 'poll_multiple_choice'
         ]
-    
+
     def validate(self, data):
         """Validate post type-specific fields."""
         post_type = data.get('post_type', 'text')
-        
+
         if post_type == 'event':
             event_details = data.get('event_details', {})
             if not event_details.get('start_time'):
                 raise serializers.ValidationError({
                     'event_details': 'start_time is required for event posts'
                 })
-        
+
         if post_type == 'poll':
             poll_options = data.get('poll_options', [])
             if len(poll_options) < 2:
                 raise serializers.ValidationError({
                     'poll_options': 'At least 2 options required for poll posts'
                 })
-        
+
         if post_type == 'achievement':
             achievement_data = data.get('achievement_data', {})
             if not achievement_data.get('type'):
                 raise serializers.ValidationError({
                     'achievement_data': 'type is required for achievement posts'
                 })
-        
+
         return data
 
 
@@ -293,7 +316,7 @@ class PostListSerializer(serializers.ModelSerializer):
     university_logo = serializers.URLField(source='university.logo_url', read_only=True, allow_null=True)
     user_reaction = serializers.SerializerMethodField()
     user_poll_vote = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Post
         fields = [
@@ -312,7 +335,7 @@ class PostListSerializer(serializers.ModelSerializer):
             'reaction_count', 'comment_count', 'view_count',
             'user_reaction', 'created_at'
         ]
-    
+
     def get_user_reaction(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -325,7 +348,7 @@ class PostListSerializer(serializers.ModelSerializer):
             reaction = obj.reactions.filter(user=request.user).first()
             return reaction.reaction_type if reaction else None
         return None
-    
+
     def get_user_poll_vote(self, obj):
         """Get the option(s) the current user voted for."""
         if obj.post_type != 'poll':
@@ -343,7 +366,7 @@ class CommunityEventSerializer(serializers.ModelSerializer):
     university = UniversityListSerializer(read_only=True)
     university_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
     user_participation = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = CommunityEvent
         fields = [
@@ -357,7 +380,7 @@ class CommunityEventSerializer(serializers.ModelSerializer):
             'user_participation', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_by', 'participant_count', 'created_at', 'updated_at']
-    
+
     def get_user_participation(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -375,7 +398,7 @@ class CommunityEventListSerializer(serializers.ModelSerializer):
     """Compact event for lists."""
     university_name = serializers.CharField(source='university.name', read_only=True, allow_null=True)
     is_registered = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = CommunityEvent
         fields = [
@@ -384,7 +407,7 @@ class CommunityEventListSerializer(serializers.ModelSerializer):
             'visibility', 'status', 'participant_count',
             'university_name', 'is_registered'
         ]
-    
+
     def get_is_registered(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -395,7 +418,7 @@ class CommunityEventListSerializer(serializers.ModelSerializer):
 class EventParticipantSerializer(serializers.ModelSerializer):
     """Event participant details."""
     user = UserMiniSerializer(read_only=True)
-    
+
     class Meta:
         model = EventParticipant
         fields = [
@@ -417,7 +440,7 @@ class BadgeSerializer(serializers.ModelSerializer):
 class UserBadgeSerializer(serializers.ModelSerializer):
     """User's earned badge."""
     badge = BadgeSerializer(read_only=True)
-    
+
     class Meta:
         model = UserBadge
         fields = ['id', 'badge', 'earned_at', 'earned_via', 'is_featured']
@@ -438,14 +461,14 @@ class LeaderboardSerializer(serializers.ModelSerializer):
     """Leaderboard with rankings."""
     university = UniversityListSerializer(read_only=True)
     entries = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Leaderboard
         fields = [
             'id', 'leaderboard_type', 'scope', 'university', 'track_key',
             'period_start', 'period_end', 'is_current', 'entries', 'generated_at'
         ]
-    
+
     def get_entries(self, obj):
         # Parse rankings JSON and enrich with user data
         return obj.rankings[:50]  # Top 50
@@ -469,7 +492,7 @@ class FollowSerializer(serializers.ModelSerializer):
     """Follow relationship."""
     followed_user = UserMiniSerializer(read_only=True)
     followed_university = UniversityListSerializer(read_only=True)
-    
+
     class Meta:
         model = Follow
         fields = [
@@ -481,7 +504,7 @@ class FollowSerializer(serializers.ModelSerializer):
 class ModerationLogSerializer(serializers.ModelSerializer):
     """Moderation action log."""
     moderator = UserMiniSerializer(read_only=True)
-    
+
     class Meta:
         model = ModerationLog
         fields = [
@@ -547,7 +570,7 @@ class ChannelSerializer(serializers.ModelSerializer):
     is_member = serializers.SerializerMethodField()
     user_role = serializers.SerializerMethodField()
     reputation_leader = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Channel
         fields = [
@@ -559,23 +582,23 @@ class ChannelSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = [
-            'id', 'created_by', 'member_count', 'post_count', 
+            'id', 'created_by', 'member_count', 'post_count',
             'active_today', 'created_at', 'updated_at'
         ]
-    
+
     def get_is_member(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return obj.memberships.filter(user=request.user).exists()
         return False
-    
+
     def get_user_role(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             membership = obj.memberships.filter(user=request.user).first()
             return membership.role if membership else None
         return None
-    
+
     def get_reputation_leader(self, obj):
         """Get the highest reputation member in this channel."""
         # Get top member by reputation
@@ -599,14 +622,14 @@ class ChannelSerializer(serializers.ModelSerializer):
 class ChannelListSerializer(serializers.ModelSerializer):
     """Compact channel for lists."""
     is_member = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Channel
         fields = [
             'id', 'name', 'slug', 'channel_type', 'icon', 'color',
             'member_count', 'member_limit', 'is_private', 'is_member'
         ]
-    
+
     def get_is_member(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -629,7 +652,7 @@ class ChannelMembershipSerializer(serializers.ModelSerializer):
     """Channel membership details."""
     user = UserMiniSerializer(read_only=True)
     channel = ChannelListSerializer(read_only=True)
-    
+
     class Meta:
         model = ChannelMembership
         fields = [
@@ -646,7 +669,7 @@ class StudySquadSerializer(serializers.ModelSerializer):
     is_member = serializers.SerializerMethodField()
     user_role = serializers.SerializerMethodField()
     members_preview = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = StudySquad
         fields = [
@@ -661,20 +684,20 @@ class StudySquadSerializer(serializers.ModelSerializer):
             'id', 'created_by', 'member_count', 'missions_completed',
             'total_points', 'weekly_streak', 'created_at', 'updated_at'
         ]
-    
+
     def get_is_member(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return obj.memberships.filter(user=request.user).exists()
         return False
-    
+
     def get_user_role(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             membership = obj.memberships.filter(user=request.user).first()
             return membership.role if membership else None
         return None
-    
+
     def get_members_preview(self, obj):
         """Get preview of first 5 members."""
         members = obj.memberships.select_related('user')[:5]
@@ -692,7 +715,7 @@ class StudySquadSerializer(serializers.ModelSerializer):
 class StudySquadCreateSerializer(serializers.ModelSerializer):
     """Create a new study squad."""
     channel_id = serializers.UUIDField(required=False, allow_null=True)
-    
+
     class Meta:
         model = StudySquad
         fields = [
@@ -705,7 +728,7 @@ class StudySquadCreateSerializer(serializers.ModelSerializer):
 class SquadMembershipSerializer(serializers.ModelSerializer):
     """Squad membership details."""
     user = UserMiniSerializer(read_only=True)
-    
+
     class Meta:
         model = SquadMembership
         fields = [
@@ -719,7 +742,7 @@ class CommunityReputationSerializer(serializers.ModelSerializer):
     user = UserMiniSerializer(read_only=True)
     university = UniversityListSerializer(read_only=True)
     next_level_points = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = CommunityReputation
         fields = [
@@ -729,7 +752,7 @@ class CommunityReputationSerializer(serializers.ModelSerializer):
             'helpful_answers', 'squads_led', 'next_level_points',
             'updated_at', 'level_up_at'
         ]
-    
+
     def get_next_level_points(self, obj):
         """Get points needed for next level."""
         if obj.level >= 10:
@@ -743,7 +766,7 @@ class CommunityReputationPublicSerializer(serializers.ModelSerializer):
     user_name = serializers.SerializerMethodField()
     user_avatar = serializers.URLField(source='user.avatar_url', read_only=True)
     university_name = serializers.CharField(source='university.name', read_only=True, allow_null=True)
-    
+
     class Meta:
         model = CommunityReputation
         fields = [
@@ -751,7 +774,7 @@ class CommunityReputationPublicSerializer(serializers.ModelSerializer):
             'total_points', 'weekly_points', 'level', 'badges', 'titles',
             'posts_count', 'reactions_received', 'helpful_answers', 'squads_led'
         ]
-    
+
     def get_user_name(self, obj):
         return f"{obj.user.first_name} {obj.user.last_name}".strip() or obj.user.email
 
@@ -759,7 +782,7 @@ class CommunityReputationPublicSerializer(serializers.ModelSerializer):
 class AISummarySerializer(serializers.ModelSerializer):
     """AI-generated summary."""
     requested_by = UserMiniSerializer(read_only=True)
-    
+
     class Meta:
         model = AISummary
         fields = [
@@ -777,7 +800,7 @@ class AISummaryRequestSerializer(serializers.Serializer):
         choices=['thread', 'daily_digest', 'weekly_recap'],
         default='thread'
     )
-    
+
     def validate(self, data):
         if not data.get('post_id') and not data.get('channel_id'):
             raise serializers.ValidationError(
@@ -793,7 +816,7 @@ class CollabRoomSerializer(serializers.ModelSerializer):
     created_by = UserMiniSerializer(read_only=True)
     is_participant = serializers.SerializerMethodField()
     user_university_score = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = CollabRoom
         fields = [
@@ -808,13 +831,13 @@ class CollabRoomSerializer(serializers.ModelSerializer):
             'id', 'created_by', 'participant_count', 'results',
             'created_at', 'updated_at'
         ]
-    
+
     def get_is_participant(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return obj.participants.filter(user=request.user).exists()
         return False
-    
+
     def get_user_university_score(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
@@ -828,7 +851,7 @@ class CollabRoomSerializer(serializers.ModelSerializer):
 class CollabRoomListSerializer(serializers.ModelSerializer):
     """Compact collab room for lists."""
     university_count = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = CollabRoom
         fields = [
@@ -836,7 +859,7 @@ class CollabRoomListSerializer(serializers.ModelSerializer):
             'starts_at', 'ends_at', 'participant_count',
             'university_count', 'is_public'
         ]
-    
+
     def get_university_count(self, obj):
         return obj.universities.count()
 
@@ -848,7 +871,7 @@ class CollabRoomCreateSerializer(serializers.ModelSerializer):
         min_length=2,
         write_only=True
     )
-    
+
     class Meta:
         model = CollabRoom
         fields = [
@@ -862,7 +885,7 @@ class CollabRoomParticipantSerializer(serializers.ModelSerializer):
     """Collab room participant."""
     user = UserMiniSerializer(read_only=True)
     university = UniversityListSerializer(read_only=True)
-    
+
     class Meta:
         model = CollabRoomParticipant
         fields = [
@@ -874,7 +897,7 @@ class CollabRoomParticipantSerializer(serializers.ModelSerializer):
 class CommunityContributionSerializer(serializers.ModelSerializer):
     """Community contribution record."""
     user = UserMiniSerializer(read_only=True)
-    
+
     class Meta:
         model = CommunityContribution
         fields = [
@@ -886,7 +909,7 @@ class CommunityContributionSerializer(serializers.ModelSerializer):
 class EnterpriseCohortSerializer(serializers.ModelSerializer):
     """Enterprise cohort details."""
     university = UniversityListSerializer(read_only=True)
-    
+
     class Meta:
         model = EnterpriseCohort
         fields = [

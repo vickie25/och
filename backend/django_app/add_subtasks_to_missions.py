@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Add subtasks field to missions table."""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')

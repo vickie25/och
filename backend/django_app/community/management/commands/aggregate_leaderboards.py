@@ -12,12 +12,18 @@ from decimal import Decimal
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from django.db.models import Count, Sum, F, Q
 from django.utils import timezone
 
 from community.models import (
-    Leaderboard, UserCommunityStats, University, UniversityMembership,
-    Post, Comment, Reaction, EventParticipant, UserBadge
+    Comment,
+    EventParticipant,
+    Leaderboard,
+    Post,
+    Reaction,
+    University,
+    UniversityMembership,
+    UserBadge,
+    UserCommunityStats,
 )
 from users.models import User
 
@@ -52,12 +58,12 @@ class Command(BaseCommand):
         dry_run = options['dry_run']
 
         self.stdout.write(f"Starting leaderboard aggregation for period: {period}")
-        
+
         if dry_run:
             self.stdout.write(self.style.WARNING("DRY RUN - no changes will be made"))
 
         now = timezone.now()
-        
+
         # Define time windows
         periods = {
             'daily': (now - timedelta(days=1), now),
@@ -100,7 +106,7 @@ class Command(BaseCommand):
     def _calculate_user_score(self, user_id, start_time, end_time, university_id=None) -> dict:
         """
         Calculate engagement score for a user within a time period.
-        
+
         Scoring weights:
         - Posts: 10 points each
         - Comments: 3 points each

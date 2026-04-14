@@ -2,12 +2,13 @@
 Mentor Credit Service - Handles credit awards and redemptions for mentors.
 """
 from django.db import transaction
-from .models import MentorCredit, CreditTransaction, CreditRedemption
+
+from .models import CreditRedemption, CreditTransaction, MentorCredit
 
 
 class MentorCreditService:
     """Service for managing mentor credits."""
-    
+
     @staticmethod
     @transaction.atomic
     def award_credits_for_rating(rating, override_amount=None):
@@ -17,10 +18,10 @@ class MentorCreditService:
         """
         mentor = rating.mentor
         credits_to_award = override_amount if override_amount is not None else rating.credits_awarded
-        
+
         if credits_to_award <= 0:
             return
-        
+
         # Get or create credit balance
         credit_balance, created = MentorCredit.objects.get_or_create(
             mentor=mentor,
@@ -30,10 +31,10 @@ class MentorCreditService:
                 'current_balance': 0
             }
         )
-        
+
         # Update balance
         credit_balance.add_credits(credits_to_award, source='rating')
-        
+
         # Create transaction record
         CreditTransaction.objects.create(
             mentor=mentor,
@@ -44,9 +45,9 @@ class MentorCreditService:
             related_rating=rating,
             balance_after=credit_balance.current_balance
         )
-        
+
         return credit_balance
-    
+
     @staticmethod
     @transaction.atomic
     def redeem_credits(mentor, redemption_type, description=None, **kwargs):
@@ -59,15 +60,15 @@ class MentorCreditService:
             credit_balance = mentor.credit_balance
         except MentorCredit.DoesNotExist:
             raise ValueError("No credit balance found for this mentor")
-        
+
         # Check cost
         cost = CreditRedemption.get_cost(redemption_type)
         if not credit_balance.has_sufficient_credits(cost):
             raise ValueError(f"Insufficient credits. Required: {cost}, Available: {credit_balance.current_balance}")
-        
+
         # Deduct credits
         credit_balance.redeem_credits(cost)
-        
+
         # Create redemption record
         redemption = CreditRedemption.objects.create(
             mentor=mentor,
@@ -77,7 +78,7 @@ class MentorCreditService:
             status='pending',
             **kwargs
         )
-        
+
         # Create transaction record
         CreditTransaction.objects.create(
             mentor=mentor,
@@ -86,9 +87,9 @@ class MentorCreditService:
             description=f"Redeemed for {redemption_type}",
             balance_after=credit_balance.current_balance
         )
-        
+
         return redemption
-    
+
     @staticmethod
     def get_credit_summary(mentor):
         """Get comprehensive credit summary for a mentor."""
@@ -109,7 +110,7 @@ class MentorCreditService:
                 'last_earned_at': None,
                 'last_redeemed_at': None,
             }
-    
+
     @staticmethod
     def get_transaction_history(mentor, limit=20):
         """Get recent credit transactions for a mentor."""
@@ -126,7 +127,7 @@ class MentorCreditService:
             }
             for t in transactions
         ]
-    
+
     @staticmethod
     def get_redemption_options():
         """Get available redemption options with costs."""

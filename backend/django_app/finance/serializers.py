@@ -3,20 +3,30 @@ Finance serializers for API responses.
 """
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
+
 from organizations.models import Organization
+
 from .models import (
-    Wallet, Transaction, Credit, Contract, TaxRate, 
-    MentorPayout, Invoice, Payment, PricingTier, PricingHistory
+    Contract,
+    Credit,
+    Invoice,
+    MentorPayout,
+    Payment,
+    PricingHistory,
+    PricingTier,
+    TaxRate,
+    Transaction,
+    Wallet,
 )
 
 
 class WalletSerializer(serializers.ModelSerializer):
     user_email = serializers.CharField(source='user.email', read_only=True)
-    
+
     class Meta:
         model = Wallet
         fields = [
-            'id', 'user_email', 'balance', 'currency', 
+            'id', 'user_email', 'balance', 'currency',
             'last_transaction_at', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'last_transaction_at']
@@ -24,7 +34,7 @@ class WalletSerializer(serializers.ModelSerializer):
 
 class TransactionSerializer(serializers.ModelSerializer):
     wallet_user = serializers.CharField(source='wallet.user.email', read_only=True)
-    
+
     class Meta:
         model = Transaction
         fields = [
@@ -47,7 +57,7 @@ class CreditSerializer(serializers.ModelSerializer):
             'expires_at', 'is_expired', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
-    
+
     def get_is_expired(self, obj):
         from django.utils import timezone
         return obj.expires_at and timezone.now() > obj.expires_at
@@ -64,7 +74,7 @@ class ContractSerializer(serializers.ModelSerializer):
     days_until_expiry = serializers.ReadOnlyField()
     email_sent = serializers.SerializerMethodField()
     seats_used = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Contract
         fields = [
@@ -150,8 +160,8 @@ class MentorPayoutSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        from programs.models import Cohort
         from django.contrib.auth import get_user_model
+        from programs.models import Cohort
         User = get_user_model()
         mentor_id = validated_data.pop('mentor_user_id', None)
         cohort_id = validated_data.pop('cohort_id', None)
@@ -182,7 +192,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
     amount_remaining = serializers.SerializerMethodField()
     payment_status = serializers.SerializerMethodField()
     payments_mapped = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Invoice
         fields = [
@@ -257,7 +267,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
 
 class PaymentSerializer(serializers.ModelSerializer):
     invoice_number = serializers.CharField(source='invoice.invoice_number', read_only=True)
-    
+
     class Meta:
         model = Payment
         fields = [
@@ -280,7 +290,7 @@ class CreditPurchaseSerializer(serializers.Serializer):
 
 class PricingTierSerializer(serializers.ModelSerializer):
     """Serializer for dynamic pricing tiers"""
-    
+
     class Meta:
         model = PricingTier
         fields = [
@@ -289,22 +299,22 @@ class PricingTierSerializer(serializers.ModelSerializer):
             'is_active', 'effective_date', 'expiry_date', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
-    
+
     def validate(self, data):
         """Validate pricing tier configuration"""
         min_qty = data.get('min_quantity', 0)
         max_qty = data.get('max_quantity')
-        
+
         if max_qty is not None and min_qty > max_qty:
             raise serializers.ValidationError(
                 "min_quantity cannot be greater than max_quantity"
             )
-        
+
         if data.get('annual_discount_percent', 0) < 0 or data.get('annual_discount_percent', 0) > 100:
             raise serializers.ValidationError(
                 "annual_discount_percent must be between 0 and 100"
             )
-        
+
         return data
 
 
@@ -313,7 +323,7 @@ class PricingHistorySerializer(serializers.ModelSerializer):
     pricing_tier_name = serializers.CharField(source='pricing_tier.name', read_only=True)
     pricing_tier_display = serializers.CharField(source='pricing_tier.display_name', read_only=True)
     changed_by_email = serializers.CharField(source='changed_by.email', read_only=True)
-    
+
     class Meta:
         model = PricingHistory
         fields = [
@@ -332,7 +342,7 @@ class PricingUpdateSerializer(serializers.Serializer):
         max_digits=5, decimal_places=2, min_value=0, max_value=100, required=False
     )
     reason = serializers.CharField(max_length=500, required=False, allow_blank=True)
-    
+
     def validate_reason(self, value):
         if not value:
             return "Price updated without specific reason"

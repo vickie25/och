@@ -1,17 +1,22 @@
+from datetime import timedelta
+
+from coaching.models import Habit, HabitLog
+from curriculum.models import CurriculumModule, UserModuleProgress
+from django.utils import timezone
+from missions.models import Mission, MissionSubmission
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
-from django.utils import timezone
-from datetime import timedelta
+
 from .models import (
-    ReadinessScore, CohortProgress, PortfolioItem, MentorshipSession,
-    GamificationPoints, DashboardEvent, CommunityActivity
+    CohortProgress,
+    CommunityActivity,
+    DashboardEvent,
+    GamificationPoints,
+    MentorshipSession,
+    PortfolioItem,
+    ReadinessScore,
 )
-from missions.models import Mission, MissionSubmission
-from coaching.models import Habit, HabitLog
-from curriculum.models import CurriculumModule, UserModuleProgress
-import json
 
 try:
     from subscriptions.models import UserSubscription
@@ -24,7 +29,7 @@ except ImportError:
 def dashboard_overview(request):
     """Get dashboard overview: readiness, cohort progress, subscription, quick stats."""
     user = request.user
-    
+
     readiness = ReadinessScore.objects.filter(user=user).first()
     if not readiness:
         readiness = ReadinessScore.objects.create(
@@ -36,7 +41,7 @@ def dashboard_overview(request):
             countdown_days=0,
             countdown_label=''
         )
-    
+
     cohort_progress = CohortProgress.objects.filter(user=user).first()
     if not cohort_progress:
         cohort_progress = CohortProgress.objects.create(
@@ -47,7 +52,7 @@ def dashboard_overview(request):
             completed_modules=0,
             estimated_time_remaining=0
         )
-    
+
     gamification = GamificationPoints.objects.filter(user=user).first()
     if not gamification:
         gamification = GamificationPoints.objects.create(
@@ -58,7 +63,7 @@ def dashboard_overview(request):
             rank='',
             level=''
         )
-    
+
     # Subscription from subscriptions app (single source of truth)
     subscription_tier = 'free'
     subscription_plan_name = 'free'
@@ -114,7 +119,7 @@ def dashboard_overview(request):
 def dashboard_metrics(request):
     """Get dashboard metrics: learning %, portfolio, mentorship, gamification."""
     user = request.user
-    
+
     modules = CurriculumModule.objects.filter(track_key=getattr(user, 'track_key', 'builder'))
     total_modules = modules.count()
     completed_modules = UserModuleProgress.objects.filter(
@@ -122,14 +127,14 @@ def dashboard_metrics(request):
         status='completed'
     ).count()
     learning_percentage = (completed_modules / total_modules * 100) if total_modules > 0 else 0
-    
+
     portfolio_items = PortfolioItem.objects.filter(user=user)
     portfolio_total = portfolio_items.count()
     portfolio_approved = portfolio_items.filter(status='approved').count()
     portfolio_pending = portfolio_items.filter(status='pending').count()
     portfolio_rejected = portfolio_items.filter(status='rejected').count()
     portfolio_percentage = (portfolio_approved / portfolio_total * 100) if portfolio_total > 0 else 0
-    
+
     mentorship = MentorshipSession.objects.filter(user=user).order_by('next_session_date').first()
     if not mentorship:
         mentorship = MentorshipSession.objects.create(
@@ -139,7 +144,7 @@ def dashboard_metrics(request):
             next_session_time=timezone.now().time(),
             status='pending'
         )
-    
+
     gamification = GamificationPoints.objects.filter(user=user).first()
     if not gamification:
         gamification = GamificationPoints.objects.create(
@@ -150,7 +155,7 @@ def dashboard_metrics(request):
             rank='Beginner',
             level='Level 1'
         )
-    
+
     return Response({
         'learning_percentage': round(learning_percentage, 2),
         'portfolio': {
@@ -184,12 +189,12 @@ def next_actions(request):
     """Get prioritized next actions for the student."""
     user = request.user
     actions = []
-    
+
     pending_missions = MissionSubmission.objects.filter(
         student=user,
         status__in=['draft', 'submitted', 'under_review', 'needs_revision']
     ).select_related('assignment__mission')[:3]
-    
+
     for submission in pending_missions:
         mission = submission.assignment.mission if submission.assignment else None
         actions.append({
@@ -202,13 +207,13 @@ def next_actions(request):
             'due_date': None,
             'action_url': f'/dashboard/student/missions?mission={mission.id if mission else ""}',
         })
-    
+
     habits = Habit.objects.filter(user=user, type='core')
     today_logged = HabitLog.objects.filter(
         user=user,
         date=timezone.now().date()
     ).values_list('habit_id', flat=True)
-    
+
     for habit in habits:
         if habit.id not in today_logged:
             actions.append({
@@ -220,7 +225,7 @@ def next_actions(request):
                 'progress': 0,
                 'action_url': '/dashboard/student/coaching',
             })
-    
+
     return Response(actions[:5])
 
 
@@ -234,7 +239,7 @@ def dashboard_events(request):
     ).filter(
         date__gte=timezone.now().date()
     ).order_by('date', 'time')[:10]
-    
+
     event_list = []
     for event in events:
         event_list.append({
@@ -248,7 +253,7 @@ def dashboard_events(request):
             'rsvp_status': event.rsvp_status,
             'action_url': event.action_url,
         })
-    
+
     return Response(event_list)
 
 
@@ -258,16 +263,16 @@ def track_overview(request):
     """Get track progress with milestone completion."""
     user = request.user
     track_key = getattr(user, 'track_key', 'builder')
-    
+
     modules = CurriculumModule.objects.filter(track_key=track_key).order_by('order_index')
     milestones = []
     completed_count = 0
-    
+
     for module in modules:
         progress = UserModuleProgress.objects.filter(user=user, module=module).first()
         progress_percentage = 0
         status = 'not_started'
-        
+
         if progress:
             if progress.status == 'completed':
                 progress_percentage = 100
@@ -276,7 +281,7 @@ def track_overview(request):
             elif progress.status == 'in_progress':
                 progress_percentage = 50
                 status = 'in_progress'
-        
+
         missions = Mission.objects.filter(module_id=module.id)
         if missions.exists():
             mission_submissions = MissionSubmission.objects.filter(
@@ -286,7 +291,7 @@ def track_overview(request):
             )
             if mission_submissions.exists():
                 progress_percentage = max(progress_percentage, 75)
-        
+
         milestones.append({
             'id': str(module.id),
             'code': f'MOD-{module.order_index}',
@@ -294,7 +299,7 @@ def track_overview(request):
             'progress': progress_percentage,
             'status': status,
         })
-    
+
     return Response({
         'track_name': f'{track_key.title()} Track',
         'track_key': track_key,
@@ -309,7 +314,7 @@ def track_overview(request):
 def community_feed(request):
     """Get latest community activities."""
     activities = CommunityActivity.objects.all().order_by('-created_at')[:10]
-    
+
     activity_list = []
     for activity in activities:
         time_ago = timezone.now() - activity.created_at
@@ -321,7 +326,7 @@ def community_feed(request):
         else:
             minutes = time_ago.seconds // 60
             timestamp = f'{minutes} minute{"s" if minutes > 1 else ""} ago'
-        
+
         activity_list.append({
             'id': str(activity.id),
             'user': activity.user_display_name,
@@ -331,7 +336,7 @@ def community_feed(request):
             'type': activity.activity_type,
             'action_url': activity.action_url,
         })
-    
+
     return Response(activity_list)
 
 
@@ -340,18 +345,18 @@ def community_feed(request):
 def leaderboard(request):
     """Get cohort top performers."""
     user = request.user
-    cohort_id = getattr(user, 'cohort_id', None)
-    
+    getattr(user, 'cohort_id', None)
+
     gamification_scores = GamificationPoints.objects.all().order_by('-points')[:10]
-    
+
     leaderboard_list = []
     user_rank = None
-    
+
     for idx, score in enumerate(gamification_scores, 1):
         is_current_user = score.user.id == user.id
         if is_current_user:
             user_rank = idx
-        
+
         leaderboard_list.append({
             'rank': idx,
             'user_id': str(score.user.id),
@@ -360,7 +365,7 @@ def leaderboard(request):
             'avatar': None,
             'is_current_user': is_current_user,
         })
-    
+
     if user_rank is None:
         user_gamification = GamificationPoints.objects.filter(user=user).first()
         if user_gamification:
@@ -372,7 +377,7 @@ def leaderboard(request):
                 'avatar': None,
                 'is_current_user': True,
             })
-    
+
     return Response(leaderboard_list[:3])
 
 
@@ -381,12 +386,12 @@ def leaderboard(request):
 def dashboard_habits(request):
     """Get daily habit tracking status."""
     user = request.user
-    
+
     habits = Habit.objects.filter(user=user, type='core')
     today = timezone.now().date()
     today_logs = HabitLog.objects.filter(user=user, log_date=today)
     logged_habit_ids = set(today_logs.values_list('habit_id', flat=True))
-    
+
     habit_list = []
     for habit in habits:
         logs = HabitLog.objects.filter(habit=habit, status='done').order_by('-log_date')
@@ -399,7 +404,7 @@ def dashboard_habits(request):
                     current_date -= timedelta(days=1)
                 else:
                     break
-        
+
         habit_list.append({
             'id': str(habit.id),
             'name': habit.name,
@@ -408,7 +413,7 @@ def dashboard_habits(request):
             'streak': streak,
             'today_logged': habit.id in logged_habit_ids,
         })
-    
+
     return Response(habit_list)
 
 
@@ -416,8 +421,7 @@ def dashboard_habits(request):
 @permission_classes([IsAuthenticated])
 def ai_coach_nudge(request):
     """Get personalized AI recommendations."""
-    user = request.user
-    
+
     return Response({
         'id': '1',
         'message': 'DFIR gap detected',

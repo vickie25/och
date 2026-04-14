@@ -10,9 +10,8 @@ Django management command to seed Mastery (Tier 5) missions with all criteria:
 - Expert reference reports
 - Mentor review points
 """
-import uuid
 from django.core.management.base import BaseCommand
-from django.utils import timezone
+
 from missions.models import Mission
 
 
@@ -35,15 +34,15 @@ class Command(BaseCommand):
         self.stdout.write('Seeding Mastery (Tier 5) missions...')
 
         tracks = ['defender', 'offensive', 'grc', 'innovation', 'leadership']
-        
+
         for track in tracks:
             missions = self._create_track_missions(track)
             created_count = 0
             updated_count = 0
-            
+
             for mission_data in missions:
                 # Remove fields that don't exist in the model or are None
-                mission_data_clean = {k: v for k, v in mission_data.items() 
+                mission_data_clean = {k: v for k, v in mission_data.items()
                                      if v is not None or k != 'module_id'}
                 # Ensure required JSON fields have defaults (they exist in DB but may not be in model)
                 if 'competencies' not in mission_data_clean:
@@ -58,7 +57,7 @@ class Command(BaseCommand):
                 else:
                     updated_count += 1
                     self.stdout.write(f'  🔄 Updated: {mission.code} - {mission.title}')
-            
+
             self.stdout.write(f'\n  Track: {track.upper()} - Created: {created_count}, Updated: {updated_count}')
 
         total = Mission.objects.filter(tier='mastery').count()
@@ -67,7 +66,7 @@ class Command(BaseCommand):
     def _create_track_missions(self, track):
         """Create 12-15 Mastery missions for a track with all criteria"""
         missions = []
-        
+
         if track == 'defender':
             missions = self._defender_mastery_missions()
         elif track == 'offensive':
@@ -78,7 +77,7 @@ class Command(BaseCommand):
             missions = self._innovation_mastery_missions()
         elif track == 'leadership':
             missions = self._leadership_mastery_missions()
-        
+
         return missions
 
     def _defender_mastery_missions(self):
@@ -287,7 +286,7 @@ class Command(BaseCommand):
             },
             # Continue with 10 more missions for Defender track...
         ]
-        
+
         # For brevity, I'll create a template function that generates the remaining missions
         # In production, each mission should be fully detailed
         base_missions = [
@@ -302,7 +301,7 @@ class Command(BaseCommand):
             {'code': 'DEF-MAST-011', 'title': 'Security Architecture Review', 'description': 'Conduct comprehensive security architecture assessment'},
             {'code': 'DEF-MAST-012', 'title': 'Red Team Exercise Coordination', 'description': 'Plan and execute red team exercise with blue team'},
         ]
-        
+
         # Expand base missions with full structure
         expanded = []
         for base in base_missions:
@@ -333,7 +332,7 @@ class Command(BaseCommand):
                 'recipe_recommendations': [],
                 'skills_tags': ['Defender', 'Mastery'],
             })
-        
+
         return expanded[:12]  # Return first 12 missions
 
     def _offensive_mastery_missions(self):

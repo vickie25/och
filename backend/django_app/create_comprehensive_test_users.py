@@ -10,23 +10,25 @@ Creates:
 Run: python create_comprehensive_test_users.py
 """
 import os
-import sys
-import django
-from datetime import date, timedelta
 import random
+import sys
+from datetime import date, timedelta
+
+import django
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
+from community import signals
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.utils import timezone
-from users.models import Role, UserRole
-from programs.models import Program, Track, Cohort, Enrollment
-from profiler.models import ProfilerSession
 from django.db.models.signals import post_save
-from community import signals
+from django.utils import timezone
+from profiler.models import ProfilerSession
+from programs.models import Cohort, Enrollment, Program, Track
+
+from users.models import Role, UserRole
 
 User = get_user_model()
 
@@ -124,10 +126,10 @@ def create_support_roles():
     """Create support role users (admin, director, mentor, etc.)."""
     print("\n📋 Creating support roles...")
     created_roles = {}
-    
+
     for role_name, role_data in SUPPORT_ROLES.items():
         email = role_data['email']
-        
+
         try:
             user = User.objects.get(email=email)
             user.set_password(DEFAULT_PASSWORD)
@@ -152,7 +154,7 @@ def create_support_roles():
                 is_superuser=role_data.get('is_superuser', False)
             )
             print(f"  ✓ Created: {email} ({role_name})")
-        
+
         # Assign role
         role, _ = Role.objects.get_or_create(name=role_name)
         user_role, _ = UserRole.objects.get_or_create(
@@ -163,9 +165,9 @@ def create_support_roles():
                 'is_active': True
             }
         )
-        
+
         created_roles[role_name] = user
-    
+
     return created_roles
 
 
@@ -175,7 +177,7 @@ def create_tracks():
     print("\n📚 Setting up tracks...")
     tracks = {}
     program = Program.objects.first()  # Use existing program
-    
+
     for track_key, track_data in TRACKS.items():
         track, created = Track.objects.get_or_create(
             key=track_key,
@@ -189,7 +191,7 @@ def create_tracks():
         tracks[track_key] = track
         status = "Created" if created else "Found"
         print(f"  ✓ {status}: {track.name}")
-    
+
     return tracks
 
 
@@ -197,24 +199,24 @@ def create_tracks():
 def create_cohorts_and_students(support_roles, tracks):
     """Create 2 cohorts with students distributed across tracks."""
     print("\n🎓 Creating cohorts and enrolling students...")
-    
+
     # Get director and mentor
     director = support_roles.get('program_director')
-    mentor = support_roles.get('mentor')
-    
+    support_roles.get('mentor')
+
     # Use the first track for cohort creation (defender track)
     default_track = tracks.get('defender') or list(tracks.values())[0]
-    
+
     cohorts = {}
     students_created = 0
     enrollments_created = 0
-    
+
     # Create 2 cohorts
     for cohort_num in [1, 2]:
         cohort_name = f'Cohort {cohort_num} - OCH Defenders'
         start_date = date.today() + timedelta(days=30 * (cohort_num - 1))
         end_date = start_date + timedelta(days=365)
-        
+
         cohort, cohort_created = Cohort.objects.get_or_create(
             name=cohort_name,
             track=default_track,
@@ -227,26 +229,26 @@ def create_cohorts_and_students(support_roles, tracks):
                 'mode': 'hybrid'
             }
         )
-        
+
         cohorts[cohort_num] = cohort
         status = "Created" if cohort_created else "Found"
         print(f"  ✓ {status}: {cohort.name} ({STUDENTS_PER_COHORT * len(TRACKS)} slots)")
-        
+
         # Create students for this cohort across all tracks
         for track_key in TRACKS.keys():
             for i in range(STUDENTS_PER_COHORT):
                 student_num = (cohort_num - 1) * (STUDENTS_PER_COHORT * len(TRACKS)) + \
                              (list(TRACKS.keys()).index(track_key) * STUDENTS_PER_COHORT) + i + 1
-                
+
                 email = f'student{student_num}@test.com'
                 username = f'student{student_num}'
-                
+
                 # Create student
                 student, student_created = User.objects.get_or_create(
                     email=email,
                     defaults={
                         'username': username,
-                        'first_name': f'Student',
+                        'first_name': 'Student',
                         'last_name': f'{student_num}',
                         'account_status': 'active',
                         'email_verified': True,
@@ -254,13 +256,13 @@ def create_cohorts_and_students(support_roles, tracks):
                         'profiling_complete': True
                     }
                 )
-                
+
                 student.set_password(DEFAULT_PASSWORD)
                 student.save()
-                
+
                 if student_created:
                     students_created += 1
-                
+
                 # Assign student role
                 role, _ = Role.objects.get_or_create(name='student')
                 UserRole.objects.get_or_create(
@@ -268,7 +270,7 @@ def create_cohorts_and_students(support_roles, tracks):
                     role=role,
                     defaults={'scope': 'global', 'is_active': True}
                 )
-                
+
                 # Create/update profiler session
                 track = tracks[track_key]
                 profiler_session, _ = ProfilerSession.objects.get_or_create(
@@ -293,11 +295,11 @@ def create_cohorts_and_students(support_roles, tracks):
                         }
                     }
                 )
-                
+
                 # Update student's profiling session
                 student.profiling_session_id = profiler_session.id
                 student.save()
-                
+
                 # Create enrollment via director
                 enrollment, enr_created = Enrollment.objects.get_or_create(
                     user=student,
@@ -309,12 +311,12 @@ def create_cohorts_and_students(support_roles, tracks):
                         'status': 'active'
                     }
                 )
-                
+
                 if enr_created:
                     enrollments_created += 1
-        
+
         print(f"    └─ Created {STUDENTS_PER_COHORT * len(TRACKS)} students with enrollments")
-    
+
     return cohorts, students_created, enrollments_created
 
 
@@ -324,7 +326,7 @@ def print_summary(support_roles, students_created, enrollments_created):
     print("\n" + "="*70)
     print("✅ TEST USERS CREATED SUCCESSFULLY")
     print("="*70)
-    
+
     print("\n🔐 SUPPORT ROLES (Staff & Administrators)")
     print("-" * 70)
     for role_name, role_data in SUPPORT_ROLES.items():
@@ -332,22 +334,22 @@ def print_summary(support_roles, students_created, enrollments_created):
         print(f"    Email:    {role_data['email']}")
         print(f"    Password: {DEFAULT_PASSWORD}")
         print(f"    Scope:    {role_data.get('scope', 'global')}")
-    
+
     print("\n" + "-" * 70)
     print("\n📊 STUDENT SUMMARY")
     print(f"  Total Students Created:  {students_created}")
     print(f"  Total Enrollments:       {enrollments_created}")
-    print(f"  Cohorts:                 2 (Cohort 1, Cohort 2)")
+    print("  Cohorts:                 2 (Cohort 1, Cohort 2)")
     print(f"  Tracks per Cohort:       {len(TRACKS)}")
     print(f"  Students per Track:      {STUDENTS_PER_COHORT}")
-    
+
     print("\n" + "-" * 70)
     print("\n📝 STUDENT NAMING SCHEME")
     print("  Email format: student<N>@test.com")
     print("  Password: testpass123 (for all students)")
     print("  Numbering: student1 - student100")
-    print(f"  Example: student1@test.com, student50@test.com, student100@test.com")
-    
+    print("  Example: student1@test.com, student50@test.com, student100@test.com")
+
     print("\n" + "-" * 70)
     print("\n🎯 KEY FEATURES")
     print("  ✓ Students pre-profiled (profiling_complete=True)")
@@ -356,7 +358,7 @@ def print_summary(support_roles, students_created, enrollments_created):
     print("  ✓ Director can manage student enrollments")
     print("  ✓ Support roles have appropriate permissions")
     print("  ✓ Students distributed across 2 cohorts and 5 tracks")
-    
+
     print("\n" + "-" * 70)
     print("\n💡 USAGE NOTES")
     print("  - Director can enroll/unenroll students via enrollment API")
@@ -364,7 +366,7 @@ def print_summary(support_roles, students_created, enrollments_created):
     print("  - Use 'enrollment_type=director' for director enrollments")
     print("  - Mentor can view all students in assigned cohorts")
     print("  - Admin has full system access")
-    
+
     print("\n" + "="*70 + "\n")
 
 
@@ -373,23 +375,23 @@ def main():
     """Main execution."""
     try:
         print("\n🚀 Starting comprehensive test user setup...\n")
-        
+
         # Create support roles
         support_roles = create_support_roles()
-        
+
         # Create tracks
         tracks = create_tracks()
-        
+
         # Create cohorts and students
         cohorts, students_created, enrollments_created = create_cohorts_and_students(
             support_roles, tracks
         )
-        
+
         # Print summary
         print_summary(support_roles, students_created, enrollments_created)
-        
+
         print("✅ Setup complete! Ready for development and testing.\n")
-        
+
     except Exception as e:
         print(f"\n❌ Error during setup: {str(e)}")
         import traceback

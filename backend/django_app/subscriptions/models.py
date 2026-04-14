@@ -2,11 +2,12 @@
 Subscription Engine models - Tier management and Stripe integration.
 """
 import uuid
-from django.db import models
-from django.core.validators import MinValueValidator
-from django.utils import timezone
-from users.models import User
 
+from django.core.validators import MinValueValidator
+from django.db import models
+from django.utils import timezone
+
+from users.models import User
 
 # Subscription Tier Constants
 TIER_FREE = 'free'
@@ -35,7 +36,7 @@ class SubscriptionPlan(models.Model):
         (BILLING_MONTHLY, 'Monthly'),
         (BILLING_ANNUAL, 'Annual'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(
         max_length=50,
@@ -153,13 +154,13 @@ class SubscriptionPlan(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'subscription_plans'
         indexes = [
             models.Index(fields=['tier']),
         ]
-    
+
     def __str__(self):
         price_str = f"${self.price_monthly}/mo" if self.price_monthly else "Free"
         return f"{self.get_tier_display()} - {price_str}"
@@ -173,7 +174,7 @@ class UserSubscription(models.Model):
         ('canceled', 'Canceled'),
         ('trial', 'Trial'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(
         User,
@@ -243,17 +244,17 @@ class UserSubscription(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'user_subscriptions'
         indexes = [
             models.Index(fields=['user', 'status']),
             models.Index(fields=['status', 'current_period_end']),
         ]
-    
+
     def __str__(self):
         return f"Subscription: {self.user.email} - {self.plan.name} ({self.status})"
-    
+
     @property
     def days_enhanced_left(self):
         """Calculate days remaining for enhanced access."""
@@ -274,7 +275,7 @@ class PaymentGateway(models.Model):
         ('airtel_money', 'Airtel Money'),
         ('visa_mastercard', 'Visa/Mastercard'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=50, choices=GATEWAY_CHOICES, unique=True, db_index=True)
     enabled = models.BooleanField(default=False, help_text='Enable this payment gateway')
@@ -286,12 +287,12 @@ class PaymentGateway(models.Model):
     metadata = models.JSONField(default=dict, blank=True, help_text='Additional gateway-specific settings')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'payment_gateways'
         verbose_name = 'Payment Gateway'
         verbose_name_plural = 'Payment Gateways'
-    
+
     def __str__(self):
         return f"{self.get_name_display()} ({'Enabled' if self.enabled else 'Disabled'})"
 
@@ -306,7 +307,7 @@ class PaymentTransaction(models.Model):
         ('refunded', 'Refunded'),
         ('canceled', 'Canceled'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payment_transactions', db_index=True)
     gateway = models.ForeignKey(PaymentGateway, on_delete=models.PROTECT, related_name='transactions', null=True, blank=True)
@@ -320,7 +321,7 @@ class PaymentTransaction(models.Model):
     processed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'payment_transactions'
         indexes = [
@@ -328,7 +329,7 @@ class PaymentTransaction(models.Model):
             models.Index(fields=['gateway_transaction_id']),
             models.Index(fields=['created_at']),
         ]
-    
+
     def __str__(self):
         return f"Payment: {self.user.email} - {self.amount} {self.currency} ({self.status})"
 
@@ -352,12 +353,12 @@ class SubscriptionRule(models.Model):
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'subscription_rules'
         verbose_name = 'Subscription Rule'
         verbose_name_plural = 'Subscription Rules'
-    
+
     def __str__(self):
         return f"{self.rule_name} ({self.get_rule_type_display()})"
 
@@ -370,12 +371,12 @@ class PaymentSettings(models.Model):
     description = models.TextField(blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='payment_settings_updates')
-    
+
     class Meta:
         db_table = 'payment_settings'
         verbose_name = 'Payment Setting'
         verbose_name_plural = 'Payment Settings'
-    
+
     def __str__(self):
         return f"{self.setting_key}"
 
@@ -388,7 +389,7 @@ class PromotionalCode(models.Model):
         ('trial_extension', 'Trial Extension'),
         ('bonus_credits', 'Bonus Credits'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     code = models.CharField(max_length=50, unique=True, db_index=True, help_text='Promo code (e.g., CYBER2026)')
     discount_type = models.CharField(max_length=20, choices=DISCOUNT_TYPE_CHOICES, default='percentage')
@@ -427,7 +428,7 @@ class PromotionalCode(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'promotional_codes'
         verbose_name = 'Promotional Code'
@@ -436,10 +437,10 @@ class PromotionalCode(models.Model):
             models.Index(fields=['code', 'is_active']),
             models.Index(fields=['valid_from', 'valid_until']),
         ]
-    
+
     def __str__(self):
         return f"{self.code} ({self.get_discount_type_display()})"
-    
+
     def is_valid(self):
         """Check if code is currently valid."""
         now = timezone.now()
@@ -448,18 +449,18 @@ class PromotionalCode(models.Model):
             self.valid_from <= now <= self.valid_until and
             (self.max_redemptions is None or self.redemptions.count() < self.max_redemptions)
         )
-    
+
     def can_user_redeem(self, user):
         """Check if user can redeem this code."""
         if not self.is_valid():
             return False, "Code is not valid or has expired"
-        
+
         user_redemptions = self.redemptions.filter(user=user).count()
         if user_redemptions >= self.usage_limit_per_user:
             return False, f"You have already used this code {self.usage_limit_per_user} time(s)"
-        
+
         return True, "Code is valid"
-    
+
     def calculate_discount(self, base_amount):
         """Calculate discount amount based on type."""
         if self.discount_type == 'percentage':
@@ -505,7 +506,7 @@ class PromoCodeRedemption(models.Model):
         help_text='Final price after discount'
     )
     redeemed_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'promo_code_redemptions'
         verbose_name = 'Promo Code Redemption'
@@ -514,7 +515,7 @@ class PromoCodeRedemption(models.Model):
             models.Index(fields=['user', 'redeemed_at']),
             models.Index(fields=['code', 'redeemed_at']),
         ]
-    
+
     def __str__(self):
         return f"{self.user.email} - {self.code.code} - {self.discount_applied} KES off"
 
@@ -527,13 +528,13 @@ class AcademicDiscount(models.Model):
         ('rejected', 'Rejected'),
         ('expired', 'Expired'),
     ]
-    
+
     VERIFICATION_METHOD_CHOICES = [
         ('edu_email', '.edu Email'),
         ('document', 'Document Upload'),
         ('manual', 'Manual Verification'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(
         User,
@@ -574,7 +575,7 @@ class AcademicDiscount(models.Model):
     rejection_reason = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'academic_discounts'
         verbose_name = 'Academic Discount'
@@ -583,10 +584,10 @@ class AcademicDiscount(models.Model):
             models.Index(fields=['user', 'verification_status']),
             models.Index(fields=['expires_at']),
         ]
-    
+
     def __str__(self):
         return f"{self.user.email} - {self.get_verification_status_display()}"
-    
+
     def is_active(self):
         """Check if discount is currently active."""
         if self.verification_status != 'verified':
@@ -594,11 +595,11 @@ class AcademicDiscount(models.Model):
         if self.expires_at and timezone.now() > self.expires_at:
             return False
         return True
-    
+
     def get_discount_percentage(self):
         """Return discount percentage (30% for academic)."""
         return 30 if self.is_active() else 0
-    
+
     def calculate_discounted_price(self, base_price):
         """Calculate price after academic discount."""
         if not self.is_active():
@@ -616,7 +617,7 @@ class SubscriptionInvoice(models.Model):
         ('overdue', 'Overdue'),
         ('void', 'Void'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     invoice_number = models.CharField(
         max_length=50,
@@ -644,20 +645,20 @@ class SubscriptionInvoice(models.Model):
         related_name='invoice'
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', db_index=True)
-    
+
     # Amounts
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     currency = models.CharField(max_length=3, default='KES')
-    
+
     # Dates
     invoice_date = models.DateTimeField(default=timezone.now)
     due_date = models.DateTimeField()
     paid_at = models.DateTimeField(null=True, blank=True)
     sent_at = models.DateTimeField(null=True, blank=True)
-    
+
     # Invoice details
     line_items = models.JSONField(
         default=list,
@@ -665,10 +666,10 @@ class SubscriptionInvoice(models.Model):
     )
     notes = models.TextField(blank=True)
     pdf_url = models.URLField(null=True, blank=True, help_text='URL to generated PDF')
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'subscription_invoices'
         verbose_name = 'Subscription Invoice'
@@ -679,23 +680,23 @@ class SubscriptionInvoice(models.Model):
             models.Index(fields=['invoice_date']),
             models.Index(fields=['due_date']),
         ]
-    
+
     def __str__(self):
         return f"{self.invoice_number} - {self.user.email} - {self.total_amount} {self.currency}"
-    
+
     def mark_as_paid(self):
         """Mark invoice as paid."""
         self.status = 'paid'
         self.paid_at = timezone.now()
         self.save(update_fields=['status', 'paid_at', 'updated_at'])
-    
+
     def mark_as_sent(self):
         """Mark invoice as sent."""
         if self.status == 'draft':
             self.status = 'sent'
             self.sent_at = timezone.now()
             self.save(update_fields=['status', 'sent_at', 'updated_at'])
-    
+
     @staticmethod
     def generate_invoice_number():
         """Generate unique invoice number."""
@@ -705,13 +706,13 @@ class SubscriptionInvoice(models.Model):
         last_invoice = SubscriptionInvoice.objects.filter(
             invoice_number__startswith=f'INV-{year}-'
         ).order_by('-invoice_number').first()
-        
+
         if last_invoice:
             last_num = int(last_invoice.invoice_number.split('-')[-1])
             new_num = last_num + 1
         else:
             new_num = 1
-        
+
         return f'INV-{year}-{new_num:06d}'
 
 
@@ -723,7 +724,7 @@ class PaymentRetryAttempt(models.Model):
         ('success', 'Success'),
         ('failed', 'Failed'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     subscription = models.ForeignKey(
         UserSubscription,
@@ -737,17 +738,17 @@ class PaymentRetryAttempt(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     currency = models.CharField(max_length=3, default='KES')
-    
+
     scheduled_at = models.DateTimeField(help_text='When retry is scheduled')
     attempted_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
-    
+
     gateway_response = models.JSONField(default=dict, blank=True)
     error_message = models.TextField(blank=True)
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'payment_retry_attempts'
         verbose_name = 'Payment Retry Attempt'
@@ -757,6 +758,6 @@ class PaymentRetryAttempt(models.Model):
             models.Index(fields=['subscription', 'status']),
             models.Index(fields=['scheduled_at', 'status']),
         ]
-    
+
     def __str__(self):
         return f"Retry #{self.attempt_number} for {self.subscription.user.email} - {self.status}"

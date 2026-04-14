@@ -2,16 +2,18 @@
 Payment Service - Handles payment processing, overdue alerts, and payment workflows.
 """
 import logging
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
-from django.utils import timezone
-from django.core.mail import send_mail
+
 from django.conf import settings
+from django.core.mail import send_mail
+from django.utils import timezone
+
 from ..models import (
+    RevenueShareTracking,
     Sponsor,
     SponsorCohortBilling,
     SponsorFinancialTransaction,
-    RevenueShareTracking
 )
 
 logger = logging.getLogger(__name__)

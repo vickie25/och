@@ -3,14 +3,15 @@ Institutional Management Models - Complete seat allocation and portal management
 Extends the institutional billing system with full management capabilities.
 """
 import uuid
-from decimal import Decimal
+from datetime import date
+
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
-from datetime import date, timedelta
+from programs.models import Cohort, Enrollment, Track
+
 from users.models import User
-from organizations.models import Organization
-from programs.models import Cohort, Track, Enrollment
+
 from .institutional_models import InstitutionalContract
 
 
@@ -24,14 +25,14 @@ class InstitutionalPortalAccess(models.Model):
         ('manager', 'Manager'),
         ('viewer', 'Viewer'),
     ]
-    
+
     PERMISSION_CHOICES = [
         ('full_access', 'Full Access'),
         ('seat_management', 'Seat Management Only'),
         ('reporting_only', 'Reporting Only'),
         ('student_management', 'Student Management Only'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     contract = models.ForeignKey(
         InstitutionalContract,
@@ -58,7 +59,7 @@ class InstitutionalPortalAccess(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'institutional_portal_access'
         unique_together = ['contract', 'user']
@@ -66,7 +67,7 @@ class InstitutionalPortalAccess(models.Model):
             models.Index(fields=['contract', 'is_active']),
             models.Index(fields=['user', 'is_active']),
         ]
-    
+
     def __str__(self):
         return f"{self.user.email} - {self.contract.contract_number} ({self.role})"
 
@@ -82,7 +83,7 @@ class InstitutionalSeatPool(models.Model):
         ('program', 'Program Specific'),
         ('cohort', 'Cohort Specific'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     contract = models.ForeignKey(
         InstitutionalContract,
@@ -91,7 +92,7 @@ class InstitutionalSeatPool(models.Model):
     )
     name = models.CharField(max_length=200)
     pool_type = models.CharField(max_length=20, choices=POOL_TYPE_CHOICES, default='general')
-    
+
     # Seat allocation
     allocated_seats = models.IntegerField(
         validators=[MinValueValidator(0)],
@@ -107,7 +108,7 @@ class InstitutionalSeatPool(models.Model):
         validators=[MinValueValidator(0)],
         help_text='Seats reserved but not yet assigned'
     )
-    
+
     # Pool configuration
     department = models.CharField(max_length=200, blank=True)
     allowed_tracks = models.JSONField(
@@ -118,7 +119,7 @@ class InstitutionalSeatPool(models.Model):
         default=list,
         help_text='List of cohort IDs that can use this pool'
     )
-    
+
     # Recycling settings
     auto_recycle = models.BooleanField(
         default=True,
@@ -128,64 +129,64 @@ class InstitutionalSeatPool(models.Model):
         default=7,
         help_text='Days to wait before recycling a seat'
     )
-    
+
     # Metadata
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'institutional_seat_pools'
         indexes = [
             models.Index(fields=['contract', 'pool_type']),
             models.Index(fields=['contract', 'department']),
         ]
-    
+
     def __str__(self):
         return f"{self.name} - {self.contract.organization.name}"
-    
+
     @property
     def available_seats(self):
         """Calculate available seats in the pool"""
         return self.allocated_seats - self.active_seats - self.reserved_seats
-    
+
     @property
     def utilization_rate(self):
         """Calculate seat utilization percentage"""
         if self.allocated_seats == 0:
             return 0
         return (self.active_seats / self.allocated_seats) * 100
-    
+
     def can_allocate_seats(self, count):
         """Check if pool has enough available seats"""
         return self.available_seats >= count
-    
+
     def allocate_seats(self, count, reserve=False):
         """Allocate seats from the pool"""
         if not self.can_allocate_seats(count):
             raise ValueError(f"Not enough available seats. Available: {self.available_seats}, Requested: {count}")
-        
+
         if reserve:
             self.reserved_seats += count
         else:
             self.active_seats += count
-        
+
         self.save()
-    
+
     def release_seats(self, count, from_reserved=False):
         """Release seats back to the pool"""
         if from_reserved:
             self.reserved_seats = max(0, self.reserved_seats - count)
         else:
             self.active_seats = max(0, self.active_seats - count)
-        
+
         self.save()
-    
+
     def reserve_seats(self, count):
         """Reserve seats without allocating them (for invitations)"""
         if not self.can_allocate_seats(count):
             raise ValueError(f"Not enough available seats. Available: {self.available_seats}, Requested: {count}")
-        
+
         self.reserved_seats += count
         self.save()
 
@@ -203,7 +204,7 @@ class InstitutionalStudentAllocation(models.Model):
         ('withdrawn', 'Withdrawn'),
         ('recycled', 'Recycled'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     seat_pool = models.ForeignKey(
         InstitutionalSeatPool,
@@ -222,14 +223,14 @@ class InstitutionalStudentAllocation(models.Model):
         null=True,
         blank=True
     )
-    
+
     # Allocation details
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='allocated')
     allocated_at = models.DateTimeField(auto_now_add=True)
     activated_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     recycled_at = models.DateTimeField(null=True, blank=True)
-    
+
     # Assignment details
     assigned_cohort = models.ForeignKey(
         Cohort,
@@ -243,12 +244,12 @@ class InstitutionalStudentAllocation(models.Model):
         help_text='List of mandatory track IDs assigned by institution'
     )
     department = models.CharField(max_length=200, blank=True)
-    
+
     # Progress tracking
     mandatory_tracks_completed = models.JSONField(default=list)
     completion_deadline = models.DateField(null=True, blank=True)
     progress_last_updated = models.DateTimeField(null=True, blank=True)
-    
+
     # Metadata
     allocated_by = models.ForeignKey(
         User,
@@ -257,7 +258,7 @@ class InstitutionalStudentAllocation(models.Model):
         related_name='allocated_students'
     )
     notes = models.TextField(blank=True)
-    
+
     class Meta:
         db_table = 'institutional_student_allocations'
         unique_together = ['seat_pool', 'user']
@@ -267,33 +268,33 @@ class InstitutionalStudentAllocation(models.Model):
             models.Index(fields=['assigned_cohort', 'status']),
             models.Index(fields=['completion_deadline']),
         ]
-    
+
     def __str__(self):
         return f"{self.user.email} - {self.seat_pool.name} ({self.status})"
-    
+
     def activate(self):
         """Activate the student allocation"""
         if self.status == 'allocated':
             self.status = 'active'
             self.activated_at = timezone.now()
             self.save()
-    
+
     def complete(self):
         """Mark allocation as completed"""
         self.status = 'completed'
         self.completed_at = timezone.now()
         self.save()
-        
+
         # Auto-recycle if enabled
         if self.seat_pool.auto_recycle:
             self.recycle()
-    
+
     def recycle(self):
         """Recycle the seat allocation"""
         self.status = 'recycled'
         self.recycled_at = timezone.now()
         self.save()
-        
+
         # Release seat back to pool
         self.seat_pool.release_seats(1)
 
@@ -310,7 +311,7 @@ class InstitutionalBulkImport(models.Model):
         ('failed', 'Failed'),
         ('partial', 'Partially Completed'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     contract = models.ForeignKey(
         InstitutionalContract,
@@ -322,7 +323,7 @@ class InstitutionalBulkImport(models.Model):
         on_delete=models.CASCADE,
         related_name='bulk_imports'
     )
-    
+
     # Import details
     filename = models.CharField(max_length=255)
     file_size = models.IntegerField()
@@ -330,12 +331,12 @@ class InstitutionalBulkImport(models.Model):
     processed_records = models.IntegerField(default=0)
     successful_records = models.IntegerField(default=0)
     failed_records = models.IntegerField(default=0)
-    
+
     # Processing status
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
-    
+
     # Results
     import_results = models.JSONField(
         default=dict,
@@ -345,18 +346,18 @@ class InstitutionalBulkImport(models.Model):
         default=list,
         help_text='List of errors encountered during processing'
     )
-    
+
     # Configuration
     import_settings = models.JSONField(
         default=dict,
         help_text='Import settings: {auto_enroll: bool, send_emails: bool, default_cohort: id}'
     )
-    
+
     # Metadata
     uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'institutional_bulk_imports'
         ordering = ['-created_at']
@@ -364,7 +365,7 @@ class InstitutionalBulkImport(models.Model):
             models.Index(fields=['contract', 'status']),
             models.Index(fields=['status', 'created_at']),
         ]
-    
+
     def __str__(self):
         return f"Import {self.filename} - {self.contract.organization.name}"
 
@@ -379,7 +380,7 @@ class InstitutionalTrackAssignment(models.Model):
         ('recommended', 'Recommended'),
         ('optional', 'Optional'),
     ]
-    
+
     STATUS_CHOICES = [
         ('assigned', 'Assigned'),
         ('in_progress', 'In Progress'),
@@ -387,7 +388,7 @@ class InstitutionalTrackAssignment(models.Model):
         ('overdue', 'Overdue'),
         ('waived', 'Waived'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     contract = models.ForeignKey(
         InstitutionalContract,
@@ -404,17 +405,17 @@ class InstitutionalTrackAssignment(models.Model):
         on_delete=models.CASCADE,
         related_name='institutional_assignments'
     )
-    
+
     # Assignment details
     assignment_type = models.CharField(max_length=20, choices=ASSIGNMENT_TYPE_CHOICES, default='mandatory')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='assigned')
-    
+
     # Deadlines and progress
     assigned_at = models.DateTimeField(auto_now_add=True)
     due_date = models.DateField(null=True, blank=True)
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
-    
+
     # Progress tracking
     progress_percentage = models.DecimalField(
         max_digits=5,
@@ -423,14 +424,14 @@ class InstitutionalTrackAssignment(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(100)]
     )
     last_activity = models.DateTimeField(null=True, blank=True)
-    
+
     # Department/customization
     department = models.CharField(max_length=200, blank=True)
     custom_requirements = models.JSONField(
         default=dict,
         help_text='Custom completion requirements for this assignment'
     )
-    
+
     # Metadata
     assigned_by = models.ForeignKey(
         User,
@@ -439,7 +440,7 @@ class InstitutionalTrackAssignment(models.Model):
         related_name='assigned_tracks'
     )
     notes = models.TextField(blank=True)
-    
+
     class Meta:
         db_table = 'institutional_track_assignments'
         unique_together = ['student_allocation', 'track']
@@ -448,24 +449,24 @@ class InstitutionalTrackAssignment(models.Model):
             models.Index(fields=['status', 'due_date']),
             models.Index(fields=['track', 'status']),
         ]
-    
+
     def __str__(self):
         return f"{self.student_allocation.user.email} - {self.track.name} ({self.assignment_type})"
-    
+
     @property
     def is_overdue(self):
         """Check if assignment is overdue"""
         if not self.due_date or self.status in ['completed', 'waived']:
             return False
         return date.today() > self.due_date
-    
+
     def mark_started(self):
         """Mark assignment as started"""
         if self.status == 'assigned':
             self.status = 'in_progress'
             self.started_at = timezone.now()
             self.save()
-    
+
     def mark_completed(self):
         """Mark assignment as completed"""
         self.status = 'completed'
@@ -484,32 +485,32 @@ class InstitutionalSSO(models.Model):
         ('oidc', 'OpenID Connect'),
         ('oauth2', 'OAuth 2.0'),
     ]
-    
+
     STATUS_CHOICES = [
         ('draft', 'Draft'),
         ('testing', 'Testing'),
         ('active', 'Active'),
         ('disabled', 'Disabled'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     contract = models.OneToOneField(
         InstitutionalContract,
         on_delete=models.CASCADE,
         related_name='sso_config'
     )
-    
+
     # SSO Configuration
     protocol = models.CharField(max_length=20, choices=PROTOCOL_CHOICES)
     provider_name = models.CharField(max_length=200)
     entity_id = models.CharField(max_length=500, blank=True)
     sso_url = models.URLField()
     slo_url = models.URLField(blank=True, help_text='Single Logout URL')
-    
+
     # Certificates and keys
     x509_cert = models.TextField(blank=True, help_text='X.509 Certificate')
     private_key = models.TextField(blank=True, help_text='Private Key (encrypted)')
-    
+
     # Domain-based auto-enrollment
     auto_enrollment_domains = models.JSONField(
         default=list,
@@ -523,7 +524,7 @@ class InstitutionalSSO(models.Model):
         blank=True,
         help_text='Default seat pool for auto-enrolled users'
     )
-    
+
     # User provisioning
     user_provisioning_enabled = models.BooleanField(default=False)
     deprovisioning_enabled = models.BooleanField(default=False)
@@ -531,23 +532,23 @@ class InstitutionalSSO(models.Model):
         default=dict,
         help_text='SAML/OIDC attribute mapping: {email: "mail", first_name: "givenName"}'
     )
-    
+
     # Status and metadata
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     last_sync = models.DateTimeField(null=True, blank=True)
     sync_errors = models.JSONField(default=list)
-    
+
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'institutional_sso'
         indexes = [
             models.Index(fields=['status']),
             models.Index(fields=['auto_enrollment_enabled']),
         ]
-    
+
     def __str__(self):
         return f"SSO {self.provider_name} - {self.contract.organization.name}"
 
@@ -563,50 +564,50 @@ class InstitutionalDashboardMetrics(models.Model):
         on_delete=models.CASCADE,
         related_name='dashboard_metrics'
     )
-    
+
     # Seat utilization metrics
     total_allocated_seats = models.IntegerField(default=0)
     total_active_seats = models.IntegerField(default=0)
     total_available_seats = models.IntegerField(default=0)
     utilization_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
-    
+
     # Student metrics
     total_students = models.IntegerField(default=0)
     active_students = models.IntegerField(default=0)
     completed_students = models.IntegerField(default=0)
     withdrawn_students = models.IntegerField(default=0)
-    
+
     # Progress metrics
     avg_completion_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     avg_progress_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     students_on_track = models.IntegerField(default=0)
     students_behind = models.IntegerField(default=0)
-    
+
     # Track assignment metrics
     mandatory_assignments = models.IntegerField(default=0)
     completed_assignments = models.IntegerField(default=0)
     overdue_assignments = models.IntegerField(default=0)
-    
+
     # ROI metrics
     cost_per_student = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     avg_completion_time_days = models.IntegerField(default=0)
     certification_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
-    
+
     # Engagement metrics
     avg_login_frequency = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     avg_session_duration_minutes = models.IntegerField(default=0)
     last_30_days_activity = models.IntegerField(default=0)
-    
+
     # Metadata
     calculated_at = models.DateTimeField(auto_now=True)
     calculation_duration_seconds = models.IntegerField(default=0)
-    
+
     class Meta:
         db_table = 'institutional_dashboard_metrics'
         indexes = [
             models.Index(fields=['calculated_at']),
         ]
-    
+
     def __str__(self):
         return f"Metrics - {self.contract.organization.name}"
 
@@ -623,31 +624,31 @@ class InstitutionalAcademicCalendar(models.Model):
         ('fiscal', 'Fiscal Year'),
         ('custom', 'Custom Calendar'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     contract = models.OneToOneField(
         InstitutionalContract,
         on_delete=models.CASCADE,
         related_name='academic_calendar'
     )
-    
+
     # Calendar configuration
     calendar_type = models.CharField(max_length=20, choices=CALENDAR_TYPE_CHOICES)
     academic_year_start = models.DateField()
     academic_year_end = models.DateField()
-    
+
     # Periods definition
     periods = models.JSONField(
         default=list,
         help_text='List of academic periods: [{name: "Fall 2024", start: "2024-09-01", end: "2024-12-15"}]'
     )
-    
+
     # Break periods
     break_periods = models.JSONField(
         default=list,
         help_text='List of break periods: [{name: "Winter Break", start: "2024-12-16", end: "2025-01-15"}]'
     )
-    
+
     # Summer program settings
     summer_program_enabled = models.BooleanField(default=False)
     summer_discount_rate = models.DecimalField(
@@ -656,25 +657,25 @@ class InstitutionalAcademicCalendar(models.Model):
         default=0,
         help_text='Percentage discount for summer-only programs'
     )
-    
+
     # Billing alignment
     billing_aligned_to_calendar = models.BooleanField(default=False)
     billing_period_mapping = models.JSONField(
         default=dict,
         help_text='Mapping of billing periods to academic periods'
     )
-    
+
     # Metadata
     timezone = models.CharField(max_length=50, default='UTC')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'institutional_academic_calendars'
-    
+
     def __str__(self):
         return f"{self.calendar_type} - {self.contract.organization.name}"
-    
+
     def get_current_period(self):
         """Get the current academic period"""
         today = date.today()
@@ -684,12 +685,12 @@ class InstitutionalAcademicCalendar(models.Model):
             if start_date <= today <= end_date:
                 return period
         return None
-    
+
     def is_break_period(self, check_date=None):
         """Check if given date (or today) is in a break period"""
         if not check_date:
             check_date = date.today()
-        
+
         for break_period in self.break_periods:
             start_date = date.fromisoformat(break_period['start'])
             end_date = date.fromisoformat(break_period['end'])
@@ -709,7 +710,7 @@ class InstitutionalInvitation(models.Model):
         ('expired', 'Expired'),
         ('revoked', 'Revoked'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     contract = models.ForeignKey(
         InstitutionalContract,
@@ -721,13 +722,13 @@ class InstitutionalInvitation(models.Model):
         on_delete=models.CASCADE,
         related_name='invitations'
     )
-    
+
     # Invitation details
     email = models.EmailField(db_index=True)
     first_name = models.CharField(max_length=100, blank=True)
     last_name = models.CharField(max_length=100, blank=True)
     department = models.CharField(max_length=200, blank=True)
-    
+
     # Assignment configuration (applied when accepted)
     assigned_cohort = models.ForeignKey(
         Cohort,
@@ -737,7 +738,7 @@ class InstitutionalInvitation(models.Model):
         related_name='institutional_invitations'
     )
     assigned_tracks = models.JSONField(default=list, blank=True)
-    
+
     # Status tracking
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     token = models.CharField(max_length=255, unique=True, db_index=True)
@@ -757,12 +758,12 @@ class InstitutionalInvitation(models.Model):
         blank=True,
         related_name='accepted_institutional_invitations'
     )
-    
+
     # Metadata
     reminder_count = models.IntegerField(default=0)
     last_reminder_sent = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
-    
+
     class Meta:
         db_table = 'institutional_invitations'
         unique_together = ['contract', 'email', 'status']
@@ -772,24 +773,24 @@ class InstitutionalInvitation(models.Model):
             models.Index(fields=['token']),
             models.Index(fields=['expires_at']),
         ]
-    
+
     def __str__(self):
         return f"Invitation {self.email} - {self.contract.organization.name} ({self.status})"
-    
+
     def save(self, *args, **kwargs):
         # Generate token if not set
         if not self.token:
             import secrets
             self.token = secrets.token_urlsafe(32)
         super().save(*args, **kwargs)
-    
+
     @property
     def is_expired(self):
         """Check if invitation has expired"""
         if self.status != 'pending':
             return False
         return timezone.now() > self.expires_at
-    
+
     @property
     def days_until_expiry(self):
         """Calculate days until invitation expires"""
@@ -797,30 +798,30 @@ class InstitutionalInvitation(models.Model):
             return 0
         delta = self.expires_at - timezone.now()
         return max(0, delta.days)
-    
+
     def accept(self, user):
         """Mark invitation as accepted by a user"""
         self.status = 'accepted'
         self.accepted_at = timezone.now()
         self.accepted_by = user
         self.save()
-        
+
         # Release reserved seat and create actual allocation
         self.seat_pool.release_seats(1, from_reserved=True)
-    
+
     def revoke(self):
         """Revoke the invitation and release reserved seat"""
         self.status = 'revoked'
         self.save()
-        
+
         # Release reserved seat
         self.seat_pool.release_seats(1, from_reserved=True)
-    
+
     def expire(self):
         """Mark invitation as expired and release reserved seat"""
         if self.status == 'pending':
             self.status = 'expired'
             self.save()
-            
+
             # Release reserved seat
             self.seat_pool.release_seats(1, from_reserved=True)

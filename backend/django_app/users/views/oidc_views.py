@@ -1,11 +1,10 @@
 """
 OIDC discovery and OAuth2 endpoints.
 """
+from django.conf import settings
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from django.conf import settings
-from django.urls import reverse
 
 
 @api_view(['GET'])
@@ -16,7 +15,7 @@ def openid_configuration(request):
     OIDC discovery endpoint.
     """
     base_url = request.build_absolute_uri('/').rstrip('/')
-    
+
     return Response({
         'issuer': settings.SIMPLE_JWT.get('ISSUER', base_url),
         'authorization_endpoint': f"{base_url}/api/v1/oauth/authorize",
@@ -112,25 +111,25 @@ def oauth_introspect(request):
     OAuth2 token introspection endpoint (RFC 7662).
     Service-to-service token validation.
     """
-    from rest_framework_simplejwt.tokens import UntypedToken
-    from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
-    from django.conf import settings
     import jwt
-    
+    from django.conf import settings
+    from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+    from rest_framework_simplejwt.tokens import UntypedToken
+
     token = request.data.get('token')
-    token_type_hint = request.data.get('token_type_hint', 'access_token')
-    
+    request.data.get('token_type_hint', 'access_token')
+
     if not token:
         return Response({
             'active': False,
             'error': 'invalid_request'
         }, status=400)
-    
+
     try:
         # Decode and verify token using simplejwt
         untyped_token = UntypedToken(token)
         decoded = untyped_token.token
-        
+
         # Check if token is expired
         from django.utils import timezone
         exp = decoded.get('exp')
@@ -140,7 +139,7 @@ def oauth_introspect(request):
                 return Response({
                     'active': False
                 })
-        
+
         # Return token information
         return Response({
             'active': True,

@@ -4,15 +4,16 @@ One-time sync: Copy existing programs.Track entries -> curriculum.CurriculumTrac
 After this, the signal handler will keep them in sync automatically.
 """
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from django.db import connection, transaction
+from curriculum.models import CurriculumTrack
+from django.db import connection
 from django.utils.text import slugify
 from programs.models import Track
-from curriculum.models import CurriculumTrack
 
 print("="*80)
 print(" SYNCING programs.Track -> curriculum.CurriculumTrack")
@@ -37,10 +38,10 @@ updated = 0
 for pt in program_tracks:
     code = pt.key.upper().replace('-', '_').replace(' ', '_')[:50]
     slug = slugify(pt.key)[:50] or slugify(pt.name)[:50]
-    
+
     # Determine tier
     tier = 6 if pt.track_type == 'cross_track' else 2
-    
+
     # Determine icon/color from name
     name_lower = pt.name.lower()
     icon = ('shield' if 'defend' in name_lower else
@@ -55,10 +56,10 @@ for pt in program_tracks:
              'purple' if 'innovation' in name_lower else
              'gold' if 'leadership' in name_lower else
              'indigo')
-    
+
     # Count missions
     mission_count = len(pt.missions) if isinstance(pt.missions, list) else 0
-    
+
     # Check if already exists
     existing = CurriculumTrack.objects.filter(program_track_id=pt.id).first()
     if existing:
@@ -71,7 +72,7 @@ for pt in program_tracks:
         updated += 1
         print(f"    [*] Updated: {pt.name} (code={existing.code})")
         continue
-    
+
     # Check by code
     existing_by_code = CurriculumTrack.objects.filter(code=code).first()
     if existing_by_code:
@@ -85,14 +86,14 @@ for pt in program_tracks:
         updated += 1
         print(f"    [*] Linked: {pt.name} (code={code})")
         continue
-    
+
     # Ensure slug is unique
     base_slug = slug
     counter = 1
     while CurriculumTrack.objects.filter(slug=slug).exists():
         slug = f"{base_slug}-{counter}"
         counter += 1
-    
+
     # Need to use raw SQL because of the 'level' column in DB not in model
     # (or use the model now that we added level field)
     try:
@@ -118,10 +119,10 @@ for pt in program_tracks:
         try:
             with connection.cursor() as cursor:
                 cursor.execute("""
-                    INSERT INTO curriculum_tracks 
-                    (id, code, slug, name, title, description, level, tier, 
-                     program_track_id, icon, color, mission_count, module_count, 
-                     lesson_count, is_active, created_at, updated_at, 
+                    INSERT INTO curriculum_tracks
+                    (id, code, slug, name, title, description, level, tier,
+                     program_track_id, icon, color, mission_count, module_count,
+                     lesson_count, is_active, created_at, updated_at,
                      thumbnail_url, order_number, estimated_duration_weeks)
                     VALUES (gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s,
                             %s, %s, %s, %s, 0, 0, true, NOW(), NOW(), '', 0, NULL)
@@ -130,7 +131,7 @@ for pt in program_tracks:
                         name = EXCLUDED.name,
                         title = EXCLUDED.title,
                         description = EXCLUDED.description
-                """, [code, slug, pt.name, pt.name, pt.description, 
+                """, [code, slug, pt.name, pt.name, pt.description,
                       'beginner', tier, str(pt.id), icon, color, mission_count])
             synced += 1
             print(f"    [+] Created (SQL): {pt.name} (code={code})")
@@ -138,13 +139,13 @@ for pt in program_tracks:
             print(f"    [!!] SQL fallback also failed: {e2}")
 
 # Step 3: Verify
-print(f"\n[3] Summary:")
+print("\n[3] Summary:")
 print(f"    - Programs tracks: {program_tracks.count()}")
 print(f"    - Synced (new): {synced}")
 print(f"    - Updated (existing): {updated}")
 print(f"    - Total curriculum tracks: {CurriculumTrack.objects.count()}")
 
-print(f"\n[4] Final curriculum_tracks state:")
+print("\n[4] Final curriculum_tracks state:")
 for ct in CurriculumTrack.objects.filter(is_active=True).order_by('tier', 'order_number'):
     linked = "[LINKED]" if ct.program_track_id else "[ORPHAN]"
     print(f"    {linked} Tier {ct.tier}: {ct.name} (code={ct.code})")

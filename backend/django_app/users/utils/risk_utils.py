@@ -1,10 +1,12 @@
 """
 Risk assessment utilities for authentication security.
 """
-from django.utils import timezone
 from datetime import timedelta
-from users.auth_models import UserSession, DeviceTrust
+
+from django.utils import timezone
+
 from users.audit_models import AuditLog
+from users.auth_models import DeviceTrust, UserSession
 
 
 def calculate_risk_score(user, ip_address, device_fingerprint, user_agent):
@@ -18,27 +20,27 @@ def calculate_risk_score(user, ip_address, device_fingerprint, user_agent):
     risk_score = 0.0
 
     user_uuid = getattr(user, 'uuid_id', None)
-    
+
     # Check if device is new
     if not DeviceTrust.objects.filter(
         user_id=user_uuid,
         device_fingerprint=device_fingerprint
     ).exists():
         risk_score += 0.3  # New device
-    
+
     # Check recent IP addresses
     recent_sessions = UserSession.objects.filter(
         user=user,
         created_at__gte=timezone.now() - timedelta(hours=24)
     ).exclude(ip_address__isnull=True).values_list('ip_address', flat=True).distinct()
-    
+
     if ip_address and ip_address not in recent_sessions:
         risk_score += 0.2  # New IP address
-    
+
     # Check for rapid IP changes (geo-velocity)
     if len(recent_sessions) > 3:
         risk_score += 0.2
-    
+
     # Check failed login attempts (from audit log)
     recent_failures = AuditLog.objects.filter(
         user=user,
@@ -46,14 +48,14 @@ def calculate_risk_score(user, ip_address, device_fingerprint, user_agent):
         result='failure',
         timestamp__gte=timezone.now() - timedelta(minutes=15)
     ).count()
-    
+
     if recent_failures > 0:
         risk_score += min(recent_failures * 0.1, 0.5)  # Cap at 0.5
-    
+
     # TOR/VPN detection (placeholder - implement with external service)
     if _is_tor_or_vpn(ip_address):
         risk_score += 0.3
-    
+
     return min(risk_score, 1.0)  # Cap at 1.0
 
 

@@ -1,8 +1,9 @@
 """
 Community module URL configuration.
 """
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
 from . import views
 
 router = DefaultRouter()
@@ -34,13 +35,13 @@ router.register(r'messages', views.CommunityMessageViewSet, basename='message')
 urlpatterns = [
     # Router URLs
     path('', include(router.urls)),
-    
+
     # Feed
     path('feed/', views.FeedView.as_view(), name='feed'),
-    
+
     # Search
     path('search/', views.SearchView.as_view(), name='search'),
-    
+
     # User stats
     path('stats/', views.UserStatsView.as_view(), name='my-stats'),
     path('stats/<uuid:user_id>/', views.UserStatsView.as_view(), name='user-stats'),

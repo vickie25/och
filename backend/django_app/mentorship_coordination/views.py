@@ -1,37 +1,48 @@
 """
 Views for Mentorship Coordination Engine.
 """
-from rest_framework.decorators import api_view, permission_classes, parser_classes
+import json
+import logging
+import uuid
+from datetime import timedelta
+
+from django.contrib.auth import get_user_model
+from django.db.models import Count, F, Q
+from django.utils import timezone
+from missions.models import MissionSubmission
+from rest_framework import status
+from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.parsers import MultiPartParser, FormParser
-from django.utils import timezone
-from django.db.models import Q, Count, F
-from django.contrib.auth import get_user_model
-from datetime import timedelta
-import json
-import uuid
-
-from .models import MenteeMentorAssignment, MentorSession, MentorWorkQueue, MentorFlag, SessionAttendance, SessionFeedback, MentorshipMessage, MessageAttachment, DirectorMentorMessage, NotificationLog
-from .serializers import (
-    MenteeMentorAssignmentSerializer,
-    MentorSessionSerializer,
-    MentorWorkQueueSerializer,
-    MentorFlagSerializer,
-    CreateSessionSerializer,
-    CreateGroupSessionSerializer,
-    MissionReviewSerializer,
-    CreateFlagSerializer,
-    MentorshipMessageSerializer,
-    DirectorMentorMessageSerializer,
-    SendDirectorMentorMessageSerializer,
-    NotificationLogSerializer,
-    CreateNotificationSerializer
-)
-from missions.models import MissionSubmission
 from student_dashboard.services import DashboardAggregationService
-import logging
+
+from .models import (
+    DirectorMentorMessage,
+    MenteeMentorAssignment,
+    MentorFlag,
+    MentorSession,
+    MentorshipMessage,
+    MentorWorkQueue,
+    MessageAttachment,
+    NotificationLog,
+    SessionAttendance,
+    SessionFeedback,
+)
+from .serializers import (
+    CreateFlagSerializer,
+    CreateGroupSessionSerializer,
+    CreateNotificationSerializer,
+    CreateSessionSerializer,
+    DirectorMentorMessageSerializer,
+    MentorFlagSerializer,
+    MentorSessionSerializer,
+    MentorshipMessageSerializer,
+    MentorWorkQueueSerializer,
+    MissionReviewSerializer,
+    NotificationLogSerializer,
+    SendDirectorMentorMessageSerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,24 +59,24 @@ def mentor_assignments_list(request):
     mentor_id = request.query_params.get('mentor')
     if not mentor_id:
         return Response({'error': 'mentor parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     # Verify the mentor_id matches the authenticated user
     if str(request.user.id) != str(mentor_id):
         return Response({'error': 'You can only view your own assignments'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         from programs.models import MentorAssignment
         assignments = MentorAssignment.objects.filter(
             mentor_id=mentor_id,
             active=True
         ).select_related('cohort__track__program')
-        
+
         results = []
         for assignment in assignments:
             cohort = assignment.cohort
             track = cohort.track if cohort else None
             program = track.program if track else None
-            
+
             results.append({
                 'id': str(assignment.id),
                 'mentor_id': str(assignment.mentor.id),
@@ -80,7 +91,7 @@ def mentor_assignments_list(request):
                 'assigned_at': assignment.assigned_at.isoformat() if assignment.assigned_at else None,
                 'active': assignment.active,
             })
-        
+
         return Response(results)
     except Exception as e:
         logger.error(f"Error fetching mentor assignments: {str(e)}", exc_info=True)
@@ -195,21 +206,21 @@ def mentor_assigned_cohorts(request, mentor_id):
     """
     if str(request.user.id) != str(mentor_id):
         return Response({'error': 'You can only view your own cohorts'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         from programs.models import MentorAssignment
         assignments = MentorAssignment.objects.filter(
             mentor_id=mentor_id,
             active=True
         ).select_related('cohort__track__program')
-        
+
         cohorts = []
         for assignment in assignments:
             cohort = assignment.cohort
             if cohort:
                 track = cohort.track
                 program = track.program if track else None
-                
+
                 cohorts.append({
                     'id': str(cohort.id),
                     'name': cohort.name,
@@ -220,7 +231,7 @@ def mentor_assigned_cohorts(request, mentor_id):
                     'end_date': cohort.end_date.isoformat() if cohort.end_date else None,
                     'status': cohort.status,
                 })
-        
+
         return Response(cohorts)
     except Exception as e:
         logger.error(f"Error fetching mentor cohorts: {str(e)}", exc_info=True)
@@ -267,22 +278,22 @@ def submit_session_feedback(request, session_id):
             {'error': 'Session not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     # Verify the mentee was part of this session
     mentee_id = str(request.user.id)
     attendance = SessionAttendance.objects.filter(
         session=session,
         mentee_id=mentee_id
     ).first()
-    
+
     if not attendance:
         return Response(
             {'error': 'You can only provide feedback for sessions you attended'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     data = request.data or {}
-    
+
     # Validate required fields
     required_fields = ['overall_rating', 'mentor_engagement', 'mentor_preparation', 'session_value']
     for field in required_fields:
@@ -296,7 +307,7 @@ def submit_session_feedback(request, session_id):
                 {'error': f'{field} must be an integer between 1 and 5'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-    
+
     # Create or update feedback (one feedback per mentee per session)
     feedback, created = SessionFeedback.objects.update_or_create(
         session=session,
@@ -312,9 +323,9 @@ def submit_session_feedback(request, session_id):
             'additional_comments': data.get('additional_comments', ''),
         }
     )
-    
+
     logger.info(f"{'Created' if created else 'Updated'} feedback for session {session_id} from mentee {mentee_id}")
-    
+
     return Response({
         'id': str(feedback.id),
         'session_id': str(session.id),
@@ -346,9 +357,9 @@ def get_session_feedback(request, session_id):
             {'error': 'Session not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     user_id = str(request.user.id)
-    
+
     # Mentors can see all feedback, mentees can only see their own
     if str(session.mentor.id) == user_id:
         # Mentor viewing - get all feedback
@@ -356,7 +367,7 @@ def get_session_feedback(request, session_id):
     else:
         # Mentee viewing - get only their feedback
         feedback_list = SessionFeedback.objects.filter(session=session, mentee_id=user_id).select_related('mentee')
-    
+
     feedback_data = []
     for feedback in feedback_list:
         feedback_data.append({
@@ -374,7 +385,7 @@ def get_session_feedback(request, session_id):
             'submitted_at': feedback.submitted_at.isoformat(),
             'updated_at': feedback.updated_at.isoformat(),
         })
-    
+
     return Response({
         'session_id': str(session.id),
         'feedback': feedback_data,
@@ -453,7 +464,7 @@ def mentor_feedback_summary(request, mentor_id):
             {'error': 'You can only view your own feedback summary'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     try:
         mentor = get_current_mentor(request.user)
     except Exception as e:
@@ -461,7 +472,7 @@ def mentor_feedback_summary(request, mentor_id):
             {'error': str(e)},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     # Get all feedback for this mentor's sessions
     feedback_stats = SessionFeedback.objects.filter(
         mentor=mentor
@@ -472,7 +483,7 @@ def mentor_feedback_summary(request, mentor_id):
         avg_preparation=Avg('mentor_preparation'),
         avg_value=Avg('session_value'),
     )
-    
+
     return Response({
         'mentor_id': str(mentor.id),
         'total_feedback_count': feedback_stats['total_feedback'] or 0,
@@ -571,7 +582,7 @@ def mentor_mentee_talentscope(request, mentor_id, mentee_id):
 
     # Pull TalentScope models if available
     try:
-        from talentscope.models import SkillSignal, BehaviorSignal, ReadinessSnapshot
+        from talentscope.models import BehaviorSignal, ReadinessSnapshot, SkillSignal
     except Exception:
         SkillSignal = None
         BehaviorSignal = None
@@ -728,8 +739,8 @@ def mentor_cohort_missions(request, mentor_id):
         )
 
     try:
-        from programs.models import MentorAssignment, Track
         from missions.models import Mission, MissionAssignment
+        from programs.models import MentorAssignment, Track
 
         # MentorAssignment has cohort = ForeignKey(Cohort); use cohort_id for raw FK value
         cohort_ids = list(
@@ -957,7 +968,7 @@ def update_group_session(request, session_id):
     # Update schedule - handle both scheduled_at and duration_minutes together
     scheduled_at = data.get('scheduled_at')
     duration_minutes = data.get('duration_minutes')
-    
+
     # Process scheduled_at first if provided
     if scheduled_at:
         try:
@@ -972,21 +983,21 @@ def update_group_session(request, session_id):
                 'error': f'Invalid scheduled_at: {str(e)}',
                 'received_value': scheduled_at
             }, status=status.HTTP_400_BAD_REQUEST)
-    
+
     # Process duration_minutes (requires valid start_time)
     if duration_minutes is not None:
         logger.info(f"Processing duration_minutes: {duration_minutes} (type: {type(duration_minutes)})")
-        
+
         # Ensure we have a valid start_time
         if session.start_time is None:
             logger.error(f"Cannot set duration: session.start_time is None for session {session_id}")
             return Response({'error': 'Cannot set duration: session start time is not set'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         try:
             dur = int(duration_minutes) if not isinstance(duration_minutes, int) else duration_minutes
             if dur <= 0:
                 return Response({'error': 'duration_minutes must be a positive integer'}, status=status.HTTP_400_BAD_REQUEST)
-            
+
             start_time_aware = _ensure_tz_aware(session.start_time)
             session.end_time = start_time_aware + timedelta(minutes=dur)
             logger.info(f"Updated session end_time to: {session.end_time} (duration: {dur} minutes)")
@@ -1009,7 +1020,7 @@ def update_group_session(request, session_id):
     if 'structured_notes' in data:
         structured_notes_data = data.get('structured_notes')
         logger.info(f"Received structured_notes for session {session_id}: {structured_notes_data} (type: {type(structured_notes_data)})")
-        
+
         # Always save the structured_notes data as-is (even if empty dict to clear notes)
         if structured_notes_data is not None:
             # Ensure it's a dict (in case it comes as a string)
@@ -1019,18 +1030,18 @@ def update_group_session(request, session_id):
                 except json.JSONDecodeError:
                     logger.error(f"Failed to parse structured_notes JSON string: {structured_notes_data}")
                     structured_notes_data = {}
-            
+
             # CRITICAL: Explicitly set the value and ensure it's a proper dict
             # Django JSONField needs a dict, not None
             if not isinstance(structured_notes_data, dict):
                 logger.error(f"structured_notes_data is not a dict: {type(structured_notes_data)}")
                 structured_notes_data = {}
-            
+
             # Set the value
             session.structured_notes = structured_notes_data
             logger.info(f"Setting structured_notes for session {session_id} to: {session.structured_notes}")
             logger.info(f"structured_notes keys after setting: {list(session.structured_notes.keys()) if session.structured_notes else 'None'}")
-            
+
             # Auto-complete session if notes are added and session end time has passed
             # Check if notes have meaningful content
             has_notes_content = (
@@ -1044,12 +1055,12 @@ def update_group_session(request, session_id):
             ) or (
                 structured_notes_data.get('next_steps') and structured_notes_data.get('next_steps', '').strip()
             )
-            
+
             # If session has ended and notes have content, mark as attended (completed)
             if has_notes_content and timezone.now() >= session.end_time and not session.attended and not session.cancelled:
                 session.attended = True
                 logger.info(f"Auto-marking session {session_id} as completed (attended=True) because notes were added after session end time")
-            
+
             # CRITICAL: Save this field immediately to ensure it's persisted
             # Use update_fields to force save this specific field
             fields_to_update = ['structured_notes']
@@ -1068,7 +1079,7 @@ def update_group_session(request, session_id):
             session.cancellation_reason = data.get('cancellation_reason', '')
         elif not session.cancelled:
             session.cancellation_reason = ''
-    
+
     # Mark session as attended (completed) - can be set explicitly
     if 'attended' in data:
         session.attended = bool(data.get('attended'))
@@ -1105,24 +1116,24 @@ def update_group_session(request, session_id):
             rec.save()
 
     session.save()
-    
+
     # Refresh from database to ensure we have the latest data
     session.refresh_from_db()
-    
+
     # Send session reminders if session is scheduled and start_time is in the future
     if session.start_time > timezone.now() and not session.cancelled:
         try:
             send_session_reminder(session, reminder_minutes=60)  # 1 hour before
         except Exception as e:
             logger.error(f"Error sending session reminder: {str(e)}", exc_info=True)
-    
+
     # Send feedback reminder if session has ended and feedback not submitted
     if session.end_time < timezone.now() and session.attended and not session.cancelled:
         try:
             send_feedback_reminder(session)
         except Exception as e:
             logger.error(f"Error sending feedback reminder: {str(e)}", exc_info=True)
-    
+
     # Log the saved structured_notes to verify they were saved
     logger.info(f"Session {session_id} saved. structured_notes type: {type(session.structured_notes)}, value: {session.structured_notes}")
 
@@ -1130,7 +1141,7 @@ def update_group_session(request, session_id):
     now = timezone.now()
     start_time = _ensure_tz_aware(session.start_time)
     end_time = _ensure_tz_aware(session.end_time)
-    
+
     # Determine session status based on business logic:
     # 1. Cancelled takes precedence - if cancelled, status is always 'cancelled'
     # 2. Completed - if attended flag is True
@@ -1294,27 +1305,27 @@ def mentor_mentees(request, mentor_id):
                 {'error': 'You can only view your own mentees'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         # Use the authenticated user as mentor (they are already verified as a mentor)
         mentor = request.user
-        
+
         # Get active assignments
         assignments = MenteeMentorAssignment.objects.filter(
             mentor=mentor,
             status='active'
         ).select_related('mentee')
-        
+
         # Get mentee dashboard data for readiness scores (with error handling)
         mentees_data = []
         for assignment in assignments:
             try:
                 mentee = assignment.mentee
-                
+
                 # Get readiness score from dashboard cache (with safe access)
                 readiness_score = 0.0
                 readiness_label = "Needs Support"
                 risk_level = 'low'
-                
+
                 try:
                     from student_dashboard.models import StudentDashboardCache
                     cache = StudentDashboardCache.objects.filter(user=mentee).first()
@@ -1324,7 +1335,7 @@ def mentor_mentees(request, mentor_id):
                         risk_level = cache.risk_level
                 except Exception as cache_err:
                     logger.warning(f"Failed to get dashboard cache for mentee {mentee.id}: {str(cache_err)}")
-                
+
                 # Determine readiness label
                 if readiness_score >= 80:
                     readiness_label = "Advanced Ready"
@@ -1334,12 +1345,12 @@ def mentor_mentees(request, mentor_id):
                     readiness_label = "Needs Support"
                 else:
                     readiness_label = "At Risk"
-                
+
                 # Get last activity (from last login or session)
                 last_activity = mentee.last_login if hasattr(mentee, 'last_login') and mentee.last_login else None
                 if not last_activity and hasattr(mentee, 'updated_at'):
                     last_activity = mentee.updated_at
-                
+
                 # Count completed missions (with error handling)
                 missions_completed = 0
                 try:
@@ -1350,7 +1361,7 @@ def mentor_mentees(request, mentor_id):
                     ).count()
                 except Exception as mission_err:
                     logger.warning(f"Failed to get mission count for mentee {mentee.id}: {str(mission_err)}")
-                
+
                 mentees_data.append({
                     'id': str(mentee.id),
                     'name': mentee.get_full_name() if hasattr(mentee, 'get_full_name') else (mentee.email if mentee.email else str(mentee.id)),
@@ -1367,7 +1378,7 @@ def mentor_mentees(request, mentor_id):
                 logger.error(f"Error processing mentee in assignment {assignment.id}: {str(mentee_err)}", exc_info=True)
                 # Continue with next mentee instead of failing completely
                 continue
-        
+
         return Response(mentees_data)
     except Exception as e:
         logger.error(f"Error in mentor_mentees endpoint: {str(e)}", exc_info=True)
@@ -1388,7 +1399,7 @@ def mentor_dashboard(request):
     now = timezone.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timedelta(days=1)
-    
+
     # Work queue stats
     work_queue = MentorWorkQueue.objects.filter(mentor=mentor)
     overdue = work_queue.filter(status='overdue').count()
@@ -1402,27 +1413,27 @@ def mentor_dashboard(request):
         status__in=['pending', 'in_progress']
     ).count()
     total_pending = work_queue.filter(status__in=['pending', 'in_progress']).count()
-    
+
     # Today's sessions
     today_sessions = MentorSession.objects.filter(
         mentor=mentor,
         start_time__gte=today_start,
         start_time__lt=today_end
     ).order_by('start_time')
-    
+
     # At-risk mentees (simplified - would integrate with TalentScope)
     at_risk_mentees = []
     active_assignments = MenteeMentorAssignment.objects.filter(
         mentor=mentor,
         status='active'
     ).select_related('mentee')
-    
+
     for assignment in active_assignments[:5]:  # Top 5
         flags = MentorFlag.objects.filter(
             mentee=assignment.mentee,
             resolved=False
         ).order_by('-created_at')[:1]
-        
+
         if flags:
             flag = flags[0]
             at_risk_mentees.append({
@@ -1432,7 +1443,7 @@ def mentor_dashboard(request):
                 'habit_streak': 0,  # Would come from Coaching OS
                 'flag': flag.reason[:100]
             })
-    
+
     # Capacity
     week_start = now - timedelta(days=now.weekday())
     week_sessions = MentorSession.objects.filter(
@@ -1440,10 +1451,10 @@ def mentor_dashboard(request):
         start_time__gte=week_start
     ).count()
     capacity_used = f"{week_sessions}/{mentor.mentor_capacity_weekly}"
-    
+
     # Next available slot (simplified)
     next_available = now + timedelta(hours=24)
-    
+
     # Recent activity (last 10 work queue completions)
     recent_activity = MentorWorkQueue.objects.filter(
         mentor=mentor,
@@ -1453,7 +1464,7 @@ def mentor_dashboard(request):
         'title',
         'completed_at'
     )
-    
+
     return Response({
         'work_queue': {
             'overdue': overdue,
@@ -1486,21 +1497,21 @@ def mentor_workqueue(request):
     Get mentor's work queue items.
     """
     mentor = get_current_mentor(request.user)
-    
+
     status_filter = request.query_params.get('status', 'pending')
     priority_filter = request.query_params.get('priority')
-    
+
     queryset = MentorWorkQueue.objects.filter(mentor=mentor)
-    
+
     if status_filter:
         queryset = queryset.filter(status=status_filter)
     if priority_filter:
         queryset = queryset.filter(priority=priority_filter)
-    
+
     queryset = queryset.order_by('-priority', 'due_at')
-    
+
     serializer = MentorWorkQueueSerializer(queryset, many=True)
-    
+
     # Add reference URLs
     data = serializer.data
     for item in data:
@@ -1508,7 +1519,7 @@ def mentor_workqueue(request):
             item['reference_url'] = f"/missions/{item['reference_id']}/review"
         else:
             item['reference_url'] = None
-    
+
     return Response(data)
 
 
@@ -1520,22 +1531,22 @@ def mentee_cockpit(request, mentee_id):
     Get detailed mentee cockpit view.
     """
     mentor = get_current_mentor(request.user)
-    
+
     # Verify assignment exists
     assignment = MenteeMentorAssignment.objects.filter(
         mentor=mentor,
         mentee_id=mentee_id,
         status='active'
     ).first()
-    
+
     if not assignment:
         return Response(
             {'error': 'Mentee not assigned to this mentor'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     mentee = assignment.mentee
-    
+
     # Profile data
     profile = {
         'name': mentee.get_full_name() or mentee.email,
@@ -1544,13 +1555,13 @@ def mentee_cockpit(request, mentee_id):
         'readiness': 67.4,  # Would come from TalentScope
         'trend_7d': -2.1  # Would come from TalentScope
     }
-    
+
     # Quick actions
     pending_missions = MissionSubmission.objects.filter(
         student=mentee,
         status__in=['submitted', 'ai_reviewed']
     ).order_by('-submitted_at')[:3]
-    
+
     quick_actions = [
         {
             'type': 'review_mission',
@@ -1563,14 +1574,14 @@ def mentee_cockpit(request, mentee_id):
         'type': 'schedule_session',
         'url': '/sessions/new'
     })
-    
+
     # Metrics (simplified - would integrate with actual data)
     metrics = {
         'habit_completion': 62.3,  # Would come from Coaching OS
         'missions_completed': 8,  # Would come from Missions
         'sessions_used': assignment.sessions_used
     }
-    
+
     return Response({
         'profile': profile,
         'quick_actions': quick_actions,
@@ -1587,9 +1598,9 @@ def mentor_sessions(request, mentor_id):
     """
     import logging
     logger = logging.getLogger(__name__)
-    
+
     logger.info(f"mentor_sessions called: method={request.method}, mentor_id={mentor_id}, user_id={request.user.id}")
-    
+
     # Verify the mentor_id matches the authenticated user
     if str(request.user.id) != str(mentor_id):
         logger.warning(f"Mentor ID mismatch: user_id={request.user.id}, mentor_id={mentor_id}")
@@ -1597,7 +1608,7 @@ def mentor_sessions(request, mentor_id):
             {'error': 'You can only access your own sessions'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     try:
         mentor = get_current_mentor(request.user)
     except Exception as e:
@@ -1606,18 +1617,18 @@ def mentor_sessions(request, mentor_id):
             {'error': f'User is not a mentor: {str(e)}'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     if request.method == 'GET':
         # List sessions
         status_filter = request.query_params.get('status', 'all')
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
-        
+
         queryset = MentorSession.objects.filter(
             mentor=mentor,
             type='group'
         )
-        
+
         if status_filter != 'all':
             # Map frontend status to database fields
             if status_filter == 'scheduled':
@@ -1626,15 +1637,15 @@ def mentor_sessions(request, mentor_id):
                 queryset = queryset.filter(attended=True, cancelled=False)
             elif status_filter == 'cancelled':
                 queryset = queryset.filter(cancelled=True)
-        
+
         if start_date:
             queryset = queryset.filter(start_time__gte=start_date)
         if end_date:
             queryset = queryset.filter(start_time__lte=end_date)
-        
+
         queryset = queryset.order_by('-start_time')
         sessions = queryset.select_related('mentee', 'assignment')
-        
+
         # Format sessions for frontend
         sessions_data = []
         for session in sessions:
@@ -1666,14 +1677,14 @@ def mentor_sessions(request, mentor_id):
                 'created_at': session.created_at.isoformat(),
                 'updated_at': session.updated_at.isoformat(),
             })
-        
+
         return Response(sessions_data)
-    
+
     elif request.method == 'POST':
         # Create group session
         logger.info(f"Creating group session with data: {request.data}")
         logger.info(f"Request data type: {type(request.data)}, keys: {list(request.data.keys()) if hasattr(request.data, 'keys') else 'N/A'}")
-        
+
         # Clean up None/undefined values - convert to empty strings for optional fields
         cleaned_data = {}
         for key, value in request.data.items():
@@ -1686,15 +1697,15 @@ def mentor_sessions(request, mentor_id):
                     continue
             else:
                 cleaned_data[key] = value
-        
+
         logger.info(f"Cleaned data: {cleaned_data}")
-        
+
         try:
             serializer = CreateGroupSessionSerializer(data=cleaned_data)
-            logger.info(f"Serializer created, calling is_valid()...")
+            logger.info("Serializer created, calling is_valid()...")
             is_valid_result = serializer.is_valid()
             logger.info(f"Serializer is_valid() returned: {is_valid_result}")
-            
+
             if not is_valid_result:
                 error_dict = dict(serializer.errors)
                 error_details = {
@@ -1711,22 +1722,22 @@ def mentor_sessions(request, mentor_id):
                 }
                 logger.error(f"Returning error response: {response_data}")
                 return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
-            
+
             # Validation passed, proceed with creating the session
             logger.info("Serializer validation passed, proceeding with session creation...")
             scheduled_at = serializer.validated_data['scheduled_at']
             duration = serializer.validated_data.get('duration_minutes', 60)
             logger.info(f"Parsed scheduled_at: {scheduled_at}, duration: {duration}")
-            
+
             end_time = scheduled_at + timedelta(minutes=duration)
-            
+
             # For group sessions, find cohorts where the mentor is assigned
             # Get cohorts from MentorAssignment (cohort-level assignments)
-            from programs.models import MentorAssignment, Cohort, Enrollment
-            
+            from programs.models import Cohort, Enrollment, MentorAssignment
+
             # Check if cohort_id was provided
             cohort_id = serializer.validated_data.get('cohort_id')
-            
+
             if cohort_id:
                 # Validate that the mentor is assigned to this cohort
                 logger.info(f"Using provided cohort_id: {cohort_id}")
@@ -1737,7 +1748,7 @@ def mentor_sessions(request, mentor_id):
                         cohort=cohort,
                         active=True
                     ).first()
-                    
+
                     if not cohort_assignment:
                         logger.error(f"Mentor {mentor.id} is not assigned to cohort {cohort_id}")
                         return Response(
@@ -1757,39 +1768,39 @@ def mentor_sessions(request, mentor_id):
                     mentor=mentor,
                     active=True
                 ).select_related('cohort')
-                
+
                 if not cohort_assignments.exists():
                     logger.error(f"No active cohort assignments found for mentor {mentor.id}")
                     return Response(
                         {'error': 'No active cohort assignments found. Group sessions require at least one assigned cohort. Please select a cohort.'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                
+
                 # Get the first cohort assignment
                 first_cohort_assignment = cohort_assignments.first()
                 cohort = first_cohort_assignment.cohort
                 logger.info(f"Using first available cohort: {cohort.id} ({cohort.name})")
-            
+
             logger.info(f"Using cohort: {cohort.id} ({cohort.name}), getting enrollments...")
-            
+
             # Get active enrollments from this cohort to use as base for the session
             enrollments = Enrollment.objects.filter(
                 cohort=cohort,
                 status__in=['active', 'completed']
             ).select_related('user')
-            
+
             if not enrollments.exists():
                 logger.error(f"No active enrollments found in cohort {cohort.id}")
                 return Response(
                     {'error': f'No active students found in cohort {cohort.name}. Group sessions require at least one enrolled student.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             # Use the first enrollment as the base mentee for the session
             # (Group sessions can have multiple mentees, but we need one as a base)
             first_enrollment = enrollments.first()
             first_mentee = first_enrollment.user
-            
+
             # Try to find or create a MenteeMentorAssignment for this mentee
             # This is needed for the MentorSession model which requires an assignment
             mentee_assignment, created = MenteeMentorAssignment.objects.get_or_create(
@@ -1800,20 +1811,20 @@ def mentor_sessions(request, mentor_id):
                     'cohort_id': str(cohort.id),
                 }
             )
-            
+
             if created:
                 logger.info(f"Created MenteeMentorAssignment for mentee {first_mentee.id}")
             else:
                 logger.info(f"Using existing MenteeMentorAssignment {mentee_assignment.id}")
-            
+
             logger.info(f"Creating group session with mentee {first_mentee.id} from cohort {cohort.id}...")
-            
+
             # Create group session using the assignment as base (group sessions can have multiple mentees)
             meeting_link = serializer.validated_data.get('meeting_link') or ''
             if not meeting_link:
                 # Generate a placeholder Zoom URL if none provided
                 meeting_link = f"https://zoom.us/j/{uuid.uuid4().hex[:10]}"
-            
+
             session = MentorSession.objects.create(
                 assignment=mentee_assignment,
                 mentee=first_mentee,  # Use first mentee as placeholder
@@ -1825,7 +1836,7 @@ def mentor_sessions(request, mentor_id):
                 zoom_url=meeting_link,
                 notes=serializer.validated_data.get('description', '') or ''
             )
-            
+
             # Store track assignment and meeting type in outcomes JSON field
             session.outcomes = {
                 'track_assignment': serializer.validated_data.get('track_assignment') or '',
@@ -1833,16 +1844,16 @@ def mentor_sessions(request, mentor_id):
                 'description': serializer.validated_data.get('description') or ''
             }
             session.save()
-            
+
             logger.info(f"Session created successfully: {session.id}")
-            
+
             # Send session reminders if session is scheduled and start_time is in the future
             if session.start_time > timezone.now():
                 try:
                     send_session_reminder(session, reminder_minutes=60)  # 1 hour before
                 except Exception as e:
                     logger.error(f"Error sending session reminder: {str(e)}", exc_info=True)
-            
+
             # Return session data in format expected by frontend
             session_data = {
                 'id': str(session.id),
@@ -1863,12 +1874,11 @@ def mentor_sessions(request, mentor_id):
                 'created_at': session.created_at.isoformat(),
                 'updated_at': session.updated_at.isoformat(),
             }
-            
+
             return Response(session_data, status=status.HTTP_201_CREATED)
-            
+
         except Exception as e:
             logger.error(f"Exception during serializer validation or session creation: {str(e)}", exc_info=True)
-            import traceback
             return Response(
                 {
                     'error': 'Error processing request',
@@ -1889,38 +1899,38 @@ def create_session(request):
     mentor = get_current_mentor(request.user)
     serializer = CreateSessionSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    
+
     mentee_id = serializer.validated_data.get('mentee_id')
-    
+
     if not mentee_id:
         return Response(
             {'error': 'mentee_id is required for one-on-one sessions'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     # Verify assignment
     assignment = MenteeMentorAssignment.objects.filter(
         mentor=mentor,
         mentee_id=mentee_id,
         status='active'
     ).first()
-    
+
     if not assignment:
         return Response(
             {'error': 'Mentee not assigned to this mentor'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     if assignment.sessions_used >= assignment.max_sessions:
         return Response(
             {'error': 'Maximum sessions reached for this assignment'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     start_time = serializer.validated_data['start_time']
     duration = serializer.validated_data['duration_minutes']
     end_time = start_time + timedelta(minutes=duration)
-    
+
     # Create session
     session = MentorSession.objects.create(
         assignment=assignment,
@@ -1932,7 +1942,7 @@ def create_session(request):
         end_time=end_time,
         zoom_url=f"https://zoom.us/j/{uuid.uuid4().hex[:10]}"  # Mock Zoom URL
     )
-    
+
     # Create work queue entry for session notes
     MentorWorkQueue.objects.create(
         mentor=mentor,
@@ -1944,18 +1954,18 @@ def create_session(request):
         sla_hours=24,
         due_at=end_time + timedelta(hours=24)
     )
-    
+
     # Update assignment
     assignment.sessions_used += 1
     assignment.save()
-    
+
     # Trigger dashboard refresh for mentee
     DashboardAggregationService.queue_update(
         assignment.mentee,
         'session_scheduled',
         'normal'
     )
-    
+
     return Response(MentorSessionSerializer(session).data, status=status.HTTP_201_CREATED)
 
 
@@ -1967,37 +1977,37 @@ def request_session(request):
     Student/mentee endpoint to request a new mentorship session.
     """
     from .serializers import RequestSessionSerializer
-    
+
     user = request.user
     serializer = RequestSessionSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    
+
     # Find the mentee's assigned mentor
     assignment = MenteeMentorAssignment.objects.filter(
         mentee=user,
         status='active'
     ).first()
-    
+
     if not assignment:
         return Response(
             {'error': 'No active mentor assignment found. Please contact your program director.'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     mentor = assignment.mentor
-    
+
     # Check if max sessions reached
     if assignment.sessions_used >= assignment.max_sessions:
         return Response(
             {'error': 'Maximum sessions reached for this assignment. Please contact your mentor or program director.'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     # Parse preferred date and calculate end time
     preferred_date = serializer.validated_data['preferred_date']
     duration = serializer.validated_data['duration_minutes']
     end_time = preferred_date + timedelta(minutes=duration)
-    
+
     # Create session with 'pending' status (mentor will confirm)
     session = MentorSession.objects.create(
         assignment=assignment,
@@ -2010,7 +2020,7 @@ def request_session(request):
         notes=serializer.validated_data.get('description', '') or '',
         # Status will be 'pending' by default - mentor needs to confirm
     )
-    
+
     # Create work queue entry for mentor to review and confirm
     MentorWorkQueue.objects.create(
         mentor=mentor,
@@ -2023,7 +2033,7 @@ def request_session(request):
         sla_hours=24,
         due_at=timezone.now() + timedelta(hours=24)
     )
-    
+
     # Trigger dashboard refresh
     try:
         from dashboard.services import DashboardAggregationService
@@ -2034,7 +2044,7 @@ def request_session(request):
         )
     except Exception:
         pass  # Dashboard service may not be available
-    
+
     return Response({
         'id': str(session.id),
         'title': session.title,
@@ -2152,22 +2162,22 @@ def create_flag(request):
     mentor = get_current_mentor(request.user)
     serializer = CreateFlagSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    
+
     mentee_id = serializer.validated_data['mentee_id']
-    
+
     # Verify assignment
     assignment = MenteeMentorAssignment.objects.filter(
         mentor=mentor,
         mentee_id=mentee_id,
         status='active'
     ).first()
-    
+
     if not assignment:
         return Response(
             {'error': 'Mentee not assigned to this mentor'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     # Create flag
     # Combine flag_type and description into reason field
     reason_parts = []
@@ -2177,29 +2187,29 @@ def create_flag(request):
         reason_parts.append(serializer.validated_data['description'])
     if serializer.validated_data.get('reason'):
         reason_parts.append(serializer.validated_data['reason'])
-    
+
     reason = ' | '.join(reason_parts) if reason_parts else 'No reason provided'
-    
+
     flag = MentorFlag.objects.create(
         mentor=mentor,
         mentee_id=mentee_id,
         reason=reason,
         severity=serializer.validated_data['severity']
     )
-    
+
     # Notify director if high/critical
     if serializer.validated_data['severity'] in ['high', 'critical']:
         flag.director_notified = True
         flag.save()
         # Would send notification here
-    
+
     # Trigger dashboard refresh
     DashboardAggregationService.queue_update(
         assignment.mentee,
         'risk_flag_raised',
         'urgent'
     )
-    
+
     return Response(MentorFlagSerializer(flag).data, status=status.HTTP_201_CREATED)
 
 
@@ -2216,9 +2226,9 @@ def mentor_mission_submissions(request, mentor_id):
             {'error': 'You can only view your own submissions'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     mentor = get_current_mentor(request.user)
-    
+
     # Get active assignments
     assignments = MenteeMentorAssignment.objects.filter(
         mentor=mentor,
@@ -2268,7 +2278,7 @@ def mentor_mission_submissions(request, mentor_id):
             item['reviewed_at'] = submission.reviewed_at.isoformat() if getattr(submission, 'reviewed_at', None) else None
             item['feedback'] = (submission.feedback or '')[:500] if getattr(submission, 'feedback', None) else ''
         submissions_data.append(item)
-    
+
     return Response({
         'results': submissions_data,
         'count': total_count
@@ -2288,11 +2298,11 @@ def mentor_all_missions(request, mentor_id):
             {'error': 'You can only view your own missions'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
+    from django.db.models import Q
     from missions.models import Mission
     from missions.serializers import MissionSerializer
-    from django.db.models import Q
-    
+
     # Get query parameters for filtering
     track_key = request.query_params.get('track_key')
     track = request.query_params.get('track')
@@ -2301,46 +2311,46 @@ def mentor_all_missions(request, mentor_id):
     mission_type = request.query_params.get('type')
     search = request.query_params.get('search')
     is_active = request.query_params.get('is_active', 'true')
-    
+
     # Build queryset
     queryset = Mission.objects.all()
-    
+
     if is_active.lower() == 'true':
         queryset = queryset.filter(is_active=True)
-    
+
     if track_key:
         queryset = queryset.filter(track_key=track_key)
-    
+
     if track:
         queryset = queryset.filter(track=track)
-    
+
     if difficulty:
         queryset = queryset.filter(difficulty=difficulty)
-    
+
     if tier:
         queryset = queryset.filter(tier=tier)
-    
+
     if mission_type:
         queryset = queryset.filter(type=mission_type)
-    
+
     if search:
         queryset = queryset.filter(
             Q(code__icontains=search) |
             Q(title__icontains=search) |
             Q(description__icontains=search)
         )
-    
+
     # Order by created_at
     queryset = queryset.order_by('-created_at')
-    
+
     # Pagination
     limit = int(request.query_params.get('limit', 50))
     offset = int(request.query_params.get('offset', 0))
     total_count = queryset.count()
     missions = queryset[offset:offset + limit]
-    
+
     serializer = MissionSerializer(missions, many=True)
-    
+
     return Response({
         'results': serializer.data,
         'count': total_count,
@@ -2357,7 +2367,7 @@ def update_submission_status(request, submission_id):
     Update mission submission status (reviewed, in_progress, scheduled).
     """
     from missions.models import MissionSubmission
-    
+
     try:
         submission = MissionSubmission.objects.get(id=submission_id)
     except MissionSubmission.DoesNotExist:
@@ -2365,7 +2375,7 @@ def update_submission_status(request, submission_id):
             {'error': 'Mission submission not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     # Verify mentor has access to this submission
     mentor = get_current_mentor(request.user)
     assignments = MenteeMentorAssignment.objects.filter(
@@ -2373,25 +2383,25 @@ def update_submission_status(request, submission_id):
         mentee=submission.user,
         status='active'
     ).exists()
-    
+
     if not assignments:
         return Response(
             {'error': 'You do not have access to this submission'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     # Update status
     new_status = request.data.get('status')
     valid_statuses = ['in_progress', 'in_mentor_review', 'scheduled', 'reviewed']
-    
+
     if new_status not in valid_statuses:
         return Response(
             {'error': f'Invalid status. Must be one of: {", ".join(valid_statuses)}'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     submission.status = new_status
-    
+
     # Add notes if provided (store in mentor_feedback or create a JSON field)
     # For now, we'll append to mentor_feedback if notes are provided
     if 'notes' in request.data and request.data['notes']:
@@ -2399,9 +2409,9 @@ def update_submission_status(request, submission_id):
             submission.mentor_feedback += f"\n\n[Status Update - {timezone.now().strftime('%Y-%m-%d %H:%M')}]: {request.data['notes']}"
         else:
             submission.mentor_feedback = f"[Status Update - {timezone.now().strftime('%Y-%m-%d %H:%M')}]: {request.data['notes']}"
-    
+
     submission.save()
-    
+
     return Response({
         'id': str(submission.id),
         'status': submission.status,
@@ -2422,26 +2432,26 @@ def mentor_flags(request, mentor_id):
             {'error': 'You can only view your own flags'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     mentor = get_current_mentor(request.user)
-    
+
     # Get query parameters
     status_filter = request.query_params.get('status', 'all')
     severity_filter = request.query_params.get('severity')
-    
+
     # Build queryset
     queryset = MentorFlag.objects.filter(mentor=mentor)
-    
+
     if status_filter == 'open':
         queryset = queryset.filter(resolved=False)
     elif status_filter == 'resolved':
         queryset = queryset.filter(resolved=True)
-    
+
     if severity_filter:
         queryset = queryset.filter(severity=severity_filter)
-    
+
     flags = queryset.order_by('-created_at')
-    
+
     serializer = MentorFlagSerializer(flags, many=True)
     return Response(serializer.data)
 
@@ -2463,14 +2473,14 @@ def mentor_influence_index(request, mentor_id):
             {'error': 'You can only view your own influence index'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     mentor = get_current_mentor(request.user)
-    
+
     # Get date range
     from datetime import datetime
     start_date = request.query_params.get('start_date')
     end_date = request.query_params.get('end_date')
-    
+
     # Get assignments
     assignments = MenteeMentorAssignment.objects.filter(mentor=mentor, status='active')
     mentee_ids = assignments.values_list('mentee_id', flat=True)
@@ -2486,7 +2496,7 @@ def mentor_influence_index(request, mentor_id):
         feedback__isnull=False
     ).exclude(feedback='').count()
 
-    total_sessions = MentorSession.objects.filter(
+    MentorSession.objects.filter(
         mentor=mentor,
         type='group'
     ).count()
@@ -2500,9 +2510,9 @@ def mentor_influence_index(request, mentor_id):
         student_id__in=mentee_uuids,
         reviewed_at__isnull=False
     ).count()
-    
+
     # Calculate period (default to last 30 days if not specified)
-    from datetime import datetime, timedelta
+    from datetime import timedelta
     if start_date:
         try:
             period_start = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
@@ -2510,7 +2520,7 @@ def mentor_influence_index(request, mentor_id):
             period_start = timezone.now() - timedelta(days=30)
     else:
         period_start = timezone.now() - timedelta(days=30)
-    
+
     if end_date:
         try:
             period_end = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
@@ -2518,14 +2528,14 @@ def mentor_influence_index(request, mentor_id):
             period_end = timezone.now()
     else:
         period_end = timezone.now()
-    
+
     # Calculate overall influence score (simplified)
     avg_correlation = (
         0.75 + 0.68 + 0.82
     ) / 3  # Average of correlation coefficients
     improvement_factor = 75.0 / 100  # Normalize improvement rate
     overall_score = (avg_correlation * 0.5 + improvement_factor * 0.5) * 10  # Scale to 0-10
-    
+
     return Response({
         'mentor_id': str(mentor.id),
         'overall_influence_score': round(overall_score, 1),
@@ -2558,13 +2568,13 @@ def mentee_sessions(request):
     """
     try:
         mentee_id = request.query_params.get('mentee_id')
-        
+
         if not mentee_id:
             return Response(
                 {'error': 'mentee_id parameter is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Verify the mentee_id matches the authenticated user (students can only see their own sessions)
         if str(request.user.id) != str(mentee_id):
             # Check if user is a mentor (mentors can view their mentees' sessions)
@@ -2573,19 +2583,19 @@ def mentee_sessions(request):
                     {'error': 'You can only view your own sessions'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-        
+
         # Get all sessions for this mentee
         from .models import MentorSession
         sessions = MentorSession.objects.filter(
             mentee_id=mentee_id,
             type='group'
         ).select_related('mentor', 'assignment').order_by('-start_time')
-        
+
         sessions_data = []
         for session in sessions:
             outcomes = session.outcomes or {}
             structured_notes = session.structured_notes if session.structured_notes is not None else {}
-            
+
             sessions_data.append({
                 'id': str(session.id),
                 'mentor_id': str(session.mentor.id) if session.mentor else None,
@@ -2604,7 +2614,7 @@ def mentee_sessions(request):
                 'notes': structured_notes,
                 'summary': outcomes.get('description', ''),
             })
-        
+
         return Response(sessions_data, status=status.HTTP_200_OK)
     except Exception as e:
         logger.error(f"Error in mentee_sessions: {str(e)}", exc_info=True)
@@ -2631,41 +2641,41 @@ def get_mentor_assignments(request, mentor_id):
                 {'error': 'You can only view your own assignments'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
-        from programs.models import MentorAssignment, Enrollment
-        
+
+        from programs.models import Enrollment, MentorAssignment
+
         # Get all cohorts where this mentor is assigned
         mentor_assignments = MentorAssignment.objects.filter(
             mentor_id=mentor_id,
             active=True
         ).select_related('cohort')
-        
+
         # Get existing MenteeMentorAssignment records
         existing_assignments = MenteeMentorAssignment.objects.filter(
             mentor_id=mentor_id,
             status='active'
         ).select_related('mentee')
-        
+
         existing_mentee_ids = set(existing_assignments.values_list('mentee_id', flat=True))
-        
+
         # For each cohort where mentor is assigned, create assignments for enrolled students
         created_count = 0
         for mentor_assignment in mentor_assignments:
             cohort = mentor_assignment.cohort
-            
+
             # Get all active enrollments in this cohort
             enrollments = Enrollment.objects.filter(
                 cohort=cohort,
                 status__in=['active', 'completed']
             ).select_related('user')
-            
+
             for enrollment in enrollments:
                 mentee = enrollment.user
-                
+
                 # Skip if assignment already exists
                 if mentee.id in existing_mentee_ids:
                     continue
-                
+
                 # Create MenteeMentorAssignment if it doesn't exist
                 assignment, created = MenteeMentorAssignment.objects.get_or_create(
                     mentee=mentee,
@@ -2675,35 +2685,35 @@ def get_mentor_assignments(request, mentor_id):
                         'cohort_id': str(cohort.id),
                     }
                 )
-                
+
                 if created:
                     created_count += 1
                     logger.info(f"Auto-created MenteeMentorAssignment {assignment.id} for mentor {mentor_id} and mentee {mentee.id} from cohort {cohort.id}")
                     existing_mentee_ids.add(mentee.id)
-        
+
         # Now get all assignments (including newly created ones)
         all_assignments = MenteeMentorAssignment.objects.filter(
             mentor_id=mentor_id,
             status='active'
         ).select_related('mentee')
-        
+
         assignments_data = []
         for assignment in all_assignments:
             mentee = assignment.mentee
-            
+
             # Get last message time and unread count
             last_message = MentorshipMessage.objects.filter(
                 assignment=assignment,
                 archived=False
             ).order_by('-created_at').first()
-            
+
             unread_count = MentorshipMessage.objects.filter(
                 assignment=assignment,
                 recipient_id=mentor_id,
                 is_read=False,
                 archived=False
             ).count()
-            
+
             assignments_data.append({
                 'id': str(assignment.id),
                 'mentee_id': str(mentee.id),
@@ -2714,7 +2724,7 @@ def get_mentor_assignments(request, mentor_id):
                 'last_message_time': last_message.created_at.isoformat() if last_message else None,
                 'unread_count': unread_count,
             })
-        
+
         # Sort by last message time (most recent first), then by assigned_at
         assignments_data.sort(
             key=lambda x: (
@@ -2723,10 +2733,10 @@ def get_mentor_assignments(request, mentor_id):
             ),
             reverse=True
         )
-        
+
         if created_count > 0:
             logger.info(f"Auto-created {created_count} MenteeMentorAssignment records for mentor {mentor_id}")
-        
+
         return Response(assignments_data, status=status.HTTP_200_OK)
     except Exception as e:
         logger.error(f"Error in get_mentor_assignments: {str(e)}", exc_info=True)
@@ -2748,9 +2758,9 @@ def get_mentorship_assignment(request):
         user = request.user
         mentee_id = request.query_params.get('mentee_id')
         mentor_id = request.query_params.get('mentor_id')
-        
+
         assignment = None
-        
+
         if mentee_id and mentor_id:
             # Both provided - get specific assignment
             try:
@@ -2775,7 +2785,7 @@ def get_mentorship_assignment(request):
                     mentor=user,
                     status='active'
                 ).first()
-                
+
                 # If no assignment found, try to create one from cohort assignment
                 if not assignment:
                     try:
@@ -2785,7 +2795,7 @@ def get_mentorship_assignment(request):
                             user_id=mentee_id_int,
                             status__in=['active', 'completed']
                         ).select_related('cohort').first()
-                        
+
                         if enrollment:
                             # Verify the mentor is assigned to this cohort
                             mentor_assignment = MentorAssignment.objects.filter(
@@ -2793,7 +2803,7 @@ def get_mentorship_assignment(request):
                                 mentor=user,
                                 active=True
                             ).first()
-                            
+
                             if mentor_assignment:
                                 # Create MenteeMentorAssignment
                                 try:
@@ -2826,7 +2836,7 @@ def get_mentorship_assignment(request):
                     mentor_id=mentor_id_int,
                     status='active'
                 ).first()
-                
+
                 # If no assignment found, try to create one from cohort assignment
                 if not assignment:
                     try:
@@ -2836,7 +2846,7 @@ def get_mentorship_assignment(request):
                             user=user,
                             status__in=['active', 'completed']
                         ).select_related('cohort').first()
-                        
+
                         if enrollment:
                             # Verify the mentor is assigned to this cohort
                             mentor_assignment = MentorAssignment.objects.filter(
@@ -2844,7 +2854,7 @@ def get_mentorship_assignment(request):
                                 mentor_id=mentor_id_int,
                                 active=True
                             ).first()
-                            
+
                             if mentor_assignment:
                                 # Create MenteeMentorAssignment
                                 assignment, created = MenteeMentorAssignment.objects.get_or_create(
@@ -2877,7 +2887,7 @@ def get_mentorship_assignment(request):
                 Q(mentee=user) | Q(mentor=user),
                 status='active'
             ).first()
-            
+
             # For mentees, always verify/update assignment matches current cohort mentor
             try:
                 from programs.models import Enrollment, MentorAssignment
@@ -2886,18 +2896,18 @@ def get_mentorship_assignment(request):
                     user=user,
                     status__in=['active', 'completed']
                 ).select_related('cohort').first()
-                
+
                 if enrollment:
                     # Get mentor assigned to this cohort (prefer primary, then support)
                     mentor_assignment = MentorAssignment.objects.filter(
                         cohort=enrollment.cohort,
                         active=True
                     ).select_related('mentor').order_by('-role').first()
-                    
+
                     if mentor_assignment:
                         # Check if user is a mentee (student) in this assignment
                         is_mentee = assignment and assignment.mentee == user
-                        
+
                         # If no assignment exists OR assignment exists but user is mentee and mentor doesn't match
                         if not assignment:
                             # Create new assignment for this mentee
@@ -2926,13 +2936,13 @@ def get_mentorship_assignment(request):
                             logger.info(f"Reactivated MenteeMentorAssignment {assignment.id} for mentee {user.id}")
             except Exception as e:
                 logger.warning(f"Failed to verify/update assignment from cohort: {str(e)}", exc_info=True)
-        
+
         if not assignment:
             return Response(
                 {'error': 'No active mentorship assignment found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         return Response({
             'id': str(assignment.id),
             'mentee_id': str(assignment.mentee.id),
@@ -2942,7 +2952,7 @@ def get_mentorship_assignment(request):
             'status': assignment.status,
             'assigned_at': assignment.assigned_at.isoformat(),
         }, status=status.HTTP_200_OK)
-    
+
     except Exception as e:
         logger.error(f"Error fetching mentorship assignment: {str(e)}", exc_info=True)
         return Response(
@@ -3008,7 +3018,7 @@ def get_student_mentor(request, mentee_id):
             # SECOND: Fallback to cohort-level MentorAssignment
             logger.info(f"No active MenteeMentorAssignment found for mentee {mentee_id_int}, checking cohort assignment")
             try:
-                from programs.models import Enrollment, MentorAssignment, Cohort
+                from programs.models import Cohort, Enrollment, MentorAssignment
                 enrollment = Enrollment.objects.filter(
                     user_id=mentee_id_int,
                     status__in=['active', 'completed']  # Include completed students who might still have mentor access
@@ -3026,7 +3036,7 @@ def get_student_mentor(request, mentee_id):
                     if mentor_assignment:
                         mentor = mentor_assignment.mentor
                         logger.info(f"Found cohort-level MentorAssignment for mentee {mentee_id_int} with mentor {mentor.id}")
-                        
+
                         # Create MenteeMentorAssignment if it doesn't exist
                         assignment, created = MenteeMentorAssignment.objects.get_or_create(
                             mentee_id=mentee_id_int,
@@ -3036,7 +3046,7 @@ def get_student_mentor(request, mentee_id):
                                 'cohort_id': str(cohort.id),
                             }
                         )
-                        
+
                         if created:
                             logger.info(f"Auto-created MenteeMentorAssignment {assignment.id} for mentee {mentee_id_int} and mentor {mentor.id} from cohort {cohort.id}")
                         else:
@@ -3045,7 +3055,7 @@ def get_student_mentor(request, mentee_id):
                                 assignment.status = 'active'
                                 assignment.save(update_fields=['status'])
                                 logger.info(f"Reactivated MenteeMentorAssignment {assignment.id} for mentee {mentee_id_int}")
-                        
+
                         # Set mentor_assignment_obj for response
                         mentor_assignment_obj = mentor_assignment
                     else:
@@ -3509,7 +3519,7 @@ def get_or_create_assignment(mentee, mentor, cohort_id=None):
         mentee=mentee,
         mentor=mentor
     ).first()
-    
+
     if assignment:
         # Found existing assignment - reactivate if needed
         if assignment.status != 'active':
@@ -3537,19 +3547,19 @@ def messages_endpoint(request, assignment_id):
     """
     GET /api/v1/mentorship/assignments/{assignment_id}/messages
     Get all messages for a mentor-mentee assignment.
-    
+
     POST /api/v1/mentorship/assignments/{assignment_id}/messages
     Send a message with optional file attachments.
     If assignment doesn't exist, auto-create it from cohort assignment.
     This works for both students sending first message AND mentors sending first message.
-    
+
     IMPORTANT: If assignment_id doesn't exist, we find/create the correct assignment
     based on mentee+mentor pair to ensure both parties use the same assignment.
     """
     try:
         assignment = None
         assignment_was_auto_created = False
-        
+
         try:
             assignment = MenteeMentorAssignment.objects.get(id=assignment_id)
             logger.info(f"✅ Found existing assignment {assignment_id} for user {request.user.id}")
@@ -3559,24 +3569,24 @@ def messages_endpoint(request, assignment_id):
             # 1. A student sends their first message
             # 2. A mentor sends their first message to a student
             logger.info(f"Assignment {assignment_id} not found. Attempting to find or create assignment from cohort.")
-            
+
             from programs.models import Enrollment, MentorAssignment
-            
+
             assignment = None
-            
+
             # Case 1: User is a mentee (student) - find their enrollment and mentor
             enrollment = Enrollment.objects.filter(
                 user=request.user,
                 status__in=['active', 'completed']
             ).select_related('cohort').first()
-            
+
             if enrollment:
                 # Find mentor assigned to this cohort
                 mentor_assignment = MentorAssignment.objects.filter(
                     cohort=enrollment.cohort,
                     active=True
                 ).select_related('mentor').order_by('-role').first()
-                
+
                 if mentor_assignment:
                     # CRITICAL: Use helper function to ensure we always get the SAME assignment
                     assignment, created = get_or_create_assignment(
@@ -3587,7 +3597,7 @@ def messages_endpoint(request, assignment_id):
                     if created:
                         assignment_was_auto_created = True
                     logger.info(f"✅ Using MenteeMentorAssignment {assignment.id} for mentee {request.user.id} and mentor {mentor_assignment.mentor.id}")
-            
+
             # Case 2: User is a mentor - find mentee from their assigned cohorts
             if not assignment and request.user.user_roles.filter(role__name='mentor', is_active=True).exists():
                 # Get mentee_id from request body (when sending message) or query params
@@ -3597,8 +3607,8 @@ def messages_endpoint(request, assignment_id):
                     # Check multiple possible field names (FormData uses string keys)
                     # request.data is a QueryDict for FormData, so we use .get()
                     mentee_id = (
-                        request.data.get('mentee_id') or 
-                        request.data.get('recipient_id') or 
+                        request.data.get('mentee_id') or
+                        request.data.get('recipient_id') or
                         request.data.get('recipientId') or
                         request.data.get('menteeId')
                     )
@@ -3609,18 +3619,18 @@ def messages_endpoint(request, assignment_id):
                     mentee_id = request.query_params.get('mentee_id') or request.query_params.get('menteeId')
                     if mentee_id:
                         mentee_id = str(mentee_id)
-                
+
                 if mentee_id:
                     try:
                         from users.models import User
                         mentee = User.objects.get(id=mentee_id)
-                        
+
                         # Verify this mentee is in a cohort where the mentor is assigned
                         mentee_enrollment = Enrollment.objects.filter(
                             user=mentee,
                             status__in=['active', 'completed']
                         ).select_related('cohort').first()
-                        
+
                         if mentee_enrollment:
                             # Check if mentor is assigned to this cohort
                             mentor_assignment = MentorAssignment.objects.filter(
@@ -3628,7 +3638,7 @@ def messages_endpoint(request, assignment_id):
                                 cohort=mentee_enrollment.cohort,
                                 active=True
                             ).first()
-                            
+
                             if mentor_assignment:
                                 # CRITICAL: Use helper function to ensure we always get the SAME assignment
                                 assignment, created = get_or_create_assignment(
@@ -3643,7 +3653,7 @@ def messages_endpoint(request, assignment_id):
                         logger.warning(f"Mentee {mentee_id} not found when mentor {request.user.id} tried to send message")
                     except Exception as e:
                         logger.error(f"Error creating assignment for mentor {request.user.id} and mentee {mentee_id}: {str(e)}", exc_info=True)
-                
+
                 # If still no assignment, try to find any mentee in mentor's cohorts
                 # This is a fallback - we'll create assignment with first matching mentee
                 if not assignment:
@@ -3651,14 +3661,14 @@ def messages_endpoint(request, assignment_id):
                         mentor=request.user,
                         active=True
                     ).select_related('cohort')
-                    
+
                     for mentor_assignment in mentor_assignments:
                         # Get first active enrollment in this cohort
                         enrollment = Enrollment.objects.filter(
                             cohort=mentor_assignment.cohort,
                             status__in=['active', 'completed']
                         ).select_related('user').first()
-                        
+
                         if enrollment:
                             # CRITICAL: Use helper function to ensure we always get the SAME assignment
                             assignment, created = get_or_create_assignment(
@@ -3670,20 +3680,20 @@ def messages_endpoint(request, assignment_id):
                                 assignment_was_auto_created = True
                             logger.info(f"✅ Using MenteeMentorAssignment {assignment.id} for mentor {request.user.id} and mentee {enrollment.user.id} (fallback)")
                             break
-            
+
             if not assignment:
                 return Response(
                     {'error': 'Assignment not found and cannot be auto-created. Please ensure you are assigned to a cohort with active students.'},
                     status=status.HTTP_404_NOT_FOUND
                 )
-            
+
             # If assignment was auto-created or found, log it
             if assignment_was_auto_created or str(assignment.id) != str(assignment_id):
                 logger.warning(f"⚠️ Assignment ID mismatch! Requested: {assignment_id}, Using: {assignment.id} (user: {request.user.id}, mentee: {assignment.mentee.id}, mentor: {assignment.mentor.id})")
                 logger.info(f"💡 This means the frontend is using the wrong assignment_id. The correct assignment_id is: {assignment.id}")
             else:
                 logger.info(f"✅ Using assignment {assignment.id} (user: {request.user.id}, mentee: {assignment.mentee.id}, mentor: {assignment.mentor.id})")
-        
+
         # Verify user is either mentor or mentee in this assignment
         if request.user.id not in [assignment.mentor.id, assignment.mentee.id]:
             logger.error(f"User {request.user.id} tried to access assignment {assignment.id} but is neither mentor ({assignment.mentor.id}) nor mentee ({assignment.mentee.id})")
@@ -3691,36 +3701,36 @@ def messages_endpoint(request, assignment_id):
                 {'error': 'You can only access messages for your own assignments'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         # Log assignment details for debugging
         logger.info(f"Processing {request.method} request for assignment {assignment.id} (user: {request.user.id}, mentee: {assignment.mentee.id}, mentor: {assignment.mentor.id})")
-        
+
         if request.method == 'GET':
             # Get messages (exclude archived unless explicitly requested)
             include_archived = request.query_params.get('include_archived', 'false').lower() == 'true'
             messages = MentorshipMessage.objects.filter(assignment=assignment)
-            
+
             if not include_archived:
                 messages = messages.filter(archived=False)
-            
+
             messages = messages.select_related('sender', 'recipient').prefetch_related('attachments').order_by('created_at')
-            
+
             message_count = messages.count()
             logger.info(f"📨 Returning {message_count} messages for assignment {assignment.id} (user: {request.user.id}, mentee: {assignment.mentee.id}, mentor: {assignment.mentor.id})")
-            
+
             # Log all messages for debugging
             if message_count > 0:
                 all_messages = list(messages)
                 logger.info(f"All messages: {[{'id': str(m.id), 'sender_id': str(m.sender.id), 'sender_email': m.sender.email, 'recipient_id': str(m.recipient.id), 'recipient_email': m.recipient.email, 'body_preview': m.body[:50] if m.body else '', 'created_at': str(m.created_at)} for m in all_messages]}")
             else:
                 logger.warning(f"⚠️ No messages found for assignment {assignment.id} (user: {request.user.id})")
-            
+
             serializer = MentorshipMessageSerializer(messages, many=True, context={'request': request})
             serialized_data = serializer.data
-            
+
             # Log serialized data for debugging
             logger.info(f"Serialized {len(serialized_data)} messages. First message: {serialized_data[0] if serialized_data else 'None'}")
-            
+
             # Add assignment_id to response headers in case it was auto-created or different
             response = Response(serialized_data, status=status.HTTP_200_OK)
             response['X-Assignment-Id'] = str(assignment.id)
@@ -3736,25 +3746,25 @@ def messages_endpoint(request, assignment_id):
                 response['X-Assignment-Id'] = str(assignment.id)
             logger.info(f"📨 Returning {len(serialized_data)} messages with assignment_id {assignment.id} (requested: {assignment_id})")
             return response
-        
+
         elif request.method == 'POST':
             # Determine recipient (opposite of sender)
             if request.user.id == assignment.mentor.id:
                 recipient = assignment.mentee
             else:
                 recipient = assignment.mentor
-            
+
             # Parse message data
             subject = request.data.get('subject', '').strip()
             body = request.data.get('body', '').strip()
             files = request.FILES.getlist('attachments', [])
-            
+
             if not body:
                 return Response(
                     {'error': 'Message body is required'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             # Validate file sizes (10MB max per file)
             max_file_size = 10 * 1024 * 1024  # 10MB
             for file in files:
@@ -3763,7 +3773,7 @@ def messages_endpoint(request, assignment_id):
                         {'error': f'File {file.name} exceeds 10MB limit'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-            
+
             # Create message with message_id
             message = MentorshipMessage.objects.create(
                 assignment=assignment,
@@ -3773,11 +3783,11 @@ def messages_endpoint(request, assignment_id):
                 body=body,
                 message_id=str(uuid.uuid4())  # Generate unique message_id
             )
-            
+
             logger.info(f"✅ Created message {message.id} from {request.user.id} ({request.user.email}) to {recipient.id} ({recipient.email}) in assignment {assignment.id}")
             logger.info(f"Message details: body_length={len(body)}, subject={subject}, files_count={len(files)}, message_id={message.message_id}")
             logger.info(f"Assignment details: mentee={assignment.mentee.id}, mentor={assignment.mentor.id}, status={assignment.status}")
-            
+
             # Handle file attachments
             for file in files:
                 MessageAttachment.objects.create(
@@ -3787,7 +3797,7 @@ def messages_endpoint(request, assignment_id):
                     file_size=file.size,
                     content_type=file.content_type or 'application/octet-stream'
                 )
-            
+
             # Reload message with all related objects for serialization
             message = MentorshipMessage.objects.select_related('sender', 'recipient', 'assignment').prefetch_related('attachments').get(id=message.id)
             serializer = MentorshipMessageSerializer(message, context={'request': request})
@@ -3800,7 +3810,7 @@ def messages_endpoint(request, assignment_id):
             logger.info(f"✅ Returning serialized message {message.id} with assignment {message.assignment.id}, sender {message.sender.id}, recipient {message.recipient.id}")
             logger.info(f"📝 Response includes assignment_id: {response_data['assignment_id']}")
             return Response(response_data, status=status.HTTP_201_CREATED)
-    
+
     except MenteeMentorAssignment.DoesNotExist:
         return Response(
             {'error': 'Assignment not found'},
@@ -3827,22 +3837,22 @@ def mark_message_read(request, message_id):
     """
     try:
         message = MentorshipMessage.objects.get(id=message_id)
-        
+
         # Verify user is the recipient
         if request.user.id != message.recipient.id:
             return Response(
                 {'error': 'You can only mark your own messages as read'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         if not message.is_read:
             message.is_read = True
             message.read_at = timezone.now()
             message.save(update_fields=['is_read', 'read_at'])
-        
+
         serializer = MentorshipMessageSerializer(message, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
+
     except MentorshipMessage.DoesNotExist:
         return Response(
             {'error': 'Message not found'},
@@ -4050,14 +4060,14 @@ def archive_messages(request, assignment_id):
     """
     try:
         assignment = MenteeMentorAssignment.objects.get(id=assignment_id)
-        
+
         # Verify user is either mentor or mentee in this assignment
         if request.user.id not in [assignment.mentor.id, assignment.mentee.id]:
             return Response(
                 {'error': 'You can only archive messages for your own assignments'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         # Archive all messages
         archived_count = MentorshipMessage.objects.filter(
             assignment=assignment,
@@ -4066,12 +4076,12 @@ def archive_messages(request, assignment_id):
             archived=True,
             archived_at=timezone.now()
         )
-        
+
         return Response(
             {'message': f'{archived_count} messages archived successfully'},
             status=status.HTTP_200_OK
         )
-    
+
     except MenteeMentorAssignment.DoesNotExist:
         return Response(
             {'error': 'Assignment not found'},
@@ -4096,9 +4106,9 @@ def send_notification(request):
         serializer = CreateNotificationSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
         data = serializer.validated_data
-        
+
         # Get recipient
         try:
             recipient = User.objects.get(id=data['recipient_id'])
@@ -4107,7 +4117,7 @@ def send_notification(request):
                 {'error': 'Recipient not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         # Get assignment and session if provided
         assignment = None
         session = None
@@ -4116,13 +4126,13 @@ def send_notification(request):
                 assignment = MenteeMentorAssignment.objects.get(id=data['assignment_id'])
             except MenteeMentorAssignment.DoesNotExist:
                 pass
-        
+
         if data.get('session_id'):
             try:
                 session = MentorSession.objects.get(id=data['session_id'])
             except MentorSession.DoesNotExist:
                 pass
-        
+
         # Create notification log
         notification = NotificationLog.objects.create(
             assignment=assignment,
@@ -4135,7 +4145,7 @@ def send_notification(request):
             metadata=data.get('metadata', {}),
             status='pending'
         )
-        
+
         # TODO: Integrate with actual notification service (Email/SMS provider)
         # For now, we'll mark it as sent immediately
         # In production, this would call an external notification service
@@ -4145,17 +4155,17 @@ def send_notification(request):
             notification.status = 'sent'
             notification.sent_at = timezone.now()
             notification.save(update_fields=['status', 'sent_at'])
-            
+
             logger.info(f"Notification {notification.notification_id} sent to {recipient.email} via {data['channel']}")
         except Exception as e:
             notification.status = 'failed'
             notification.error_message = str(e)
             notification.save(update_fields=['status', 'error_message'])
             logger.error(f"Failed to send notification {notification.notification_id}: {str(e)}")
-        
+
         serializer_response = NotificationLogSerializer(notification)
         return Response(serializer_response.data, status=status.HTTP_201_CREATED)
-    
+
     except Exception as e:
         logger.error(f"Error sending notification: {str(e)}", exc_info=True)
         return Response(
@@ -4178,30 +4188,30 @@ def get_notifications(request, user_id):
                 {'error': 'You can only view your own notifications'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         # Get notifications
         notifications = NotificationLog.objects.filter(recipient_id=user_id).select_related(
             'assignment', 'session', 'recipient'
         ).order_by('-created_at')
-        
+
         # Filter by type if provided
         notification_type = request.query_params.get('type')
         if notification_type:
             notifications = notifications.filter(notification_type=notification_type)
-        
+
         # Filter by channel if provided
         channel = request.query_params.get('channel')
         if channel:
             notifications = notifications.filter(channel=channel)
-        
+
         # Filter by status if provided
         notification_status = request.query_params.get('status')
         if notification_status:
             notifications = notifications.filter(status=notification_status)
-        
+
         serializer = NotificationLogSerializer(notifications, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
+
     except Exception as e:
         logger.error(f"Error fetching notifications: {str(e)}", exc_info=True)
         return Response(
@@ -4217,8 +4227,8 @@ def send_session_reminder(session, reminder_minutes=60):
     """
     try:
         # Calculate reminder time
-        reminder_time = session.start_time - timedelta(minutes=reminder_minutes)
-        
+        session.start_time - timedelta(minutes=reminder_minutes)
+
         # Send reminder to mentee
         NotificationLog.objects.create(
             assignment=session.assignment,
@@ -4233,7 +4243,7 @@ def send_session_reminder(session, reminder_minutes=60):
             metadata={'reminder_minutes': reminder_minutes},
             status='pending'
         )
-        
+
         # Send reminder to mentor
         NotificationLog.objects.create(
             assignment=session.assignment,
@@ -4248,7 +4258,7 @@ def send_session_reminder(session, reminder_minutes=60):
             metadata={'reminder_minutes': reminder_minutes},
             status='pending'
         )
-        
+
         logger.info(f"Session reminders created for session {session.id}")
     except Exception as e:
         logger.error(f"Error creating session reminders: {str(e)}", exc_info=True)
@@ -4265,10 +4275,10 @@ def send_feedback_reminder(session):
             session=session,
             mentee=session.mentee
         ).exists()
-        
+
         if feedback_exists:
             return  # Feedback already submitted
-        
+
         # Send reminder to mentee
         NotificationLog.objects.create(
             assignment=session.assignment,
@@ -4281,7 +4291,7 @@ def send_feedback_reminder(session):
                    f"Your feedback helps improve the mentorship experience.",
             status='pending'
         )
-        
+
         logger.info(f"Feedback reminder created for session {session.id}")
     except Exception as e:
         logger.error(f"Error creating feedback reminder: {str(e)}", exc_info=True)

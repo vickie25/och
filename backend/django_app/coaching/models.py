@@ -3,10 +3,10 @@ Coaching OS models - Complete behavioral transformation engine.
 Habits, Goals, Reflections, AI Coach sessions with full platform integration.
 """
 import uuid
+
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
-from django.utils import timezone
-from django.db.models import Q
+
 from users.models import User
 
 
@@ -20,7 +20,7 @@ class Habit(models.Model):
         ('daily', 'Daily'),
         ('weekly', 'Weekly'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
         User,
@@ -54,7 +54,7 @@ class Habit(models.Model):
     is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'coaching_habits'
         indexes = [
@@ -62,7 +62,7 @@ class Habit(models.Model):
             models.Index(fields=['user', 'type']),
             models.Index(fields=['user', 'created_at']),
         ]
-    
+
     def __str__(self):
         return f"Habit: {self.name} ({self.user.email})"
 
@@ -74,7 +74,7 @@ class HabitLog(models.Model):
         ('skipped', 'Skipped'),
         ('missed', 'Missed'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     habit = models.ForeignKey(
         Habit,
@@ -96,7 +96,7 @@ class HabitLog(models.Model):
     )
     notes = models.TextField(blank=True, null=True)
     logged_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'coaching_habit_logs'
         indexes = [
@@ -105,7 +105,7 @@ class HabitLog(models.Model):
             models.Index(fields=['user', 'date', 'status']),
         ]
         unique_together = [['habit', 'date']]
-    
+
     def __str__(self):
         return f"Log: {self.habit.name} - {self.date} ({self.status})"
 
@@ -122,7 +122,7 @@ class Goal(models.Model):
         ('completed', 'Completed'),
         ('abandoned', 'Abandoned'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
         User,
@@ -172,7 +172,7 @@ class Goal(models.Model):
     due_date = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'coaching_goals'
         indexes = [
@@ -180,7 +180,7 @@ class Goal(models.Model):
             models.Index(fields=['user', 'type']),
             models.Index(fields=['user', 'due_date']),
         ]
-    
+
     def __str__(self):
         return f"Goal: {self.title} ({self.user.email})"
 
@@ -192,7 +192,7 @@ class Reflection(models.Model):
         ('neutral', 'Neutral'),
         ('negative', 'Negative'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
         User,
@@ -226,7 +226,7 @@ class Reflection(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'coaching_reflections'
         indexes = [
@@ -235,7 +235,7 @@ class Reflection(models.Model):
             models.Index(fields=['sentiment']),
         ]
         unique_together = [['user', 'date']]
-    
+
     def __str__(self):
         return f"Reflection: {self.user.email} - {self.date}"
 
@@ -249,7 +249,7 @@ class AICoachSession(models.Model):
         ('mission', 'Mission'),
         ('general', 'General'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
         User,
@@ -270,7 +270,7 @@ class AICoachSession(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'ai_coach_sessions'
         indexes = [
@@ -278,7 +278,7 @@ class AICoachSession(models.Model):
             models.Index(fields=['user', 'session_type']),
         ]
         ordering = ['-created_at']
-    
+
     def __str__(self):
         return f"AI Coach Session: {self.user.email} - {self.session_type}"
 
@@ -290,7 +290,7 @@ class AICoachMessage(models.Model):
         ('assistant', 'Assistant'),
         ('system', 'System'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     session = models.ForeignKey(
         AICoachSession,
@@ -316,7 +316,7 @@ class AICoachMessage(models.Model):
         help_text='Additional context (habit_id, goal_id, etc.)'
     )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
-    
+
     class Meta:
         db_table = 'ai_coach_messages'
         indexes = [
@@ -324,7 +324,7 @@ class AICoachMessage(models.Model):
             models.Index(fields=['role']),
         ]
         ordering = ['created_at']
-    
+
     def __str__(self):
         return f"Message: {self.role} - {self.session.user.email}"
 

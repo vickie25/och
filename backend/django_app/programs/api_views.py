@@ -2,23 +2,46 @@
 API Views for Cohorts, Modules, Milestones, and Specializations.
 """
 import uuid as uuid_module
-from rest_framework import viewsets, status
-from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.db.models import Q, Count
-from django.shortcuts import get_object_or_404
+
 from django.contrib.auth import get_user_model
-from .models import Cohort, Track, Module, Milestone, Specialization, CalendarTemplate, MentorAssignment, TrackMentorAssignment, Enrollment, CalendarEvent, Waitlist
-from .serializers import MentorAssignmentSerializer, TrackMentorAssignmentSerializer, EnrollmentSerializer, CalendarEventSerializer, WaitlistSerializer
-from .core_services import EnrollmentService
+from django.db.models import Count, Q
+from django.shortcuts import get_object_or_404
+from rest_framework import status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
 from .api_serializers import (
-    CohortSerializer, CreateCohortSerializer,
-    ModuleSerializer, CreateModuleSerializer,
-    MilestoneSerializer, CreateMilestoneSerializer,
-    SpecializationSerializer, CreateSpecializationSerializer
+    CohortSerializer,
+    CreateCohortSerializer,
+    CreateMilestoneSerializer,
+    CreateModuleSerializer,
+    CreateSpecializationSerializer,
+    MilestoneSerializer,
+    ModuleSerializer,
+    SpecializationSerializer,
+)
+from .core_services import EnrollmentService
+from .models import (
+    CalendarEvent,
+    CalendarTemplate,
+    Cohort,
+    Enrollment,
+    MentorAssignment,
+    Milestone,
+    Module,
+    Specialization,
+    TrackMentorAssignment,
+    Waitlist,
 )
 from .permissions import IsDirectorOrAdmin, IsDirectorOrAdminOrMentorCohortsReadOnly
+from .serializers import (
+    CalendarEventSerializer,
+    EnrollmentSerializer,
+    MentorAssignmentSerializer,
+    TrackMentorAssignmentSerializer,
+    WaitlistSerializer,
+)
 from .services.director_service import DirectorService
 
 
@@ -49,7 +72,7 @@ class CohortViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsDirectorOrAdminOrMentorCohortsReadOnly]
     lookup_field = 'pk'
     lookup_value_regex = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
-    
+
     def get_queryset(self):
         from .permissions import _is_director_or_admin
         queryset = Cohort.objects.select_related(
@@ -70,24 +93,24 @@ class CohortViewSet(viewsets.ModelViewSet):
         if status_filter:
             queryset = queryset.filter(status=status_filter)
         return queryset.order_by('-start_date')
-    
+
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
             return CreateCohortSerializer
         return CohortSerializer
-    
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         cohort = serializer.save()
-        
+
         # Return the created cohort with full details
         response_serializer = CohortSerializer(cohort)
         return Response(
             {'success': True, 'data': response_serializer.data},
             status=status.HTTP_201_CREATED
         )
-    
+
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
@@ -98,7 +121,7 @@ class CohortViewSet(viewsets.ModelViewSet):
             'results': data,
             'count': len(data)
         })
-    
+
     @action(detail=False, methods=['get'], url_path='my-enrollment')
     def my_enrollment(self, request):
         """Get current user's cohort enrollment."""
@@ -107,7 +130,7 @@ class CohortViewSet(viewsets.ModelViewSet):
                 user=request.user,
                 status__in=['active', 'pending_payment']
             )
-            
+
             return Response({
                 'success': True,
                 'enrollment': {
@@ -296,7 +319,7 @@ class CohortViewSet(viewsets.ModelViewSet):
         )
         serializer = MentorAssignmentSerializer(assignment)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
+
     @action(detail=True, methods=['post'], url_path='mentors/auto-match')
     def auto_match_mentors(self, request, pk=None):
         """Auto-assign available mentors to this cohort. Directors/admins only."""
@@ -347,26 +370,26 @@ class CohortViewSet(viewsets.ModelViewSet):
                 created.append(assignment)
         serializer = MentorAssignmentSerializer(created, many=True)
         return Response({'assignments': serializer.data, 'count': len(created)}, status=status.HTTP_200_OK)
-    
+
     @action(detail=True, methods=['post'])
     def activate(self, request, pk=None):
         """Activate a cohort."""
         cohort = self.get_object()
         cohort.status = 'active'
         cohort.save()
-        
+
         serializer = self.get_serializer(cohort)
         return Response({
             'success': True,
             'data': serializer.data,
             'message': 'Cohort activated successfully'
         })
-    
+
     @action(detail=True, methods=['get', 'post'])
     def sponsors(self, request, pk=None):
         """Get or assign sponsors for cohort."""
         cohort = self.get_object()
-        
+
         if request.method == 'GET':
             # Get sponsors assigned to this cohort
             return Response({
@@ -374,7 +397,7 @@ class CohortViewSet(viewsets.ModelViewSet):
                 'data': [],
                 'message': 'Sponsors retrieved successfully'
             })
-        
+
         elif request.method == 'POST':
             # Assign sponsor to cohort
             sponsor_id = request.data.get('sponsor_id')
@@ -383,32 +406,32 @@ class CohortViewSet(viewsets.ModelViewSet):
             start_date = request.data.get('start_date')
             end_date = request.data.get('end_date')
             funding_agreement_id = request.data.get('funding_agreement_id')
-            
+
             if not sponsor_id:
                 return Response({
                     'success': False,
                     'error': 'sponsor_id is required'
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
+
             if not seat_allocation or seat_allocation <= 0:
                 return Response({
                     'success': False,
                     'error': 'seat_allocation must be greater than 0'
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
+
             # Save to database
             try:
-                from sponsors.models import SponsorCohortAssignment
                 from django.contrib.auth import get_user_model
+                from sponsors.models import SponsorCohortAssignment
                 User = get_user_model()
-                
+
                 # Try to find user by ID first, then by uuid_id if that fails
                 try:
                     sponsor_user = User.objects.get(id=sponsor_id)
                 except (User.DoesNotExist, ValueError):
                     # If ID lookup fails, try uuid_id
                     sponsor_user = User.objects.get(uuid_id=sponsor_id)
-                
+
                 assignment, created = SponsorCohortAssignment.objects.get_or_create(
                     sponsor_uuid_id=sponsor_user,
                     cohort_id=cohort,
@@ -420,7 +443,7 @@ class CohortViewSet(viewsets.ModelViewSet):
                         'funding_agreement_id': funding_agreement_id
                     }
                 )
-                
+
                 return Response({
                     'success': True,
                     'data': {
@@ -436,7 +459,7 @@ class CohortViewSet(viewsets.ModelViewSet):
                     },
                     'message': 'Sponsor assigned successfully'
                 }, status=status.HTTP_201_CREATED)
-                
+
             except User.DoesNotExist:
                 return Response({
                     'success': False,
@@ -452,46 +475,46 @@ class CohortViewSet(viewsets.ModelViewSet):
 class ModuleViewSet(viewsets.ModelViewSet):
     """ViewSet for managing modules."""
     permission_classes = [IsAuthenticated, IsDirectorOrAdmin]
-    
+
     def get_queryset(self):
         queryset = Module.objects.select_related(
             'milestone__track__program'
         ).prefetch_related('applicable_tracks')
-        
+
         # Filter by milestone if provided
         milestone_id = self.request.query_params.get('milestone')
         if milestone_id:
             queryset = queryset.filter(milestone_id=milestone_id)
-        
+
         # Filter by track if provided
         track_id = self.request.query_params.get('track')
         if track_id:
             queryset = queryset.filter(milestone__track_id=track_id)
-        
+
         # Filter by content type if provided
         content_type = self.request.query_params.get('content_type')
         if content_type:
             queryset = queryset.filter(content_type=content_type)
-        
+
         return queryset.order_by('milestone__order', 'order')
-    
+
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
             return CreateModuleSerializer
         return ModuleSerializer
-    
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         module = serializer.save()
-        
+
         # Return the created module with full details
         response_serializer = ModuleSerializer(module)
         return Response(
             {'success': True, 'data': response_serializer.data},
             status=status.HTTP_201_CREATED
         )
-    
+
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
@@ -505,41 +528,41 @@ class ModuleViewSet(viewsets.ModelViewSet):
 class MilestoneViewSet(viewsets.ModelViewSet):
     """ViewSet for managing milestones."""
     permission_classes = [IsAuthenticated, IsDirectorOrAdmin]
-    
+
     def get_queryset(self):
         queryset = Milestone.objects.select_related(
             'track__program'
         ).prefetch_related('modules')
-        
+
         # Filter by track if provided
         track_id = self.request.query_params.get('track')
         if track_id:
             queryset = queryset.filter(track_id=track_id)
-        
+
         # Filter by program if provided
         program_id = self.request.query_params.get('program')
         if program_id:
             queryset = queryset.filter(track__program_id=program_id)
-        
+
         return queryset.order_by('track__name', 'order')
-    
+
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
             return CreateMilestoneSerializer
         return MilestoneSerializer
-    
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         milestone = serializer.save()
-        
+
         # Return the created milestone with full details
         response_serializer = MilestoneSerializer(milestone)
         return Response(
             {'success': True, 'data': response_serializer.data},
             status=status.HTTP_201_CREATED
         )
-    
+
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
@@ -548,7 +571,7 @@ class MilestoneViewSet(viewsets.ModelViewSet):
             'data': serializer.data,
             'count': len(serializer.data)
         })
-    
+
     @action(detail=True, methods=['get'])
     def modules(self, request, pk=None):
         """Get all modules for a milestone."""
@@ -565,39 +588,39 @@ class MilestoneViewSet(viewsets.ModelViewSet):
 class SpecializationViewSet(viewsets.ModelViewSet):
     """ViewSet for managing specializations."""
     permission_classes = [IsAuthenticated, IsDirectorOrAdmin]
-    
+
     def get_queryset(self):
         queryset = Specialization.objects.select_related('track__program')
-        
+
         # Filter by track if provided
         track_id = self.request.query_params.get('track')
         if track_id:
             queryset = queryset.filter(track_id=track_id)
-        
+
         # Filter by program if provided
         program_id = self.request.query_params.get('program')
         if program_id:
             queryset = queryset.filter(track__program_id=program_id)
-        
+
         return queryset.order_by('track__name', 'name')
-    
+
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
             return CreateSpecializationSerializer
         return SpecializationSerializer
-    
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         specialization = serializer.save()
-        
+
         # Return the created specialization with full details
         response_serializer = SpecializationSerializer(specialization)
         return Response(
             {'success': True, 'data': response_serializer.data},
             status=status.HTTP_201_CREATED
         )
-    
+
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
@@ -612,7 +635,7 @@ class CalendarTemplateViewSet(viewsets.ModelViewSet):
     """ViewSet for managing calendar templates."""
     permission_classes = [IsAuthenticated, IsDirectorOrAdmin]
     queryset = CalendarTemplate.objects.select_related('program', 'track')
-    
+
     def create(self, request, *args, **kwargs):
         data = request.data
         template = CalendarTemplate.objects.create(
@@ -633,7 +656,7 @@ class CalendarTemplateViewSet(viewsets.ModelViewSet):
                 'events': template.events
             }
         }, status=status.HTTP_201_CREATED)
-    
+
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         data = [{
@@ -685,9 +708,9 @@ def sponsor_assignments(request):
     """Get all sponsor assignments across cohorts."""
     try:
         from sponsors.models import SponsorCohortAssignment
-        
+
         assignments = SponsorCohortAssignment.objects.all().select_related('sponsor_uuid_id', 'cohort_id__track')
-        
+
         data = []
         for assignment in assignments:
             data.append({
@@ -713,14 +736,14 @@ def sponsor_assignments(request):
                 'created_at': assignment.created_at.isoformat(),
                 'updated_at': assignment.updated_at.isoformat()
             })
-        
+
         return Response({
             'success': True,
             'data': data,
             'count': len(data),
             'message': 'Sponsor assignments retrieved successfully'
         })
-        
+
     except Exception as e:
         return Response({
             'success': False,

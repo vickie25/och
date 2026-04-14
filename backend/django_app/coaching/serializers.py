@@ -2,10 +2,21 @@
 Coaching OS serializers for API responses.
 """
 from rest_framework import serializers
+
 from .models import (
-    Habit, HabitLog, Goal, Reflection, AICoachSession, AICoachMessage,
-    StudentAnalytics, UserRecipeProgress, UserTrackProgress, UserMissionProgress,
-    CommunityActivitySummary, MentorshipSession, CoachingSession
+    AICoachMessage,
+    AICoachSession,
+    CoachingSession,
+    CommunityActivitySummary,
+    Goal,
+    Habit,
+    HabitLog,
+    MentorshipSession,
+    Reflection,
+    StudentAnalytics,
+    UserMissionProgress,
+    UserRecipeProgress,
+    UserTrackProgress,
 )
 
 
@@ -23,7 +34,7 @@ class HabitSerializer(serializers.ModelSerializer):
 class HabitLogSerializer(serializers.ModelSerializer):
     habit = HabitSerializer(read_only=True)
     habit_id = serializers.UUIDField(write_only=True, required=False)
-    
+
     class Meta:
         model = HabitLog
         fields = [
@@ -68,7 +79,7 @@ class AICoachMessageSerializer(serializers.ModelSerializer):
 
 class AICoachSessionSerializer(serializers.ModelSerializer):
     messages = AICoachMessageSerializer(many=True, read_only=True)
-    
+
     class Meta:
         model = AICoachSession
         fields = [

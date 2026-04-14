@@ -13,7 +13,6 @@ Modules:
 7. Role Fit Reflection - 2 open-ended questions
 """
 from .profiling import ProfilingQuestion
-from .profiling_tracks import OCH_TRACKS
 
 # ============================================================================
 # MODULE 1: Identity & Value (VIP-based questions)

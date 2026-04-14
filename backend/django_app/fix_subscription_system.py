@@ -1,18 +1,22 @@
 #!/usr/bin/env python
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from users.models import User
-from subscriptions.models import SubscriptionPlan, UserSubscription
-from django.utils import timezone
 from datetime import timedelta
+
+from django.utils import timezone
+from subscriptions.models import SubscriptionPlan, UserSubscription
+
+from users.models import User
+
 
 def fix_subscription_system():
     """Fix subscription system for bob@student.com"""
-    
+
     # 1. Create subscription plans if they don't exist
     starter_plan, created = SubscriptionPlan.objects.get_or_create(
         name='starter_3',
@@ -28,12 +32,12 @@ def fix_subscription_system():
     )
     if created:
         print('+ Created starter_3 plan')
-    
+
     # 2. Get user
     try:
         user = User.objects.get(email='bob@student.com')
         print(f'Found user: {user.email}')
-        
+
         # 3. Create or update user subscription
         subscription, created = UserSubscription.objects.get_or_create(
             user=user,
@@ -45,7 +49,7 @@ def fix_subscription_system():
                 'enhanced_access_expires_at': timezone.now() + timedelta(days=180)
             }
         )
-        
+
         if not created:
             # Update existing subscription
             subscription.plan = starter_plan
@@ -57,11 +61,11 @@ def fix_subscription_system():
             print('+ Updated user subscription to starter_3')
         else:
             print('+ Created new starter_3 subscription')
-            
+
         print(f'Subscription status: {subscription.status}')
         print(f'Plan: {subscription.plan.name}')
         print(f'Missions access: {subscription.plan.missions_access_type}')
-        
+
     except User.DoesNotExist:
         print('Error: User bob@student.com not found')
 

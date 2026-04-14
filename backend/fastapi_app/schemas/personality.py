@@ -1,8 +1,9 @@
 """
 Personality analysis API schemas.
 """
+
 from pydantic import BaseModel
-from typing import Dict, Optional, List
+
 from schemas.progress import ProgressResponse
 
 
@@ -11,7 +12,7 @@ class PersonalityAnalysisRequest(BaseModel):
     Request schema for personality analysis.
     """
     user_id: int
-    progress_data: Optional[List[ProgressResponse]] = None
+    progress_data: list[ProgressResponse] | None = None
 
 
 class PersonalityTrait(BaseModel):
@@ -20,7 +21,7 @@ class PersonalityTrait(BaseModel):
     """
     name: str
     score: float
-    description: Optional[str] = None
+    description: str | None = None
 
 
 class PersonalityAnalysisResponse(BaseModel):
@@ -28,8 +29,8 @@ class PersonalityAnalysisResponse(BaseModel):
     Response schema for personality analysis.
     """
     user_id: int
-    traits: List[PersonalityTrait]
-    summary: Optional[str] = None
-    recommendations: Optional[List[str]] = None
+    traits: list[PersonalityTrait]
+    summary: str | None = None
+    recommendations: list[str] | None = None
 
 

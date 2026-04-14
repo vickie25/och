@@ -3,7 +3,9 @@ Finance signals for automatic wallet creation and transaction handling.
 """
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+
 from users.models import User
+
 from .models import Wallet
 
 

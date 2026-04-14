@@ -1,7 +1,6 @@
 from django.urls import path
-from . import views
-from . import views_websocket
-from . import portfolio_views
+
+from . import portfolio_views, views, views_websocket
 
 app_name = 'dashboard'
 
@@ -16,7 +15,7 @@ urlpatterns = [
     path('habits/', views.dashboard_habits, name='habits'),
     path('ai-coach-nudge/', views.ai_coach_nudge, name='ai-coach-nudge'),
     path('sse/', views_websocket.dashboard_sse, name='sse'),
-    
+
     # Portfolio endpoints - order matters! More specific routes first
     path('portfolio/cohort-peers', portfolio_views.get_cohort_peers, name='portfolio-cohort-peers'),
     path('portfolio/<str:user_id>/upload', portfolio_views.upload_portfolio_file, name='portfolio-upload'),

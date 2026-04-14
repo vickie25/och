@@ -1,8 +1,8 @@
 """
 Management command to seed the two free sample recipes for OCH Recipe Engine.
 """
-import uuid
 from django.core.management.base import BaseCommand
+
 from recipes.models import Recipe
 
 

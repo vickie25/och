@@ -2,6 +2,7 @@
 URL configuration for TalentScope API.
 """
 from django.urls import path
+
 from . import views
 
 app_name = 'talentscope'

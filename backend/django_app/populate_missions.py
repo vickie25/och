@@ -1,17 +1,19 @@
 #!/usr/bin/env python
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
 from missions.models import Mission
-from users.models import User, Role, UserRole
-from django.utils import timezone
+
+from users.models import Role, User, UserRole
+
 
 def create_program_director():
     """Create a program director user for mission creation"""
-    
+
     # Create program_director role if it doesn't exist
     director_role, created = Role.objects.get_or_create(
         name='program_director',
@@ -23,7 +25,7 @@ def create_program_director():
     )
     if created:
         print('+ Created program_director role')
-    
+
     # Create director user
     director, created = User.objects.get_or_create(
         email='director@och.com',
@@ -36,7 +38,7 @@ def create_program_director():
     )
     if created:
         print('+ Created director user')
-    
+
     # Assign director role
     user_role, created = UserRole.objects.get_or_create(
         user=director,
@@ -46,14 +48,14 @@ def create_program_director():
     )
     if created:
         print('+ Assigned director role')
-    
+
     return director
 
 def populate_missions():
     """Populate missions with proper content as Program Director would"""
-    
-    director = create_program_director()
-    
+
+    create_program_director()
+
     # Mission data as Program Director would create
     missions_data = [
         {
@@ -204,19 +206,19 @@ def populate_missions():
             'competencies': ['vulnerability_assessment', 'risk_analysis', 'remediation_planning', 'stakeholder_communication']
         }
     ]
-    
+
     # Create/update missions
     for mission_data in missions_data:
         mission, created = Mission.objects.update_or_create(
             code=mission_data['code'],
             defaults=mission_data
         )
-        
+
         if created:
             print(f'+ Created mission: {mission.code} - {mission.title}')
         else:
             print(f'+ Updated mission: {mission.code} - {mission.title}')
-    
+
     print(f'\nSuccess! Populated {len(missions_data)} missions with full content')
     print('Missions now have:')
     print('- Detailed objectives')

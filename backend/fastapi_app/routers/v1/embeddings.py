@@ -1,12 +1,12 @@
 """
 Embedding generation API endpoints.
 """
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException
 from schemas.embedding import (
+    EmbeddingItem,
     EmbeddingRequest,
     EmbeddingResponse,
-    EmbeddingItem,
 )
 from services.embedding_service import EmbeddingService
 
@@ -25,7 +25,7 @@ async def create_embeddings(
         embeddings = await service.generate_embeddings(request.texts)
         embedding_items = [
             EmbeddingItem(text=text, embedding=emb.tolist())
-            for text, emb in zip(request.texts, embeddings)
+            for text, emb in zip(request.texts, embeddings, strict=False)
         ]
         return EmbeddingResponse(
             embeddings=embedding_items,

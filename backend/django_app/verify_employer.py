@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import sys
+
 import django
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -8,6 +9,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
 from django.contrib.auth import get_user_model
+
 from users.models import UserRole
 
 User = get_user_model()
@@ -41,9 +43,9 @@ try:
         print('❌ No organization linked')
 
     print('\n🎯 LOGIN CREDENTIALS:')
-    print(f'Email: employer@och.com')
-    print(f'Password: Ongoza@#1')
-    print(f'Login URL: http://localhost:3000/login/sponsor')
+    print('Email: employer@och.com')
+    print('Password: Ongoza@#1')
+    print('Login URL: http://localhost:3000/login/sponsor')
 
 except User.DoesNotExist:
     print('❌ User not found')

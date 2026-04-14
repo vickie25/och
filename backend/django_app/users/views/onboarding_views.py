@@ -2,12 +2,13 @@
 Onboarding flow views for students.
 Handles both email link onboarding and signup page onboarding.
 """
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from django.contrib.auth import get_user_model
+
 from users.auth_models import MFAMethod
 from users.models import UserRole
 
@@ -24,7 +25,7 @@ def check_onboarding_status(request):
     """
     email = request.query_params.get('email')
     code = request.query_params.get('code')  # Magic link code from email
-    
+
     # If authenticated, use current user
     if request.user.is_authenticated:
         user = request.user
@@ -42,7 +43,7 @@ def check_onboarding_status(request):
             {'detail': 'Email or authentication required'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     # Check if fully onboarded
     has_password = user.has_usable_password()
     email_verified = user.email_verified
@@ -69,7 +70,7 @@ def check_onboarding_status(request):
             'message': 'You are already onboarded to OCH. Welcome back!',
             'redirect_url': '/dashboard'
         }, status=status.HTTP_200_OK)
-    
+
     # Email link onboarding flow
     if code:
         if not has_password:
@@ -108,7 +109,7 @@ def check_onboarding_status(request):
                 'email': user.email,
                 'message': 'Complete your AI profiling to get matched with the right track'
             }, status=status.HTTP_200_OK)
-    
+
     # Signup page flow (after account creation)
     if not email_verified:
         return Response({
@@ -145,7 +146,7 @@ def check_onboarding_status(request):
             'email': user.email,
             'message': 'Complete your AI profiling to get matched with the right track'
         }, status=status.HTTP_200_OK)
-    
+
     return Response({
         'onboarding_complete': True,
         'message': 'Onboarding complete!',
@@ -162,18 +163,18 @@ def complete_onboarding_step(request):
     """
     user = request.user
     step = request.data.get('step')
-    
+
     if step == 'ai_profiling':
         user.profiling_complete = True
         user.save()
-        
+
         return Response({
             'success': True,
             'message': 'AI Profiling completed!',
             'onboarding_complete': True,
             'redirect_url': '/dashboard'
         }, status=status.HTTP_200_OK)
-    
+
     return Response(
         {'detail': 'Invalid step'},
         status=status.HTTP_400_BAD_REQUEST

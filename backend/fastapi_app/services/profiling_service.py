@@ -3,19 +3,23 @@ Enhanced AI Profiling service for OCH track assessment.
 Maps users to 5 specific cybersecurity tracks: defender, offensive, innovation, leadership, grc
 """
 import uuid
-from typing import Dict, List, Optional, Tuple, Any
-from datetime import datetime
 from collections import defaultdict
+from datetime import datetime
 
 from schemas.profiling import (
-    ProfilingSession, ProfilingResponse, TrackRecommendation,
-    ProfilingResult, ProfilingProgress, DeepInsights, TrackInfo
+    DeepInsights,
+    ProfilingProgress,
+    ProfilingResponse,
+    ProfilingResult,
+    ProfilingSession,
+    TrackRecommendation,
+)
+from schemas.profiling_questions import (
+    ALL_PROFILING_QUESTIONS,
+    CATEGORY_WEIGHTS,
+    MIN_QUESTIONS_FOR_ASSESSMENT,
 )
 from schemas.profiling_tracks import OCH_TRACKS
-from schemas.profiling_questions import (
-    ALL_PROFILING_QUESTIONS, CATEGORY_WEIGHTS,
-    MIN_QUESTIONS_FOR_ASSESSMENT
-)
 
 
 class ProfilingService:
@@ -48,7 +52,7 @@ class ProfilingService:
         )
         return session
 
-    def get_question(self, question_id: str) -> Optional[Dict]:
+    def get_question(self, question_id: str) -> dict | None:
         """Get a question by ID."""
         question = self.question_map.get(question_id)
         if not question:
@@ -64,12 +68,12 @@ class ProfilingService:
             ]
         }
 
-    def get_all_questions(self) -> List[Dict]:
+    def get_all_questions(self) -> list[dict]:
         """Get all profiling questions in order."""
         return [self.get_question(q.id) for q in self.questions]
 
     def submit_response(self, session: ProfilingSession, question_id: str,
-                       selected_option: str, response_time_ms: Optional[int] = None) -> bool:
+                       selected_option: str, response_time_ms: int | None = None) -> bool:
         """Submit a response to a profiling question."""
         question = self.question_map.get(question_id)
         if not question:
@@ -97,7 +101,7 @@ class ProfilingService:
 
         return True
 
-    def calculate_scores(self, session: ProfilingSession) -> Dict[str, float]:
+    def calculate_scores(self, session: ProfilingSession) -> dict[str, float]:
         """
         Calculate track scores based on user responses with weighted categories.
 
@@ -152,7 +156,7 @@ class ProfilingService:
 
         return dict(normalized_scores)
 
-    def generate_recommendations(self, scores: Dict[str, float]) -> List[TrackRecommendation]:
+    def generate_recommendations(self, scores: dict[str, float]) -> list[TrackRecommendation]:
         """
         Generate track recommendations with strengths and optimal paths.
 
@@ -198,7 +202,7 @@ class ProfilingService:
 
         return recommendations
 
-    def _generate_reasoning(self, track_key: str, score: float, rank: int, all_scores: Dict[str, float]) -> List[str]:
+    def _generate_reasoning(self, track_key: str, score: float, rank: int, all_scores: dict[str, float]) -> list[str]:
         """Generate reasoning text for a track recommendation."""
         track_info = OCH_TRACKS[track_key]
         reasoning = []
@@ -223,7 +227,7 @@ class ProfilingService:
 
         return reasoning
 
-    def _get_strengths_aligned(self, track_key: str, scores: Dict[str, float]) -> List[str]:
+    def _get_strengths_aligned(self, track_key: str, scores: dict[str, float]) -> list[str]:
         """Get strengths that align with a track based on scoring patterns."""
         strengths_map = {
             "defender": [
@@ -270,7 +274,7 @@ class ProfilingService:
         }
         return paths_map.get(track_key, "Follow the recommended curriculum for this track.")
 
-    def _generate_deep_insights(self, session: ProfilingSession, scores: Dict[str, float], recommendations: List[TrackRecommendation]) -> DeepInsights:
+    def _generate_deep_insights(self, session: ProfilingSession, scores: dict[str, float], recommendations: list[TrackRecommendation]) -> DeepInsights:
         """Generate deep insights about the user's profile."""
         primary_track = recommendations[0].track_key if recommendations else None
         secondary_track = recommendations[1].track_key if len(recommendations) > 1 else None
@@ -333,7 +337,7 @@ class ProfilingService:
             personality_traits=personality_traits
         )
 
-    def _analyze_learning_approach(self, category_patterns: Dict[str, List[str]]) -> str:
+    def _analyze_learning_approach(self, category_patterns: dict[str, list[str]]) -> str:
         """Analyze preferred learning approach from responses."""
         if "technical_aptitude" in category_patterns:
             patterns = category_patterns["technical_aptitude"]
@@ -342,7 +346,7 @@ class ProfilingService:
                 return "hands-on" if len([p for p in patterns if p in ["A", "B"]]) > len(patterns) / 2 else "research-based"
         return "balanced"
 
-    def _analyze_problem_solving(self, category_patterns: Dict[str, List[str]]) -> str:
+    def _analyze_problem_solving(self, category_patterns: dict[str, list[str]]) -> str:
         """Analyze problem-solving style."""
         if "problem_solving" in category_patterns:
             patterns = category_patterns["problem_solving"]
@@ -350,7 +354,7 @@ class ProfilingService:
                 return "systematic" if len([p for p in patterns if p in ["A", "B"]]) > len(patterns) / 2 else "adaptive"
         return "balanced"
 
-    def _analyze_work_style(self, category_patterns: Dict[str, List[str]]) -> str:
+    def _analyze_work_style(self, category_patterns: dict[str, list[str]]) -> str:
         """Analyze work style preference."""
         if "work_style" in category_patterns:
             patterns = category_patterns["work_style"]
@@ -358,7 +362,7 @@ class ProfilingService:
                 return "collaborative" if len([p for p in patterns if p in ["B", "D", "E"]]) > len(patterns) / 2 else "independent"
         return "balanced"
 
-    def _generate_learning_path(self, track_key: Optional[str]) -> List[str]:
+    def _generate_learning_path(self, track_key: str | None) -> list[str]:
         """Generate optimal learning path steps."""
         paths_map = {
             "defender": [
@@ -394,19 +398,19 @@ class ProfilingService:
         }
         return paths_map.get(track_key, ["Follow recommended curriculum progression"])
 
-    def _identify_growth_opportunities(self, scores: Dict[str, float], primary_track: Optional[str]) -> List[str]:
+    def _identify_growth_opportunities(self, scores: dict[str, float], primary_track: str | None) -> list[str]:
         """Identify areas for growth based on score patterns."""
         opportunities = []
         sorted_tracks = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        
+
         # If there's a significant gap between primary and secondary
         if len(sorted_tracks) >= 2:
             primary_score = sorted_tracks[0][1]
             secondary_score = sorted_tracks[1][1]
-            
+
             if primary_score - secondary_score < 15:
                 opportunities.append("Consider exploring complementary tracks to broaden your skillset")
-        
+
         # Track-specific growth areas
         growth_map = {
             "defender": ["Offensive security knowledge for better defense", "GRC understanding for compliance"],
@@ -415,11 +419,11 @@ class ProfilingService:
             "leadership": ["Deep technical expertise in your domain", "GRC knowledge for comprehensive leadership"],
             "grc": ["Technical security knowledge", "Leadership skills for governance teams"]
         }
-        
+
         opportunities.extend(growth_map.get(primary_track, []))
         return opportunities[:4]
 
-    def _analyze_security_mindset(self, category_patterns: Dict[str, List[str]]) -> str:
+    def _analyze_security_mindset(self, category_patterns: dict[str, list[str]]) -> str:
         """Analyze security mindset from cybersecurity_mindset questions."""
         if "cybersecurity_mindset" in category_patterns:
             patterns = category_patterns["cybersecurity_mindset"]
@@ -427,7 +431,7 @@ class ProfilingService:
                 return "proactive" if len([p for p in patterns if p in ["A", "B"]]) > len(patterns) / 2 else "strategic"
         return "balanced"
 
-    def _analyze_collaboration(self, category_patterns: Dict[str, List[str]]) -> str:
+    def _analyze_collaboration(self, category_patterns: dict[str, list[str]]) -> str:
         """Analyze collaboration style."""
         if "work_style" in category_patterns:
             patterns = category_patterns["work_style"]
@@ -435,7 +439,7 @@ class ProfilingService:
                 return "team-oriented" if len([p for p in patterns if p in ["B", "D"]]) > len(patterns) / 2 else "independent"
         return "balanced"
 
-    def _analyze_risk_tolerance(self, category_patterns: Dict[str, List[str]]) -> str:
+    def _analyze_risk_tolerance(self, category_patterns: dict[str, list[str]]) -> str:
         """Analyze risk tolerance."""
         if "work_style" in category_patterns:
             patterns = category_patterns["work_style"]
@@ -467,7 +471,7 @@ class ProfilingService:
         primary_recommendation = recommendations[0]
         primary_track = OCH_TRACKS[primary_recommendation.track_key]
         secondary_track = OCH_TRACKS[recommendations[1].track_key] if len(recommendations) > 1 and recommendations[1].score >= 40 else None
-        
+
         session.recommended_track = primary_recommendation.track_key
         session.completed_at = datetime.utcnow()
 
@@ -490,7 +494,7 @@ class ProfilingService:
 
         return result
 
-    def _generate_assessment_summary(self, recommendations: List[TrackRecommendation], deep_insights: DeepInsights) -> str:
+    def _generate_assessment_summary(self, recommendations: list[TrackRecommendation], deep_insights: DeepInsights) -> str:
         """Generate a comprehensive assessment summary."""
         primary = recommendations[0]
         secondary = recommendations[1] if len(recommendations) > 1 else None
@@ -504,7 +508,7 @@ class ProfilingService:
 
         summary += "This assessment evaluated your technical aptitude, problem-solving approach, "
         summary += "scenario preferences, work style, and cybersecurity mindset across {len(ALL_PROFILING_QUESTIONS)} dimensions. "
-        
+
         summary += f"Your primary strengths align with {', '.join(deep_insights.primary_strengths[:2])}."
 
         return summary

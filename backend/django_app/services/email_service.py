@@ -82,11 +82,11 @@ class EmailService:
     def send_activation_email(self, user, raw_token: str = None) -> bool:
         """
         Send account activation email to user.
-        
+
         Args:
             user: User instance
             raw_token: Raw activation token (optional, will be generated if not provided)
-            
+
         Returns:
             bool: True if email sent successfully, False otherwise
         """
@@ -98,7 +98,7 @@ class EmailService:
                 # Generate token if not provided
                 raw_token = user.generate_verification_token()
                 activation_url = f"{self.frontend_url}/auth/verify-email?token={raw_token}"
-            
+
             # Create HTML content
             html_content = f"""
             <!DOCTYPE html>
@@ -123,13 +123,13 @@ class EmailService:
                         <div style="color: #334155; line-height: 1.6; font-size: 16px;">
                             <p>Hi {user.first_name or user.email},</p>
                             <p>Welcome to Ongoza CyberHub! Please activate your account by clicking the button below:</p>
-                            
+
                             <div style="text-align: center; margin-top: 32px;">
                                 <a href="{activation_url}" style="background-color: #1E3A8A; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block; font-size: 16px;">
                                     Activate Account
                                 </a>
                             </div>
-                            
+
                             <p style="background: #F8FAFC; padding: 12px; border-radius: 6px; font-size: 14px; color: #475569; margin-top: 24px;">
                                 <strong>Security Note:</strong> This activation link will expire in 24 hours. If you didn't create an account, please ignore this email.
                             </p>
@@ -146,25 +146,25 @@ class EmailService:
             </body>
             </html>
             """
-            
+
             return self._execute_send(
                 user.email,
                 "Activate your Ongoza CyberHub account",
                 html_content,
                 "activation"
             )
-            
+
         except Exception as e:
             logger.error(f"Failed to send activation email to {user.email}: {str(e)}")
             return False
-    
+
     def send_welcome_email(self, user) -> bool:
         """
         Send welcome email to newly activated user.
-        
+
         Args:
             user: User instance
-            
+
         Returns:
             bool: True if email sent successfully, False otherwise
         """
@@ -186,13 +186,13 @@ class EmailService:
                         <div style="color: #334155; line-height: 1.6; font-size: 16px;">
                             <p>Hi {user.first_name or user.email},</p>
                             <p>Your account has been successfully activated! You're now ready to begin your cybersecurity journey.</p>
-                            
+
                             <div style="text-align: center; margin-top: 32px;">
                                 <a href="{self.frontend_url}/dashboard/student" style="background-color: #1E3A8A; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block; font-size: 16px;">
                                     Go to Dashboard
                                 </a>
                             </div>
-                            
+
                             <p style="margin-top: 24px; color: #475569;">
                                 Get started by completing your AI profiling to get matched with the perfect OCH track for your career goals.
                             </p>
@@ -209,25 +209,25 @@ class EmailService:
             </body>
             </html>
             """
-            
+
             return self._execute_send(
                 user.email,
                 "Welcome to Ongoza CyberHub!",
                 html_content,
                 "welcome"
             )
-            
+
         except Exception as e:
             logger.error(f"Failed to send welcome email to {user.email}: {str(e)}")
             return False
-    
+
     def send_password_reset_email(self, user) -> bool:
         """
         Send password reset email to user.
-        
+
         Args:
             user: User instance (should already have password_reset_token generated)
-            
+
         Returns:
             bool: True if email sent successfully, False otherwise
         """
@@ -236,15 +236,15 @@ class EmailService:
             # If not set, generate one
             if not user.password_reset_token:
                 user.generate_password_reset_token()
-            
+
             reset_token = user.password_reset_token
             if not reset_token:
                 logger.error(f"No password reset token available for user {user.email}")
                 return False
-                
+
             reset_url = f"{self.frontend_url}/reset-password/{reset_token}"
             logger.info(f"Generating password reset email for {user.email} with URL: {reset_url[:50]}...")
-            
+
             html_content = f"""
             <!DOCTYPE html>
             <html lang="en">
@@ -262,13 +262,13 @@ class EmailService:
                         <div style="color: #334155; line-height: 1.6; font-size: 16px;">
                             <p>Hi {user.first_name or user.email},</p>
                             <p>We received a request to reset your password. Click the button below to create a new password:</p>
-                            
+
                             <div style="text-align: center; margin-top: 32px;">
                                 <a href="{reset_url}" style="background-color: #1E3A8A; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block; font-size: 16px;">
                                     Reset Password
                                 </a>
                             </div>
-                            
+
                             <p style="background: #F8FAFC; padding: 12px; border-radius: 6px; font-size: 14px; color: #475569; margin-top: 24px;">
                                 <strong>Security Note:</strong> This link will expire in 1 hour. If you didn't request a password reset, please ignore this email and your password will remain unchanged.
                             </p>
@@ -285,30 +285,30 @@ class EmailService:
             </body>
             </html>
             """
-            
+
             return self._execute_send(
                 user.email,
                 "Reset your Ongoza CyberHub password",
                 html_content,
                 "password_reset"
             )
-            
+
         except Exception as e:
             logger.error(f"Failed to send password reset email to {user.email}: {str(e)}")
             return False
-    
+
     @staticmethod
     def send_application_status_update_notification(student, job, application, old_status: str, new_status: str) -> bool:
         """
         Send notification to student when their application status is updated.
-        
+
         Args:
             student: User object (applicant)
             job: JobPosting object
             application: JobApplication object
             old_status: Previous status
             new_status: New status
-        
+
         Returns:
             bool: True if email sent successfully, False otherwise
         """
@@ -317,7 +317,7 @@ class EmailService:
             student_name = student.get_full_name() or student.email
             job_title = job.title
             employer_name = job.employer.company_name if job.employer else 'Employer'
-            
+
             status_labels = {
                 'pending': 'Pending Review',
                 'reviewing': 'Under Review',
@@ -327,9 +327,9 @@ class EmailService:
                 'rejected': 'Rejected',
                 'withdrawn': 'Withdrawn',
             }
-            
+
             subject = f"Application Status Update: {job_title}"
-            
+
             html_content = f"""
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #F5A623;">Application Status Update</h2>
@@ -345,7 +345,7 @@ class EmailService:
                 </a>
             </div>
             """
-            
+
             return service._execute_send(
                 to_email=student.email,
                 subject=subject,
@@ -359,13 +359,13 @@ class EmailService:
     def send_contact_request_notification(self, to_email: str, student_name: str, employer_name: str, profile_url: str) -> bool:
         """
         Send notification email when an employer contacts a student.
-        
+
         Args:
             to_email: Student's email address
             student_name: Student's name
             employer_name: Employer's company name
             profile_url: URL to view contact requests
-            
+
         Returns:
             bool: True if email sent successfully, False otherwise
         """
@@ -387,17 +387,17 @@ class EmailService:
                         <div style="color: #334155; line-height: 1.6; font-size: 16px;">
                             <p>Hi {student_name},</p>
                             <p><strong>{employer_name}</strong> has expressed interest in connecting with you through the Marketplace!</p>
-                            
+
                             <div style="background: #F0FDF4; border-left: 4px solid #10B981; padding: 16px; margin: 24px 0; border-radius: 4px;">
                                 <p style="margin: 0; color: #065F46; font-weight: 600;">This is a great opportunity to explore potential career opportunities.</p>
                             </div>
-                            
+
                             <div style="text-align: center; margin-top: 32px;">
                                 <a href="{profile_url}" style="background-color: #10B981; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block; font-size: 16px;">
                                     View Contact Request
                                 </a>
                             </div>
-                            
+
                             <p style="margin-top: 24px; color: #475569; font-size: 14px;">
                                 You can view and manage all contact requests in your Marketplace dashboard.
                             </p>
@@ -414,14 +414,14 @@ class EmailService:
             </body>
             </html>
             """
-            
+
             return self._execute_send(
                 to_email,
                 f"New contact request from {employer_name}",
                 html_content,
                 "contact_request"
             )
-            
+
         except Exception as e:
             logger.error(f"Failed to send contact request notification to {to_email}: {str(e)}")
             return False

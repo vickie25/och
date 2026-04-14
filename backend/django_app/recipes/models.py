@@ -3,9 +3,11 @@ Recipe Engine models - Micro-skill delivery system.
 Provides short, actionable "how-to" learning units (15-30min).
 """
 import uuid
-from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
+
 from django.contrib.postgres.indexes import GinIndex
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
+
 from users.models import User
 
 
@@ -19,7 +21,7 @@ class Recipe(models.Model):
         ('intermediate', 'Intermediate'),
         ('advanced', 'Advanced'),
     ]
-    
+
     RECIPE_TYPE_CHOICES = [
         ('technical', 'Technical'),
         ('analysis', 'Analysis'),
@@ -28,13 +30,13 @@ class Recipe(models.Model):
         ('decision', 'Decision'),
         ('innovation', 'Innovation'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255, db_index=True, help_text='e.g., "Write Basic Sigma Rule"')
     slug = models.SlugField(max_length=255, unique=True, db_index=True, help_text='URL-friendly identifier')
     summary = models.TextField(max_length=500, help_text='1-2 sentence overview')
     description = models.TextField(blank=True, help_text='Detailed "what this solves"')
-    
+
     difficulty = models.CharField(
         max_length=20,
         choices=DIFFICULTY_CHOICES,
@@ -52,7 +54,7 @@ class Recipe(models.Model):
         validators=[MinValueValidator(5), MaxValueValidator(60)],
         help_text='Estimated completion time (5-60 minutes)'
     )
-    
+
     # Arrays for filtering/searching
     track_codes = models.JSONField(
         default=list,
@@ -73,7 +75,7 @@ class Recipe(models.Model):
         blank=True,
         help_text='Other recipes or knowledge prerequisites'
     )
-    
+
     # Content structure (JSONB) - Updated to match Next.js API expectations
     description = models.TextField(
         help_text='2-3 sentence summary of what this recipe teaches'
@@ -110,7 +112,7 @@ class Recipe(models.Model):
         blank=True,
         help_text='Legacy validation steps - deprecated'
     )
-    
+
     thumbnail_url = models.URLField(blank=True, max_length=500)
     mentor_curated = models.BooleanField(default=False, db_index=True)
     is_free_sample = models.BooleanField(default=False, db_index=True, help_text='Free tier access')
@@ -123,7 +125,7 @@ class Recipe(models.Model):
         default=0.0,
         validators=[MinValueValidator(0), MaxValueValidator(5)]
     )
-    
+
     is_active = models.BooleanField(default=True, db_index=True)
     created_by = models.ForeignKey(
         User,
@@ -134,7 +136,7 @@ class Recipe(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'recipes'
         verbose_name = 'Recipe'
@@ -149,7 +151,7 @@ class Recipe(models.Model):
             GinIndex(fields=['tools_used']),
         ]
         ordering = ['-usage_count', '-created_at']
-    
+
     def __str__(self):
         return self.title
 
@@ -163,7 +165,7 @@ class UserRecipeProgress(models.Model):
         ('in_progress', 'In Progress'),
         ('completed', 'Completed'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
         User,
@@ -175,7 +177,7 @@ class UserRecipeProgress(models.Model):
         on_delete=models.CASCADE,
         related_name='user_progress'
     )
-    
+
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
@@ -191,10 +193,10 @@ class UserRecipeProgress(models.Model):
     )
     notes = models.TextField(blank=True, help_text='Student feedback')
     time_spent_minutes = models.IntegerField(null=True, blank=True)
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'user_recipe_progress'
         verbose_name = 'User Recipe Progress'
@@ -204,7 +206,7 @@ class UserRecipeProgress(models.Model):
             models.Index(fields=['user', 'status']),
             models.Index(fields=['recipe', 'status']),
         ]
-    
+
     def __str__(self):
         return f"{self.user.email} - {self.recipe.title} ({self.status})"
 
@@ -219,26 +221,26 @@ class RecipeContextLink(models.Model):
         ('project', 'Project'),
         ('mentor_session', 'Mentor Session'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
         related_name='context_links'
     )
-    
+
     context_type = models.CharField(
         max_length=20,
         choices=CONTEXT_TYPE_CHOICES,
         db_index=True
     )
     context_id = models.UUIDField(db_index=True, help_text='mission_id, module_id, etc')
-    
+
     is_required = models.BooleanField(default=False, help_text='Required vs recommended')
     position_order = models.IntegerField(default=0)
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'recipe_context_links'
         verbose_name = 'Recipe Context Link'
@@ -247,7 +249,7 @@ class RecipeContextLink(models.Model):
             models.Index(fields=['context_type', 'context_id', 'position_order']),
             models.Index(fields=['recipe', 'context_type']),
         ]
-    
+
     def __str__(self):
         return f"{self.recipe.title} → {self.context_type}:{self.context_id}"
 
@@ -268,7 +270,7 @@ class UserRecipeBookmark(models.Model):
         related_name='bookmarks'
     )
     bookmarked_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'user_recipe_bookmarks'
         verbose_name = 'User Recipe Bookmark'
@@ -277,7 +279,7 @@ class UserRecipeBookmark(models.Model):
         indexes = [
             models.Index(fields=['user', '-bookmarked_at']),
         ]
-    
+
     def __str__(self):
         return f"{self.user.email} bookmarked {self.recipe.title}"
 

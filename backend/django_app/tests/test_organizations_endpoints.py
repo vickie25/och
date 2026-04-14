@@ -15,7 +15,8 @@ Endpoints tested:
 """
 import pytest
 from rest_framework import status
-from organizations.models import Organization, OrganizationMember
+
+from organizations.models import Organization
 
 
 @pytest.mark.django_db

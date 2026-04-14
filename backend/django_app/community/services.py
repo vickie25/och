@@ -3,7 +3,7 @@ Community module services.
 Business logic for auto-posting achievements, TalentScope integration, etc.
 """
 import logging
-from typing import Optional
+
 from django.db import transaction
 from django.utils import timezone
 
@@ -17,7 +17,7 @@ class AchievementPostService:
     Service for automatically creating achievement posts when users
     complete missions, advance Circles, earn badges, or gain certifications.
     """
-    
+
     ACHIEVEMENT_TEMPLATES = {
         'circle_advance': {
             'title': '🎉 Advanced to Circle {circle_level}!',
@@ -55,7 +55,7 @@ class AchievementPostService:
             'icon': '🥇',
         },
     }
-    
+
     @classmethod
     def create_achievement_post(
         cls,
@@ -65,10 +65,10 @@ class AchievementPostService:
         visibility: str = 'university',
         custom_message: str = '',
         auto_post: bool = True
-    ) -> Optional[Post]:
+    ) -> Post | None:
         """
         Create an achievement post for a user.
-        
+
         Args:
             user: The user who earned the achievement
             achievement_type: Type of achievement (circle_advance, mission_complete, etc.)
@@ -76,7 +76,7 @@ class AchievementPostService:
             visibility: 'university' or 'global'
             custom_message: Optional custom message from the user
             auto_post: If True, post immediately. If False, save as draft.
-        
+
         Returns:
             Created Post object or None if creation fails
         """
@@ -85,26 +85,26 @@ class AchievementPostService:
             if not template:
                 logger.warning(f"Unknown achievement type: {achievement_type}")
                 return None
-            
+
             # Get user's primary university
             membership = UniversityMembership.objects.filter(
                 user=user,
                 is_primary=True,
                 status='active'
             ).select_related('university').first()
-            
+
             # Format title and content
             format_data = {**achievement_data, 'custom_message': custom_message}
             title = template['title'].format(**format_data)
             content = template['content'].format(**format_data)
-            
+
             # Create achievement data payload
             achievement_payload = {
                 'type': achievement_type,
                 'icon': template.get('icon', '🎉'),
                 **achievement_data
             }
-            
+
             with transaction.atomic():
                 post = Post.objects.create(
                     author=user,
@@ -118,7 +118,7 @@ class AchievementPostService:
                     achievement_data=achievement_payload,
                     published_at=timezone.now() if auto_post else None
                 )
-                
+
                 # Update user stats
                 if auto_post:
                     stats, _ = UserCommunityStats.objects.get_or_create(user=user)
@@ -126,14 +126,14 @@ class AchievementPostService:
                     stats.last_post_at = timezone.now()
                     stats.last_activity_at = timezone.now()
                     stats.save(update_fields=['total_posts', 'last_post_at', 'last_activity_at'])
-                
+
                 logger.info(f"Created achievement post {post.id} for user {user.id}: {achievement_type}")
                 return post
-                
+
         except Exception as e:
             logger.exception(f"Failed to create achievement post: {e}")
             return None
-    
+
     @classmethod
     def create_circle_advance_post(
         cls,
@@ -141,7 +141,7 @@ class AchievementPostService:
         circle_level: int,
         phase: int,
         custom_message: str = ''
-    ) -> Optional[Post]:
+    ) -> Post | None:
         """Convenience method for Circle advancement posts."""
         return cls.create_achievement_post(
             user=user,
@@ -153,7 +153,7 @@ class AchievementPostService:
             visibility='global' if circle_level >= 3 else 'university',
             custom_message=custom_message
         )
-    
+
     @classmethod
     def create_mission_complete_post(
         cls,
@@ -163,7 +163,7 @@ class AchievementPostService:
         score: int,
         mission_type: str = '',
         custom_message: str = ''
-    ) -> Optional[Post]:
+    ) -> Post | None:
         """Convenience method for mission completion posts."""
         return cls.create_achievement_post(
             user=user,
@@ -177,7 +177,7 @@ class AchievementPostService:
             visibility='global' if score >= 900 else 'university',
             custom_message=custom_message
         )
-    
+
     @classmethod
     def create_badge_earned_post(
         cls,
@@ -188,7 +188,7 @@ class AchievementPostService:
         badge_icon_url: str = '',
         badge_rarity: str = 'common',
         custom_message: str = ''
-    ) -> Optional[Post]:
+    ) -> Post | None:
         """Convenience method for badge earned posts."""
         return cls.create_achievement_post(
             user=user,
@@ -210,7 +210,7 @@ class TalentScopeEventEmitter:
     Service for emitting community activity events to TalentScope.
     These events become behavioral signals for talent analytics.
     """
-    
+
     EVENT_TYPES = {
         'post_created': 'community.post.created',
         'comment_created': 'community.comment.created',
@@ -223,7 +223,7 @@ class TalentScopeEventEmitter:
         'badge_earned': 'community.badge.earned',
         'streak_maintained': 'community.streak.maintained',
     }
-    
+
     # Event weights for engagement scoring
     EVENT_WEIGHTS = {
         'post_created': 10,
@@ -237,7 +237,7 @@ class TalentScopeEventEmitter:
         'badge_earned': 10,
         'streak_maintained': 5,
     }
-    
+
     @classmethod
     def emit_event(
         cls,
@@ -247,22 +247,22 @@ class TalentScopeEventEmitter:
     ) -> bool:
         """
         Emit a community event to TalentScope.
-        
+
         In production, this would publish to a message queue (Redis, RabbitMQ)
         or call the TalentScope API. For now, we log the event.
-        
+
         Args:
             event_type: Type of event from EVENT_TYPES
             user_id: ID of the user who performed the action
             metadata: Additional event data
-        
+
         Returns:
             True if event was emitted successfully
         """
         try:
             event_name = cls.EVENT_TYPES.get(event_type, f'community.{event_type}')
             weight = cls.EVENT_WEIGHTS.get(event_type, 1)
-            
+
             event_payload = {
                 'event': event_name,
                 'user_id': str(user_id),
@@ -270,34 +270,34 @@ class TalentScopeEventEmitter:
                 'timestamp': timezone.now().isoformat(),
                 'metadata': metadata or {}
             }
-            
+
             # TODO: In production, publish to message queue or call TalentScope API
             # For now, log the event
             logger.info(f"TalentScope event: {event_payload}")
-            
+
             # Could also store locally for batch processing
             # TalentScopeEventLog.objects.create(**event_payload)
-            
+
             return True
-            
+
         except Exception as e:
             logger.exception(f"Failed to emit TalentScope event: {e}")
             return False
-    
+
     @classmethod
     def emit_post_created(cls, user_id: str, post_id: str, post_type: str) -> bool:
         return cls.emit_event('post_created', user_id, {
             'post_id': post_id,
             'post_type': post_type
         })
-    
+
     @classmethod
     def emit_comment_created(cls, user_id: str, post_id: str, comment_id: str) -> bool:
         return cls.emit_event('comment_created', user_id, {
             'post_id': post_id,
             'comment_id': comment_id
         })
-    
+
     @classmethod
     def emit_reaction_given(cls, user_id: str, target_type: str, target_id: str, reaction_type: str) -> bool:
         return cls.emit_event('reaction_given', user_id, {
@@ -305,7 +305,7 @@ class TalentScopeEventEmitter:
             'target_id': target_id,
             'reaction_type': reaction_type
         })
-    
+
     @classmethod
     def emit_event_participation(cls, user_id: str, event_id: str, event_type: str, action: str) -> bool:
         event_key = 'event_attended' if action == 'attended' else 'event_registered'
@@ -314,7 +314,7 @@ class TalentScopeEventEmitter:
             'event_type': event_type,
             'action': action
         })
-    
+
     @classmethod
     def emit_competition_result(cls, user_id: str, competition_id: str, placement: int) -> bool:
         return cls.emit_event('competition_placed', user_id, {
@@ -328,31 +328,31 @@ class UniversityAutoMapper:
     """
     Service for auto-mapping users to universities based on email domain.
     """
-    
+
     @classmethod
-    def map_user(cls, user) -> Optional[UniversityMembership]:
+    def map_user(cls, user) -> UniversityMembership | None:
         """
         Auto-map a user to their university based on email domain.
         This is also available as a signal in signals.py.
         """
         from .signals import auto_map_user_to_university
         return auto_map_user_to_university(user)
-    
+
     @classmethod
-    def check_domain(cls, email: str) -> Optional[dict]:
+    def check_domain(cls, email: str) -> dict | None:
         """
         Check if an email domain matches any university.
-        
+
         Returns:
             Dict with university info if match found, None otherwise
         """
         from .models import UniversityDomain
-        
+
         if not email or '@' not in email:
             return None
-        
+
         domain = email.split('@')[1].lower()
-        
+
         try:
             uni_domain = UniversityDomain.objects.select_related('university').get(
                 domain=domain,

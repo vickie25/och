@@ -1,12 +1,11 @@
 """
 Recommendation engine API endpoints.
 """
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException
 from schemas.recommendation import (
     RecommendationRequest,
     RecommendationResponse,
-    RecommendationItem,
 )
 from services.recommendation_service import RecommendationService
 
@@ -39,7 +38,7 @@ async def get_recommendations(
 @router.get("/recommendations/{user_id}", response_model=RecommendationResponse)
 async def get_user_recommendations(
     user_id: int,
-    content_type: Optional[str] = None,
+    content_type: str | None = None,
     limit: int = 10,
     service: RecommendationService = Depends(RecommendationService),
 ):

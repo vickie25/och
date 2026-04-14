@@ -2,11 +2,12 @@
 Django management command to create OCH users
 Run: python manage.py create_och_users
 """
-from django.core.management.base import BaseCommand
-from django.contrib.auth import get_user_model
-from users.models import Role, UserRole
-from django.db.models.signals import post_save
 from community import signals
+from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand
+from django.db.models.signals import post_save
+
+from users.models import Role, UserRole
 
 User = get_user_model()
 
@@ -90,7 +91,7 @@ class Command(BaseCommand):
             for user_data in och_users:
                 role_name = user_data.pop('role')
                 email = user_data['email']
-                
+
                 try:
                     user = User.objects.get(email=email)
                     # Update existing user
@@ -118,7 +119,7 @@ class Command(BaseCommand):
                     self.stdout.write(
                         self.style.SUCCESS(f'✓ Created: {email} ({role_name})')
                     )
-                
+
                 # Assign role
                 role, _ = Role.objects.get_or_create(name=role_name)
                 UserRole.objects.get_or_create(
@@ -134,7 +135,7 @@ class Command(BaseCommand):
             self.stdout.write(f'Created: {created_count} users')
             self.stdout.write(f'Updated: {updated_count} users')
             self.stdout.write(f'\nPassword for all users: {password}')
-            self.stdout.write(f'\nLogin Credentials:')
+            self.stdout.write('\nLogin Credentials:')
             for user_data in och_users:
                 self.stdout.write(f'  - {user_data["email"]} / {password}')
             self.stdout.write('')

@@ -2,6 +2,7 @@
 Missions serializers
 """
 from rest_framework import serializers
+
 from .models import Mission, MissionAssignment, MissionSubmission
 
 
@@ -39,7 +40,7 @@ class MissionAssignmentSerializer(serializers.ModelSerializer):
     mission_title = serializers.CharField(source='mission.title', read_only=True)
     student_email = serializers.CharField(source='student.email', read_only=True)
     assigned_by_email = serializers.CharField(source='assigned_by.email', read_only=True)
-    
+
     class Meta:
         model = MissionAssignment
         fields = '__all__'
@@ -50,7 +51,7 @@ class MissionSubmissionSerializer(serializers.ModelSerializer):
     mission_title = serializers.CharField(source='assignment.mission.title', read_only=True)
     student_email = serializers.CharField(source='student.email', read_only=True)
     reviewed_by_email = serializers.CharField(source='reviewed_by.email', read_only=True)
-    
+
     class Meta:
         model = MissionSubmission
         fields = '__all__'

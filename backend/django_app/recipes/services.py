@@ -2,18 +2,18 @@
 Recipe Engine services for profiler-based gap analysis and recommendations.
 """
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-def verify_profiler_accessibility(user) -> Dict[str, Any]:
+def verify_profiler_accessibility(user) -> dict[str, Any]:
     """
     Verify that profiler results are accessible to Recipe Engine.
-    
+
     Args:
         user: User instance
-        
+
     Returns:
         {
             'accessible': bool,
@@ -24,13 +24,13 @@ def verify_profiler_accessibility(user) -> Dict[str, Any]:
         }
     """
     try:
-        from profiler.models import ProfilerSession, ProfilerResult
-        
+        from profiler.models import ProfilerResult, ProfilerSession
+
         profiler_session = ProfilerSession.objects.filter(
             user=user,
             status__in=['finished', 'locked']
         ).order_by('-completed_at').first()
-        
+
         if not profiler_session:
             return {
                 'accessible': False,
@@ -39,16 +39,16 @@ def verify_profiler_accessibility(user) -> Dict[str, Any]:
                 'has_breakdown': False,
                 'message': 'No profiler session found'
             }
-        
+
         has_scores = profiler_session.aptitude_score is not None or profiler_session.technical_exposure_score is not None
-        
+
         has_breakdown = False
         try:
             result = profiler_session.result
             has_breakdown = bool(result.aptitude_breakdown) if result else False
         except ProfilerResult.DoesNotExist:
             pass
-        
+
         return {
             'accessible': True,
             'session_id': str(profiler_session.id),
@@ -67,13 +67,13 @@ def verify_profiler_accessibility(user) -> Dict[str, Any]:
         }
 
 
-def map_category_to_skill_codes(category: str) -> List[str]:
+def map_category_to_skill_codes(category: str) -> list[str]:
     """
     Map profiler category to skill codes for recipe matching.
-    
+
     Args:
         category: Profiler category name (e.g., 'networking', 'security')
-        
+
     Returns:
         List of skill codes
     """
@@ -89,29 +89,29 @@ def map_category_to_skill_codes(category: str) -> List[str]:
         'malware': ['MALWARE', 'REVERSE', 'ANALYSIS'],
         'web': ['WEB', 'WEBAPP', 'OWASP', 'XSS', 'SQLI'],
     }
-    
+
     # Normalize category name
     category_lower = category.lower()
-    
+
     # Direct match
     if category_lower in category_mapping:
         return category_mapping[category_lower]
-    
+
     # Partial match
     for key, codes in category_mapping.items():
         if key in category_lower or category_lower in key:
             return codes
-    
+
     return []
 
 
-def analyze_gaps_from_profiler(user) -> Dict[str, Any]:
+def analyze_gaps_from_profiler(user) -> dict[str, Any]:
     """
     Analyze skill gaps based on profiler results.
-    
+
     Args:
         user: User instance
-        
+
     Returns:
         {
             'gaps': [
@@ -128,13 +128,13 @@ def analyze_gaps_from_profiler(user) -> Dict[str, Any]:
         }
     """
     try:
-        from profiler.models import ProfilerSession, ProfilerResult
-        
+        from profiler.models import ProfilerResult, ProfilerSession
+
         profiler_session = ProfilerSession.objects.filter(
             user=user,
             status__in=['finished', 'locked']
         ).order_by('-completed_at').first()
-        
+
         if not profiler_session:
             return {
                 'gaps': [],
@@ -142,17 +142,17 @@ def analyze_gaps_from_profiler(user) -> Dict[str, Any]:
                 'aptitude_score': None,
                 'technical_exposure_score': None,
             }
-        
+
         gaps = []
         recommended_skills = []
-        
+
         # Analyze aptitude breakdown
         aptitude_score = None
         try:
             result = profiler_session.result
             if result:
                 aptitude_score = float(result.aptitude_score) if result.aptitude_score else None
-                
+
                 if result.aptitude_breakdown:
                     for category, score in result.aptitude_breakdown.items():
                         score_float = float(score) if score else 0
@@ -171,11 +171,11 @@ def analyze_gaps_from_profiler(user) -> Dict[str, Any]:
             pass
         except Exception as e:
             logger.warning(f"Failed to analyze aptitude breakdown: {e}")
-        
+
         # Use session aptitude_score if result not available
         if aptitude_score is None and profiler_session.aptitude_score:
             aptitude_score = float(profiler_session.aptitude_score)
-        
+
         # Analyze technical exposure
         technical_exposure_score = None
         if profiler_session.technical_exposure_score:
@@ -189,12 +189,12 @@ def analyze_gaps_from_profiler(user) -> Dict[str, Any]:
                 })
                 # Add general technical skills
                 recommended_skills.extend(['TECH', 'BASICS', 'FUNDAMENTALS'])
-        
+
         # Analyze behavioral profile
         if profiler_session.behavioral_profile:
             areas_for_growth = profiler_session.behavioral_profile.get('areas_for_growth', [])
-            strengths = profiler_session.behavioral_profile.get('strengths', [])
-            
+            profiler_session.behavioral_profile.get('strengths', [])
+
             for area in areas_for_growth:
                 gaps.append({
                     'category': area,
@@ -208,17 +208,17 @@ def analyze_gaps_from_profiler(user) -> Dict[str, Any]:
                     recommended_skills.append('LEAD')
                 if 'documentation' in area.lower():
                     recommended_skills.append('DOC')
-        
+
         # Remove duplicates
         recommended_skills = list(set(recommended_skills))
-        
+
         return {
             'gaps': gaps,
             'recommended_recipe_skills': recommended_skills,
             'aptitude_score': aptitude_score,
             'technical_exposure_score': technical_exposure_score,
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to analyze gaps from profiler for user {user.id}: {e}", exc_info=True)
         return {

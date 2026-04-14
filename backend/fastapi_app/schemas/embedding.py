@@ -1,8 +1,8 @@
 """
 Embedding API schemas.
 """
+
 from pydantic import BaseModel
-from typing import List
 
 
 class EmbeddingItem(BaseModel):
@@ -10,21 +10,21 @@ class EmbeddingItem(BaseModel):
     Single embedding item with text and vector.
     """
     text: str
-    embedding: List[float]
+    embedding: list[float]
 
 
 class EmbeddingRequest(BaseModel):
     """
     Request schema for embedding generation.
     """
-    texts: List[str]
+    texts: list[str]
 
 
 class EmbeddingResponse(BaseModel):
     """
     Response schema for embeddings.
     """
-    embeddings: List[EmbeddingItem]
+    embeddings: list[EmbeddingItem]
     model: str
     dimension: int
 

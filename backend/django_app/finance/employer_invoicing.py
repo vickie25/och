@@ -3,16 +3,14 @@ Employer contract: retainer invoice when a commercial plan is selected.
 """
 from __future__ import annotations
 
-from decimal import Decimal
 from datetime import timedelta
-from typing import Optional
+from decimal import Decimal
 
 from django.db import IntegrityError
 from django.utils import timezone
 
 from .models import Contract, Invoice
 from .services import DynamicPricingService
-
 
 # Monthly retainer (USD) — aligned with employer commercial catalog - LEGACY FALLBACK
 EMPLOYER_RETAINER_USD = {
@@ -22,7 +20,7 @@ EMPLOYER_RETAINER_USD = {
 }
 
 
-def ensure_employer_plan_retainer_invoice(contract: Contract) -> Optional[Invoice]:
+def ensure_employer_plan_retainer_invoice(contract: Contract) -> Invoice | None:
     """
     Create or update a sent invoice for the monthly retainer when employer_plan is set/changed.
     If an unpaid invoice exists for this contract, its amounts are updated to match the new plan.
@@ -32,10 +30,10 @@ def ensure_employer_plan_retainer_invoice(contract: Contract) -> Optional[Invoic
         return None
 
     plan = contract.employer_plan
-    
+
     # Use dynamic pricing service first
     amount = DynamicPricingService.calculate_employer_invoice(contract)
-    
+
     if amount is None:
         # Fallback to legacy hardcoded calculation
         if plan == 'custom':

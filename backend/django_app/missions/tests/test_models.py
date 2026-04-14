@@ -1,17 +1,18 @@
 """
 Unit tests for mission models.
 """
-from django.test import TestCase
+
 from django.contrib.auth import get_user_model
-from missions.models import Mission, MissionSubmission, MissionArtifact, AIFeedback
-import uuid
+from django.test import TestCase
+
+from missions.models import AIFeedback, Mission, MissionArtifact, MissionSubmission
 
 User = get_user_model()
 
 
 class MissionModelTest(TestCase):
     """Test Mission model."""
-    
+
     def setUp(self):
         self.mission = Mission.objects.create(
             code='TEST-01',
@@ -24,13 +25,13 @@ class MissionModelTest(TestCase):
             competencies=['siem', 'alerting'],
             requirements={'objectives': ['Learn SIEM basics']}
         )
-    
+
     def test_mission_creation(self):
         """Test mission can be created."""
         self.assertEqual(self.mission.code, 'TEST-01')
         self.assertEqual(self.mission.difficulty, 'beginner')
         self.assertIsNotNone(self.mission.id)
-    
+
     def test_mission_str(self):
         """Test mission string representation."""
         self.assertIn('TEST-01', str(self.mission))
@@ -38,7 +39,7 @@ class MissionModelTest(TestCase):
 
 class MissionSubmissionModelTest(TestCase):
     """Test MissionSubmission model."""
-    
+
     def setUp(self):
         self.user = User.objects.create_user(
             email='test@example.com',
@@ -54,13 +55,13 @@ class MissionSubmissionModelTest(TestCase):
             user=self.user,
             status='draft'
         )
-    
+
     def test_submission_creation(self):
         """Test submission can be created."""
         self.assertEqual(self.submission.status, 'draft')
         self.assertEqual(self.submission.user, self.user)
         self.assertEqual(self.submission.mission, self.mission)
-    
+
     def test_submission_unique_together(self):
         """Test unique constraint on mission+user."""
         # Should not be able to create duplicate
@@ -74,7 +75,7 @@ class MissionSubmissionModelTest(TestCase):
 
 class MissionArtifactModelTest(TestCase):
     """Test MissionArtifact model."""
-    
+
     def setUp(self):
         self.user = User.objects.create_user(
             email='test@example.com',
@@ -90,7 +91,7 @@ class MissionArtifactModelTest(TestCase):
             user=self.user,
             status='draft'
         )
-    
+
     def test_artifact_creation(self):
         """Test artifact can be created."""
         artifact = MissionArtifact.objects.create(
@@ -106,7 +107,7 @@ class MissionArtifactModelTest(TestCase):
 
 class AIFeedbackModelTest(TestCase):
     """Test AIFeedback model."""
-    
+
     def setUp(self):
         self.user = User.objects.create_user(
             email='test@example.com',
@@ -122,7 +123,7 @@ class AIFeedbackModelTest(TestCase):
             user=self.user,
             status='submitted'
         )
-    
+
     def test_ai_feedback_creation(self):
         """Test AI feedback can be created."""
         feedback = AIFeedback.objects.create(

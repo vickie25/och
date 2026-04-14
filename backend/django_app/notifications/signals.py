@@ -1,7 +1,8 @@
+from curriculum.models import UserLessonProgress
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from curriculum.models import UserLessonProgress, UserModuleProgress
 from missions.models_mxp import MissionProgress
+
 from .services import notify_lesson_completed, notify_mission_reviewed
 
 

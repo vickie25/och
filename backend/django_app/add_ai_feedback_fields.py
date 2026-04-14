@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Add missing fields to ai_feedback table."""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')

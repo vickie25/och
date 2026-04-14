@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import os
-import django
 from pathlib import Path
+
+import django
 
 # Setup Django
 BASE_DIR = Path(__file__).resolve().parent
@@ -9,6 +10,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
 from users.models import User
+
 
 def main():
     print("=== DJANGO LOGIN CREDENTIALS ===")
@@ -54,7 +56,7 @@ def main():
         user = User.objects.filter(email=email).first()
         if user:
             print(f"  {email} - {role}")
-            print(f"    Password: testpass123")
+            print("    Password: testpass123")
             print(f"    Status: {'Active' if user.is_active else 'Inactive'}")
         else:
             print(f"  {email} - {role} (Not created)")

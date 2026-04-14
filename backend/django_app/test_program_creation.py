@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import sys
+
 import django
 
 # Add the project directory to the Python path
@@ -9,7 +10,6 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 
 django.setup()
 
-from programs.models import Program
 from programs.serializers import ProgramSerializer
 
 # Test data

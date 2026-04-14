@@ -1,10 +1,10 @@
 """
 Progress schemas matching Django serializers.
 """
-from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional, Dict, Literal
-from typing_extensions import Annotated
+from typing import Literal
+
+from pydantic import BaseModel
 
 
 class ProgressBase(BaseModel):
@@ -15,8 +15,8 @@ class ProgressBase(BaseModel):
     content_type: str
     status: Literal["not_started", "in_progress", "completed", "paused"]
     completion_percentage: int = 0
-    score: Optional[float] = None
-    metadata: Dict = {}
+    score: float | None = None
+    metadata: dict = {}
 
 
 class ProgressResponse(ProgressBase):
@@ -25,11 +25,11 @@ class ProgressResponse(ProgressBase):
     """
     id: int
     user_id: int
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = {
         "from_attributes": True,
     }

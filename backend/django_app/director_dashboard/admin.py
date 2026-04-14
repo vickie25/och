@@ -2,7 +2,8 @@
 Admin configuration for Director Dashboard.
 """
 from django.contrib import admin
-from .models import DirectorDashboardCache, DirectorCohortHealth
+
+from .models import DirectorCohortHealth, DirectorDashboardCache
 
 
 @admin.register(DirectorDashboardCache)

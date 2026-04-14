@@ -1,5 +1,6 @@
-import psycopg2
 import os
+
+import psycopg2
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,19 +15,19 @@ def inspect():
             port=os.getenv('DB_PORT')
         )
         cur = conn.cursor()
-        
+
         print("--- Curriculum Tables ---")
         cur.execute("SELECT tablename FROM pg_catalog.pg_tables WHERE tablename LIKE 'curriculum%';")
         tables = cur.fetchall()
         for t in tables:
             print(t[0])
-            
+
         print("\n--- Curriculum Indexes ---")
         cur.execute("SELECT indexname FROM pg_indexes WHERE indexname LIKE 'curriculum%';")
         indexes = cur.fetchall()
         for i in indexes:
             print(i[0])
-            
+
         cur.close()
         conn.close()
     except Exception as e:

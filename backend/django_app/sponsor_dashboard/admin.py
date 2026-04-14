@@ -2,11 +2,12 @@
 Admin configuration for sponsor dashboard.
 """
 from django.contrib import admin
+
 from .models import (
-    SponsorDashboardCache,
+    SponsorCode,
     SponsorCohortDashboard,
+    SponsorDashboardCache,
     SponsorStudentAggregates,
-    SponsorCode
 )
 
 

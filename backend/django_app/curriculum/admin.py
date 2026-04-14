@@ -2,13 +2,25 @@
 Curriculum Engine admin configuration.
 """
 from django.contrib import admin
+
 from .models import (
-    CurriculumTrack, CurriculumLevel, CurriculumModule, CurriculumContent,
-    StrategicSession, Lesson, ModuleMission,
-    RecipeRecommendation, UserTrackProgress, UserModuleProgress,
-    UserLessonProgress, UserMissionProgress, CurriculumActivity,
-    UserTrackEnrollment, UserContentProgress,
-    UserLessonBookmark, CurriculumMentorFeedback,
+    CurriculumActivity,
+    CurriculumContent,
+    CurriculumLevel,
+    CurriculumMentorFeedback,
+    CurriculumModule,
+    CurriculumTrack,
+    Lesson,
+    ModuleMission,
+    RecipeRecommendation,
+    StrategicSession,
+    UserContentProgress,
+    UserLessonBookmark,
+    UserLessonProgress,
+    UserMissionProgress,
+    UserModuleProgress,
+    UserTrackEnrollment,
+    UserTrackProgress,
 )
 
 

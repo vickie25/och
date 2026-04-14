@@ -15,7 +15,6 @@ def get_employer_for_user(user):
     except Employer.DoesNotExist:
         pass
 
-    from users.models import UserRole
 
     has_marketplace_role = user.user_roles.filter(
         role__name__in=['employer', 'sponsor_admin', 'sponsor'],

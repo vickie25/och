@@ -2,8 +2,9 @@
 Background tasks for sponsor dashboard cache refresh.
 """
 from celery import shared_task
-from django.utils import timezone
+
 from organizations.models import Organization
+
 from .services import SponsorDashboardService
 
 

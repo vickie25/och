@@ -1,12 +1,15 @@
 """
 Coaching OS Background Tasks - AI Coach integration.
 """
+import logging
+
+import openai
 from celery import shared_task
 from django.conf import settings
-from .models import AICoachSession, AICoachMessage
+
 from users.models import User
-import logging
-import openai
+
+from .models import AICoachMessage, AICoachSession
 
 logger = logging.getLogger(__name__)
 
@@ -19,30 +22,30 @@ def generate_ai_coach_response(session_id, user_message_id, context, user_id):
     try:
         session = AICoachSession.objects.get(id=session_id)
         user = User.objects.get(id=user_id)
-        user_message = AICoachMessage.objects.get(id=user_message_id)
-        
+        AICoachMessage.objects.get(id=user_message_id)
+
         # Get coaching metrics for context
         from .services import calculate_coaching_metrics
         metrics = calculate_coaching_metrics(user)
-        
+
         # Build system prompt
         system_prompt = _build_system_prompt(context, metrics)
-        
+
         # Get conversation history
         previous_messages = AICoachMessage.objects.filter(
             session=session
         ).order_by('created_at')[:10]  # Last 10 messages
-        
+
         messages = [
             {'role': 'system', 'content': system_prompt}
         ]
-        
+
         for msg in previous_messages:
             messages.append({
                 'role': msg.role,
                 'content': msg.content
             })
-        
+
         # Call OpenAI
         client = openai.OpenAI(api_key=settings.CHAT_GPT_API_KEY)
         response = client.chat.completions.create(
@@ -51,9 +54,9 @@ def generate_ai_coach_response(session_id, user_message_id, context, user_id):
             max_tokens=200,
             temperature=0.7,
         )
-        
+
         ai_content = response.choices[0].message.content
-        
+
         # Save AI response
         ai_message = AICoachMessage.objects.create(
             session=session,
@@ -61,12 +64,12 @@ def generate_ai_coach_response(session_id, user_message_id, context, user_id):
             content=ai_content,
             context=context,
         )
-        
+
         return {
             'message_id': str(ai_message.id),
             'content': ai_content,
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to generate AI Coach response: {e}")
         # Create error message
@@ -106,7 +109,7 @@ Rules:
 
 Your goal is to help the mentee build consistent habits, achieve goals, and progress toward their Future-You persona.
 """
-    
+
     if context == 'habit':
         base_prompt += "\nFocus: Help with habit tracking, streak maintenance, and building consistency."
     elif context == 'goal':
@@ -115,5 +118,5 @@ Your goal is to help the mentee build consistent habits, achieve goals, and prog
         base_prompt += "\nFocus: Provide insights on reflections, identify patterns, and suggest growth areas."
     elif context == 'mission':
         base_prompt += "\nFocus: Connect habits/goals to mission completion, suggest relevant missions."
-    
+
     return base_prompt

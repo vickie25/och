@@ -1,9 +1,10 @@
 """
 Schemas for AI profiling system.
 """
-from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any, TYPE_CHECKING
 from datetime import datetime
+from typing import TYPE_CHECKING, Any
+
+from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from .profiling_tracks import TrackInfo
@@ -16,7 +17,7 @@ class QuestionOption(BaseModel):
     """An option for a profiling question."""
     value: str
     text: str
-    scores: Dict[str, int]  # Track scores like {"defender": 3, "offensive": 2}
+    scores: dict[str, int]  # Track scores like {"defender": 3, "offensive": 2}
 
 
 class ProfilingQuestion(BaseModel):
@@ -24,14 +25,14 @@ class ProfilingQuestion(BaseModel):
     id: str
     question: str
     category: str  # technical_aptitude, problem_solving, scenario_preference, work_style, cybersecurity_mindset
-    options: List[QuestionOption]
+    options: list[QuestionOption]
 
 
 class ProfilingResponse(BaseModel):
     """User's response to a profiling question."""
     question_id: str
     selected_option: str
-    response_time_ms: Optional[int] = None
+    response_time_ms: int | None = None
 
 
 class SubmitResponseRequest(BaseModel):
@@ -44,25 +45,25 @@ class ProfilingSession(BaseModel):
     """A complete profiling session."""
     id: str
     user_id: int  # Django uses integer user IDs, not UUIDs
-    responses: List[ProfilingResponse]
+    responses: list[ProfilingResponse]
     started_at: datetime
-    completed_at: Optional[datetime] = None
-    scores: Optional[Dict[str, float]] = None
-    recommended_track: Optional[str] = None
-    
+    completed_at: datetime | None = None
+    scores: dict[str, float] | None = None
+    recommended_track: str | None = None
+
     # Anti-cheat fields (optional, added dynamically)
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
-    device_fingerprint: Optional[str] = None
-    response_times: Optional[List[Dict[str, Any]]] = None
-    suspicious_patterns: Optional[List[str]] = None
-    anti_cheat_score: Optional[float] = None
-    
+    ip_address: str | None = None
+    user_agent: str | None = None
+    device_fingerprint: str | None = None
+    response_times: list[dict[str, Any]] | None = None
+    suspicious_patterns: list[str] | None = None
+    anti_cheat_score: float | None = None
+
     # Telemetry and metadata (optional, added dynamically)
-    telemetry: Optional[Dict[str, Any]] = None
-    difficulty_verification: Optional[Dict[str, Any]] = None
-    reflection_responses: Optional[Dict[str, Any]] = None
-    
+    telemetry: dict[str, Any] | None = None
+    difficulty_verification: dict[str, Any] | None = None
+    reflection_responses: dict[str, Any] | None = None
+
     class Config:
         arbitrary_types_allowed = True
 
@@ -73,39 +74,39 @@ class TrackRecommendation(BaseModel):
     track_name: str
     score: float
     confidence_level: str  # high, medium, low
-    reasoning: List[str]
-    career_suggestions: List[str]
-    strengths_aligned: List[str]  # Strengths that align with this track
+    reasoning: list[str]
+    career_suggestions: list[str]
+    strengths_aligned: list[str]  # Strengths that align with this track
     optimal_path: str  # Recommended learning path
 
 
 class DeepInsights(BaseModel):
     """Deep insights about the user's profile."""
-    primary_strengths: List[str]
-    learning_preferences: Dict[str, Any]
-    career_alignment: Dict[str, Any]
-    optimal_learning_path: List[str]
-    recommended_foundations: List[str]
-    growth_opportunities: List[str]
-    personality_traits: Dict[str, Any]
+    primary_strengths: list[str]
+    learning_preferences: dict[str, Any]
+    career_alignment: dict[str, Any]
+    optimal_learning_path: list[str]
+    recommended_foundations: list[str]
+    growth_opportunities: list[str]
+    personality_traits: dict[str, Any]
 
 
 class ProfilingResult(BaseModel):
     """Complete profiling result."""
     user_id: int  # Django uses integer user IDs, not UUIDs
     session_id: str
-    recommendations: List[TrackRecommendation]
+    recommendations: list[TrackRecommendation]
     primary_track: TrackInfo
-    secondary_track: Optional[TrackInfo] = None
+    secondary_track: TrackInfo | None = None
     assessment_summary: str
-    deep_insights: Optional[DeepInsights] = None
+    deep_insights: DeepInsights | None = None
     completed_at: datetime
 
     # AI-powered enhancements
-    future_you_persona: Optional[Dict[str, Any]] = None  # AI-generated Future-You persona
-    personalized_track_descriptions: Optional[Dict[str, str]] = None  # Track-specific personalized descriptions
-    ai_confidence: Optional[float] = None  # AI recommendation confidence (0-1)
-    ai_reasoning: Optional[str] = None  # AI's reasoning for the recommendation
+    future_you_persona: dict[str, Any] | None = None  # AI-generated Future-You persona
+    personalized_track_descriptions: dict[str, str] | None = None  # Track-specific personalized descriptions
+    ai_confidence: float | None = None  # AI recommendation confidence (0-1)
+    ai_reasoning: str | None = None  # AI's reasoning for the recommendation
 
 
 class ProfilingProgress(BaseModel):

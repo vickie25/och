@@ -1,5 +1,6 @@
-import psycopg2
 import os
+
+import psycopg2
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,14 +16,14 @@ def nuke():
         )
         conn.autocommit = True
         cur = conn.cursor()
-        
+
         print(f"Nuking database {os.getenv('DB_NAME')}...")
         cur.execute("DROP SCHEMA public CASCADE;")
         cur.execute("CREATE SCHEMA public;")
         cur.execute("GRANT ALL ON SCHEMA public TO public;")
         cur.execute("GRANT ALL ON SCHEMA public TO postgres;")
         print("Database schema 'public' has been nuked and recreated.")
-        
+
         cur.close()
         conn.close()
     except Exception as e:

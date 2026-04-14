@@ -2,38 +2,39 @@
 Missions models for the director dashboard
 """
 import uuid
-from django.db import models
+
 from django.contrib.auth import get_user_model
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
 
 User = get_user_model()
 
 
 class Mission(models.Model):
     """Mission model for curriculum assignments"""
-    
+
     DIFFICULTY_CHOICES = [
         (1, 'Beginner'),
-        (2, 'Intermediate'), 
+        (2, 'Intermediate'),
         (3, 'Advanced'),
         (4, 'Expert'),
         (5, 'Master'),
     ]
-    
+
     MISSION_TYPE_CHOICES = [
         ('beginner', 'Beginner'),
         ('intermediate', 'Intermediate'),
         ('advanced', 'Advanced'),
         ('capstone', 'Capstone'),
     ]
-    
+
     TIER_CHOICES = [
         ('beginner', 'Beginner'),
         ('intermediate', 'Intermediate'),
         ('advanced', 'Advanced'),
         ('mastery', 'Mastery'),
     ]
-    
+
     TRACK_CHOICES = [
         ('defender', 'Defender'),
         ('offensive', 'Offensive'),
@@ -41,7 +42,7 @@ class Mission(models.Model):
         ('innovation', 'Innovation'),
         ('leadership', 'Leadership'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     code = models.CharField(max_length=50, unique=True, db_index=True, blank=True, null=True, help_text='Unique mission code like "SIEM-03"')
     track_id = models.CharField(max_length=50, blank=True, null=True, help_text='Track identifier like SOC_DEFENSE')
@@ -88,7 +89,7 @@ class Mission(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_missions', db_column='created_by', to_field='uuid_id')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'missions'
         ordering = ['-created_at']
@@ -99,19 +100,19 @@ class Mission(models.Model):
             models.Index(fields=['code']),
             models.Index(fields=['is_active']),
         ]
-    
+
     def __str__(self):
         return self.title
 
 
 class MissionAssignment(models.Model):
     """Assignment of missions to cohorts or individual students"""
-    
+
     ASSIGNMENT_TYPE_CHOICES = [
         ('cohort', 'Cohort Assignment'),
         ('individual', 'Individual Assignment'),
     ]
-    
+
     STATUS_CHOICES = [
         ('assigned', 'Assigned'),
         ('in_progress', 'In Progress'),
@@ -120,7 +121,7 @@ class MissionAssignment(models.Model):
         ('completed', 'Completed'),
         ('failed', 'Failed'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     mission = models.ForeignKey(Mission, on_delete=models.CASCADE, related_name='assignments')
     assignment_type = models.CharField(max_length=20, choices=ASSIGNMENT_TYPE_CHOICES)
@@ -131,7 +132,7 @@ class MissionAssignment(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='assigned')
     assigned_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'mission_assignments'
         ordering = ['-assigned_at']
@@ -140,7 +141,7 @@ class MissionAssignment(models.Model):
             models.Index(fields=['student', 'status']),
             models.Index(fields=['mission', 'status']),
         ]
-    
+
     def __str__(self):
         target = f"Cohort {self.cohort_id}" if self.cohort_id else f"Student {self.student.email}"
         return f"{self.mission.title} -> {target}"
@@ -148,7 +149,7 @@ class MissionAssignment(models.Model):
 
 class MissionSubmission(models.Model):
     """Student submissions for missions"""
-    
+
     STATUS_CHOICES = [
         ('draft', 'Draft'),
         ('submitted', 'Submitted'),
@@ -157,7 +158,7 @@ class MissionSubmission(models.Model):
         ('needs_revision', 'Needs Revision'),
         ('rejected', 'Rejected'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     assignment = models.ForeignKey(MissionAssignment, on_delete=models.CASCADE, related_name='submissions')
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='mission_submissions', db_column='student_id', to_field='uuid_id')
@@ -171,7 +172,7 @@ class MissionSubmission(models.Model):
     submitted_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'mission_submissions'
         ordering = ['-submitted_at', '-created_at']
@@ -180,7 +181,7 @@ class MissionSubmission(models.Model):
             models.Index(fields=['student', 'status']),
             models.Index(fields=['status', 'submitted_at']),
         ]
-    
+
     def __str__(self):
         return f"{self.assignment.mission.title} - {self.student.email}"
 

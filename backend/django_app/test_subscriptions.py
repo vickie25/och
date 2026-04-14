@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Test and setup subscription system."""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
@@ -8,7 +9,6 @@ django.setup()
 
 from django.db import connection
 from subscriptions.models import SubscriptionPlan, UserSubscription
-from users.models import User
 
 print("=" * 80)
 print("SUBSCRIPTION SYSTEM TEST")

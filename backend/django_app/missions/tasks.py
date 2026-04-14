@@ -1,13 +1,15 @@
 """
 Background tasks for Missions MXP.
 """
-import os
 import logging
-from django.utils import timezone
+import os
+
 from django.db import transaction
-from .models import MissionSubmission, MissionArtifact, AIFeedback
+from django.utils import timezone
 from student_dashboard.services import DashboardAggregationService
 from subscriptions.utils import get_user_tier
+
+from .models import AIFeedback, MissionArtifact, MissionSubmission
 
 logger = logging.getLogger(__name__)
 
@@ -27,23 +29,23 @@ def process_mission_ai_review(submission_id: str):
     """
     try:
         submission = MissionSubmission.objects.get(id=submission_id)
-        
+
         if submission.status != 'submitted':
             return {'status': 'skipped', 'message': 'Submission not in submitted status'}
-        
+
         artifacts = MissionArtifact.objects.filter(submission=submission)
-        
+
         openai_key = os.environ.get('CHAT_GPT_API_KEY') or os.environ.get('OPENAI_API_KEY')
         ai_coach_url = os.environ.get('AI_COACH_API_URL', 'http://localhost:8001/api/v1')
         ai_coach_key = os.environ.get('AI_COACH_API_KEY')
-        
+
         ai_score = None
         strengths = []
         gaps = []
         suggestions = []
         competencies_detected = []
         full_feedback = {}
-        
+
         # Try AI Coach API
         if ai_coach_key and ai_coach_url:
             try:
@@ -76,13 +78,13 @@ def process_mission_ai_review(submission_id: str):
                     full_feedback = data.get('full_feedback', {})
             except Exception as e:
                 logger.error(f"AI Coach API error: {e}")
-        
+
         # Fallback to OpenAI GPT-4o-mini
         if ai_score is None and openai_key:
             try:
                 from openai import OpenAI
                 client = OpenAI(api_key=openai_key)
-                
+
                 mission = submission.assignment.mission
                 prompt = f"""Review this cybersecurity mission submission and return JSON:
 {{
@@ -104,7 +106,7 @@ Skills: {mission.skills_tags}
 Notes: {submission.content}
 Artifacts: {[f"{a.file_type}: {a.file_name or a.file_url}" for a in artifacts]}
 """
-                
+
                 response = client.chat.completions.create(
                     model=os.environ.get('AI_COACH_MODEL', 'gpt-4o-mini'),
                     messages=[
@@ -114,7 +116,7 @@ Artifacts: {[f"{a.file_type}: {a.file_name or a.file_url}" for a in artifacts]}
                     temperature=0.3,
                     max_tokens=1000
                 )
-                
+
                 import json
                 data = json.loads(response.choices[0].message.content)
                 ai_score = data.get('score', 75)
@@ -125,19 +127,19 @@ Artifacts: {[f"{a.file_type}: {a.file_name or a.file_url}" for a in artifacts]}
                 full_feedback = data.get('full_feedback', {})
             except Exception as e:
                 logger.error(f"OpenAI error: {e}")
-        
+
         # Default if AI unavailable
         if ai_score is None:
             ai_score = 75
             strengths = ['Submission received']
             gaps = []
             suggestions = ['Review pending']
-        
+
         # Update submission and create AI feedback
         with transaction.atomic():
             submission.ai_score = ai_score
             submission.ai_reviewed_at = timezone.now()
-            
+
             # Create or update AI feedback
             ai_feedback, created = AIFeedback.objects.get_or_create(
                 submission=submission,
@@ -158,11 +160,11 @@ Artifacts: {[f"{a.file_type}: {a.file_name or a.file_url}" for a in artifacts]}
                 ai_feedback.competencies_detected = competencies_detected
                 ai_feedback.full_feedback = full_feedback
                 ai_feedback.save()
-            
+
             # Update status to ai_reviewed (ready for mentor review if tier 7)
             submission.status = 'ai_reviewed'
             submission.save()
-            
+
             # Auto-link to portfolio if approved (for non-tier-7 auto-approval)
             user_tier = get_user_tier(submission.student)
             mission = submission.assignment.mission
@@ -203,10 +205,10 @@ Artifacts: {[f"{a.file_type}: {a.file_name or a.file_url}" for a in artifacts]}
             DashboardAggregationService.queue_update(submission.student, 'mission_reviewed', 'high')
         except Exception as e:
             logger.warning(f"Dashboard update failed: {e}")
-        
+
         logger.info(f"AI reviewed mission submission {submission_id}: score={ai_score}")
         return {'status': 'success', 'score': ai_score}
-        
+
     except MissionSubmission.DoesNotExist:
         logger.error(f"Submission {submission_id} not found")
         return {'status': 'error', 'message': 'Submission not found'}

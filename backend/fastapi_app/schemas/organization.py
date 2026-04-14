@@ -1,9 +1,9 @@
 """
 Organization schemas matching Django serializers.
 """
-from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+
+from pydantic import BaseModel
 
 
 class OrganizationBase(BaseModel):
@@ -12,9 +12,9 @@ class OrganizationBase(BaseModel):
     """
     name: str
     slug: str
-    description: Optional[str] = None
-    logo_url: Optional[str] = None
-    website: Optional[str] = None
+    description: str | None = None
+    logo_url: str | None = None
+    website: str | None = None
 
 
 class OrganizationResponse(OrganizationBase):
@@ -26,7 +26,7 @@ class OrganizationResponse(OrganizationBase):
     is_active: bool
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = {
         "from_attributes": True,
     }

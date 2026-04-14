@@ -3,15 +3,15 @@ Django management command to generate monthly billing for sponsor cohorts.
 Runs on the 1st of each month to create billing records and invoices.
 """
 import logging
-from datetime import datetime, date
+from datetime import date, datetime
+
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
-from django.utils import timezone
+
 from sponsors.models import (
     Sponsor,
     SponsorCohort,
     SponsorCohortBilling,
-    SponsorFinancialTransaction
 )
 from sponsors.services.finance_service import FinanceDataService
 

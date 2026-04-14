@@ -2,33 +2,34 @@
 Admin configuration for users app.
 """
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth import get_user_model
-from .models import (
-    Role,
-    Permission,
-    UserRole,
-    ConsentScope,
-    Entitlement,
-)
-from .identity_models import UserIdentity
-from .auth_models import (
-    MFAMethod,
-    MFACode,
-    SSOProvider,
-    SSOConnection,
-    UserSession,
-    DeviceTrust,
-)
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+
 from .api_models import (
     APIKey,
-    WebhookEndpoint,
     WebhookDelivery,
+    WebhookEndpoint,
 )
 from .audit_models import (
     AuditLog,
-    DataExport,
     DataErasure,
+    DataExport,
+)
+from .auth_models import (
+    DeviceTrust,
+    MFACode,
+    MFAMethod,
+    SSOConnection,
+    SSOProvider,
+    UserSession,
+)
+from .identity_models import UserIdentity
+from .models import (
+    ConsentScope,
+    Entitlement,
+    Permission,
+    Role,
+    UserRole,
 )
 from .policy_models import Policy
 
@@ -62,7 +63,7 @@ class UserAdmin(BaseUserAdmin):
     ]
     search_fields = ['email', 'username', 'first_name', 'last_name']
     ordering = ['-created_at']
-    
+
     fieldsets = BaseUserAdmin.fieldsets + (
         ('Account Status', {
             'fields': ('account_status', 'email_verified', 'email_verified_at', 'activated_at', 'deactivated_at')

@@ -1,23 +1,31 @@
 """
 Finance URL patterns.
 """
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from .views import (
-    WalletViewSet, TransactionViewSet, CreditViewSet,
-    ContractViewSet, TaxRateViewSet, MentorPayoutViewSet,
-    InvoiceViewSet, PaymentViewSet, FinancialDashboardView,
-    PricingTierViewSet, PricingHistoryViewSet
-)
+
 from .enhanced_views import AnalyticsViewSet, ComplianceViewSet
+from .mentor_credit_views import MentorCreditWalletsView, MentorCreditWalletTransactionsView
 from .operations_views import (
+    CohortManagerFinanceView,
     ReconciliationPreviewView,
     ReconciliationRunCreateView,
     ReconciliationRunListView,
     RevenueRecognitionRunView,
-    CohortManagerFinanceView,
 )
-from .mentor_credit_views import MentorCreditWalletsView, MentorCreditWalletTransactionsView
+from .views import (
+    ContractViewSet,
+    CreditViewSet,
+    FinancialDashboardView,
+    InvoiceViewSet,
+    MentorPayoutViewSet,
+    PaymentViewSet,
+    PricingHistoryViewSet,
+    PricingTierViewSet,
+    TaxRateViewSet,
+    TransactionViewSet,
+    WalletViewSet,
+)
 
 router = DefaultRouter()
 router.register(r'wallets', WalletViewSet, basename='wallet')

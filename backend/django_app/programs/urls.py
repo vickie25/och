@@ -1,56 +1,54 @@
 """
 URL configuration for Programs app.
 """
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from .views import (
-    ProgramViewSet, TrackViewSet, CohortViewSet,
-    ProgramRuleViewSet, CertificateViewSet,
-    MilestoneViewSet, ModuleViewSet,
-    MentorshipCycleViewSet,
-    DirectorProgramRuleViewSet, ProgramManagementViewSet,
-    MentorAssignmentViewSet,
-    director_dashboard
+
+from .api_views import CalendarTemplateViewSet as APICalendarTemplateViewSet
+from .api_views import CohortViewSet as APICohortViewSet
+from .api_views import MilestoneViewSet as APIMilestoneViewSet
+from .api_views import ModuleViewSet as APIModuleViewSet
+from .api_views import SpecializationViewSet as APISpecializationViewSet
+from .api_views import TrackMentorAssignmentViewSet, cohort_waitlist_view, sponsor_assignments
+from .director_dashboard_views import (
+    director_cohort_detail,
+    director_cohorts_list,
+    director_dashboard_summary,
 )
-from .api_views import (
-    CohortViewSet as APICohortViewSet,
-    cohort_waitlist_view,
-    TrackMentorAssignmentViewSet,
-    ModuleViewSet as APIModuleViewSet,
-    MilestoneViewSet as APIMilestoneViewSet,
-    SpecializationViewSet as APISpecializationViewSet,
-    CalendarTemplateViewSet as APICalendarTemplateViewSet,
-    sponsor_assignments
+from .views import (
+    CertificateViewSet,
+    MentorAssignmentViewSet,
+    MentorshipCycleViewSet,
+    ProgramManagementViewSet,
+    ProgramRuleViewSet,
+    ProgramViewSet,
+    TrackViewSet,
+    director_dashboard,
 )
 from .views.calendar_views import CalendarEventViewSet
-from .views.director_views import DirectorCohortViewSet
+from .views.director_advanced_analytics_views import DirectorAdvancedAnalyticsViewSet
+from .views.director_calendar_views import DirectorCalendarViewSet
+from .views.director_certificate_views import DirectorCertificateViewSet
+from .views.director_lifecycle_views import DirectorCohortLifecycleViewSet
 from .views.director_management_views import (
-    DirectorProgramManagementViewSet,
-    DirectorTrackManagementViewSet,
     DirectorCohortManagementViewSet,
     DirectorMentorManagementViewSet,
+    DirectorProgramManagementViewSet,
+    DirectorTrackManagementViewSet,
     director_mentor_analytics_view,
 )
-from .views.director_calendar_views import DirectorCalendarViewSet
-from .views.director_lifecycle_views import DirectorCohortLifecycleViewSet
-from .views.director_rules_views import DirectorProgramRulesViewSet
 from .views.director_reports_views import DirectorReportsViewSet
-from .views.director_advanced_analytics_views import DirectorAdvancedAnalyticsViewSet
-from .views.director_certificate_views import DirectorCertificateViewSet
-from .director_dashboard_views import (
-    director_dashboard_summary,
-    director_cohorts_list,
-    director_cohort_detail
-)
+from .views.director_rules_views import DirectorProgramRulesViewSet
 from .views.director_students_views import (
-    director_students_list,
-    director_sponsors_list,
-    link_students_to_sponsor,
-    unlink_students_from_sponsor,
     change_student_track,
+    director_sponsors_list,
+    director_students_list,
+    link_students_to_sponsor,
     remove_direct_mentor_assignment,
-    sponsor_linked_students
+    sponsor_linked_students,
+    unlink_students_from_sponsor,
 )
+from .views.director_views import DirectorCohortViewSet
 from .views.enrollment_update_views import UpdateEnrollmentOrganizationView
 
 router = DefaultRouter()
@@ -85,34 +83,38 @@ director_router.register(r'advanced-analytics', DirectorAdvancedAnalyticsViewSet
 director_router.register(r'certificates', DirectorCertificateViewSet, basename='director-certificates')
 
 from programs.track_api import get_tracks_for_profiler
-from .views.public_registration_views import (
-    list_published_cohorts,
-    apply_as_student,
-    join_as_sponsor,
-    list_my_cohort_applications,
-    list_public_applications,
-    assign_applications_to_mentor,
-    set_review_cutoff,
-    set_interview_cutoff,
-    enroll_applications,
-    reject_application,
-    delete_applications,
-    send_application_credentials_email_view,
-    list_mentor_applications,
-    grade_application,
-    grade_interview,
-    send_application_tests,
-    grade_application_test,
+
+from .views.application_questions_views import save_cohort_application_questions
+from .views.certificate_verification_views import (
+    verify_certificate,
+    verify_certificate_by_formatted_id,
 )
 from .views.public_assessment_views import get_public_assessment, submit_public_assessment
-from .views.application_questions_views import save_cohort_application_questions
-from .views.certificate_verification_views import verify_certificate, verify_certificate_by_formatted_id
+from .views.public_registration_views import (
+    apply_as_student,
+    assign_applications_to_mentor,
+    delete_applications,
+    enroll_applications,
+    grade_application,
+    grade_application_test,
+    grade_interview,
+    join_as_sponsor,
+    list_mentor_applications,
+    list_my_cohort_applications,
+    list_public_applications,
+    list_published_cohorts,
+    reject_application,
+    send_application_credentials_email_view,
+    send_application_tests,
+    set_interview_cutoff,
+    set_review_cutoff,
+)
 
 urlpatterns = [
     # Certificate verification (public - no auth required)
     path('certificates/<uuid:certificate_id>/verify/', verify_certificate, name='verify-certificate'),
     path('certificates/verify/formatted/<str:formatted_id>/', verify_certificate_by_formatted_id, name='verify-certificate-formatted'),
-    
+
     # Director: list public applications (auth required)
     path('director/public-applications/', list_public_applications, name='director-public-applications'),
     path('director/public-applications/assign-to-mentor/', assign_applications_to_mentor, name='assign-applications-to-mentor'),
@@ -140,15 +142,15 @@ urlpatterns = [
     path('public/my-applications/', list_my_cohort_applications, name='public-my-applications'),
     # Profiler API - tracks for GPT analysis
     path('api/v1/programs/tracks/', get_tracks_for_profiler, name='profiler-tracks'),
-    
+
     # Legacy director dashboard endpoint (kept for backward compatibility)
     path('programs/director/dashboard/', director_dashboard, name='director-dashboard'),
-    
+
     # New high-performance cached director dashboard endpoints
     path('director/dashboard/summary/', director_dashboard_summary, name='director-dashboard-summary'),
     path('director/dashboard/cohorts/', director_cohorts_list, name='director-cohorts-list'),
     path('director/dashboard/cohorts/<uuid:cohort_id>/', director_cohort_detail, name='director-cohort-detail'),
-    
+
     # Director students management endpoints
     path('director/students/', director_students_list, name='director-students-list'),
     path('director/sponsors/', director_sponsors_list, name='director-sponsors-list'),
@@ -158,19 +160,19 @@ urlpatterns = [
     path('director/students/remove-mentor/', remove_direct_mentor_assignment, name='remove-direct-mentor-assignment'),
     path('director/sponsors/<str:sponsor_id>/students/', sponsor_linked_students, name='sponsor-linked-students'),
     path('director/mentors/<int:mentor_id>/analytics/', director_mentor_analytics_view, name='director-mentor-analytics'),
-    
+
     # Sponsor assignments endpoint
     path('sponsor-assignments/', sponsor_assignments, name='sponsor-assignments'),
-    
+
     # Explicit cohort waitlist (ensures /cohorts/{uuid}/waitlist/ resolves - router may not match UUID)
     path('cohorts/<uuid:pk>/waitlist/', cohort_waitlist_view, name='cohort-waitlist'),
-    
+
     # Enrollment update endpoint
     path('cohorts/<uuid:cohort_id>/enrollments/<uuid:enrollment_id>/', UpdateEnrollmentOrganizationView.as_view(), name='update-enrollment'),
-    
+
     # Enhanced cohorts endpoints (module management, materials, etc.)
     path('cohorts/', include('cohorts.urls_enhanced')),
-    
+
     # All other routes (includes /programs/ and /programs/{id}/ for ProgramViewSet)
     path('', include(router.urls)),
     path('director/', include(director_router.urls)),

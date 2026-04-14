@@ -3,8 +3,9 @@ Management command to seed SSO providers (Google, Microsoft, Apple, Okta).
 Uses environment variables for credentials when available.
 """
 import os
+
 from django.core.management.base import BaseCommand
-from django.conf import settings
+
 from users.auth_models import SSOProvider
 
 

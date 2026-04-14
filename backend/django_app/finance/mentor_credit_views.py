@@ -5,12 +5,11 @@ These endpoints are intended for finance/admin users to view mentor credit balan
 and transaction history (credits are earned via mentee ratings).
 """
 
+from mentors.models import CreditTransaction, Mentor, MentorCredit
+from programs.permissions import IsFinanceUser
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from programs.permissions import IsFinanceUser
-from mentors.models import Mentor, MentorCredit, CreditTransaction
 
 
 class MentorCreditWalletsView(APIView):

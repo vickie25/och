@@ -5,6 +5,7 @@ Marks organizations migrations as applied without running them.
 """
 import os
 import sys
+
 import django
 
 # Setup Django
@@ -15,13 +16,14 @@ django.setup()
 from django.core.management import call_command
 from django.db import connection
 
+
 def check_table_exists(table_name):
     """Check if a table exists in the database."""
     with connection.cursor() as cursor:
         cursor.execute("""
             SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_schema = 'public' 
+                SELECT FROM information_schema.tables
+                WHERE table_schema = 'public'
                 AND table_name = %s
             );
         """, [table_name])
@@ -32,13 +34,13 @@ def main():
     print("Fixing Organizations Migration Issue")
     print("=" * 60)
     print()
-    
+
     # Check if organizations table exists
     if check_table_exists('organizations'):
         print("✅ Organizations table already exists in database")
         print()
         print("Marking organizations migrations as applied (fake)...")
-        
+
         try:
             # Fake apply organizations migrations
             call_command('migrate', 'organizations', '--fake', verbosity=2)
@@ -65,7 +67,7 @@ def main():
         except Exception as e:
             print(f"❌ Error: {e}")
             return False
-    
+
     print()
     print("=" * 60)
     print("Now you can run: python manage.py migrate")

@@ -1,11 +1,11 @@
 """
 ViewSet for Mentor Assignment management.
 """
-from rest_framework import viewsets, status, permissions
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db import transaction
-from programs.models import MentorAssignment, Cohort
+
+from programs.models import Cohort, MentorAssignment
 from programs.serializers import MentorAssignmentSerializer
 from programs.services.director_service import DirectorService
 
@@ -16,14 +16,14 @@ class MentorAssignmentViewSet(viewsets.ModelViewSet):
     serializer_class = MentorAssignmentSerializer
     permission_classes = [permissions.IsAuthenticated]
     lookup_field = 'id'
-    
+
     def get_queryset(self):
         """Filter assignments based on user permissions."""
         queryset = super().get_queryset()
         user = self.request.user
 
         print(f'[MentorAssignmentViewSet] User: {user.email}, ID: {user.id}, is_mentor: {user.is_mentor}, is_staff: {user.is_staff}')
-        
+
         # Filter by active status (default to active=True unless explicitly requested)
         active_filter = self.request.query_params.get('active')
         if active_filter is not None:
@@ -32,7 +32,7 @@ class MentorAssignmentViewSet(viewsets.ModelViewSet):
         else:
             # Default to active assignments only
             queryset = queryset.filter(active=True)
-        
+
         # If user is staff/admin, allow filtering by mentor ID query parameter
         if user.is_staff:
             mentor_id = self.request.query_params.get('mentor')
@@ -51,7 +51,7 @@ class MentorAssignmentViewSet(viewsets.ModelViewSet):
                     except (ValueError, TypeError):
                         pass  # Invalid mentor ID, ignore filter
             return queryset
-        
+
         # If user is a mentor, show only their assignments
         # Allow query parameter only if it matches their own ID
         if user.is_mentor:
@@ -83,9 +83,9 @@ class MentorAssignmentViewSet(viewsets.ModelViewSet):
                 # No query parameter, show only their assignments
                 queryset = queryset.filter(mentor=user)
             return queryset
-        
+
         # If user is a program director, filter by managed cohorts
-        from users.models import UserRole, Role
+        from users.models import Role, UserRole
         director_role = Role.objects.filter(name='program_director').first()
         if director_role:
             has_director_role = UserRole.objects.filter(
@@ -98,10 +98,10 @@ class MentorAssignmentViewSet(viewsets.ModelViewSet):
                     track__director=user
                 ).values_list('id', flat=True)
                 return queryset.filter(cohort_id__in=managed_cohorts)
-        
+
         # Default: return empty queryset for users without permissions
         return queryset.none()
-    
+
     def get_object(self):
         """Get object using base queryset for destroy/update operations."""
         # For destroy/update operations, use base queryset to find the object
@@ -116,90 +116,90 @@ class MentorAssignmentViewSet(viewsets.ModelViewSet):
             except MentorAssignment.DoesNotExist:
                 from rest_framework.exceptions import NotFound
                 raise NotFound("MentorAssignment not found")
-        
+
         # For other operations, use filtered queryset
         return super().get_object()
-    
+
     def get_permissions(self):
         """Set permissions based on action."""
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             # Only program directors can modify assignments
             return [permissions.IsAuthenticated()]
         return [permissions.IsAuthenticated()]
-    
+
     def perform_create(self, serializer):
         """Create mentor assignment with permission check."""
         cohort = serializer.validated_data['cohort']
-        
+
         # Check if user can manage this cohort
         # Allow if user is staff/admin or if they are the director of the cohort's track
         if not (self.request.user.is_staff or DirectorService.can_manage_cohort(self.request.user, cohort)):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("You do not have permission to manage this cohort")
-        
+
         serializer.save()
-    
+
     def perform_update(self, serializer):
         """Update mentor assignment with permission check."""
         cohort = serializer.instance.cohort
-        
+
         # Check if user can manage this cohort
         # Allow if user is staff/admin or if they are the director of the cohort's track
         if not (self.request.user.is_staff or DirectorService.can_manage_cohort(self.request.user, cohort)):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("You do not have permission to manage this cohort")
-        
+
         serializer.save()
-    
+
     def perform_destroy(self, instance):
         """Delete mentor assignment with permission check."""
         cohort = instance.cohort
-        
+
         # Check if user can manage this cohort
         # Allow if user is staff/admin or if they are the director of the cohort's track
         if not (self.request.user.is_staff or DirectorService.can_manage_cohort(self.request.user, cohort)):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("You do not have permission to manage this cohort")
-        
+
         # Soft delete by setting active=False
         instance.active = False
         instance.save()
-    
+
     @action(detail=True, methods=['post'])
     def deactivate(self, request, id=None):
         """Deactivate a mentor assignment (soft delete)."""
         assignment = self.get_object()
         cohort = assignment.cohort
-        
+
         # Allow if user is staff/admin or if they are the director of the cohort's track
         if not (request.user.is_staff or DirectorService.can_manage_cohort(request.user, cohort)):
             return Response(
                 {'error': 'You do not have permission to manage this cohort'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         assignment.active = False
         assignment.save()
-        
+
         serializer = self.get_serializer(assignment)
         return Response(serializer.data)
-    
+
     @action(detail=True, methods=['post'])
     def activate(self, request, id=None):
         """Reactivate a mentor assignment."""
         assignment = self.get_object()
         cohort = assignment.cohort
-        
+
         # Allow if user is staff/admin or if they are the director of the cohort's track
         if not (request.user.is_staff or DirectorService.can_manage_cohort(request.user, cohort)):
             return Response(
                 {'error': 'You do not have permission to manage this cohort'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         assignment.active = True
         assignment.save()
-        
+
         serializer = self.get_serializer(assignment)
         return Response(serializer.data)
 

@@ -1,15 +1,15 @@
 """
 Director Students Management API Views
 """
+from django.contrib.auth import get_user_model
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-from programs.permissions import IsProgramDirector
-from programs.models import Track
 from rest_framework.response import Response
-from rest_framework import status
-from django.contrib.auth import get_user_model
-from django.db.models import Q
-from users.models import Role, UserRole, SponsorStudentLink
+
+from programs.models import Track
+from programs.permissions import IsProgramDirector
+from users.models import Role, SponsorStudentLink, UserRole
 
 User = get_user_model()
 
@@ -34,8 +34,9 @@ def _get_direct_mentors_for_student(student):
 
 def _get_all_mentors_for_student(student):
     """Return all mentors (cohort, track, direct) for a student so director sees full picture."""
-    from programs.models import Enrollment, MentorAssignment, TrackMentorAssignment
     from mentorship_coordination.models import MenteeMentorAssignment
+
+    from programs.models import Enrollment, MentorAssignment, TrackMentorAssignment
     result = []
     seen = set()  # (mentor_id, type) to avoid duplicates
     # Cohort mentors
@@ -113,17 +114,17 @@ def director_students_list(request):
         student_role = Role.objects.filter(name='student').first()
         if not student_role:
             return Response({'students': []})
-        
+
         student_user_ids = UserRole.objects.filter(
             role=student_role,
             is_active=True
         ).values_list('user_id', flat=True)
-        
+
         students = User.objects.filter(
             id__in=student_user_ids,
             is_active=True
         ).select_related('org_id').order_by('-created_at')
-        
+
         TRACK_KEY_DISPLAY = {
             'cyber_defense': 'Career Track (Defender)',
             'defender': 'Defender',
@@ -141,7 +142,7 @@ def director_students_list(request):
                 student=student,
                 is_active=True
             ).select_related('sponsor').first()
-            
+
             sponsor_name = None
             sponsor_id = None
             if sponsor_link:
@@ -150,14 +151,14 @@ def director_students_list(request):
                 if not sponsor_name:
                     sponsor_name = sponsor.email
                 sponsor_id = str(sponsor.uuid_id)
-            
+
             # Get organization from user's org_id field
             organization_name = None
             organization_id = None
             if student.org_id:
                 organization_name = student.org_id.name
                 organization_id = str(student.org_id.id)
-            
+
             track_key = (getattr(student, 'track_key', None) or '').strip() or None
             track_display = TRACK_KEY_DISPLAY.get((track_key or '').lower()) if track_key else None
             if not track_display and track_key:
@@ -181,13 +182,13 @@ def director_students_list(request):
                 'all_mentors': all_mentors,
                 'created_at': student.created_at.isoformat()
             })
-        
+
         return Response({
             'success': True,
             'students': students_data,
             'count': len(students_data)
         })
-        
+
     except Exception as e:
         return Response({
             'success': False,
@@ -204,17 +205,17 @@ def director_sponsors_list(request):
         sponsor_role = Role.objects.filter(name='sponsor_admin').first()
         if not sponsor_role:
             return Response({'sponsors': []})
-        
+
         sponsor_user_ids = UserRole.objects.filter(
             role=sponsor_role,
             is_active=True
         ).values_list('user_id', flat=True)
-        
+
         sponsors = User.objects.filter(
             id__in=sponsor_user_ids,
             account_status='active'
         ).order_by('first_name', 'last_name', 'email')
-        
+
         sponsors_data = []
         for sponsor in sponsors:
             sponsors_data.append({
@@ -225,13 +226,13 @@ def director_sponsors_list(request):
                 'last_name': sponsor.last_name or '',
                 'organization': sponsor.org_id.name if sponsor.org_id else None
             })
-        
+
         return Response({
             'success': True,
             'sponsors': sponsors_data,
             'count': len(sponsors_data)
         })
-        
+
     except Exception as e:
         return Response({
             'success': False,
@@ -246,13 +247,13 @@ def link_students_to_sponsor(request):
     try:
         student_ids = request.data.get('student_ids', [])
         sponsor_id = request.data.get('sponsor_id')
-        
+
         if not student_ids or not sponsor_id:
             return Response({
                 'success': False,
                 'error': 'student_ids and sponsor_id are required'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Verify sponsor exists and has sponsor role (sponsor_id is uuid_id from frontend)
         # Accept both 'sponsor_admin' and 'sponsor' roles (createsponsor uses 'sponsor')
         try:
@@ -272,7 +273,7 @@ def link_students_to_sponsor(request):
                 'success': False,
                 'error': 'Sponsor not found'
             }, status=status.HTTP_404_NOT_FOUND)
-        
+
         # Create sponsor-student links (use is_active=True; students may have pending_verification)
         created_count = 0
         for student_id in student_ids:
@@ -294,13 +295,13 @@ def link_students_to_sponsor(request):
                     created_count += 1
             except User.DoesNotExist:
                 continue
-        
+
         return Response({
             'success': True,
             'message': f'Successfully linked {created_count} students to sponsor',
             'updated_count': created_count
         })
-        
+
     except Exception as e:
         return Response({
             'success': False,
@@ -452,13 +453,13 @@ def sponsor_linked_students(request, sponsor_id):
                 'success': False,
                 'error': 'Sponsor not found'
             }, status=status.HTTP_404_NOT_FOUND)
-        
+
         # Get linked students
         links = SponsorStudentLink.objects.filter(
             sponsor=sponsor,
             is_active=True
         ).select_related('student')
-        
+
         students_data = []
         for link in links:
             student = link.student
@@ -469,7 +470,7 @@ def sponsor_linked_students(request, sponsor_id):
                 'last_name': student.last_name or '',
                 'created_at': student.created_at.isoformat()
             })
-        
+
         return Response({
             'success': True,
             'students': students_data,
@@ -481,7 +482,7 @@ def sponsor_linked_students(request, sponsor_id):
                 'last_name': sponsor.last_name or ''
             }
         })
-        
+
     except Exception as e:
         return Response({
             'success': False,

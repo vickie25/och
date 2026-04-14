@@ -1,13 +1,12 @@
 """
 FastAPI router for student curriculum endpoints.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import Optional, List
-from pydantic import BaseModel
-from datetime import datetime
 from uuid import UUID
+
 import httpx
 from config import settings
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/student/curriculum", tags=["student-curriculum"])
 
@@ -18,7 +17,7 @@ class LessonResponse(BaseModel):
     description: str
     content_url: str
     order_index: int
-    status: Optional[str] = None
+    status: str | None = None
 
 
 class MissionLinkResponse(BaseModel):
@@ -34,29 +33,29 @@ class ModuleResponse(BaseModel):
     description: str
     is_core: bool
     order_index: int
-    estimated_time_minutes: Optional[int] = None
-    competencies: List[str]
-    status: Optional[str] = None
-    progress_percent: Optional[float] = None
+    estimated_time_minutes: int | None = None
+    competencies: list[str]
+    status: str | None = None
+    progress_percent: float | None = None
     is_locked: bool = False
-    lessons: List[LessonResponse] = []
-    missions: List[MissionLinkResponse] = []
+    lessons: list[LessonResponse] = []
+    missions: list[MissionLinkResponse] = []
 
 
 class TrackResponse(BaseModel):
     track_key: str
     track_name: str
-    cohort_label: Optional[str] = None
+    cohort_label: str | None = None
     modules_completed: int
     modules_total: int
     progress_percent: float
-    estimated_time_remaining_minutes: Optional[int] = None
-    current_module_id: Optional[UUID] = None
+    estimated_time_remaining_minutes: int | None = None
+    current_module_id: UUID | None = None
 
 
 class TrackWithModulesResponse(BaseModel):
     track: TrackResponse
-    modules: List[ModuleResponse]
+    modules: list[ModuleResponse]
 
 
 async def get_current_user_id() -> UUID:
@@ -82,7 +81,7 @@ async def get_track(user_id: UUID = Depends(get_current_user_id)):
             )
 
 
-@router.get("/modules", response_model=List[ModuleResponse])
+@router.get("/modules", response_model=list[ModuleResponse])
 async def list_modules(user_id: UUID = Depends(get_current_user_id)):
     """List curriculum modules with progress and entitlement flags."""
     async with httpx.AsyncClient() as client:

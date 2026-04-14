@@ -1,7 +1,13 @@
 from django.contrib import admin
+
 from .models import (
-    ReadinessScore, CohortProgress, PortfolioItem, MentorshipSession,
-    GamificationPoints, DashboardEvent, CommunityActivity
+    CohortProgress,
+    CommunityActivity,
+    DashboardEvent,
+    GamificationPoints,
+    MentorshipSession,
+    PortfolioItem,
+    ReadinessScore,
 )
 
 

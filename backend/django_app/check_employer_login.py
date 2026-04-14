@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import sys
+
 import django
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -122,7 +123,7 @@ except Exception as e:
 
 print("=" * 50)
 print("🎯 LOGIN CREDENTIALS:")
-print(f"Email: employer@och.com")
-print(f"Password: Ongoza@#1")
-print(f"Login URL: http://localhost:3000/login/sponsor")
+print("Email: employer@och.com")
+print("Password: Ongoza@#1")
+print("Login URL: http://localhost:3000/login/sponsor")
 

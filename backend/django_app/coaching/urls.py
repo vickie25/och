@@ -2,19 +2,31 @@
 Coaching OS URL configuration.
 """
 from django.urls import path
-from .views import (
-    habits_list, habit_detail, log_habit, habit_logs,
-    goals_list, goal_detail,
-    reflections_list, reflection_detail,
-    ai_coach_message, ai_coach_history, ai_coach_chat,
-    coaching_metrics,
-    student_analytics, user_recipe_progress, user_track_progress,
-    user_mission_progress, community_activity, mentorship_sessions,
-    coaching_sessions_api,
-)
-from .usage_views import ai_coach_usage
-from .welcome_views import generate_welcome_message
+
 from .recommendation_views import generate_recommendation
+from .usage_views import ai_coach_usage
+from .views import (
+    ai_coach_chat,
+    ai_coach_history,
+    ai_coach_message,
+    coaching_metrics,
+    coaching_sessions_api,
+    community_activity,
+    goal_detail,
+    goals_list,
+    habit_detail,
+    habit_logs,
+    habits_list,
+    log_habit,
+    mentorship_sessions,
+    reflection_detail,
+    reflections_list,
+    student_analytics,
+    user_mission_progress,
+    user_recipe_progress,
+    user_track_progress,
+)
+from .welcome_views import generate_welcome_message
 
 urlpatterns = [
     # Habits
@@ -22,15 +34,15 @@ urlpatterns = [
     path('habits/<uuid:habit_id>', habit_detail, name='coaching-habit-detail'),
     path('habits/log', log_habit, name='coaching-habit-log'),
     path('habits/<uuid:habit_id>/logs', habit_logs, name='coaching-habit-logs'),
-    
+
     # Goals
     path('goals', goals_list, name='coaching-goals-list'),
     path('goals/<uuid:goal_id>', goal_detail, name='coaching-goal-detail'),
-    
+
     # Reflections
     path('reflections', reflections_list, name='coaching-reflections-list'),
     path('reflections/<uuid:reflection_id>', reflection_detail, name='coaching-reflection-detail'),
-    
+
     # AI Coach
     path('ai-coach/message', ai_coach_message, name='coaching-ai-coach-message'),
     path('ai-coach/chat', ai_coach_chat, name='coaching-ai-coach-chat'),
@@ -38,7 +50,7 @@ urlpatterns = [
     path('ai-coach/usage', ai_coach_usage, name='coaching-ai-coach-usage'),
     path('ai-coach/welcome', generate_welcome_message, name='coaching-ai-coach-welcome'),
     path('ai-coach/recommendation', generate_recommendation, name='coaching-ai-coach-recommendation'),
-    
+
     # Metrics
     path('metrics', coaching_metrics, name='coaching-metrics'),
 

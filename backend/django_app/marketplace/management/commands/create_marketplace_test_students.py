@@ -13,16 +13,16 @@ To only add marketplace profiles + consent for existing users (no new users):
 """
 import logging
 from decimal import Decimal
-from django.utils import timezone
 
+from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.db.utils import DataError, IntegrityError
-from django.contrib.auth import get_user_model
+from django.utils import timezone
 
+from marketplace.models import MarketplaceProfile
 from users.models import Role, UserRole
 from users.utils.consent_utils import grant_consent
-from marketplace.models import MarketplaceProfile
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,7 @@
-from rest_framework import serializers
-from .models import ProblemCode, SupportTicket, SupportTicketResponse, SupportTicketAttachment
 from django.contrib.auth import get_user_model
+from rest_framework import serializers
+
+from .models import ProblemCode, SupportTicket, SupportTicketAttachment, SupportTicketResponse
 
 User = get_user_model()
 

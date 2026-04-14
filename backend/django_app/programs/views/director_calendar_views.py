@@ -1,18 +1,17 @@
 """
 Calendar Management API for Directors.
 """
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.shortcuts import get_object_or_404
+import logging
 from datetime import datetime, timedelta
 
-from ..models import Cohort, CalendarEvent, Milestone
-from ..serializers import CalendarEventSerializer
-from ..permissions import IsProgramDirector
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
-import logging
+from ..models import CalendarEvent, Cohort
+from ..permissions import IsProgramDirector
+from ..serializers import CalendarEventSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -20,12 +19,12 @@ logger = logging.getLogger(__name__)
 class DirectorCalendarViewSet(viewsets.ViewSet):
     """Director Calendar Management API."""
     permission_classes = [IsAuthenticated, IsProgramDirector]
-    
+
     def list(self, request):
         """Get calendar events for director's cohorts."""
         user = request.user
         cohort_id = request.query_params.get('cohort_id')
-        
+
         if cohort_id:
             # Get events for specific cohort
             try:
@@ -47,23 +46,23 @@ class DirectorCalendarViewSet(viewsets.ViewSet):
                 events = CalendarEvent.objects.all()
             else:
                 events = CalendarEvent.objects.filter(cohort__track__director=user)
-        
+
         # Filter by date range if provided
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
-        
+
         if start_date:
             events = events.filter(start_ts__gte=start_date)
         if end_date:
             events = events.filter(end_ts__lte=end_date)
-        
+
         serializer = CalendarEventSerializer(events, many=True)
         return Response(serializer.data)
-    
+
     def create(self, request):
         """Create a new calendar event."""
         cohort_id = request.data.get('cohort_id')
-        
+
         try:
             cohort = Cohort.objects.get(id=cohort_id)
             if not request.user.is_staff and cohort.track.director != request.user:
@@ -71,10 +70,10 @@ class DirectorCalendarViewSet(viewsets.ViewSet):
                     {'error': 'Access denied'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            
+
             data = request.data.copy()
             data['cohort'] = cohort.id
-            
+
             serializer = CalendarEventSerializer(data=data)
             if serializer.is_valid():
                 event = serializer.save()
@@ -83,13 +82,13 @@ class DirectorCalendarViewSet(viewsets.ViewSet):
                     status=status.HTTP_201_CREATED
                 )
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            
+
         except Cohort.DoesNotExist:
             return Response(
                 {'error': 'Cohort not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-    
+
     def update(self, request, pk=None):
         """Update a calendar event."""
         try:
@@ -99,19 +98,19 @@ class DirectorCalendarViewSet(viewsets.ViewSet):
                     {'error': 'Access denied'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            
+
             serializer = CalendarEventSerializer(event, data=request.data, partial=True)
             if serializer.is_valid():
                 event = serializer.save()
                 return Response(CalendarEventSerializer(event).data)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            
+
         except CalendarEvent.DoesNotExist:
             return Response(
                 {'error': 'Event not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-    
+
     def destroy(self, request, pk=None):
         """Delete a calendar event."""
         try:
@@ -121,21 +120,21 @@ class DirectorCalendarViewSet(viewsets.ViewSet):
                     {'error': 'Access denied'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            
+
             event.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
-            
+
         except CalendarEvent.DoesNotExist:
             return Response(
                 {'error': 'Event not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-    
+
     @action(detail=False, methods=['post'])
     def generate_milestones(self, request):
         """Generate milestone events for a cohort."""
         cohort_id = request.data.get('cohort_id')
-        
+
         try:
             cohort = Cohort.objects.get(id=cohort_id)
             if not request.user.is_staff and cohort.track.director != request.user:
@@ -143,7 +142,7 @@ class DirectorCalendarViewSet(viewsets.ViewSet):
                     {'error': 'Access denied'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            
+
             # Generate standard milestone events
             milestones = [
                 {
@@ -175,13 +174,13 @@ class DirectorCalendarViewSet(viewsets.ViewSet):
                     'duration_hours': 3
                 }
             ]
-            
+
             created_events = []
             for milestone in milestones:
                 event_date = cohort.start_date + timedelta(days=milestone['days_offset'])
                 start_time = datetime.combine(event_date, datetime.min.time().replace(hour=10))
                 end_time = start_time + timedelta(hours=milestone['duration_hours'])
-                
+
                 event = CalendarEvent.objects.create(
                     cohort=cohort,
                     type=milestone['type'],
@@ -192,18 +191,18 @@ class DirectorCalendarViewSet(viewsets.ViewSet):
                     timezone='UTC'
                 )
                 created_events.append(event)
-            
+
             return Response({
                 'message': f'Generated {len(created_events)} milestone events',
                 'events': CalendarEventSerializer(created_events, many=True).data
             })
-            
+
         except Cohort.DoesNotExist:
             return Response(
                 {'error': 'Cohort not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-    
+
     @action(detail=False, methods=['get'])
     def templates(self, request):
         """Get calendar templates for different program types."""
@@ -230,5 +229,5 @@ class DirectorCalendarViewSet(viewsets.ViewSet):
                 {'type': 'closure', 'title': 'Pitch Competition', 'week': 12}
             ]
         }
-        
+
         return Response(templates)

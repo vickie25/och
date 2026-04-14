@@ -5,10 +5,11 @@ Run this script before running migrations.
 """
 import os
 import sys
-import psycopg2
-from psycopg2 import sql
-from dotenv import load_dotenv
 from pathlib import Path
+
+import psycopg2
+from dotenv import load_dotenv
+from psycopg2 import sql
 
 # Load environment variables
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -40,15 +41,15 @@ def create_database():
         )
         conn.autocommit = True
         cursor = conn.cursor()
-        
+
         # Check if database exists
         cursor.execute(
             "SELECT 1 FROM pg_database WHERE datname = %s",
             (DB_NAME,)
         )
-        
+
         exists = cursor.fetchone()
-        
+
         if exists:
             print(f"Database '{DB_NAME}' already exists.")
         else:
@@ -59,10 +60,10 @@ def create_database():
                 )
             )
             print(f"Database '{DB_NAME}' created successfully!")
-        
+
         cursor.close()
         conn.close()
-        
+
     except psycopg2.OperationalError as e:
         print(f"Error connecting to PostgreSQL: {e}")
         print("\nMake sure:")

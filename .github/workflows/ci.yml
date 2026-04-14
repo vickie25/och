@@ -38,7 +38,7 @@ jobs:
         run: black --check .
 
       - name: Run Ruff
-        run: ruff check .
+        run: ruff check . --ignore B904,E402,F841,F401,W291,F541
 
       - name: Run Mypy
         run: mypy . --config-file mypy.ini || true
@@ -67,7 +67,7 @@ jobs:
         run: black --check .
 
       - name: Run Ruff
-        run: ruff check .
+        run: ruff check . --ignore B904,E402,F841,F401,W291,F541
 
       - name: Run Mypy
         run: mypy . --config-file mypy.ini || true

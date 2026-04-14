@@ -5,6 +5,7 @@ Run: python create_test_user_simple.py
 """
 import os
 import sys
+
 import django
 
 # Setup Django
@@ -13,6 +14,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
 from django.contrib.auth import get_user_model
+
 from users.models import Role, UserRole
 
 User = get_user_model()
@@ -21,10 +23,10 @@ def create_test_user():
     """Create a test student user."""
     email = 'ongozacyberhub@gmail.com'
     password = 'Ongoza@#1'
-    
+
     # Get or create student role
     role, _ = Role.objects.get_or_create(name='student')
-    
+
     # Check if user exists
     try:
         user = User.objects.get(email=email)
@@ -47,23 +49,23 @@ def create_test_user():
             is_active=True
         )
         print(f'✓ Created user: {email}')
-    
+
     # Assign student role
     user_role, created = UserRole.objects.get_or_create(
         user=user,
         role=role,
         defaults={'scope': 'global', 'is_active': True}
     )
-    
+
     if created:
         print(f'✓ Assigned student role to {email}')
     else:
         print(f'✓ User {email} already has student role')
-    
-    print(f'\n✅ Test user ready!')
+
+    print('\n✅ Test user ready!')
     print(f'Email: {email}')
     print(f'Password: {password}')
-    print(f'\nYou can now login with these credentials.')
+    print('\nYou can now login with these credentials.')
 
 if __name__ == '__main__':
     try:

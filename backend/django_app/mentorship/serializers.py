@@ -2,18 +2,19 @@
 Serializers for mentorship chat and attachments.
 """
 from rest_framework import serializers
-from .models import ChatMessage, ChatAttachment
+
+from .models import ChatAttachment, ChatMessage
 
 
 class ChatAttachmentSerializer(serializers.ModelSerializer):
     """Serializer for chat attachments."""
     url = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = ChatAttachment
         fields = ['id', 'filename', 'url', 'file_size', 'content_type', 'created_at']
         read_only_fields = ['id', 'created_at']
-    
+
     def get_url(self, obj):
         """Get file URL."""
         request = self.context.get('request')
@@ -26,7 +27,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     """Serializer for chat messages."""
     sender_name = serializers.CharField(read_only=True)
     attachments = ChatAttachmentSerializer(many=True, read_only=True)
-    
+
     class Meta:
         model = ChatMessage
         fields = [

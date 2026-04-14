@@ -2,10 +2,11 @@
 Mentorship Coordination Engine Models.
 Connects 1K mentors to 10K mentees with work queues, sessions, and risk signals.
 """
+import uuid
+
+from django.contrib.auth import get_user_model
 from django.db import models
 from django.utils import timezone
-from django.contrib.auth import get_user_model
-import uuid
 
 User = get_user_model()
 
@@ -19,7 +20,7 @@ class MenteeMentorAssignment(models.Model):
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     mentee = models.ForeignKey(
         User,
@@ -47,7 +48,7 @@ class MenteeMentorAssignment(models.Model):
     sessions_used = models.IntegerField(default=0)
     mentor_notes = models.TextField(blank=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'menteementorassignments'
         unique_together = [['mentee', 'mentor']]
@@ -55,10 +56,10 @@ class MenteeMentorAssignment(models.Model):
             models.Index(fields=['status']),
             models.Index(fields=['mentor', 'status']),
         ]
-    
+
     def __str__(self):
         return f"{self.mentee.email} ← {self.mentor.email} ({self.status})"
-    
+
     def save(self, *args, **kwargs):
         """Override save to auto-archive messages when mentorship closes."""
         # Check if status is changing to completed or cancelled
@@ -67,7 +68,7 @@ class MenteeMentorAssignment(models.Model):
                 old_instance = MenteeMentorAssignment.objects.get(pk=self.pk)
                 old_status = old_instance.status
                 new_status = self.status
-                
+
                 # If status changed to completed or cancelled, archive messages
                 if old_status != new_status and new_status in ['completed', 'cancelled']:
                     from .models import MentorshipMessage
@@ -80,7 +81,7 @@ class MenteeMentorAssignment(models.Model):
                     )
             except MenteeMentorAssignment.DoesNotExist:
                 pass
-        
+
         super().save(*args, **kwargs)
 
 
@@ -92,7 +93,7 @@ class MentorSession(models.Model):
         ('capstone_review', 'Capstone Review'),
         ('goal_review', 'Goal Review'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     assignment = models.ForeignKey(
         MenteeMentorAssignment,
@@ -130,14 +131,14 @@ class MentorSession(models.Model):
     is_closed = models.BooleanField(default=False, help_text='Session closed - notes locked')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'mentorsessions'
         indexes = [
             models.Index(fields=['mentor', 'start_time']),
             models.Index(fields=['mentee', 'start_time']),
         ]
-    
+
     def __str__(self):
         return f"{self.title} - {self.mentee.email} ({self.start_time})"
 
@@ -150,21 +151,21 @@ class MentorWorkQueue(models.Model):
         ('session_notes', 'Session Notes'),
         ('risk_flag', 'Risk Flag'),
     ]
-    
+
     PRIORITY_CHOICES = [
         ('urgent', 'Urgent'),
         ('high', 'High'),
         ('normal', 'Normal'),
         ('low', 'Low'),
     ]
-    
+
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('in_progress', 'In Progress'),
         ('completed', 'Completed'),
         ('overdue', 'Overdue'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     mentor = models.ForeignKey(
         User,
@@ -188,14 +189,14 @@ class MentorWorkQueue(models.Model):
     completed_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'mentorworkqueue'
         indexes = [
             models.Index(fields=['mentor', 'status']),
             models.Index(fields=['due_at']),
         ]
-    
+
     def __str__(self):
         return f"{self.title} - {self.mentee.email} ({self.status})"
 
@@ -208,7 +209,7 @@ class MentorFlag(models.Model):
         ('high', 'High'),
         ('critical', 'Critical'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     mentor = models.ForeignKey(
         User,
@@ -230,7 +231,7 @@ class MentorFlag(models.Model):
     resolved_at = models.DateTimeField(null=True, blank=True)
     director_notified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'mentorflags'
         indexes = [
@@ -238,7 +239,7 @@ class MentorFlag(models.Model):
             models.Index(fields=['mentor']),
             models.Index(fields=['resolved']),
         ]
-    
+
     def __str__(self):
         return f"{self.mentee.email} - {self.reason[:50]} ({self.severity})"
 
@@ -289,7 +290,7 @@ class SessionFeedback(models.Model):
     # Metadata
     submitted_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'sessionfeedback'
         indexes = [
@@ -298,7 +299,7 @@ class SessionFeedback(models.Model):
             models.Index(fields=['submitted_at']),
         ]
         unique_together = [['session', 'mentee']]  # One feedback per mentee per session
-    
+
     def __str__(self):
         return f"Feedback from {self.mentee.email} on {self.session.title} ({self.overall_rating}/5)"
 
@@ -323,7 +324,7 @@ class SessionAttendance(models.Model):
     left_at = models.DateTimeField(null=True, blank=True, help_text='When mentee left the session')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'sessionattendance'
         unique_together = [['session', 'mentee']]
@@ -331,7 +332,7 @@ class SessionAttendance(models.Model):
             models.Index(fields=['session', 'attended']),
             models.Index(fields=['mentee', 'session']),
         ]
-    
+
     def __str__(self):
         return f"{self.mentee.email} - {self.session.title} ({'Attended' if self.attended else 'Absent'})"
 
@@ -352,13 +353,13 @@ class SessionNotes(models.Model):
     mentor_reflections = models.TextField(blank=True, help_text='Mentor reflections on the session')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'sessionnotes'
         indexes = [
             models.Index(fields=['session']),
         ]
-    
+
     def __str__(self):
         return f"Notes for {self.session.title}"
 
@@ -401,7 +402,7 @@ class MentorshipMessage(models.Model):
     archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'mentorshipmessages'
         indexes = [
@@ -410,10 +411,10 @@ class MentorshipMessage(models.Model):
             models.Index(fields=['is_read', 'created_at']),
         ]
         ordering = ['-created_at']
-    
+
     def __str__(self):
         return f"Message from {self.sender.email} to {self.recipient.email} ({self.message_id})"
-    
+
     def save(self, *args, **kwargs):
         if not self.message_id:
             # Generate message_id if not set (use UUID if id not available yet)
@@ -438,13 +439,13 @@ class MessageAttachment(models.Model):
     file_size = models.IntegerField(help_text='File size in bytes')
     content_type = models.CharField(max_length=100, help_text='MIME type')
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'messageattachments'
         indexes = [
             models.Index(fields=['message']),
         ]
-    
+
     def __str__(self):
         return f"Attachment: {self.filename} ({self.message.message_id})"
 
@@ -495,21 +496,21 @@ class NotificationLog(models.Model):
         ('assignment_completed', 'Assignment Completed'),
         ('custom', 'Custom Notification'),
     ]
-    
+
     CHANNEL_CHOICES = [
         ('email', 'Email'),
         ('sms', 'SMS'),
         ('in_app', 'In-App'),
         ('push', 'Push Notification'),
     ]
-    
+
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('sent', 'Sent'),
         ('failed', 'Failed'),
         ('delivered', 'Delivered'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     notification_id = models.CharField(max_length=100, unique=True, db_index=True, help_text='Unique notification identifier')
     assignment = models.ForeignKey(
@@ -546,7 +547,7 @@ class NotificationLog(models.Model):
     error_message = models.TextField(blank=True, help_text='Error message if notification failed')
     metadata = models.JSONField(default=dict, blank=True, help_text='Additional metadata (template_id, provider, etc.)')
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
-    
+
     class Meta:
         db_table = 'notificationlogs'
         indexes = [
@@ -556,10 +557,10 @@ class NotificationLog(models.Model):
             models.Index(fields=['session', 'created_at']),
         ]
         ordering = ['-created_at']
-    
+
     def __str__(self):
         return f"{self.notification_type} to {self.recipient.email} ({self.status})"
-    
+
     def save(self, *args, **kwargs):
         if not self.notification_id:
             self.notification_id = str(self.id)

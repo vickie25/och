@@ -2,10 +2,11 @@
 Mentor models for Ongóza Cyber Hub.
 Complete mentor dashboard system with student assignments and feedback tracking.
 """
-from django.db import models
-from django.conf import settings
-from django.utils import timezone
 import uuid
+
+from django.conf import settings
+from django.db import models
+from django.utils import timezone
 
 
 class Mentor(models.Model):
@@ -270,7 +271,7 @@ class MentorRating(models.Model):
     Ratings convert to credits: 5 stars = 10 credits, 4 stars = 8, 3 stars = 6, 2 stars = 4, 1 star = 2
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    
+
     # Relationships
     mentor = models.ForeignKey(
         Mentor,
@@ -282,21 +283,21 @@ class MentorRating(models.Model):
         on_delete=models.CASCADE,
         related_name='mentor_ratings_given'
     )
-    
+
     # Rating details
     rating = models.IntegerField(
         choices=[(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)],
         help_text="Rating from 1-5 stars"
     )
     review = models.TextField(blank=True, null=True, help_text="Written review/feedback")
-    
+
     # Credits awarded for this rating
     credits_awarded = models.IntegerField(default=0, help_text="Credits awarded to mentor based on rating")
-    
+
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'mentor_ratings'
         unique_together = ['mentor', 'student']  # One rating per student per mentor
@@ -306,15 +307,15 @@ class MentorRating(models.Model):
             models.Index(fields=['student']),
             models.Index(fields=['created_at']),
         ]
-    
+
     def __str__(self):
         return f"{self.student} rated {self.mentor}: {self.rating} stars"
-    
+
     def calculate_credits(self):
         """Calculate credits based on rating: 5=10, 4=8, 3=6, 2=4, 1=2"""
         credit_map = {5: 10, 4: 8, 3: 6, 2: 4, 1: 2}
         return credit_map.get(self.rating, 0)
-    
+
     def save(self, *args, **kwargs):
         """
         Override save to calculate and award credits.
@@ -360,49 +361,49 @@ class MentorCredit(models.Model):
         ('referral', 'Referral'),
         ('achievement', 'Achievement Unlock'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     mentor = models.OneToOneField(
         Mentor,
         on_delete=models.CASCADE,
         related_name='credit_balance'
     )
-    
+
     # Balance
     total_earned = models.IntegerField(default=0, help_text="Total credits ever earned")
     total_redeemed = models.IntegerField(default=0, help_text="Total credits redeemed")
     current_balance = models.IntegerField(default=0, help_text="Available credits")
-    
+
     # Metadata
     last_earned_at = models.DateTimeField(null=True, blank=True)
     last_redeemed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'mentor_credits'
         ordering = ['-current_balance']
-    
+
     def __str__(self):
         return f"{self.mentor}: {self.current_balance} credits"
-    
+
     def add_credits(self, amount, source='rating'):
         """Add credits to balance"""
         self.total_earned += amount
         self.current_balance += amount
         self.last_earned_at = timezone.now()
         self.save()
-    
+
     def redeem_credits(self, amount):
         """Redeem credits (deduct from balance)"""
         if amount > self.current_balance:
             raise ValueError("Insufficient credits")
-        
+
         self.total_redeemed += amount
         self.current_balance -= amount
         self.last_redeemed_at = timezone.now()
         self.save()
-    
+
     def has_sufficient_credits(self, amount):
         """Check if mentor has sufficient credits"""
         return self.current_balance >= amount
@@ -417,19 +418,19 @@ class CreditTransaction(models.Model):
         ('redeemed', 'Credits Redeemed'),
         ('expired', 'Credits Expired'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     mentor = models.ForeignKey(
         Mentor,
         on_delete=models.CASCADE,
         related_name='credit_transactions'
     )
-    
+
     # Transaction details
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
     amount = models.IntegerField(help_text="Number of credits")
     description = models.CharField(max_length=255)
-    
+
     # Source/reason
     source = models.CharField(
         max_length=50,
@@ -444,13 +445,13 @@ class CreditTransaction(models.Model):
         blank=True,
         related_name='credit_transaction'
     )
-    
+
     # Running balance after this transaction
     balance_after = models.IntegerField(help_text="Balance after this transaction")
-    
+
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'credit_transactions'
         ordering = ['-created_at']
@@ -458,7 +459,7 @@ class CreditTransaction(models.Model):
             models.Index(fields=['mentor', 'created_at']),
             models.Index(fields=['transaction_type']),
         ]
-    
+
     def __str__(self):
         return f"{self.mentor}: {self.transaction_type} {self.amount} credits"
 
@@ -474,7 +475,7 @@ class CreditRedemption(models.Model):
         ('priority_matching', 'Priority Student Matching'),
         ('featured_profile', 'Featured Profile'),
     ]
-    
+
     REDEMPTION_COSTS = {
         'course': 50,
         'certificate': 30,
@@ -482,37 +483,37 @@ class CreditRedemption(models.Model):
         'priority_matching': 40,
         'featured_profile': 100,
     }
-    
+
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     mentor = models.ForeignKey(
         Mentor,
         on_delete=models.CASCADE,
         related_name='credit_redemptions'
     )
-    
+
     # Redemption details
     redemption_type = models.CharField(max_length=30, choices=REDEMPTION_TYPES)
     credits_used = models.IntegerField(help_text="Credits redeemed")
     description = models.CharField(max_length=255, help_text="What was redeemed")
-    
+
     # Status
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    
+
     # Related entities
     course_id = models.UUIDField(null=True, blank=True, help_text="If redeeming for course")
     certificate_id = models.UUIDField(null=True, blank=True, help_text="If generating certificate")
     badge_type = models.CharField(max_length=50, null=True, blank=True, help_text="If redeeming for badge")
-    
+
     # Metadata
     redeemed_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
-    
+
     class Meta:
         db_table = 'credit_redemptions'
         ordering = ['-redeemed_at']
@@ -521,15 +522,15 @@ class CreditRedemption(models.Model):
             models.Index(fields=['redemption_type']),
             models.Index(fields=['redeemed_at']),
         ]
-    
+
     def __str__(self):
         return f"{self.mentor}: {self.redemption_type} ({self.credits_used} credits)"
-    
+
     @classmethod
     def get_cost(cls, redemption_type):
         """Get credit cost for a redemption type"""
         return cls.REDEMPTION_COSTS.get(redemption_type, 0)
-    
+
     def mark_completed(self):
         """Mark redemption as completed"""
         self.status = 'completed'

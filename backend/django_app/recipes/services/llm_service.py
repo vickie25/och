@@ -2,31 +2,32 @@
 LLM Service for recipe generation and processing.
 """
 import json
-import uuid
-import os
-from typing import Dict, Any
-from django.conf import settings
 import logging
+import os
+import uuid
+from typing import Any
+
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
 
-def generate_recipe_with_llm(track_code: str, level: str, skill_code: str, goal_description: str) -> Dict[str, Any]:
+def generate_recipe_with_llm(track_code: str, level: str, skill_code: str, goal_description: str) -> dict[str, Any]:
     """
     Generate a recipe using LLM (OpenAI GPT) based on the provided parameters.
     """
     # Get API key from settings or environment
     api_key = getattr(settings, 'CHAT_GPT_API_KEY', None) or os.environ.get('CHAT_GPT_API_KEY')
-    
+
     if not api_key or api_key == 'your-openai-api-key':
         logger.warning("No valid OpenAI API key configured, returning mock recipe")
         return _generate_mock_recipe(track_code, level, skill_code, goal_description)
-    
+
     try:
         from openai import OpenAI
-        
+
         client = OpenAI(api_key=api_key)
-        
+
         # Construct the prompt
         prompt = f"""Generate a detailed cybersecurity training recipe for OCH Cyber Talent Engine.
 
@@ -82,10 +83,10 @@ IMPORTANT:
             temperature=0.7,
             max_tokens=2000
         )
-        
+
         # Parse the response
         content = response.choices[0].message.content.strip()
-        
+
         # Remove markdown code fences if present
         if content.startswith('```json'):
             content = content[7:]
@@ -94,12 +95,12 @@ IMPORTANT:
         if content.endswith('```'):
             content = content[:-3]
         content = content.strip()
-        
+
         recipe_data = json.loads(content)
-        
+
         logger.info(f"Successfully generated recipe for {track_code}/{skill_code}/{level}")
         return recipe_data
-        
+
     except ImportError:
         logger.error("OpenAI package not installed. Install with: pip install openai")
         return _generate_mock_recipe(track_code, level, skill_code, goal_description)
@@ -111,7 +112,7 @@ IMPORTANT:
         return _generate_mock_recipe(track_code, level, skill_code, goal_description)
 
 
-def _generate_mock_recipe(track_code: str, level: str, skill_code: str, goal_description: str) -> Dict[str, Any]:
+def _generate_mock_recipe(track_code: str, level: str, skill_code: str, goal_description: str) -> dict[str, Any]:
     """Generate a mock recipe when LLM is not available."""
     recipe_slug = f"{track_code}-{skill_code}-{level}-{str(uuid.uuid4())[:8]}".lower().replace('_', '-')
 
@@ -152,7 +153,7 @@ def _generate_mock_recipe(track_code: str, level: str, skill_code: str, goal_des
     }
 
 
-def normalize_recipe_content(raw_content: str, track_code: str, level: str, skill_code: str) -> Dict[str, Any]:
+def normalize_recipe_content(raw_content: str, track_code: str, level: str, skill_code: str) -> dict[str, Any]:
     """
     Normalize raw content into structured recipe format using LLM.
     """
@@ -179,7 +180,7 @@ def normalize_recipe_content(raw_content: str, track_code: str, level: str, skil
     }
 
 
-def validate_recipe_commands(recipe_data: Dict[str, Any]) -> bool:
+def validate_recipe_commands(recipe_data: dict[str, Any]) -> bool:
     """
     Validate that recipe commands are syntactically correct and safe.
     """

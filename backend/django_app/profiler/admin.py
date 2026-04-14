@@ -2,8 +2,14 @@
 Admin interface for Profiler.
 """
 from django.contrib import admin
-from django.utils import timezone
-from .models import ProfilerSession, ProfilerAnswer, ProfilerQuestion, ProfilerResult, ProfilerRetakeRequest
+
+from .models import (
+    ProfilerAnswer,
+    ProfilerQuestion,
+    ProfilerResult,
+    ProfilerRetakeRequest,
+    ProfilerSession,
+)
 
 
 @admin.register(ProfilerSession)
@@ -88,7 +94,7 @@ class ProfilerRetakeRequestAdmin(admin.ModelAdmin):
         }),
     )
     actions = ['approve_requests', 'reject_requests']
-    
+
     def approve_requests(self, request, queryset):
         """Approve selected retake requests."""
         count = 0
@@ -97,7 +103,7 @@ class ProfilerRetakeRequestAdmin(admin.ModelAdmin):
             count += 1
         self.message_user(request, f'{count} retake request(s) approved.')
     approve_requests.short_description = 'Approve selected retake requests'
-    
+
     def reject_requests(self, request, queryset):
         """Reject selected retake requests."""
         count = 0

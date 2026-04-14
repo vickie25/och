@@ -2,7 +2,8 @@
 Admin interface for mentorship models.
 """
 from django.contrib import admin
-from .models import ChatMessage, ChatAttachment
+
+from .models import ChatAttachment, ChatMessage
 
 
 @admin.register(ChatMessage)

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Fix subscription table columns."""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')

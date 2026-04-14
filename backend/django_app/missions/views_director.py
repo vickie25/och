@@ -3,13 +3,15 @@ Director views for Missions MXP - CRUD operations for Program Directors.
 """
 from django.db.models import Q
 from django.utils import timezone
-from rest_framework import viewsets, status
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
 from users.models import Role, UserRole
 from users.utils.audit_utils import log_audit_event
+
 from .models import Mission, MissionSubmission
 from .serializers import MissionSerializer
 
@@ -34,7 +36,7 @@ class MissionViewSet(viewsets.ModelViewSet):
     serializer_class = MissionSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = MissionPagination
-    
+
     def perform_create(self, serializer):
         mission = serializer.save()
         log_audit_event(
@@ -146,7 +148,7 @@ class MissionViewSet(viewsets.ModelViewSet):
             except Exception:
                 # If programs app isn't available for some reason, ignore program filter
                 pass
-        
+
         # Filter by track_id
         track_id = self.request.query_params.get('track_id')
         # Filter by track_key
@@ -158,7 +160,7 @@ class MissionViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(track_id=track_id)
         elif track_key:
             queryset = queryset.filter(track_key=track_key)
-        
+
         # Filter by status (stored in requirements JSON)
         status_param = self.request.query_params.get('status')
         if status_param:
@@ -167,17 +169,17 @@ class MissionViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(Q(requirements__status='draft') | Q(requirements__status__isnull=True))
             else:
                 queryset = queryset.filter(requirements__status=status_param)
-        
+
         # Filter by difficulty
         difficulty = self.request.query_params.get('difficulty')
         if difficulty:
             queryset = queryset.filter(difficulty=difficulty)
-        
+
         # Filter by type
         mission_type = self.request.query_params.get('type')
         if mission_type:
             queryset = queryset.filter(type=mission_type)
-        
+
         # Search by code, title, or description
         search = self.request.query_params.get('search')
         if search:
@@ -186,7 +188,7 @@ class MissionViewSet(viewsets.ModelViewSet):
                 Q(title__icontains=search) |
                 Q(description__icontains=search)
             )
-        
+
         return queryset
 
     def get_permissions(self):
@@ -217,7 +219,7 @@ class MissionViewSet(viewsets.ModelViewSet):
                     {'detail': 'Only program directors and administrators can create missions'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-        
+
         try:
             serializer = self.get_serializer(data=request.data)
             if not serializer.is_valid():
@@ -240,7 +242,7 @@ class MissionViewSet(viewsets.ModelViewSet):
             error_traceback = traceback.format_exc()
             print(f"❌ Mission creation error: {error_message}")
             print(f"Traceback: {error_traceback}")
-            
+
             # Check if it's a database column error
             if 'column' in error_message.lower() and 'does not exist' in error_message.lower():
                 return Response(
@@ -283,7 +285,7 @@ class MissionViewSet(viewsets.ModelViewSet):
                     {'detail': 'Only program directors and administrators can update missions'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-        
+
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
@@ -307,23 +309,23 @@ class MissionViewSet(viewsets.ModelViewSet):
                     {'detail': 'Only program directors and administrators can delete missions'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-        
+
         return super().destroy(request, *args, **kwargs)
 
     @action(detail=True, methods=['get'])
     def submissions(self, request, pk=None):
         """Get all submissions for a mission with enriched data."""
         from programs.models import Enrollment, MentorAssignment
-        
+
         mission = self.get_object()
         submissions = MissionSubmission.objects.filter(mission=mission).select_related('user').order_by('-submitted_at')
-        
+
         # Serialize submissions with enriched data
         submission_data = []
         for sub in submissions:
             # Get enrollment for cohort info
             enrollment = Enrollment.objects.filter(user=sub.user, status='active').select_related('cohort', 'cohort__track').first()
-            
+
             # Get mentor assignment
             mentor_name = None
             mentor_id = None
@@ -335,7 +337,7 @@ class MissionViewSet(viewsets.ModelViewSet):
                 if mentor_assignment and mentor_assignment.mentor:
                     mentor_name = f"{mentor_assignment.mentor.first_name or ''} {mentor_assignment.mentor.last_name or ''}".strip() or mentor_assignment.mentor.email
                     mentor_id = str(mentor_assignment.mentor.id)
-            
+
             submission_data.append({
                 'id': str(sub.id),
                 'user_id': sub.user.id,
@@ -354,7 +356,7 @@ class MissionViewSet(viewsets.ModelViewSet):
                 'mentor_id': mentor_id,
                 'mentor_name': mentor_name,
             })
-        
+
         return Response({
             'mission_id': str(mission.id),
             'mission_code': mission.code,
@@ -391,7 +393,7 @@ class MissionViewSet(viewsets.ModelViewSet):
 
         mission = self.get_object()
         cohort_ids = request.data.get('cohort_ids', [])
-        
+
         if not cohort_ids or not isinstance(cohort_ids, list):
             return Response(
                 {'detail': 'cohort_ids must be a non-empty list'},
@@ -404,7 +406,7 @@ class MissionViewSet(viewsets.ModelViewSet):
             cohorts = Cohort.objects.filter(id__in=cohort_ids)
             found_ids = {str(c.id) for c in cohorts}
             requested_ids = set(cohort_ids)
-            
+
             if found_ids != requested_ids:
                 missing = requested_ids - found_ids
                 return Response(
@@ -420,12 +422,12 @@ class MissionViewSet(viewsets.ModelViewSet):
         # Update mission status to published
         requirements = mission.requirements or {}
         requirements['status'] = 'published'
-        
+
         # Store published cohorts in requirements
         requirements['published_cohorts'] = cohort_ids
         requirements['published_at'] = timezone.now().isoformat()
         requirements['published_by'] = str(request.user.id)
-        
+
         mission.requirements = requirements
         mission.save()
 

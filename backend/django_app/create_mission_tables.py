@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Create mission_artifacts and ai_feedback tables"""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')

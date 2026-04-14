@@ -12,21 +12,22 @@ This script creates:
 Run: python create_comprehensive_programs.py
 """
 import os
-import sys
-import django
 import random
-from datetime import timedelta
+import sys
 from decimal import Decimal
+
+import django
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from django.db import transaction
 from django.contrib.auth import get_user_model
-from programs.models import Program, Track, Milestone, Module, Specialization
+from django.db import transaction
 from missions.models import Mission
-from users.models import User, Role
+from programs.models import Milestone, Module, Program, Specialization, Track
+
+from users.models import Role, User
 
 User = get_user_model()
 
@@ -198,7 +199,7 @@ def get_or_create_program_director():
         director.email_verified = True
         director.is_active = True
         director.save()
-    
+
     role, _ = Role.objects.get_or_create(name='program_director')
     from users.models import UserRole
     UserRole.objects.get_or_create(
@@ -290,7 +291,7 @@ def create_modules(milestones, track, is_primary=False):
     for milestone in milestones:
         # Determine number of modules (more for primary track)
         num_modules = 6 if is_primary else 2
-        
+
         for i in range(1, num_modules + 1):
             module_type = random.choice(MODULE_TYPES['primary'] if is_primary else MODULE_TYPES['cross_track'])
             module, created = Module.objects.get_or_create(
@@ -310,7 +311,7 @@ def create_modules(milestones, track, is_primary=False):
                 # Add to applicable tracks
                 if not is_primary:
                     module.applicable_tracks.add(track)
-    
+
     print(f'    ✓ Created {modules_created} modules')
     return modules_created
 
@@ -320,7 +321,7 @@ def create_missions(track, track_key):
     """Create missions for a track (minimum 10)."""
     missions_created = 0
     templates = MISSION_TEMPLATES[track_key]
-    
+
     for i, template in enumerate(templates, 1):
         mission_code = f'{track_key.upper()[:3]}-M{i:02d}'
         mission, created = Mission.objects.get_or_create(
@@ -377,11 +378,11 @@ def create_missions(track, track_key):
         )
         if created:
             missions_created += 1
-    
+
     # Update track missions list
     track.missions = [f'{track_key.upper()[:3]}-M{i:02d}' for i in range(1, len(templates) + 1)]
     track.save()
-    
+
     print(f'    ✓ Created {missions_created} missions')
     return missions_created
 
@@ -395,7 +396,7 @@ def create_specializations(track):
         f'Advanced {track.name}',
         f'{track.name} Expert'
     ]
-    
+
     for i, spec_name in enumerate(specialization_names[:2], 1):  # Create 2 specializations
         spec, created = Specialization.objects.get_or_create(
             track=track,
@@ -408,7 +409,7 @@ def create_specializations(track):
         )
         if created:
             specializations_created += 1
-    
+
     print(f'    ✓ Created {specializations_created} specializations')
     return specializations_created
 
@@ -419,11 +420,11 @@ def main():
     print('Creating Comprehensive OCH Programs Test Data')
     print('=' * 80)
     print()
-    
+
     director = get_or_create_program_director()
     print(f'✓ Using program director: {director.email}')
     print()
-    
+
     total_stats = {
         'programs': 0,
         'tracks': 0,
@@ -432,57 +433,57 @@ def main():
         'missions': 0,
         'specializations': 0
     }
-    
+
     # Create 5 programs (one for each track)
     for primary_track_key in TRACKS.keys():
         program_name = f'Cybersecurity {TRACKS[primary_track_key]["name"]} Program'
-        
+
         print(f'\n{"="*80}')
         print(f'Creating: {program_name}')
         print(f'{"="*80}')
-        
+
         # Create program
         program = create_program(program_name, primary_track_key, director)
         total_stats['programs'] += 1
-        
+
         # Create primary track (80% content)
         primary_track = create_track(program, primary_track_key, is_primary=True)
         total_stats['tracks'] += 1
-        
+
         # Create milestones for primary track
         milestones = create_milestones(primary_track)
         total_stats['milestones'] += len(milestones)
-        
+
         # Create modules for primary track (80% - more modules)
         modules_count = create_modules(milestones, primary_track, is_primary=True)
         total_stats['modules'] += modules_count
-        
+
         # Create missions for primary track (minimum 10)
         missions_count = create_missions(primary_track, primary_track_key)
         total_stats['missions'] += missions_count
-        
+
         # Create specializations for primary track
         specs_count = create_specializations(primary_track)
         total_stats['specializations'] += specs_count
-        
+
         # Create cross-track content (20% - from other tracks)
         other_tracks = [k for k in TRACKS.keys() if k != primary_track_key]
         for cross_track_key in other_tracks[:2]:  # Add 2 cross-tracks (20% content)
             cross_track = create_track(program, cross_track_key, is_primary=False)
             total_stats['tracks'] += 1
-            
+
             # Create milestones for cross-track
             cross_milestones = create_milestones(cross_track)
             total_stats['milestones'] += len(cross_milestones)
-            
+
             # Create modules for cross-track (20% - fewer modules)
             cross_modules_count = create_modules(cross_milestones, cross_track, is_primary=False)
             total_stats['modules'] += cross_modules_count
-            
+
             # Create some missions for cross-track (fewer than primary)
             cross_missions_count = create_missions(cross_track, cross_track_key)
             total_stats['missions'] += cross_missions_count
-    
+
     # Summary
     print()
     print('=' * 80)

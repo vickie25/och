@@ -1,8 +1,9 @@
 """
 HTTP client utilities for communicating with Django API.
 """
+from typing import Any
+
 import httpx
-from typing import Optional, Dict, Any
 from config import settings
 
 
@@ -10,17 +11,17 @@ class DjangoAPIClient:
     """
     Client for making requests to Django API.
     """
-    
+
     def __init__(self):
         self.base_url = settings.DJANGO_API_URL
         self.timeout = settings.DJANGO_API_TIMEOUT
-    
+
     async def get(
         self,
         endpoint: str,
-        params: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, Any]:
+        params: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         """
         Make GET request to Django API.
         """
@@ -34,13 +35,13 @@ class DjangoAPIClient:
             )
             response.raise_for_status()
             return response.json()
-    
+
     async def post(
         self,
         endpoint: str,
-        data: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, str]] = None,
-    ) -> Dict[str, Any]:
+        data: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         """
         Make POST request to Django API.
         """

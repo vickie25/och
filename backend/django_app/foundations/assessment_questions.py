@@ -279,10 +279,10 @@ FOUNDATIONS_ASSESSMENT_QUESTIONS = [
 def calculate_assessment_score(answers: dict) -> tuple[int, dict]:
     """
     Calculate assessment score based on user answers.
-    
+
     Args:
         answers: Dictionary mapping question_id to selected option value (e.g., {'q1': 'B', 'q2': 'A'})
-    
+
     Returns:
         Tuple of (score_percentage, detailed_results)
         score_percentage: 0-100
@@ -291,28 +291,28 @@ def calculate_assessment_score(answers: dict) -> tuple[int, dict]:
     total_questions = len(FOUNDATIONS_ASSESSMENT_QUESTIONS)
     correct_count = 0
     detailed_results = {}
-    
+
     for question in FOUNDATIONS_ASSESSMENT_QUESTIONS:
         question_id = question['id']
         selected_answer = answers.get(question_id)
-        
+
         # Find the correct answer
         correct_option = next((opt for opt in question['options'] if opt['correct']), None)
         correct_answer = correct_option['value'] if correct_option else None
-        
+
         # Check if answer is correct
         is_correct = selected_answer == correct_answer
-        
+
         if is_correct:
             correct_count += 1
-        
+
         detailed_results[question_id] = {
             'correct': is_correct,
             'selected': selected_answer,
             'correct_answer': correct_answer,
             'explanation': question.get('explanation', '')
         }
-    
+
     score_percentage = int((correct_count / total_questions) * 100) if total_questions > 0 else 0
-    
+
     return score_percentage, detailed_results

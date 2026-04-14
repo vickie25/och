@@ -1,15 +1,17 @@
 #!/usr/bin/env python
 """Test GPT AI review functionality."""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from missions.models import Mission, MissionSubmission, MissionAssignment
-from users.models import User
-from missions.tasks import process_mission_ai_review
 from django.utils import timezone
+from missions.models import Mission, MissionAssignment, MissionSubmission
+from missions.tasks import process_mission_ai_review
+
+from users.models import User
 
 print("Testing GPT AI Review...\n")
 
@@ -66,7 +68,7 @@ print(f"\n[7] Result: {result}")
 # Check if we got real AI feedback
 if result.get('status') == 'success':
     score = result.get('score')
-    print(f"\n✓ AI Review Success!")
+    print("\n✓ AI Review Success!")
     print(f"  Score: {score}")
 
     # Fetch the feedback

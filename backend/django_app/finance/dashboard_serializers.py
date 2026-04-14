@@ -4,12 +4,14 @@ Serializers for all financial dashboard components
 """
 
 from rest_framework import serializers
-from .models import *
+
 from .dashboard_models import *
+from .models import *
+
 
 class FinancialDashboardSerializer(serializers.ModelSerializer):
     """Serializer for financial dashboard configuration"""
-    
+
     class Meta:
         model = FinancialDashboard
         fields = [
@@ -20,7 +22,7 @@ class FinancialDashboardSerializer(serializers.ModelSerializer):
 
 class RevenueMetricsSerializer(serializers.ModelSerializer):
     """Serializer for revenue metrics"""
-    
+
     class Meta:
         model = RevenueMetrics
         fields = [
@@ -33,7 +35,7 @@ class FinancialKPISerializer(serializers.ModelSerializer):
     """Serializer for financial KPIs"""
     growth_rate = serializers.ReadOnlyField()
     target_achievement = serializers.ReadOnlyField()
-    
+
     class Meta:
         model = FinancialKPI
         fields = [
@@ -48,7 +50,7 @@ class FinancialAlertSerializer(serializers.ModelSerializer):
     assigned_to_email = serializers.CharField(source='assigned_to.email', read_only=True)
     acknowledged_by_email = serializers.CharField(source='acknowledged_by.email', read_only=True)
     resolved_by_email = serializers.CharField(source='resolved_by.email', read_only=True)
-    
+
     class Meta:
         model = FinancialAlert
         fields = [
@@ -64,7 +66,7 @@ class FinancialAlertSerializer(serializers.ModelSerializer):
 
 class CashFlowProjectionSerializer(serializers.ModelSerializer):
     """Serializer for cash flow projections"""
-    
+
     class Meta:
         model = CashFlowProjection
         fields = [
@@ -82,7 +84,7 @@ class CashFlowProjectionSerializer(serializers.ModelSerializer):
 class FinancialReportSerializer(serializers.ModelSerializer):
     """Serializer for financial reports"""
     generated_by_email = serializers.CharField(source='generated_by.email', read_only=True)
-    
+
     class Meta:
         model = FinancialReport
         fields = [
@@ -99,7 +101,7 @@ class FinancialReportSerializer(serializers.ModelSerializer):
 class ComplianceRecordSerializer(serializers.ModelSerializer):
     """Serializer for compliance records"""
     reviewed_by_email = serializers.CharField(source='reviewed_by.email', read_only=True)
-    
+
     class Meta:
         model = ComplianceRecord
         fields = [
@@ -116,7 +118,7 @@ class ComplianceRecordSerializer(serializers.ModelSerializer):
 class AuditLogSerializer(serializers.ModelSerializer):
     """Serializer for audit logs"""
     user_email = serializers.CharField(source='user.email', read_only=True)
-    
+
     class Meta:
         model = AuditLog
         fields = [
@@ -130,7 +132,7 @@ class AuditLogSerializer(serializers.ModelSerializer):
 
 class WalletSerializer(serializers.ModelSerializer):
     """Serializer for user wallets"""
-    
+
     class Meta:
         model = Wallet
         fields = [
@@ -143,7 +145,7 @@ class WalletSerializer(serializers.ModelSerializer):
 
 class TransactionSerializer(serializers.ModelSerializer):
     """Serializer for wallet transactions"""
-    
+
     class Meta:
         model = Transaction
         fields = [
@@ -154,7 +156,7 @@ class TransactionSerializer(serializers.ModelSerializer):
 
 class CreditSerializer(serializers.ModelSerializer):
     """Serializer for credits"""
-    
+
     class Meta:
         model = Credit
         fields = [
@@ -168,7 +170,7 @@ class ContractSerializer(serializers.ModelSerializer):
     organization_name = serializers.CharField(source='organization.name', read_only=True)
     is_active = serializers.ReadOnlyField()
     days_until_expiry = serializers.ReadOnlyField()
-    
+
     class Meta:
         model = Contract
         fields = [
@@ -186,7 +188,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
     """Serializer for invoices"""
     user_email = serializers.CharField(source='user.email', read_only=True)
     organization_name = serializers.CharField(source='organization.name', read_only=True)
-    
+
     class Meta:
         model = Invoice
         fields = [
@@ -203,7 +205,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
 class PaymentSerializer(serializers.ModelSerializer):
     """Serializer for payments"""
     invoice_number = serializers.CharField(source='invoice.invoice_number', read_only=True)
-    
+
     class Meta:
         model = Payment
         fields = [
@@ -218,7 +220,7 @@ class PaymentSerializer(serializers.ModelSerializer):
 class MentorPayoutSerializer(serializers.ModelSerializer):
     """Serializer for mentor payouts"""
     mentor_email = serializers.CharField(source='mentor.email', read_only=True)
-    
+
     class Meta:
         model = MentorPayout
         fields = [
@@ -232,7 +234,7 @@ class MentorPayoutSerializer(serializers.ModelSerializer):
 
 class TaxRateSerializer(serializers.ModelSerializer):
     """Serializer for tax rates"""
-    
+
     class Meta:
         model = TaxRate
         fields = [

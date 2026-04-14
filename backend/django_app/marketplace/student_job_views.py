@@ -1,20 +1,21 @@
 """
 Student-facing job browsing and application views.
 """
-from django.db import models
-from django.utils import timezone
-from rest_framework import generics, permissions, status
-from rest_framework.exceptions import NotFound, ValidationError
-from rest_framework.response import Response
 import logging
 
-from .models import JobPosting, JobApplication, MarketplaceProfile
-from .serializers import (
-    JobPostingListSerializer,
-    JobApplicationSerializer,
-    JobApplicationCreateSerializer,
-)
+from django.db import models
+from django.utils import timezone
+from rest_framework import generics, permissions
+from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.response import Response
+
 from .job_matching import calculate_match_score
+from .models import JobApplication, JobPosting, MarketplaceProfile
+from .serializers import (
+    JobApplicationCreateSerializer,
+    JobApplicationSerializer,
+    JobPostingListSerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 class StudentJobBrowseView(generics.ListAPIView):
     """
     GET /api/v1/marketplace/jobs/browse
-    
+
     Students can browse active job postings with match scores.
     """
     permission_classes = [permissions.IsAuthenticated]
@@ -33,18 +34,18 @@ class StudentJobBrowseView(generics.ListAPIView):
         jobs = JobPosting.objects.filter(
             is_active=True
         ).select_related('employer')
-        
+
         # Filter out expired jobs
         jobs = jobs.filter(
             models.Q(application_deadline__isnull=True) |
             models.Q(application_deadline__gte=timezone.now())
         )
-        
+
         # Optional filters
         job_type = self.request.query_params.get('job_type')
         if job_type:
             jobs = jobs.filter(job_type=job_type)
-        
+
         return jobs.order_by('-posted_at')
 
     def get_serializer_context(self):
@@ -55,38 +56,38 @@ class StudentJobBrowseView(generics.ListAPIView):
     def list(self, request, *args, **kwargs):
         try:
             queryset = self.filter_queryset(self.get_queryset())
-            
+
             # Get profile for match score calculation
             try:
                 profile = request.user.marketplace_profile
             except MarketplaceProfile.DoesNotExist:
                 profile = None
-            
+
             # Serialize jobs
             serializer = self.get_serializer(queryset, many=True, context=self.get_serializer_context())
             jobs_data = list(serializer.data)  # Convert to list to make it mutable
-            
+
             # Add match scores and application status
             for job_data in jobs_data:
                 if not isinstance(job_data, dict):
                     continue
-                    
+
                 job_id = job_data.get('id')
                 if not job_id:
                     job_data['match_score'] = 0.0
                     job_data['has_applied'] = False
                     continue
-                
+
                 try:
                     job = JobPosting.objects.get(id=job_id)
-                    
+
                     # Calculate match score
                     if profile:
                         match_score = calculate_match_score(job, profile)
                         job_data['match_score'] = float(match_score)
                     else:
                         job_data['match_score'] = 0.0
-                    
+
                     # Check if user has applied
                     has_applied = JobApplication.objects.filter(
                         job_posting=job,
@@ -97,7 +98,7 @@ class StudentJobBrowseView(generics.ListAPIView):
                     logger.warning(f'Error processing job {job_id}: {e}')
                     job_data['match_score'] = 0.0
                     job_data['has_applied'] = False
-            
+
             return Response(jobs_data)
         except Exception as e:
             logger.error(f'Error in StudentJobBrowseView.list: {e}', exc_info=True)
@@ -107,7 +108,7 @@ class StudentJobBrowseView(generics.ListAPIView):
 class StudentJobDetailView(generics.RetrieveAPIView):
     """
     GET /api/v1/marketplace/jobs/<id>/detail
-    
+
     Students can view job details with match score.
     """
     permission_classes = [permissions.IsAuthenticated]
@@ -124,13 +125,13 @@ class StudentJobDetailView(generics.RetrieveAPIView):
 
     def retrieve(self, request, *args, **kwargs):
         response = super().retrieve(request, *args, **kwargs)
-        
+
         try:
             profile = request.user.marketplace_profile
             job = self.get_object()
             match_score = calculate_match_score(job, profile)
             response.data['match_score'] = float(match_score)
-            
+
             has_applied = JobApplication.objects.filter(
                 job_posting=job,
                 applicant=request.user
@@ -139,14 +140,14 @@ class StudentJobDetailView(generics.RetrieveAPIView):
         except MarketplaceProfile.DoesNotExist:
             response.data['match_score'] = 0.0
             response.data['has_applied'] = False
-        
+
         return response
 
 
 class StudentJobApplicationView(generics.CreateAPIView):
     """
     POST /api/v1/marketplace/jobs/<id>/apply
-    
+
     Students can apply to a job posting.
     """
     permission_classes = [permissions.IsAuthenticated]
@@ -164,18 +165,18 @@ class StudentJobApplicationView(generics.CreateAPIView):
             job = JobPosting.objects.get(id=job_id, is_active=True)
         except JobPosting.DoesNotExist:
             raise NotFound('Job posting not found or inactive')
-        
+
         # Check if already applied
         if JobApplication.objects.filter(
           job_posting=job,
           applicant_id=str(self.request.user.id)
         ).exists():
             raise ValidationError({'detail': 'You have already applied to this job'})
-        
+
         # Check deadline
         if job.application_deadline and job.application_deadline < timezone.now():
             raise ValidationError({'detail': 'Application deadline has passed'})
-        
+
         # Get or create marketplace profile
         try:
             profile = self.request.user.marketplace_profile
@@ -183,10 +184,10 @@ class StudentJobApplicationView(generics.CreateAPIView):
             raise ValidationError({
                 'detail': 'Please complete your marketplace profile before applying'
             })
-        
+
         # Calculate match score
         match_score = calculate_match_score(job, profile)
-        
+
         # Create application
         application = serializer.save(
             job_posting=job,
@@ -194,7 +195,7 @@ class StudentJobApplicationView(generics.CreateAPIView):
             match_score=match_score,
             status='pending',
         )
-        
+
         # Send notification (optional)
         try:
             from services.email_service import EmailService
@@ -210,7 +211,7 @@ class StudentJobApplicationView(generics.CreateAPIView):
 class StudentJobApplicationsView(generics.ListAPIView):
     """
     GET /api/v1/marketplace/applications
-    
+
     Students can view their job applications.
     """
     permission_classes = [permissions.IsAuthenticated]
@@ -225,7 +226,7 @@ class StudentJobApplicationsView(generics.ListAPIView):
 class StudentJobApplicationDetailView(generics.RetrieveAPIView):
     """
     GET /api/v1/marketplace/applications/<id>
-    
+
     Students can view details of a specific application.
     """
     permission_classes = [permissions.IsAuthenticated]

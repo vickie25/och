@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import MarketplaceEscrow, MarketplaceCommissionLedger
+
+from .models import MarketplaceEscrow
 
 
 class MarketplaceEscrowSerializer(serializers.ModelSerializer):

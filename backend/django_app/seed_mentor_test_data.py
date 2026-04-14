@@ -3,20 +3,26 @@ Seed test data for mentor testing.
 Run: python seed_mentor_test_data.py
 """
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from users.models import User, Role, UserRole
+import uuid
+from datetime import timedelta
+
+from django.utils import timezone
 from mentorship_coordination.models import (
-    MenteeMentorAssignment, MentorSession, MentorWorkQueue,
-    MentorFlag, SessionAttendance
+    MenteeMentorAssignment,
+    MentorFlag,
+    MentorSession,
+    MentorWorkQueue,
+    SessionAttendance,
 )
 from missions.models import Mission, MissionSubmission
-from django.utils import timezone
-from datetime import timedelta
-import uuid
+
+from users.models import Role, User, UserRole
 
 print('=== Creating Test Users ===')
 
@@ -226,7 +232,7 @@ submission = MissionSubmission.objects.create(
     notes='I completed the SIEM lab. Here are my findings:\n\n1. Identified 15 failed login attempts from IP 192.168.1.50\n2. Found suspicious outbound traffic to unknown IP 203.0.113.45\n3. Created detection rules for brute force attacks\n4. Documented all findings in attached GitHub repo',
     submitted_at=timezone.now()
 )
-print(f'[OK] Created mission submission')
+print('[OK] Created mission submission')
 print(f'    Mission: {mission.title}')
 print(f'    Student: {alice.email}')
 print(f'    Submission ID: {submission.id}')
@@ -237,8 +243,8 @@ print('='*60)
 print('\nLogin Credentials:')
 print('-' * 60)
 print('Mentor:')
-print(f'  Email: mentor@ongozacyberhub.com')
-print(f'  Password: mentor123')
+print('  Email: mentor@ongozacyberhub.com')
+print('  Password: mentor123')
 print(f'  User ID: {mentor.id}')
 print('\nStudents:')
 print(f'  Alice: alice@student.com / student123 (ID: {alice.id})')
@@ -252,7 +258,7 @@ print(f'  Assignments: {MenteeMentorAssignment.objects.filter(mentor=mentor).cou
 print(f'  Sessions: {MentorSession.objects.filter(mentor=mentor).count()}')
 print(f'  Work Items: {MentorWorkQueue.objects.filter(mentor=mentor).count()}')
 print(f'  Risk Flags: {MentorFlag.objects.filter(mentor=mentor).count()}')
-print(f'  Submissions: 1')
+print('  Submissions: 1')
 
 print('\n' + '='*60)
 print('Test API Endpoints:')
@@ -270,7 +276,7 @@ print('\n3. View Work Queue:')
 print('   curl -X GET http://localhost:8000/api/v1/mentor/workqueue \\')
 print('     -H "Authorization: Bearer YOUR_TOKEN"')
 
-print(f'\n4. Review Mission Submission:')
+print('\n4. Review Mission Submission:')
 print(f'   curl -X POST http://localhost:8000/api/v1/mentor/missions/{submission.id}/review \\')
 print('     -H "Authorization: Bearer YOUR_TOKEN" \\')
 print('     -H "Content-Type: application/json" \\')

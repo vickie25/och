@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """Test the start mission endpoint."""
 import os
-import django
 import sys
+
+import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
 from django.test import RequestFactory
-from rest_framework.test import force_authenticate
-from missions.views_student import start_mission_student
 from missions.models import Mission
+from missions.views_student import start_mission_student
+from rest_framework.test import force_authenticate
+
 from users.models import User
 
 print("=" * 80)
@@ -47,10 +49,10 @@ request = factory.post(f'/api/v1/student/missions/{mission.id}/start/')
 force_authenticate(request, user=user)
 request.user = user
 
-print(f"\n[3] Calling start_mission_student()...")
+print("\n[3] Calling start_mission_student()...")
 try:
     response = start_mission_student(request, mission_id=mission.id)
-    print(f"\n[4] Response received:")
+    print("\n[4] Response received:")
     print(f"    Status code: {response.status_code}")
 
     if response.status_code in [200, 201]:
@@ -60,17 +62,17 @@ try:
         print(f"    Current subtask: {data.get('current_subtask')}")
         print(f"    Message: {data.get('message')}")
     else:
-        print(f"    Error response:")
+        print("    Error response:")
         print(f"      {response.data}")
 
 except Exception as e:
-    print(f"\n[ERROR] Exception raised:")
+    print("\n[ERROR] Exception raised:")
     print(f"    Type: {type(e).__name__}")
     print(f"    Message: {str(e)}")
 
     # Print full traceback
     import traceback
-    print(f"\n    Traceback:")
+    print("\n    Traceback:")
     traceback.print_exc()
 
 print("\n" + "=" * 80)

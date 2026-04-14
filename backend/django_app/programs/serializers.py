@@ -1,11 +1,24 @@
 """
 Serializers for Programs app.
 """
-from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from rest_framework import serializers
+
 from .models import (
-    Program, Track, Milestone, Module, Specialization, Cohort, Enrollment,
-    CalendarEvent, MentorAssignment, TrackMentorAssignment, ProgramRule, Certificate, Waitlist, MentorshipCycle
+    CalendarEvent,
+    Certificate,
+    Cohort,
+    Enrollment,
+    MentorAssignment,
+    MentorshipCycle,
+    Milestone,
+    Module,
+    Program,
+    ProgramRule,
+    Specialization,
+    Track,
+    TrackMentorAssignment,
+    Waitlist,
 )
 
 User = get_user_model()
@@ -16,7 +29,7 @@ User = get_user_model()
 class ModuleSerializer(serializers.ModelSerializer):
     milestone_name = serializers.CharField(source='milestone.name', read_only=True)
     applicable_track_names = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Module
         fields = [
@@ -36,7 +49,7 @@ class ModuleSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
-    
+
     def get_applicable_track_names(self, obj):
         return [track.name for track in obj.applicable_tracks.all()]
 
@@ -44,7 +57,7 @@ class ModuleSerializer(serializers.ModelSerializer):
 class MilestoneSerializer(serializers.ModelSerializer):
     track_name = serializers.CharField(source='track.name', read_only=True)
     modules = ModuleSerializer(many=True, read_only=True)
-    
+
     class Meta:
         model = Milestone
         fields = [
@@ -67,26 +80,26 @@ class MilestoneSerializer(serializers.ModelSerializer):
         name = data.get('name')
         if not name or (isinstance(name, str) and name.strip() == ''):
             raise serializers.ValidationError({'name': 'This field may not be blank.'})
-        
+
         # Validate track field
         track = data.get('track')
         if not track:
             raise serializers.ValidationError({'track': 'This field is required.'})
-        
+
         # Validate duration_weeks if provided
         duration_weeks = data.get('duration_weeks')
         if duration_weeks is not None and duration_weeks < 1:
             raise serializers.ValidationError({
                 'duration_weeks': 'Duration must be at least 1 week if provided.'
             })
-        
+
         # Validate order if provided
         order = data.get('order')
         if order is not None and order < 0:
             raise serializers.ValidationError({
                 'order': 'Order must be a non-negative integer.'
             })
-        
+
         return data
 
 
@@ -95,12 +108,12 @@ class TrackSerializer(serializers.ModelSerializer):
     program_detail = serializers.SerializerMethodField()
     milestones = MilestoneSerializer(many=True, read_only=True)
     specializations = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Track
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
-    
+
     def get_program_detail(self, obj):
         """Get program data for this track."""
         if obj.program:
@@ -109,25 +122,25 @@ class TrackSerializer(serializers.ModelSerializer):
                 'name': obj.program.name
             }
         return None
-    
+
     def validate(self, data):
         """Validate track data."""
         is_update = self.instance is not None
-        
+
         # Validate name field
         if not is_update or 'name' in data:
             name = data.get('name')
             if name is not None and (not name or name.strip() == ''):
                 raise serializers.ValidationError({'name': 'This field may not be blank.'})
-        
+
         # Validate key field
         if not is_update or 'key' in data:
             key = data.get('key')
             if key is not None and (not key or key.strip() == ''):
                 raise serializers.ValidationError({'key': 'This field may not be blank.'})
-        
+
         return data
-    
+
     def get_specializations(self, obj):
         """Get specializations for this track."""
         if hasattr(obj, 'specializations'):
@@ -149,21 +162,21 @@ class ProgramSerializer(serializers.ModelSerializer):
         required=False,
         help_text='Primary category (auto-set from categories if not provided)'
     )
-    
+
     class Meta:
         model = Program
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
-    
+
     def validate(self, data):
         """Ensure either category or categories is provided."""
         name = data.get('name')
         if not name or (isinstance(name, str) and name.strip() == ''):
             raise serializers.ValidationError({'name': 'This field may not be blank.'})
-        
+
         categories = data.get('categories', [])
         category = data.get('category')
-        
+
         if categories and not category:
             data['category'] = categories[0]
         elif category and not categories:
@@ -171,17 +184,17 @@ class ProgramSerializer(serializers.ModelSerializer):
         elif not category and not categories:
             data['category'] = 'technical'
             data['categories'] = ['technical']
-        
+
         return data
-    
+
     def get_tracks_count(self, obj):
         return obj.tracks.count()
-    
+
     def create(self, validated_data):
         """Handle categories array and ensure backward compatibility with category field."""
         categories = validated_data.pop('categories', None)
         category = validated_data.get('category')
-        
+
         if categories:
             validated_data['category'] = categories[0]
             program = super().create(validated_data)
@@ -196,12 +209,12 @@ class ProgramSerializer(serializers.ModelSerializer):
             program.categories = []
             program.save()
         return program
-    
+
     def update(self, instance, validated_data):
         """Handle categories array and ensure backward compatibility with category field."""
         categories = validated_data.pop('categories', None)
         category = validated_data.get('category', None)
-        
+
         # If categories provided, use first as primary category for backward compatibility
         if categories is not None:
             if categories:
@@ -213,7 +226,7 @@ class ProgramSerializer(serializers.ModelSerializer):
         # If only category provided (backward compatibility), update categories array
         elif category and category != instance.category:
             instance.categories = [category]
-        
+
         program = super().update(instance, validated_data)
         return program
 
@@ -232,24 +245,24 @@ class ProgramDetailSerializer(serializers.ModelSerializer):
         required=False,
         help_text='Primary category (auto-set from categories if not provided)'
     )
-    
+
     class Meta:
         model = Program
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
-    
+
     def validate(self, data):
         """Ensure either category or categories is provided."""
         # Validate name field - check for empty strings
         name = data.get('name')
         if not name or (isinstance(name, str) and name.strip() == ''):
             raise serializers.ValidationError({'name': 'This field may not be blank.'})
-        
+
         # Convert empty string to None for URLField to avoid validation errors
         missions_registry_link = data.get('missions_registry_link')
         if missions_registry_link == '':
             data['missions_registry_link'] = None
-        
+
         # Ensure outcomes is a list
         outcomes = data.get('outcomes')
         if outcomes is None:
@@ -257,15 +270,15 @@ class ProgramDetailSerializer(serializers.ModelSerializer):
         elif not isinstance(outcomes, list):
             # Convert to list if it's not already
             data['outcomes'] = [outcomes] if outcomes else []
-        
+
         # Ensure structure is a dict
         structure = data.get('structure')
         if structure is None:
             data['structure'] = {}
-        
+
         categories = data.get('categories', [])
         category = data.get('category')
-        
+
         # If categories provided but no category, set category from first
         if categories and not category:
             data['category'] = categories[0]
@@ -276,14 +289,14 @@ class ProgramDetailSerializer(serializers.ModelSerializer):
         elif not category and not categories:
             data['category'] = 'technical'
             data['categories'] = ['technical']
-        
+
         return data
-    
+
     def create(self, validated_data):
         """Handle categories array and ensure backward compatibility with category field."""
         categories = validated_data.pop('categories', None)
         category = validated_data.get('category')
-        
+
         # If categories provided, use first as primary category for backward compatibility
         if categories:
             validated_data['category'] = categories[0]
@@ -301,12 +314,12 @@ class ProgramDetailSerializer(serializers.ModelSerializer):
             program.categories = []
             program.save()
         return program
-    
+
     def update(self, instance, validated_data):
         """Handle categories array and ensure backward compatibility with category field."""
         categories = validated_data.pop('categories', None)
         category = validated_data.get('category', None)
-        
+
         # If categories provided, use first as primary category for backward compatibility
         if categories is not None:
             if categories:
@@ -318,14 +331,14 @@ class ProgramDetailSerializer(serializers.ModelSerializer):
         # If only category provided (backward compatibility), update categories array
         elif category and category != instance.category:
             instance.categories = [category]
-        
+
         program = super().update(instance, validated_data)
         return program
 
 
 class SpecializationSerializer(serializers.ModelSerializer):
     track_name = serializers.CharField(source='track.name', read_only=True)
-    
+
     class Meta:
         model = Specialization
         fields = '__all__'
@@ -337,12 +350,12 @@ class CohortSerializer(serializers.ModelSerializer):
     seat_utilization = serializers.FloatField(read_only=True)
     completion_rate = serializers.FloatField(read_only=True)
     enrolled_count = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Cohort
         fields = '__all__'
         read_only_fields = ['id', 'created_at', 'updated_at']
-    
+
     def validate(self, data):
         """Validate cohort data."""
         # NOTE: This serializer is used for both create and partial updates (PATCH).
@@ -354,27 +367,27 @@ class CohortSerializer(serializers.ModelSerializer):
             name = data.get('name')
             if not name or (isinstance(name, str) and name.strip() == ''):
                 raise serializers.ValidationError({'name': 'This field may not be blank.'})
-        
+
         # Validate track field
         if is_create or 'track' in data:
             track = data.get('track')
             if not track:
                 raise serializers.ValidationError({'track': 'This field is required.'})
-        
+
         # Convert empty string to None for UUIDField to avoid validation errors
         calendar_template_id = data.get('calendar_template_id')
         if calendar_template_id == '':
             data['calendar_template_id'] = None
-        
+
         # Validate dates
         start_date = data.get('start_date', getattr(self.instance, 'start_date', None))
         end_date = data.get('end_date', getattr(self.instance, 'end_date', None))
-        
+
         if start_date and end_date and end_date < start_date:
             raise serializers.ValidationError({
                 'end_date': 'End date must be after start date.'
             })
-        
+
         # Validate seat_pool if provided
         seat_pool = data.get('seat_pool', {})
         if isinstance(seat_pool, dict):
@@ -388,9 +401,9 @@ class CohortSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     'seat_pool': f'Total allocated seats ({total_allocated}) cannot exceed seat capacity ({seat_cap}).'
                 })
-        
+
         return data
-    
+
     def get_enrolled_count(self, obj):
         return obj.enrollments.filter(status='active').count()
 
@@ -399,19 +412,19 @@ class EnrollmentSerializer(serializers.ModelSerializer):
     user_email = serializers.CharField(source='user.email', read_only=True)
     user_name = serializers.SerializerMethodField()
     cohort_name = serializers.CharField(source='cohort.name', read_only=True)
-    
+
     class Meta:
         model = Enrollment
         fields = '__all__'
         read_only_fields = ['id', 'joined_at']
-    
+
     def get_user_name(self, obj):
         return obj.user.get_full_name() or obj.user.email
 
 
 class CalendarEventSerializer(serializers.ModelSerializer):
     cohort_name = serializers.CharField(source='cohort.name', read_only=True)
-    
+
     class Meta:
         model = CalendarEvent
         fields = '__all__'
@@ -426,27 +439,27 @@ class MentorAssignmentSerializer(serializers.ModelSerializer):
         queryset=User.objects.all(),
         required=True
     )
-    
+
     class Meta:
         model = MentorAssignment
         fields = '__all__'
         read_only_fields = ['id', 'assigned_at']
-    
+
     def get_mentor_name(self, obj):
         return obj.mentor.get_full_name() or obj.mentor.email
-    
+
     def validate(self, data):
         """Validate mentor assignment data."""
         # Validate mentor field
         mentor = data.get('mentor')
         if not mentor:
             raise serializers.ValidationError({'mentor': 'This field is required.'})
-        
+
         # Validate cohort field
         cohort = data.get('cohort')
         if not cohort:
             raise serializers.ValidationError({'cohort': 'This field is required.'})
-        
+
         # Check for duplicate assignment (same mentor + cohort, active)
         if self.instance is None:  # Only check on create, not update
             existing = MentorAssignment.objects.filter(
@@ -458,7 +471,7 @@ class MentorAssignmentSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     'non_field_errors': ['This mentor is already assigned to this cohort.']
                 })
-        
+
         return data
 
 
@@ -488,7 +501,7 @@ class TrackMentorAssignmentSerializer(serializers.ModelSerializer):
 
 class ProgramRuleSerializer(serializers.ModelSerializer):
     program_name = serializers.CharField(source='program.name', read_only=True)
-    
+
     class Meta:
         model = ProgramRule
         fields = '__all__'
@@ -498,7 +511,7 @@ class ProgramRuleSerializer(serializers.ModelSerializer):
 class CertificateSerializer(serializers.ModelSerializer):
     user_email = serializers.CharField(source='enrollment.user.email', read_only=True)
     cohort_name = serializers.CharField(source='enrollment.cohort.name', read_only=True)
-    
+
     class Meta:
         model = Certificate
         fields = '__all__'
@@ -509,12 +522,12 @@ class WaitlistSerializer(serializers.ModelSerializer):
     user_email = serializers.CharField(source='user.email', read_only=True)
     user_name = serializers.SerializerMethodField()
     cohort_name = serializers.CharField(source='cohort.name', read_only=True)
-    
+
     class Meta:
         model = Waitlist
         fields = '__all__'
         read_only_fields = ['id', 'added_at', 'position']
-    
+
     def get_user_name(self, obj):
         return obj.user.get_full_name() or obj.user.email
 

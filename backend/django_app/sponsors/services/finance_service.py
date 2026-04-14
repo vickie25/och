@@ -1,19 +1,20 @@
 """
 Finance Data Service - Aggregates financial data for sponsor dashboards.
 """
-from typing import List, Dict, Any, Optional
+import logging
+from datetime import date, datetime
 from decimal import Decimal
-from django.db import connection
+from typing import Any
+
 from django.core.cache import cache
 from django.utils import timezone
-from datetime import datetime, date
-import logging
+
 from ..models import (
+    RevenueShareTracking,
     Sponsor,
     SponsorCohort,
-    SponsorFinancialTransaction,
     SponsorCohortBilling,
-    RevenueShareTracking
+    SponsorFinancialTransaction,
 )
 from .invoice_service import InvoiceService
 
@@ -24,7 +25,7 @@ class FinanceDataService:
     """Service for managing sponsor financial data and analytics"""
 
     @staticmethod
-    def get_finance_overview(sponsor: Sponsor) -> Dict[str, Any]:
+    def get_finance_overview(sponsor: Sponsor) -> dict[str, Any]:
         """
         Get comprehensive financial overview for a sponsor.
         Includes total ROI, value metrics, and cohort financial summaries.
@@ -100,7 +101,7 @@ class FinanceDataService:
         return result
 
     @staticmethod
-    def get_cohort_billing_detail(cohort: SponsorCohort) -> Dict[str, Any]:
+    def get_cohort_billing_detail(cohort: SponsorCohort) -> dict[str, Any]:
         """Get detailed billing information for a specific cohort"""
         cache_key = f'cohort_billing_detail_{cohort.id}'
         cached_data = cache.get(cache_key)
@@ -194,8 +195,8 @@ class FinanceDataService:
         return result
 
     @staticmethod
-    def generate_invoice(sponsor: Sponsor, cohort_id: Optional[str] = None,
-                        billing_month: Optional[date] = None) -> Dict[str, Any]:
+    def generate_invoice(sponsor: Sponsor, cohort_id: str | None = None,
+                        billing_month: date | None = None) -> dict[str, Any]:
         """
         Generate invoice for sponsor or specific cohort.
         Creates billing records and returns invoice data.
@@ -214,7 +215,7 @@ class FinanceDataService:
 
     @staticmethod
     def mark_payment(sponsor: Sponsor, billing_record_id: str,
-                    payment_date: Optional[datetime] = None) -> Dict[str, Any]:
+                    payment_date: datetime | None = None) -> dict[str, Any]:
         """Mark a billing record as paid"""
         try:
             billing_record = SponsorCohortBilling.objects.get(
@@ -287,7 +288,7 @@ class FinanceDataService:
         return revenue_share
 
     @staticmethod
-    def _calculate_cohort_value(cohort: SponsorCohort) -> Dict[str, float]:
+    def _calculate_cohort_value(cohort: SponsorCohort) -> dict[str, float]:
         """Calculate the total value created by a cohort"""
         # Get all revenue share records for this cohort
         revenue_shares = RevenueShareTracking.objects.filter(cohort=cohort)
@@ -304,7 +305,7 @@ class FinanceDataService:
         }
 
     @staticmethod
-    def _calculate_revenue_forecast(cohorts: List[SponsorCohort]) -> float:
+    def _calculate_revenue_forecast(cohorts: list[SponsorCohort]) -> float:
         """Calculate Q2 revenue forecast based on current trends"""
         # Simplified forecasting logic
         total_current_revenue = 0
@@ -320,7 +321,7 @@ class FinanceDataService:
         return total_current_revenue * 1.25
 
     @staticmethod
-    def _generate_cohort_invoice(cohort: SponsorCohort, billing_month: Optional[date] = None) -> Dict[str, Any]:
+    def _generate_cohort_invoice(cohort: SponsorCohort, billing_month: date | None = None) -> dict[str, Any]:
         """Generate invoice for a specific cohort"""
         if not billing_month:
             billing_month = date.today().replace(day=1)
@@ -413,8 +414,8 @@ class FinanceDataService:
         }
 
     @staticmethod
-    def _generate_consolidated_invoice(sponsor: Sponsor, cohorts: List[SponsorCohort],
-                                     billing_month: Optional[date] = None) -> Dict[str, Any]:
+    def _generate_consolidated_invoice(sponsor: Sponsor, cohorts: list[SponsorCohort],
+                                     billing_month: date | None = None) -> dict[str, Any]:
         """Generate consolidated invoice for all sponsor cohorts"""
         if not billing_month:
             billing_month = date.today().replace(day=1)

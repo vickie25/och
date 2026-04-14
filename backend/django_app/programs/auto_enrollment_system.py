@@ -2,16 +2,17 @@
 Automated Cohort Enrollment System
 Handles payment-to-enrollment automation for the financial module
 """
+import logging
+from datetime import datetime, timedelta
+
+from celery import shared_task
+from django.conf import settings
+from django.core.mail import send_mail
 from django.db import models, transaction
 from django.utils import timezone
-from django.core.mail import send_mail
-from django.conf import settings
-from celery import shared_task
-from datetime import datetime, timedelta
-import logging
+from subscriptions.models import PaymentTransaction, UserSubscription
 
 from programs.models import Cohort, Enrollment
-from subscriptions.models import UserSubscription, PaymentTransaction
 from users.models import User
 
 logger = logging.getLogger(__name__)
@@ -24,24 +25,24 @@ class AutoEnrollmentRule(models.Model):
         ('subscription_active', 'Subscription Activated'),
         ('trial_converted', 'Trial Converted to Paid'),
     ]
-    
+
     ENROLLMENT_TYPE_CHOICES = [
         ('auto_paid', 'Auto-Enrolled (Paid)'),
         ('auto_scholarship', 'Auto-Enrolled (Scholarship)'),
         ('auto_sponsored', 'Auto-Enrolled (Sponsored)'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    
+
     # Trigger conditions
     trigger_event = models.CharField(max_length=50, choices=TRIGGER_CHOICES)
     subscription_tiers = models.JSONField(
         default=list,
         help_text='List of subscription tiers that trigger enrollment: ["starter", "premium"]'
     )
-    
+
     # Target cohort selection
     target_cohorts = models.ManyToManyField(
         Cohort,
@@ -53,24 +54,24 @@ class AutoEnrollmentRule(models.Model):
         default=dict,
         help_text='Criteria for automatic cohort selection: {"track_type": "primary", "status": "active"}'
     )
-    
+
     # Enrollment settings
     enrollment_type = models.CharField(max_length=20, choices=ENROLLMENT_TYPE_CHOICES, default='auto_paid')
     priority_order = models.IntegerField(default=0, help_text='Higher numbers = higher priority')
-    
+
     # Capacity management
     respect_seat_limits = models.BooleanField(default=True)
     use_waitlist_when_full = models.BooleanField(default=True)
-    
+
     # Status and metadata
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'auto_enrollment_rules'
         ordering = ['-priority_order', 'name']
-    
+
     def __str__(self):
         return f"{self.name} ({self.get_trigger_event_display()})"
 
@@ -83,32 +84,32 @@ class EnrollmentAutomationLog(models.Model):
         ('failed', 'Enrollment Failed'),
         ('skipped', 'Skipped (Conditions Not Met)'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='enrollment_automation_logs')
     rule = models.ForeignKey(AutoEnrollmentRule, on_delete=models.CASCADE, related_name='automation_logs')
     cohort = models.ForeignKey(Cohort, on_delete=models.CASCADE, related_name='automation_logs', null=True, blank=True)
-    
+
     # Trigger information
     trigger_event = models.CharField(max_length=50)
     trigger_data = models.JSONField(default=dict, help_text='Data that triggered the enrollment')
-    
+
     # Result
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)
     enrollment = models.ForeignKey(
-        Enrollment, 
-        on_delete=models.SET_NULL, 
+        Enrollment,
+        on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name='automation_logs'
     )
-    
+
     # Details
     processing_time_ms = models.IntegerField(null=True, blank=True)
     error_message = models.TextField(blank=True)
     notes = models.TextField(blank=True)
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'enrollment_automation_logs'
         ordering = ['-created_at']
@@ -117,30 +118,30 @@ class EnrollmentAutomationLog(models.Model):
             models.Index(fields=['rule', 'created_at']),
             models.Index(fields=['trigger_event', 'created_at']),
         ]
-    
+
     def __str__(self):
         return f"{self.user.email} - {self.rule.name} - {self.status}"
 
 
 class AutoEnrollmentService:
     """Service for handling automated cohort enrollment"""
-    
+
     @staticmethod
     def process_payment_success(payment_transaction: PaymentTransaction):
         """Process successful payment for potential auto-enrollment"""
         if not payment_transaction.subscription:
             return
-        
+
         user = payment_transaction.user
         subscription = payment_transaction.subscription
-        
+
         # Find applicable rules
         applicable_rules = AutoEnrollmentRule.objects.filter(
             is_active=True,
             trigger_event='payment_success',
             subscription_tiers__contains=[subscription.plan.name]
         ).order_by('-priority_order')
-        
+
         for rule in applicable_rules:
             try:
                 AutoEnrollmentService._execute_enrollment_rule(
@@ -155,19 +156,19 @@ class AutoEnrollmentService:
                 )
             except Exception as e:
                 logger.error(f"Failed to execute enrollment rule {rule.id} for user {user.id}: {str(e)}")
-    
+
     @staticmethod
     def process_subscription_activation(subscription: UserSubscription):
         """Process subscription activation for potential auto-enrollment"""
         user = subscription.user
-        
+
         # Find applicable rules
         applicable_rules = AutoEnrollmentRule.objects.filter(
             is_active=True,
             trigger_event='subscription_active',
             subscription_tiers__contains=[subscription.plan.name]
         ).order_by('-priority_order')
-        
+
         for rule in applicable_rules:
             try:
                 AutoEnrollmentService._execute_enrollment_rule(
@@ -181,12 +182,12 @@ class AutoEnrollmentService:
                 )
             except Exception as e:
                 logger.error(f"Failed to execute enrollment rule {rule.id} for user {user.id}: {str(e)}")
-    
+
     @staticmethod
     def _execute_enrollment_rule(user: User, rule: AutoEnrollmentRule, trigger_data: dict):
         """Execute a specific enrollment rule for a user"""
         start_time = timezone.now()
-        
+
         try:
             # Check if user is already enrolled in any cohorts from this rule
             if rule.target_cohorts.exists():
@@ -205,7 +206,7 @@ class AutoEnrollmentService:
                         processing_time_ms=AutoEnrollmentService._calculate_processing_time(start_time)
                     )
                     return
-            
+
             # Select target cohort
             target_cohort = AutoEnrollmentService._select_target_cohort(rule, user)
             if not target_cohort:
@@ -218,7 +219,7 @@ class AutoEnrollmentService:
                     processing_time_ms=AutoEnrollmentService._calculate_processing_time(start_time)
                 )
                 return
-            
+
             # Check capacity
             if rule.respect_seat_limits:
                 current_enrollment = target_cohort.enrollments.filter(status='active').count()
@@ -227,7 +228,7 @@ class AutoEnrollmentService:
                         # Add to waitlist
                         from programs.models import Waitlist
                         waitlist_position = Waitlist.objects.filter(cohort=target_cohort, active=True).count() + 1
-                        
+
                         Waitlist.objects.create(
                             cohort=target_cohort,
                             user=user,
@@ -235,7 +236,7 @@ class AutoEnrollmentService:
                             seat_type=AutoEnrollmentService._get_seat_type_from_enrollment_type(rule.enrollment_type),
                             enrollment_type='director'  # Auto-enrollment is director-initiated
                         )
-                        
+
                         AutoEnrollmentService._log_enrollment_attempt(
                             user=user,
                             rule=rule,
@@ -245,7 +246,7 @@ class AutoEnrollmentService:
                             notes=f'Added to waitlist at position {waitlist_position}',
                             processing_time_ms=AutoEnrollmentService._calculate_processing_time(start_time)
                         )
-                        
+
                         # Send waitlist notification
                         AutoEnrollmentService._send_waitlist_notification(user, target_cohort, waitlist_position)
                         return
@@ -260,7 +261,7 @@ class AutoEnrollmentService:
                             processing_time_ms=AutoEnrollmentService._calculate_processing_time(start_time)
                         )
                         return
-            
+
             # Create enrollment
             with transaction.atomic():
                 enrollment = Enrollment.objects.create(
@@ -271,7 +272,7 @@ class AutoEnrollmentService:
                     payment_status='paid' if 'paid' in rule.enrollment_type else 'waived',
                     status='active'
                 )
-                
+
                 AutoEnrollmentService._log_enrollment_attempt(
                     user=user,
                     rule=rule,
@@ -282,10 +283,10 @@ class AutoEnrollmentService:
                     notes=f'Successfully enrolled in {target_cohort.name}',
                     processing_time_ms=AutoEnrollmentService._calculate_processing_time(start_time)
                 )
-                
+
                 # Send enrollment confirmation
                 AutoEnrollmentService._send_enrollment_confirmation(user, target_cohort, enrollment)
-                
+
         except Exception as e:
             AutoEnrollmentService._log_enrollment_attempt(
                 user=user,
@@ -296,7 +297,7 @@ class AutoEnrollmentService:
                 processing_time_ms=AutoEnrollmentService._calculate_processing_time(start_time)
             )
             raise
-    
+
     @staticmethod
     def _select_target_cohort(rule: AutoEnrollmentRule, user: User) -> Cohort:
         """Select the best target cohort for enrollment"""
@@ -306,41 +307,41 @@ class AutoEnrollmentService:
             for cohort in rule.target_cohorts.filter(status='active').order_by('start_date'):
                 if not rule.respect_seat_limits:
                     return cohort
-                
+
                 current_enrollment = cohort.enrollments.filter(status='active').count()
                 if current_enrollment < cohort.seat_cap:
                     return cohort
-            
+
             # If all specific cohorts are full, return the first one for waitlist
             return rule.target_cohorts.filter(status='active').first()
-        
+
         # Use selection criteria
         criteria = rule.cohort_selection_criteria
         cohorts = Cohort.objects.filter(status='active')
-        
+
         # Apply criteria filters
         if 'track_type' in criteria:
             cohorts = cohorts.filter(track__track_type=criteria['track_type'])
-        
+
         if 'program_category' in criteria:
             cohorts = cohorts.filter(track__program__category=criteria['program_category'])
-        
+
         if 'start_date_after' in criteria:
             start_date = datetime.fromisoformat(criteria['start_date_after']).date()
             cohorts = cohorts.filter(start_date__gte=start_date)
-        
+
         # Select cohort with available capacity
         for cohort in cohorts.order_by('start_date'):
             if not rule.respect_seat_limits:
                 return cohort
-            
+
             current_enrollment = cohort.enrollments.filter(status='active').count()
             if current_enrollment < cohort.seat_cap:
                 return cohort
-        
+
         # Return first cohort for waitlist if all are full
         return cohorts.first()
-    
+
     @staticmethod
     def _get_seat_type_from_enrollment_type(enrollment_type: str) -> str:
         """Convert enrollment type to seat type"""
@@ -350,14 +351,14 @@ class AutoEnrollmentService:
             'auto_sponsored': 'sponsored',
         }
         return mapping.get(enrollment_type, 'paid')
-    
+
     @staticmethod
     def _calculate_processing_time(start_time) -> int:
         """Calculate processing time in milliseconds"""
         return int((timezone.now() - start_time).total_seconds() * 1000)
-    
+
     @staticmethod
-    def _log_enrollment_attempt(user, rule, status, trigger_data, cohort=None, enrollment=None, 
+    def _log_enrollment_attempt(user, rule, status, trigger_data, cohort=None, enrollment=None,
                                error_message='', notes='', processing_time_ms=0):
         """Log an enrollment attempt"""
         EnrollmentAutomationLog.objects.create(
@@ -372,24 +373,24 @@ class AutoEnrollmentService:
             error_message=error_message,
             notes=notes
         )
-    
+
     @staticmethod
     def _send_enrollment_confirmation(user: User, cohort: Cohort, enrollment: Enrollment):
         """Send enrollment confirmation email"""
         subject = f"Welcome to {cohort.name}!"
         message = f"""
         Congratulations! You have been automatically enrolled in {cohort.name}.
-        
+
         Cohort Details:
         - Track: {cohort.track.name if cohort.track else 'N/A'}
         - Start Date: {cohort.start_date.strftime('%B %d, %Y')}
         - Mode: {cohort.get_mode_display()}
-        
+
         Your enrollment is now active. You can access your learning materials and track your progress in your student dashboard.
-        
+
         Welcome to the OCH community!
         """
-        
+
         send_mail(
             subject=subject,
             message=message,
@@ -397,21 +398,21 @@ class AutoEnrollmentService:
             recipient_list=[user.email],
             fail_silently=True
         )
-    
+
     @staticmethod
     def _send_waitlist_notification(user: User, cohort: Cohort, position: int):
         """Send waitlist notification email"""
         subject = f"You're on the waitlist for {cohort.name}"
         message = f"""
         Thank you for your subscription! You have been added to the waitlist for {cohort.name}.
-        
+
         Waitlist Position: #{position}
-        
+
         We'll notify you as soon as a seat becomes available. In the meantime, you can access other learning materials in your dashboard.
-        
+
         Thank you for your patience!
         """
-        
+
         send_mail(
             subject=subject,
             message=message,
@@ -450,11 +451,11 @@ def process_subscription_activation_enrollment(subscription_id):
 def generate_enrollment_automation_report():
     """Generate daily report of enrollment automation activity"""
     yesterday = timezone.now().date() - timedelta(days=1)
-    
+
     logs = EnrollmentAutomationLog.objects.filter(
         created_at__date=yesterday
     )
-    
+
     stats = {
         'total_attempts': logs.count(),
         'successful_enrollments': logs.filter(status='success').count(),
@@ -462,21 +463,21 @@ def generate_enrollment_automation_report():
         'failed': logs.filter(status='failed').count(),
         'skipped': logs.filter(status='skipped').count(),
     }
-    
+
     # Send report to admins
     subject = f"Enrollment Automation Report - {yesterday.strftime('%B %d, %Y')}"
     message = f"""
     Daily Enrollment Automation Report
-    
+
     Total Attempts: {stats['total_attempts']}
     Successful Enrollments: {stats['successful_enrollments']}
     Waitlisted: {stats['waitlisted']}
     Failed: {stats['failed']}
     Skipped: {stats['skipped']}
-    
+
     Success Rate: {(stats['successful_enrollments'] / stats['total_attempts'] * 100) if stats['total_attempts'] > 0 else 0:.1f}%
     """
-    
+
     admin_emails = ['admin@och.com']  # Configure admin emails
     send_mail(
         subject=subject,

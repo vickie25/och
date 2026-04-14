@@ -1,34 +1,50 @@
 """
 Curriculum Engine views - API endpoints for tracks, modules, lessons, and progress.
 """
-from rest_framework import viewsets, status, permissions
+from django.db.models import Prefetch, Q
+from django.http import Http404
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.shortcuts import get_object_or_404
-from django.http import Http404
-from django.db.models import Count, Prefetch, Q
-from django.utils import timezone
 
 from .models import (
-    CurriculumTrack, CurriculumLevel, CurriculumModule, CurriculumContent,
-    StrategicSession, UserTrackEnrollment, UserContentProgress, Lesson, ModuleMission,
-    RecipeRecommendation, UserTrackProgress, UserModuleProgress,
-    UserLessonProgress, UserMissionProgress, CurriculumActivity,
-    UserLessonBookmark, CurriculumMentorFeedback,
+    CurriculumActivity,
+    CurriculumContent,
+    CurriculumLevel,
+    CurriculumMentorFeedback,
+    CurriculumModule,
+    CurriculumTrack,
     CurriculumTrackMentorAssignment,
+    Lesson,
+    ModuleMission,
+    UserContentProgress,
+    UserLessonBookmark,
+    UserLessonProgress,
+    UserMissionProgress,
+    UserModuleProgress,
+    UserTrackEnrollment,
+    UserTrackProgress,
 )
 from .serializers import (
-    CurriculumTrackListSerializer, CurriculumTrackDetailSerializer,
-    CurriculumModuleListSerializer, CurriculumModuleDetailSerializer,
-    LessonSerializer, ModuleMissionSerializer, RecipeRecommendationSerializer,
-    UserTrackProgressSerializer, UserModuleProgressSerializer,
-    UserLessonProgressSerializer, UserMissionProgressSerializer,
-    CurriculumActivitySerializer, LessonProgressUpdateSerializer,
-    MissionProgressUpdateSerializer, TrackEnrollmentSerializer,
-    CrossTrackSubmissionSerializer, CrossTrackSubmissionCreateSerializer,
     CrossTrackProgramProgressSerializer,
+    CrossTrackSubmissionCreateSerializer,
+    CrossTrackSubmissionSerializer,
+    CurriculumActivitySerializer,
+    CurriculumModuleDetailSerializer,
+    CurriculumModuleListSerializer,
+    CurriculumTrackDetailSerializer,
+    CurriculumTrackListSerializer,
     CurriculumTrackMentorAssignmentSerializer,
+    LessonProgressUpdateSerializer,
+    LessonSerializer,
+    MissionProgressUpdateSerializer,
+    UserLessonProgressSerializer,
+    UserMissionProgressSerializer,
+    UserModuleProgressSerializer,
+    UserTrackProgressSerializer,
 )
 
 
@@ -45,7 +61,7 @@ def get_user_subscription_tier(user):
             user=user,
             status='active'
         ).order_by('-start_date').first()
-        
+
         if subscription:
             if subscription.plan_id == 'professional':
                 return 'professional'
@@ -127,13 +143,13 @@ class CurriculumTrackViewSet(viewsets.ModelViewSet):
         if self.action == 'retrieve':
             return CurriculumTrackDetailSerializer
         return CurriculumTrackListSerializer
-    
+
     def get_serializer_context(self):
         context = super().get_serializer_context()
         if self.request.user.is_authenticated:
             context['subscription_tier'] = get_user_subscription_tier(self.request.user)
         return context
-    
+
     def get_queryset(self):
         queryset = super().get_queryset()
 
@@ -185,13 +201,13 @@ class CurriculumTrackViewSet(viewsets.ModelViewSet):
             )
 
         return queryset
-    
+
     @action(detail=True, methods=['post'])
     def enroll(self, request, code=None):
         """Enroll user in a track."""
         track = self.get_object()
         user = request.user
-        
+
         # Check if already enrolled
         progress, created = UserTrackProgress.objects.get_or_create(
             user=user,
@@ -200,7 +216,7 @@ class CurriculumTrackViewSet(viewsets.ModelViewSet):
                 'current_module': CurriculumModule.objects.filter(track_key=track.code, is_active=True).order_by('order_index').first()
             }
         )
-        
+
         if created:
             # Log activity
             CurriculumActivity.objects.create(
@@ -209,19 +225,19 @@ class CurriculumTrackViewSet(viewsets.ModelViewSet):
                 track=track,
                 points_awarded=10
             )
-            
+
             return Response({
                 'status': 'enrolled',
                 'message': f'Successfully enrolled in {track.name}',
                 'progress': UserTrackProgressSerializer(progress).data
             }, status=status.HTTP_201_CREATED)
-        
+
         return Response({
             'status': 'already_enrolled',
             'message': 'You are already enrolled in this track',
             'progress': UserTrackProgressSerializer(progress).data
         })
-    
+
     @action(detail=True, methods=['get'])
     def progress(self, request, code=None):
         """Get user's progress in a track."""
@@ -230,27 +246,27 @@ class CurriculumTrackViewSet(viewsets.ModelViewSet):
             user=request.user,
             track=track
         ).first()
-        
+
         if not progress:
             return Response({
                 'enrolled': False,
                 'message': 'Not enrolled in this track'
             })
-        
+
         return Response({
             'enrolled': True,
             'progress': UserTrackProgressSerializer(progress).data
         })
-    
+
     @action(detail=True, methods=['get'])
     def leaderboard(self, request, code=None):
         """Get track leaderboard."""
         track = self.get_object()
-        
+
         leaderboard = UserTrackProgress.objects.filter(
             track=track
         ).select_related('user').order_by('-total_points', '-completion_percentage')[:50]
-        
+
         return Response({
             'track': track.code,
             'leaderboard': [
@@ -292,7 +308,7 @@ class CurriculumTrackMentorAssignmentViewSet(viewsets.ModelViewSet):
 class CurriculumModuleViewSet(viewsets.ModelViewSet):
     """
     ViewSet for curriculum modules.
-    
+
     Endpoints:
     - GET /modules/ - List modules (filterable by track)
     - GET /modules/{id}/ - Get module details with lessons and missions
@@ -301,46 +317,46 @@ class CurriculumModuleViewSet(viewsets.ModelViewSet):
     """
     queryset = CurriculumModule.objects.filter(is_active=True)
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return CurriculumModuleDetailSerializer
         return CurriculumModuleListSerializer
-    
+
     def get_serializer_context(self):
         context = super().get_serializer_context()
         if self.request.user.is_authenticated:
             context['subscription_tier'] = get_user_subscription_tier(self.request.user)
         return context
-    
+
     def get_queryset(self):
         queryset = super().get_queryset()
-        
+
         # Filter by track
         track_code = self.request.query_params.get('track')
         if track_code:
             queryset = queryset.filter(
                 Q(track__code=track_code) | Q(track_key=track_code)
             )
-        
+
         # Filter by level
         level = self.request.query_params.get('level')
         if level:
             queryset = queryset.filter(level=level)
-        
+
         if self.action == 'retrieve':
             queryset = queryset.prefetch_related(
                 'lessons', 'module_missions', 'recipe_recommendations'
             )
-        
+
         return queryset.order_by('order_index')
-    
+
     @action(detail=True, methods=['post'])
     def start(self, request, pk=None):
         """Start a module."""
         module = self.get_object()
         user = request.user
-        
+
         # Check entitlement
         tier = get_user_subscription_tier(user)
         if module.entitlement_tier == 'professional' and tier != 'professional':
@@ -349,18 +365,18 @@ class CurriculumModuleViewSet(viewsets.ModelViewSet):
                 'message': 'This module requires Professional subscription',
                 'required_tier': 'professional'
             }, status=status.HTTP_403_FORBIDDEN)
-        
+
         progress, created = UserModuleProgress.objects.get_or_create(
             user=user,
             module=module,
             defaults={'status': 'in_progress', 'started_at': timezone.now()}
         )
-        
+
         if not created and progress.status == 'not_started':
             progress.status = 'in_progress'
             progress.started_at = timezone.now()
             progress.save()
-        
+
         # Update track progress
         if module.track:
             track_progress = UserTrackProgress.objects.filter(
@@ -369,7 +385,7 @@ class CurriculumModuleViewSet(viewsets.ModelViewSet):
             if track_progress:
                 track_progress.current_module = module
                 track_progress.save()
-        
+
         # Log activity
         CurriculumActivity.objects.create(
             user=user,
@@ -378,39 +394,39 @@ class CurriculumModuleViewSet(viewsets.ModelViewSet):
             module=module,
             points_awarded=5
         )
-        
+
         return Response({
             'status': 'started',
             'progress': UserModuleProgressSerializer(progress).data
         })
-    
+
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
         """Mark module as complete."""
         module = self.get_object()
         user = request.user
-        
+
         progress, created = UserModuleProgress.objects.get_or_create(
-            user=user, 
+            user=user,
             module=module,
             defaults={'status': 'completed', 'completed_at': timezone.now(), 'completion_percentage': 100}
         )
-        
+
         if not created and progress.status == 'completed':
             return Response({
                 'status': 'already_completed',
                 'progress': UserModuleProgressSerializer(progress).data
             })
-        
+
         if not created:
             progress.status = 'completed'
             progress.completion_percentage = 100
             progress.completed_at = timezone.now()
             progress.save()
-        
+
         # Update track progress
         self._update_track_progress(user, module)
-        
+
         # Log activity
         CurriculumActivity.objects.create(
             user=user,
@@ -420,52 +436,52 @@ class CurriculumModuleViewSet(viewsets.ModelViewSet):
             points_awarded=50,
             metadata={'module_title': module.title}
         )
-        
+
         return Response({
             'status': 'completed',
             'progress': UserModuleProgressSerializer(progress).data
         })
-    
+
     def _update_track_progress(self, user, module):
         """Update track progress when a module is completed."""
         if not module.track:
             return
-        
+
         track = module.track
         track_progress = UserTrackProgress.objects.filter(user=user, track=track).first()
         if not track_progress:
             return
-        
+
         # Count completed modules
         completed_count = UserModuleProgress.objects.filter(
             user=user,
             module__track=track,
             status='completed'
         ).count()
-        
+
         total_modules = track.modules.filter(is_active=True, is_required=True).count()
-        
+
         track_progress.modules_completed = completed_count
         track_progress.completion_percentage = (completed_count / total_modules * 100) if total_modules > 0 else 0
-        
+
         # Move to next module
         next_module = track.modules.filter(
             is_active=True,
             order_index__gt=module.order_index
         ).order_by('order_index').first()
-        
+
         if next_module:
             track_progress.current_module = next_module
         elif completed_count >= total_modules:
             track_progress.completed_at = timezone.now()
-        
+
         track_progress.save()
 
 
 class LessonViewSet(viewsets.ModelViewSet):
     """
     ViewSet for lessons.
-    
+
     Endpoints:
     - GET /lessons/ - List lessons (filterable by module)
     - GET /lessons/{id}/ - Get lesson details
@@ -474,14 +490,14 @@ class LessonViewSet(viewsets.ModelViewSet):
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_queryset(self):
         queryset = super().get_queryset()
-        
+
         module_id = self.request.query_params.get('module')
         if module_id:
             queryset = queryset.filter(module_id=module_id)
-        
+
         return queryset.order_by('order_index')
 
     @action(detail=False, methods=['post'], url_path='upload-video')
@@ -504,10 +520,12 @@ class LessonViewSet(viewsets.ModelViewSet):
                 status=400,
             )
 
-        from django.core.files.storage import default_storage
-        from django.core.files.base import ContentFile
-        import os, uuid as uuid_lib
+        import os
+        import uuid as uuid_lib
+
         from django.conf import settings as django_settings
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
 
         # Use a unique filename to avoid collisions
         ext = os.path.splitext(video_file.name)[1].lower() or '.mp4'
@@ -529,19 +547,19 @@ class LessonViewSet(viewsets.ModelViewSet):
         """Update lesson progress."""
         lesson = self.get_object()
         user = request.user
-        
+
         serializer = LessonProgressUpdateSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
         data = serializer.validated_data
-        
+
         progress, created = UserLessonProgress.objects.get_or_create(
             user=user,
             lesson=lesson,
             defaults={'status': data.get('status', 'in_progress')}
         )
-        
+
         # Update fields
         if 'status' in data:
             progress.status = data['status']
@@ -552,13 +570,13 @@ class LessonViewSet(viewsets.ModelViewSet):
         if 'quiz_score' in data:
             progress.quiz_score = data['quiz_score']
             progress.quiz_attempts += 1
-        
+
         if progress.status == 'in_progress' and not progress.started_at:
             progress.started_at = timezone.now()
-        
+
         if progress.status == 'completed' and not progress.completed_at:
             progress.completed_at = timezone.now()
-            
+
             # Log activity
             CurriculumActivity.objects.create(
                 user=user,
@@ -569,38 +587,38 @@ class LessonViewSet(viewsets.ModelViewSet):
                 points_awarded=10,
                 metadata={'lesson_title': lesson.title}
             )
-            
+
             # Update module progress
             self._update_module_progress(user, lesson.module)
             # Update track progress so sidebar and dashboards stay in sync with learning
             self._update_track_progress_after_lesson(user, lesson.module)
-        
+
         progress.save()
-        
+
         return Response({
             'status': 'updated',
             'progress': UserLessonProgressSerializer(progress).data
         })
-    
+
     def _update_module_progress(self, user, module):
         """Update module progress when a lesson is completed."""
         if not module:
             return
-        
+
         module_progress, _ = UserModuleProgress.objects.get_or_create(
             user=user,
             module=module,
             defaults={'status': 'in_progress'}
         )
-        
+
         completed_lessons = UserLessonProgress.objects.filter(
             user=user,
             lesson__module=module,
             status='completed'
         ).count()
-        
+
         total_lessons = module.lessons.filter(is_required=True).count()
-        
+
         module_progress.lessons_completed = completed_lessons
         module_progress.completion_percentage = (completed_lessons / total_lessons * 100) if total_lessons > 0 else 0
         module_progress.save()
@@ -643,31 +661,31 @@ class LessonViewSet(viewsets.ModelViewSet):
 class MissionProgressView(APIView):
     """
     API endpoint for receiving mission progress updates from Missions Engine.
-    
+
     POST /curriculum/mission-progress/
     """
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def post(self, request):
         """Update mission progress from Missions Engine."""
         serializer = MissionProgressUpdateSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
         data = serializer.validated_data
         user = request.user
-        
+
         module_mission = get_object_or_404(
-            ModuleMission, 
+            ModuleMission,
             id=data['module_mission_id']
         )
-        
+
         progress, created = UserMissionProgress.objects.get_or_create(
             user=user,
             module_mission=module_mission,
             defaults={'status': data['status']}
         )
-        
+
         # Update fields
         progress.status = data['status']
         if 'mission_submission_id' in data:
@@ -678,7 +696,7 @@ class MissionProgressView(APIView):
             progress.grade = data['grade']
         if 'feedback' in data:
             progress.feedback = data['feedback']
-        
+
         if progress.status == 'in_progress' and not progress.started_at:
             progress.started_at = timezone.now()
         if progress.status == 'submitted' and not progress.submitted_at:
@@ -686,7 +704,7 @@ class MissionProgressView(APIView):
         if progress.status == 'completed' and not progress.completed_at:
             progress.completed_at = timezone.now()
             progress.attempts += 1
-            
+
             # Log activity
             module = module_mission.module
             CurriculumActivity.objects.create(
@@ -701,38 +719,38 @@ class MissionProgressView(APIView):
                     'grade': progress.grade
                 }
             )
-            
+
             # Update module progress
             self._update_module_progress(user, module)
-        
+
         progress.save()
-        
+
         return Response({
             'status': 'updated',
             'progress': UserMissionProgressSerializer(progress).data
         })
-    
+
     def _update_module_progress(self, user, module):
         """Update module progress when a mission is completed."""
         if not module:
             return
-        
+
         module_progress, _ = UserModuleProgress.objects.get_or_create(
             user=user,
             module=module,
             defaults={'status': 'in_progress'}
         )
-        
+
         completed_missions = UserMissionProgress.objects.filter(
             user=user,
             module_mission__module=module,
             status='completed'
         ).count()
-        
-        total_missions = module.module_missions.filter(is_required=True).count()
-        
+
+        module.module_missions.filter(is_required=True).count()
+
         module_progress.missions_completed = completed_missions
-        
+
         # Check if module should be unblocked
         if module_progress.is_blocked:
             pending_required = module.module_missions.filter(
@@ -741,35 +759,35 @@ class MissionProgressView(APIView):
                 user_progress__user=user,
                 user_progress__status='completed'
             ).exists()
-            
+
             if not pending_required:
                 module_progress.is_blocked = False
                 module_progress.blocked_by_mission_id = None
-        
+
         module_progress.save()
 
 
 class UserProgressView(APIView):
     """
     API endpoint for user's overall curriculum progress.
-    
+
     GET /curriculum/my-progress/
     """
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get(self, request):
         """Get user's progress across all enrolled tracks."""
         user = request.user
-        
+
         track_progress = UserTrackProgress.objects.filter(
             user=user
         ).select_related('track', 'current_module').order_by('-last_activity_at')
-        
+
         # Recent activities
         recent_activities = CurriculumActivity.objects.filter(
             user=user
         ).select_related('track', 'module', 'lesson').order_by('-created_at')[:10]
-        
+
         # Stats
         stats = {
             'total_tracks_enrolled': track_progress.count(),
@@ -779,7 +797,7 @@ class UserProgressView(APIView):
             'current_streak_days': max((p.current_streak_days for p in track_progress), default=0),
             'total_badges': sum(p.total_badges for p in track_progress),
         }
-        
+
         return Response({
             'tracks': UserTrackProgressSerializer(track_progress, many=True).data,
             'recent_activities': CurriculumActivitySerializer(recent_activities, many=True).data,
@@ -791,27 +809,27 @@ class UserProgressView(APIView):
 class RecentActivityView(APIView):
     """
     API endpoint for user's recent curriculum activities.
-    
+
     GET /curriculum/activities/
     """
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get(self, request):
         """Get user's recent activities."""
         user = request.user
         limit = int(request.query_params.get('limit', 20))
-        
+
         track_code = request.query_params.get('track')
-        
+
         activities = CurriculumActivity.objects.filter(user=user)
-        
+
         if track_code:
             activities = activities.filter(track__code=track_code)
-        
+
         activities = activities.select_related(
             'track', 'module', 'lesson'
         ).order_by('-created_at')[:limit]
-        
+
         return Response(CurriculumActivitySerializer(activities, many=True).data)
 
 
@@ -821,33 +839,33 @@ class Tier2TrackStatusView(APIView):
     Get Tier 2 track completion status and requirements.
     """
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get(self, request, code):
         """Get Tier 2 track completion status and requirements."""
         user = request.user
         track = get_object_or_404(CurriculumTrack, code=code, is_active=True)
-        
+
         if track.tier != 2:
             return Response({
                 'error': 'not_tier2',
                 'message': 'This endpoint is only for Beginner level tracks'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         progress, _ = UserTrackProgress.objects.get_or_create(
             user=user,
             track=track
         )
-        
+
         # Check completion requirements
         is_complete, missing = progress.check_tier2_completion(require_mentor_approval=False)
-        
+
         # Get track details
         mandatory_modules = CurriculumModule.objects.filter(
             track=track,
             is_required=True,
             is_active=True
         ).order_by('order_index')
-        
+
         # Get quiz count
         required_quizzes = Lesson.objects.filter(
             module__track=track,
@@ -855,14 +873,14 @@ class Tier2TrackStatusView(APIView):
             lesson_type='quiz',
             is_required=True
         ).count()
-        
+
         # Get mini-mission count
         mini_missions = ModuleMission.objects.filter(
             module__track=track,
             module__is_required=True,
             is_required=True
         ).count()
-        
+
         min_missions_required = getattr(track, 'tier2_mini_missions_required', 1)
         return Response({
             'track_code': track.code,
@@ -1030,8 +1048,8 @@ class Tier4TrackStatusView(APIView):
         reflections_submitted = 0
         reflections_required = 0
         try:
-            from missions.models_mxp import MissionProgress
             from missions.models import Mission
+            from missions.models_mxp import MissionProgress
             required_mission_ids = list(
                 ModuleMission.objects.filter(
                     module__track=track,
@@ -1054,17 +1072,17 @@ class Tier4TrackStatusView(APIView):
                         track_match = 'innovation'
                     elif 'leadership' in track_code_lower:
                         track_match = 'leadership'
-                
+
                 advanced_missions = Mission.objects.filter(
                     tier='advanced',
                     is_active=True
                 )
-                
+
                 if track_match:
                     advanced_missions = advanced_missions.filter(track=track_match)
                 elif track_code_lower:
                     advanced_missions = advanced_missions.filter(track_id__icontains=track_code_lower)
-                
+
                 required_mission_ids = list(advanced_missions.values_list('id', flat=True))
             required_mission_count = len(required_mission_ids)
             if required_mission_ids:
@@ -1187,8 +1205,8 @@ class Tier5TrackStatusView(APIView):
         reflections_required = 0
         rubric_passed = True
         try:
-            from missions.models_mxp import MissionProgress
             from missions.models import Mission
+            from missions.models_mxp import MissionProgress
             required_mission_ids = list(
                 ModuleMission.objects.filter(
                     module__track=track,
@@ -1210,17 +1228,17 @@ class Tier5TrackStatusView(APIView):
                         track_match = 'innovation'
                     elif 'leadership' in track_code_lower:
                         track_match = 'leadership'
-                
+
                 mastery_missions = Mission.objects.filter(
                     tier='mastery',
                     is_active=True
                 )
-                
+
                 if track_match:
                     mastery_missions = mastery_missions.filter(track=track_match)
                 elif track_code_lower:
                     mastery_missions = mastery_missions.filter(track_id__icontains=track_code_lower)
-                
+
                 required_mission_ids = list(mastery_missions.values_list('id', flat=True))
             required_mission_count = len(required_mission_ids)
             if required_mission_ids:
@@ -1325,50 +1343,50 @@ class Tier5CompleteView(APIView):
 class Tier2SubmitQuizView(APIView):
     """POST /curriculum/tier2/tracks/{code}/submit-quiz - Submit quiz result"""
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def post(self, request, code):
         """Submit quiz result and update Tier 2 tracking."""
         user = request.user
         track = get_object_or_404(CurriculumTrack, code=code, is_active=True, tier=2)
         progress, _ = UserTrackProgress.objects.get_or_create(user=user, track=track)
-        
+
         lesson_id = request.data.get('lesson_id')
         score = request.data.get('score')
-        answers = request.data.get('answers', {})
-        
+        request.data.get('answers', {})
+
         if not lesson_id or score is None:
             return Response({
                 'error': 'missing_fields',
                 'message': 'lesson_id and score are required'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         lesson = get_object_or_404(Lesson, id=lesson_id, lesson_type='quiz')
-        
+
         # Update lesson progress
         lesson_progress, _ = UserLessonProgress.objects.get_or_create(
             user=user,
             lesson=lesson
         )
-        
+
         previous_score = lesson_progress.quiz_score
         lesson_progress.quiz_score = float(score)
         lesson_progress.quiz_attempts += 1
-        
+
         # Mark as completed if score >= 70%
         if float(score) >= 70:
             lesson_progress.status = 'completed'
             lesson_progress.completed_at = timezone.now()
-            
+
             # Update Tier 2 quiz count if this is a new pass
             if previous_score is None or previous_score < 70:
                 progress.tier2_quizzes_passed += 1
                 progress.save(update_fields=['tier2_quizzes_passed'])
-        
+
         lesson_progress.save()
-        
+
         # Check completion
         is_complete, missing = progress.check_tier2_completion()
-        
+
         return Response({
             'success': True,
             'quiz_passed': float(score) >= 70,
@@ -1382,32 +1400,32 @@ class Tier2SubmitQuizView(APIView):
 class Tier2SubmitReflectionView(APIView):
     """POST /curriculum/tier2/tracks/{code}/submit-reflection - Submit reflection"""
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def post(self, request, code):
         """Submit reflection and update Tier 2 tracking."""
         user = request.user
         track = get_object_or_404(CurriculumTrack, code=code, is_active=True, tier=2)
         progress, _ = UserTrackProgress.objects.get_or_create(user=user, track=track)
-        
+
         module_id = request.data.get('module_id')
         reflection_text = request.data.get('reflection_text')
-        
+
         if not module_id or not reflection_text:
             return Response({
                 'error': 'missing_fields',
                 'message': 'module_id and reflection_text are required'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
-        module = get_object_or_404(CurriculumModule, id=module_id, track=track)
-        
+
+        get_object_or_404(CurriculumModule, id=module_id, track=track)
+
         # Store reflection (could be in portfolio or separate model)
         # For now, increment counter
         progress.tier2_reflections_submitted += 1
         progress.save(update_fields=['tier2_reflections_submitted'])
-        
+
         # Check completion
         is_complete, missing = progress.check_tier2_completion()
-        
+
         return Response({
             'success': True,
             'reflections_submitted': progress.tier2_reflections_submitted,
@@ -1419,43 +1437,43 @@ class Tier2SubmitReflectionView(APIView):
 class Tier2SubmitMiniMissionView(APIView):
     """POST /curriculum/tier2/tracks/{code}/submit-mini-mission - Submit mini-mission"""
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def post(self, request, code):
         """Submit mini-mission and update Tier 2 tracking."""
         user = request.user
         track = get_object_or_404(CurriculumTrack, code=code, is_active=True, tier=2)
         progress, _ = UserTrackProgress.objects.get_or_create(user=user, track=track)
-        
+
         module_mission_id = request.data.get('module_mission_id')
-        submission_data = request.data.get('submission_data', {})
-        
+        request.data.get('submission_data', {})
+
         if not module_mission_id:
             return Response({
                 'error': 'missing_fields',
                 'message': 'module_mission_id is required'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         module_mission = get_object_or_404(ModuleMission, id=module_mission_id, module__track=track)
-        
+
         # Update mission progress
         mission_progress, created = UserMissionProgress.objects.get_or_create(
             user=user,
             module_mission=module_mission
         )
-        
+
         was_completed = mission_progress.status == 'completed'
         mission_progress.status = 'submitted'
         mission_progress.submitted_at = timezone.now()
         mission_progress.save()
-        
+
         # Update Tier 2 mini-mission count if this is a new completion
         if not was_completed:
             progress.tier2_mini_missions_completed += 1
             progress.save(update_fields=['tier2_mini_missions_completed'])
-        
+
         # Check completion
         is_complete, missing = progress.check_tier2_completion()
-        
+
         return Response({
             'success': True,
             'mini_missions_completed': progress.tier2_mini_missions_completed,
@@ -1467,28 +1485,28 @@ class Tier2SubmitMiniMissionView(APIView):
 class Tier2CompleteView(APIView):
     """POST /curriculum/tier2/tracks/{code}/complete - Complete Tier 2 and unlock Tier 3"""
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def post(self, request, code):
         """Complete Tier 2 and unlock Tier 3."""
         user = request.user
         track = get_object_or_404(CurriculumTrack, code=code, is_active=True, tier=2)
         progress, _ = UserTrackProgress.objects.get_or_create(user=user, track=track)
-        
+
         # Verify all requirements are met
         is_complete, missing = progress.check_tier2_completion()
-        
+
         if not is_complete:
             return Response({
                 'error': 'requirements_not_met',
                 'message': 'All Beginner level requirements must be met before completion',
                 'missing_requirements': missing
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Mark track as completed
         progress.completed_at = timezone.now()
         progress.completion_percentage = 100
         progress.save()
-        
+
         # Log activity
         CurriculumActivity.objects.create(
             user=user,
@@ -1497,52 +1515,52 @@ class Tier2CompleteView(APIView):
             points_awarded=500,
             metadata={'tier': 2, 'track': track.code}
         )
-        
+
         return Response({
             'success': True,
             'message': 'Beginner Track completed successfully. You can now access Intermediate Tracks.',
             'completed_at': progress.completed_at.isoformat(),
             'tier3_unlocked': True,
         })
-    
+
     def _submit_quiz(self, request, progress):
         """Submit quiz result and update Tier 2 tracking."""
         lesson_id = request.data.get('lesson_id')
         score = request.data.get('score')
-        answers = request.data.get('answers', {})
-        
+        request.data.get('answers', {})
+
         if not lesson_id or score is None:
             return Response({
                 'error': 'missing_fields',
                 'message': 'lesson_id and score are required'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         lesson = get_object_or_404(Lesson, id=lesson_id, lesson_type='quiz')
-        
+
         # Update lesson progress
         lesson_progress, _ = UserLessonProgress.objects.get_or_create(
             user=request.user,
             lesson=lesson
         )
-        
+
         lesson_progress.quiz_score = float(score)
         lesson_progress.quiz_attempts += 1
-        
+
         # Mark as completed if score >= 70%
         if float(score) >= 70:
             lesson_progress.status = 'completed'
             lesson_progress.completed_at = timezone.now()
-            
+
             # Update Tier 2 quiz count if this is a new pass
             if lesson_progress.quiz_attempts == 1 or (lesson_progress.quiz_attempts > 1 and lesson_progress.quiz_score < 70):
                 progress.tier2_quizzes_passed += 1
                 progress.save(update_fields=['tier2_quizzes_passed'])
-        
+
         lesson_progress.save()
-        
+
         # Check completion
         is_complete, missing = progress.check_tier2_completion()
-        
+
         return Response({
             'success': True,
             'quiz_passed': float(score) >= 70,
@@ -1551,91 +1569,91 @@ class Tier2CompleteView(APIView):
             'is_complete': is_complete,
             'missing_requirements': missing,
         })
-    
+
     def _submit_reflection(self, request, progress):
         """Submit reflection and update Tier 2 tracking."""
         module_id = request.data.get('module_id')
         reflection_text = request.data.get('reflection_text')
-        
+
         if not module_id or not reflection_text:
             return Response({
                 'error': 'missing_fields',
                 'message': 'module_id and reflection_text are required'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
-        module = get_object_or_404(CurriculumModule, id=module_id)
-        
+
+        get_object_or_404(CurriculumModule, id=module_id)
+
         # Store reflection (could be in portfolio or separate model)
         # For now, increment counter
         progress.tier2_reflections_submitted += 1
         progress.save(update_fields=['tier2_reflections_submitted'])
-        
+
         # Check completion
         is_complete, missing = progress.check_tier2_completion()
-        
+
         return Response({
             'success': True,
             'reflections_submitted': progress.tier2_reflections_submitted,
             'is_complete': is_complete,
             'missing_requirements': missing,
         })
-    
+
     def _submit_mini_mission(self, request, progress):
         """Submit mini-mission and update Tier 2 tracking."""
         module_mission_id = request.data.get('module_mission_id')
-        submission_data = request.data.get('submission_data', {})
-        
+        request.data.get('submission_data', {})
+
         if not module_mission_id:
             return Response({
                 'error': 'missing_fields',
                 'message': 'module_mission_id is required'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         module_mission = get_object_or_404(ModuleMission, id=module_mission_id)
-        
+
         # Update mission progress
         mission_progress, created = UserMissionProgress.objects.get_or_create(
             user=request.user,
             module_mission=module_mission
         )
-        
+
         mission_progress.status = 'submitted'
         mission_progress.submitted_at = timezone.now()
         mission_progress.save()
-        
+
         # Update Tier 2 mini-mission count if this is a new completion
         if created or mission_progress.status != 'completed':
             progress.tier2_mini_missions_completed += 1
             progress.save(update_fields=['tier2_mini_missions_completed'])
-        
+
         # Check completion
         is_complete, missing = progress.check_tier2_completion()
-        
+
         return Response({
             'success': True,
             'mini_missions_completed': progress.tier2_mini_missions_completed,
             'is_complete': is_complete,
             'missing_requirements': missing,
         })
-    
+
     def _complete_tier2(self, request, progress):
         """Complete Tier 2 and unlock Tier 3."""
         # Verify all requirements are met
         is_complete, missing = progress.check_tier2_completion()
-        
+
         if not is_complete:
             return Response({
                 'error': 'requirements_not_met',
                 'message': 'All Beginner level requirements must be met before completion',
                 'missing_requirements': missing
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Mark track as completed
         progress.completed_at = timezone.now()
         progress.status = 'completed'
         progress.completion_percentage = 100
         progress.save()
-        
+
         # Log activity
         CurriculumActivity.objects.create(
             user=request.user,
@@ -1644,7 +1662,7 @@ class Tier2CompleteView(APIView):
             points_awarded=500,
             metadata={'tier': 2, 'track': progress.track.code}
         )
-        
+
         return Response({
             'success': True,
             'message': 'Beginner Track completed successfully. You can now access Intermediate Tracks.',
@@ -1847,20 +1865,20 @@ class CrossTrackProgramsView(APIView):
     GET /curriculum/cross-track/
     """
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get(self, request):
         """Get all cross-track programs (tier=6) with user progress."""
         from .models import CrossTrackProgramProgress
-        
+
         programs = CurriculumTrack.objects.filter(tier=6, is_active=True).order_by('name')
-        
+
         result = []
         for program in programs:
             progress = CrossTrackProgramProgress.objects.filter(
                 user=request.user,
                 track=program
             ).first()
-            
+
             program_data = {
                 'id': str(program.id),
                 'code': program.code,
@@ -1873,7 +1891,7 @@ class CrossTrackProgramsView(APIView):
                 'progress': CrossTrackProgramProgressSerializer(progress).data if progress else None,
             }
             result.append(program_data)
-        
+
         return Response({
             'programs': result,
             'total': len(result)
@@ -1886,22 +1904,22 @@ class CrossTrackProgramDetailView(APIView):
     GET /curriculum/cross-track/{code}/
     """
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get(self, request, code):
         """Get program details with modules, lessons, and progress."""
         from .models import CrossTrackProgramProgress
-        
+
         try:
             program = CurriculumTrack.objects.get(code=code, tier=6, is_active=True)
         except CurriculumTrack.DoesNotExist:
             return Response({'error': 'Program not found'}, status=status.HTTP_404_NOT_FOUND)
-        
+
         # Get or create progress
         progress, _ = CrossTrackProgramProgress.objects.get_or_create(
             user=request.user,
             track=program
         )
-        
+
         # Get modules with lessons
         modules = program.modules.filter(is_active=True).order_by('order_index')
         modules_data = []
@@ -1927,7 +1945,7 @@ class CrossTrackProgramDetailView(APIView):
                     for lesson in lessons
                 ]
             })
-        
+
         return Response({
             'program': CurriculumTrackDetailSerializer(program, context={'request': request}).data,
             'modules': modules_data,
@@ -1941,23 +1959,23 @@ class CrossTrackSubmissionView(APIView):
     POST /curriculum/cross-track/submit/
     """
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def post(self, request):
         """Create a new submission (reflection, scenario, document, quiz)."""
-        from .models import CrossTrackSubmission, CrossTrackProgramProgress
-        
+        from .models import CrossTrackProgramProgress, CrossTrackSubmission
+
         serializer = CrossTrackSubmissionCreateSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
         data = serializer.validated_data
-        
+
         # Get track
         try:
             track = CurriculumTrack.objects.get(id=data['track_id'], tier=6)
         except CurriculumTrack.DoesNotExist:
             return Response({'error': 'Cross-track program not found'}, status=status.HTTP_404_NOT_FOUND)
-        
+
         # Get module and lesson if provided
         module = None
         lesson = None
@@ -1966,13 +1984,13 @@ class CrossTrackSubmissionView(APIView):
                 module = CurriculumModule.objects.get(id=data['module_id'], track=track)
             except CurriculumModule.DoesNotExist:
                 pass
-        
+
         if data.get('lesson_id'):
             try:
                 lesson = Lesson.objects.get(id=data['lesson_id'], module=module) if module else None
             except Lesson.DoesNotExist:
                 pass
-        
+
         # Create submission
         submission = CrossTrackSubmission.objects.create(
             user=request.user,
@@ -1991,7 +2009,7 @@ class CrossTrackSubmissionView(APIView):
             status='submitted',
             submitted_at=timezone.now()
         )
-        
+
         # Update progress
         progress, _ = CrossTrackProgramProgress.objects.get_or_create(
             user=request.user,
@@ -2004,10 +2022,10 @@ class CrossTrackSubmissionView(APIView):
         ).count()
         progress.last_activity_at = timezone.now()
         progress.save()
-        
+
         # Check completion
         progress.check_completion()
-        
+
         return Response({
             'success': True,
             'submission': CrossTrackSubmissionSerializer(submission).data,
@@ -2021,18 +2039,18 @@ class CrossTrackProgressView(APIView):
     GET /curriculum/cross-track/progress/
     """
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get(self, request):
         """Get overall cross-track progress."""
         from .models import CrossTrackProgramProgress
-        
+
         all_progress = CrossTrackProgramProgress.objects.filter(
             user=request.user
         ).select_related('track')
-        
+
         programs_completed = all_progress.filter(is_complete=True).count()
         total_programs = CurriculumTrack.objects.filter(tier=6, is_active=True).count()
-        
+
         return Response({
             'total_programs': total_programs,
             'programs_completed': programs_completed,

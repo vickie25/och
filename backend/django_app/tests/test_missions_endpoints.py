@@ -6,9 +6,10 @@ Endpoints tested:
 - POST /api/v1/missions/{mission_id}/submit
 - GET /api/v1/missions/status
 """
+import uuid
+
 import pytest
 from rest_framework import status
-import uuid
 
 
 @pytest.mark.django_db

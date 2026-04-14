@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 """Assign subscription plan to a user (for testing/admin purposes)."""
 import os
-import django
 import sys
 from datetime import timedelta
+
+import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
 from django.utils import timezone
 from subscriptions.models import SubscriptionPlan, UserSubscription
+
 from users.models import User
+
 
 def assign_plan(email, plan_name):
     """Assign a subscription plan to a user."""

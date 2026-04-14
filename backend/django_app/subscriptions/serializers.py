@@ -4,8 +4,8 @@ Serializers for Subscription Engine.
 from decimal import Decimal
 
 from rest_framework import serializers
-from .models import SubscriptionPlan, UserSubscription
 
+from .models import SubscriptionPlan, UserSubscription
 
 # Currency conversion rates: 1 KES = rate units of local currency
 KES_TO_LOCAL = {
@@ -126,7 +126,7 @@ class UserSubscriptionSerializer(serializers.ModelSerializer):
     stripe_subscription_id = serializers.CharField(read_only=True)
     price_monthly_local = serializers.SerializerMethodField()
     currency_code = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = UserSubscription
         fields = [
@@ -138,7 +138,7 @@ class UserSubscriptionSerializer(serializers.ModelSerializer):
             'currency_code', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
-    
+
     def get_user(self, obj):
         """Include user details in the response."""
         return {
@@ -165,38 +165,38 @@ class UserSubscriptionSerializer(serializers.ModelSerializer):
         if country:
             return get_currency_code(country)
         return 'KES'
-    
+
     def create(self, validated_data):
         """Create subscription with user_id handling."""
         from django.contrib.auth import get_user_model
         User = get_user_model()
-        
+
         user_id = validated_data.pop('user_id', None)
         plan_id = validated_data.pop('plan_id', None)
-        
+
         if not user_id:
             raise serializers.ValidationError({'user_id': 'This field is required.'})
-        
+
         if not plan_id:
             raise serializers.ValidationError({'plan_id': 'This field is required.'})
-        
+
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
             raise serializers.ValidationError({'user_id': 'User not found.'})
-        
+
         try:
             plan = SubscriptionPlan.objects.get(id=plan_id)
         except SubscriptionPlan.DoesNotExist:
             raise serializers.ValidationError({'plan_id': 'Plan not found.'})
-        
+
         # Check if subscription already exists (OneToOneField constraint)
         if UserSubscription.objects.filter(user=user).exists():
             raise serializers.ValidationError({'user_id': 'User already has a subscription.'})
-        
+
         validated_data['user'] = user
         validated_data['plan'] = plan
-        
+
         return super().create(validated_data)
 
 

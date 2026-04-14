@@ -2,38 +2,27 @@
 API views for Student Dashboard endpoints.
 """
 import json
-from datetime import datetime, timedelta
-from django.http import StreamingHttpResponse, JsonResponse
+
+from django.http import JsonResponse, StreamingHttpResponse
 from django.utils import timezone
-from django.db import transaction
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from users.models import User
-from .models import StudentDashboardCache, DashboardUpdateQueue
+
 from .serializers import (
-    StudentDashboardSerializer,
     DashboardActionSerializer,
-    ReadinessSerializer,
-    PrimaryActionSerializer,
-    SecondaryActionSerializer,
-    QuickStatsSerializer,
-    CohortCardSerializer,
-    SubscriptionCardSerializer,
-    NotificationsSerializer,
-    LeaderboardSerializer,
 )
 from .services import (
-    DashboardAggregationService,
-    TalentScopeService,
-    CoachingOSService,
-    MissionsService,
-    PortfolioService,
-    CohortService,
     AICoachService,
-    NotificationService,
+    CoachingOSService,
+    CohortService,
+    DashboardAggregationService,
     LeaderboardService,
+    MissionsService,
+    NotificationService,
+    PortfolioService,
+    TalentScopeService,
 )
 
 
@@ -42,33 +31,33 @@ from .services import (
 def get_student_dashboard(request):
     """
     GET /api/v1/student/dashboard
-    
+
     Returns aggregated student dashboard data.
     Query params:
     - include_notifications: bool (default: true)
     - include_ai_nudge: bool (default: true)
     """
     user = request.user
-    
+
     # Check if user has student role
     if not user.user_roles.filter(role__name='student', is_active=True).exists():
         return Response(
             {'error': 'Access denied. Student role required.'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     include_notifications = request.query_params.get('include_notifications', 'true').lower() == 'true'
     include_ai_nudge = request.query_params.get('include_ai_nudge', 'true').lower() == 'true'
-    
+
     # Get or refresh cache
     cache = DashboardAggregationService.get_or_create_cache(user)
-    
+
     # Check if cache is stale (>15min) and trigger refresh if needed
     time_since_update = timezone.now() - cache.updated_at
     if time_since_update.total_seconds() > 900:  # 15 minutes
         DashboardAggregationService.queue_update(user, 'stale_cache', 'high')
         # Still return cached data, but refresh in background
-    
+
     # Get fresh data from services (or use cache if services unavailable)
     try:
         readiness_data = TalentScopeService.get_readiness(user.id)
@@ -77,17 +66,17 @@ def get_student_dashboard(request):
         portfolio_data = PortfolioService.get_health(user.id)
         cohort_data = CohortService.get_student_view(user.id)
         leaderboard_data = LeaderboardService.get_rankings(user.id)
-        
+
         if include_ai_nudge:
             ai_data = AICoachService.get_nudge(user.id)
         else:
             ai_data = {'nudge': None, 'action_plan': []}
-        
+
         if include_notifications:
             notifications_data = NotificationService.get_summary(user.id)
         else:
             notifications_data = {'unread': 0, 'urgent': 0, 'summary': []}
-    except Exception as e:
+    except Exception:
         # Fallback to cache if services are down
         readiness_data = {
             'score': float(cache.readiness_score),
@@ -134,7 +123,7 @@ def get_student_dashboard(request):
             'urgent': cache.notifications_urgent,
             'summary': [],
         }
-    
+
     # Build response
     next_mission = missions_data.get('next_recommended', {})
     primary_action = {
@@ -144,7 +133,7 @@ def get_student_dashboard(request):
         'cta': f"/missions/{next_mission.get('id', '')}/start" if next_mission.get('id') else '/missions',
         'est_hours': next_mission.get('est_hours'),
     }
-    
+
     secondary_actions = []
     if coaching_data.get('habit_streak', 0) > 0:
         secondary_actions.append({
@@ -156,14 +145,14 @@ def get_student_dashboard(request):
         'type': 'reflection',
         'title': "Yesterday's learning",
     })
-    
+
     # Get subscription tier from user (mock for now)
     subscription_tier = getattr(user, 'subscription_tier', 'free') or 'free'
     enhanced_access_expires = getattr(user, 'enhanced_access_expires_at', None)
     days_enhanced_left = None
     if enhanced_access_expires:
         days_enhanced_left = max(0, (enhanced_access_expires - timezone.now()).days)
-    
+
     response_data = {
         'readiness': {
             'score': readiness_data['score'],
@@ -208,11 +197,11 @@ def get_student_dashboard(request):
         'ai_nudge': ai_data.get('nudge'),
         'last_updated': cache.updated_at.isoformat(),
     }
-    
+
     # Mask premium features for free tier
     if subscription_tier == 'free':
         response_data = DashboardAggregationService.mask_for_tier(response_data, subscription_tier)
-    
+
     return Response(response_data, status=status.HTTP_200_OK)
 
 
@@ -221,17 +210,17 @@ def get_student_dashboard(request):
 def track_dashboard_action(request):
     """
     POST /api/v1/student/dashboard/action
-    
+
     Track user actions and trigger dashboard updates.
     """
     user = request.user
-    
+
     serializer = DashboardActionSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
     action = serializer.validated_data['action']
-    
+
     # Determine priority based on action type
     priority_map = {
         'mission_completed': 'high',
@@ -242,17 +231,17 @@ def track_dashboard_action(request):
         'mission_started': 'normal',
     }
     priority = priority_map.get(action, 'normal')
-    
+
     # Queue dashboard update
     DashboardAggregationService.queue_update(user, action, priority)
-    
+
     # Update cache immediately for critical actions
     if priority in ['urgent', 'high']:
         try:
             DashboardAggregationService.refresh_dashboard_cache(user, force=True)
         except Exception:
             pass  # Background worker will handle it
-    
+
     return Response({
         'status': 'queued',
         'action': action,
@@ -263,23 +252,23 @@ def track_dashboard_action(request):
 def stream_dashboard_updates(request):
     """
     GET /api/v1/student/dashboard/stream
-    
+
     Server-Sent Events (SSE) stream for real-time dashboard updates.
     """
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'Unauthorized'}, status=401)
-    
+
     user = request.user
-    
+
     def event_stream():
         """Generator for SSE events."""
         last_cache = None
-        
+
         while True:
             try:
                 # Get latest cache
                 cache = DashboardAggregationService.get_or_create_cache(user)
-                
+
                 # Only send if data changed
                 if last_cache is None or cache.updated_at > last_cache:
                     data = {
@@ -295,19 +284,19 @@ def stream_dashboard_updates(request):
                         },
                         'timestamp': cache.updated_at.isoformat(),
                     }
-                    
+
                     yield f"data: {json.dumps(data)}\n\n"
                     last_cache = cache.updated_at
-                
+
                 # Sleep for 5 seconds before next check
                 import time
                 time.sleep(5)
-                
+
             except Exception as e:
                 # Send error event
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
                 break
-    
+
     response = StreamingHttpResponse(
         event_stream(),
         content_type='text/event-stream'

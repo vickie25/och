@@ -3,15 +3,17 @@
 Test script to verify track assignment and curriculum filtering works correctly.
 """
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from users.models import User
-from programs.models import Track
 from curriculum.models import CurriculumTrack
 from django.db.models import Q
+from programs.models import Track
+
+from users.models import User
 
 print("=" * 80)
 print("TRACK ASSIGNMENT & CURRICULUM FILTERING TEST")
@@ -37,12 +39,12 @@ if program_track:
     print(f"    [OK] Found: {program_track.name} (id={program_track.id})")
 else:
     print(f"    [ERROR] No program track found with key '{user.track_key}'")
-    print(f"    Available tracks:")
+    print("    Available tracks:")
     for t in Track.objects.filter(track_type='primary'):
         print(f"      - {t.key} -> {t.name}")
 
 # Find curriculum tracks user should see
-print(f"\n[4] Finding curriculum tracks user should see...")
+print("\n[4] Finding curriculum tracks user should see...")
 if program_track:
     curriculum_tracks = CurriculumTrack.objects.filter(
         Q(program_track_id=program_track.id) | Q(tier=6),
@@ -55,10 +57,10 @@ if program_track:
         track_type = "User's Track" if ct.program_track_id == program_track.id else "Cross-Track"
         print(f"      [{track_type}] {ct.code} - {ct.name} (tier={ct.tier})")
 else:
-    print(f"    [ERROR] Cannot find curriculum tracks - no program track found")
+    print("    [ERROR] Cannot find curriculum tracks - no program track found")
 
 # Verify the curriculum tracks are properly linked
-print(f"\n[5] Verifying curriculum track linkage...")
+print("\n[5] Verifying curriculum track linkage...")
 all_curriculum_tracks = CurriculumTrack.objects.filter(is_active=True)
 print(f"    Total active curriculum tracks: {all_curriculum_tracks.count()}")
 for ct in all_curriculum_tracks:

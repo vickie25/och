@@ -1,15 +1,18 @@
 #!/usr/bin/env python
 """Test mission submission endpoint."""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from missions.models import Mission, MissionSubmission, MissionAssignment
-from users.models import User
-from missions.tasks import process_mission_ai_review
 import traceback
+
+from missions.models import Mission, MissionAssignment, MissionSubmission
+from missions.tasks import process_mission_ai_review
+
+from users.models import User
 
 print("Testing mission submission flow...")
 
@@ -60,8 +63,8 @@ print("\nTesting AI review task...")
 try:
     result = process_mission_ai_review(str(submission.id))
     print(f"[OK] AI review result: {result}")
-except Exception as e:
-    print(f"[ERROR] AI review failed:")
+except Exception:
+    print("[ERROR] AI review failed:")
     print(traceback.format_exc())
 
 print("\nDone!")

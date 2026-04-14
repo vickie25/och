@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import sys
+
 import django
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -8,7 +9,8 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
 from django.contrib.auth import get_user_model
-from users.models import UserRole, Role
+
+from users.models import UserRole
 
 User = get_user_model()
 

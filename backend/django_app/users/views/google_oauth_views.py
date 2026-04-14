@@ -2,43 +2,40 @@
 Google OAuth 2.0 / OpenID Connect views for account activation and signup.
 Implements full OAuth flow: initiation → callback → account creation/activation.
 """
-import os
-import json
-import time
-import hmac
-import secrets
-import hashlib
 import base64
-from typing import Any, Dict, Optional
-from urllib.parse import urlencode, urlparse, parse_qs
+import hashlib
+import hmac
+import json
+import os
+import secrets
+import time
+from typing import Any
+from urllib.parse import urlencode
+
+import jwt
+import requests
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.db import connection
+from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.contrib.auth import get_user_model
-from django.utils import timezone
-from django.conf import settings
-from django.shortcuts import redirect
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
-from django.db import connection
+
 from users.models import Role, UserRole
-from users.auth_models import SSOProvider, SSOConnection
-from users.views.auth_views import (
-    _assign_default_student_role,
-    _log_audit_event,
-    _get_client_ip,
-)
-from users.utils.auth_utils import create_user_session
-from users.utils.risk_utils import calculate_risk_score
-from users.utils.consent_utils import get_consent_scopes_for_token
 from users.serializers import UserSerializer
+from users.utils.auth_utils import create_user_session
+from users.utils.consent_utils import get_consent_scopes_for_token
 from users.utils.email_utils import send_onboarding_email
-from users.utils.permission_utils import assign_role_if_not_exists
-import requests
-import jwt
+from users.utils.risk_utils import calculate_risk_score
+from users.views.auth_views import (
+    _get_client_ip,
+    _log_audit_event,
+)
 
 User = get_user_model()
 
@@ -59,7 +56,7 @@ def _build_google_oauth_state(oauth_mode: str, intended_role: str) -> str:
     """HMAC-signed state: CSRF protection without relying on Django session."""
     mode = oauth_mode if oauth_mode in ('login', 'register') else 'login'
     role = (intended_role or 'student')[:64]
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         'v': 1,
         'n': secrets.token_urlsafe(16),
         'm': mode,
@@ -73,7 +70,7 @@ def _build_google_oauth_state(oauth_mode: str, intended_role: str) -> str:
     return f'{body_b64}.{sig}'
 
 
-def _parse_and_verify_google_oauth_state(state: str) -> Optional[Dict[str, Any]]:
+def _parse_and_verify_google_oauth_state(state: str) -> dict[str, Any] | None:
     if not state or '.' not in state:
         return None
     body_b64, sig = state.rsplit('.', 1)
@@ -206,7 +203,7 @@ class GoogleOAuthInitiateView(APIView):
         # Get Google OAuth credentials from environment
         client_id = os.getenv('GOOGLE_CLIENT_ID') or os.getenv('GOOGLE_OAUTH_CLIENT_ID')
         client_secret = os.getenv('GOOGLE_CLIENT_SECRET') or os.getenv('GOOGLE_OAUTH_CLIENT_SECRET')
-        
+
         if not client_id or not client_secret:
             return Response(
                 {'detail': 'Google SSO is not configured. Please contact support.'},
@@ -218,7 +215,7 @@ class GoogleOAuthInitiateView(APIView):
         # Ensure frontend URL doesn't have trailing slash for redirect_uri
         frontend_url = frontend_url.rstrip('/')
         redirect_uri = f"{frontend_url}/auth/google/callback"
-        
+
         # Signed state: CSRF + carries mode/role without relying on session (Next.js BFF often drops session).
         intended_role = request.GET.get('role') or 'student'
         oauth_mode = request.GET.get('mode', 'login')
@@ -250,9 +247,9 @@ class GoogleOAuthInitiateView(APIView):
             request.session['oauth_code_verifier'] = code_verifier
             params['code_challenge'] = code_challenge
             params['code_challenge_method'] = 'S256'
-        
+
         auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
-        
+
         return Response({
             'auth_url': auth_url,
             'state': oauth_state,

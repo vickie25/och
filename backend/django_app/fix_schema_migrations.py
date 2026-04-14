@@ -5,6 +5,7 @@ Run this after any database reset to ensure the schema is correct.
 """
 import os
 import sys
+
 import django
 
 # Setup Django

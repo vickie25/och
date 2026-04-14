@@ -2,9 +2,11 @@
 TalentScope models - Skill signals, behavioral signals, mentor influence, and readiness tracking.
 """
 import uuid
+
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
+
 from users.models import User
 
 
@@ -46,7 +48,7 @@ class SkillSignal(models.Model):
     source_id = models.UUIDField(null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'ts_skill_signals'
         indexes = [
@@ -55,7 +57,7 @@ class SkillSignal(models.Model):
             models.Index(fields=['skill_name', 'skill_category']),
         ]
         ordering = ['-created_at']
-    
+
     def __str__(self):
         return f"{self.mentee.email} - {self.skill_name}: {self.mastery_level}%"
 
@@ -105,7 +107,7 @@ class BehaviorSignal(models.Model):
     source_id = models.UUIDField(null=True, blank=True, db_index=True)
     recorded_at = models.DateTimeField(default=timezone.now, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'ts_behavior_signals'
         indexes = [
@@ -114,7 +116,7 @@ class BehaviorSignal(models.Model):
             models.Index(fields=['behavior_type', 'recorded_at']),
         ]
         ordering = ['-recorded_at']
-    
+
     def __str__(self):
         return f"{self.mentee.email} - {self.behavior_type}: {self.value}"
 
@@ -180,7 +182,7 @@ class MentorInfluence(models.Model):
     period_start = models.DateTimeField(db_index=True)
     period_end = models.DateTimeField(db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'ts_mentor_influence'
         indexes = [
@@ -189,7 +191,7 @@ class MentorInfluence(models.Model):
             models.Index(fields=['mentee', 'mentor']),
         ]
         ordering = ['-period_start']
-    
+
     def __str__(self):
         return f"{self.mentee.email} - Mentor Influence: {self.influence_index or 'N/A'}"
 
@@ -202,7 +204,7 @@ class ReadinessSnapshot(models.Model):
         ('emerging', 'Emerging'),
         ('ready', 'Ready'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     mentee = models.ForeignKey(
         User,
@@ -282,7 +284,7 @@ class ReadinessSnapshot(models.Model):
     )
     snapshot_date = models.DateTimeField(default=timezone.now, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'ts_readiness_snapshots'
         indexes = [
@@ -291,6 +293,6 @@ class ReadinessSnapshot(models.Model):
             models.Index(fields=['snapshot_date']),
         ]
         ordering = ['-snapshot_date']
-    
+
     def __str__(self):
         return f"{self.mentee.email} - Readiness: {self.core_readiness_score}% ({self.career_readiness_stage})"

@@ -3,18 +3,24 @@ Community module signals for updating stats, triggering notifications,
 and cache invalidation for performance optimization.
 """
 import logging
-from typing import Optional
-from django.db.models.signals import post_save, post_delete
-from django.dispatch import receiver
+
 from django.db.models import F
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import receiver
 from django.utils import timezone
 
-from .models import (
-    Post, Comment, Reaction, UserCommunityStats,
-    UniversityMembership, University, UserBadge, UniversityDomain
-)
 from users.models import User
+
 from .cache import FeedCacheManager
+from .models import (
+    Comment,
+    Post,
+    Reaction,
+    UniversityDomain,
+    UniversityMembership,
+    UserBadge,
+    UserCommunityStats,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -45,14 +51,14 @@ def update_reaction_stats(sender, instance, created, **kwargs):
         stats.total_reactions_given = F('total_reactions_given') + 1
         stats.last_activity_at = timezone.now()
         stats.save(update_fields=['total_reactions_given', 'last_activity_at'])
-        
+
         # Update the person receiving the reaction
         target_user = None
         if instance.post:
             target_user = instance.post.author
         elif instance.comment:
             target_user = instance.comment.author
-        
+
         if target_user and target_user != instance.user:
             target_stats, _ = UserCommunityStats.objects.get_or_create(user=target_user)
             target_stats.total_reactions_received = F('total_reactions_received') + 1
@@ -73,7 +79,7 @@ def update_badge_stats(sender, instance, created, **kwargs):
 # AUTO-MAPPING WORKFLOW: Map students to universities by email
 # ============================================================
 
-def extract_email_domain(email: str) -> Optional[str]:
+def extract_email_domain(email: str) -> str | None:
     """Extract domain from email address."""
     if not email or '@' not in email:
         return None
@@ -95,37 +101,37 @@ def find_university_by_domain(domain: str):
         return None, None
 
 
-def auto_map_user_to_university(user: User) -> Optional[UniversityMembership]:
+def auto_map_user_to_university(user: User) -> UniversityMembership | None:
     """
     Automatically map a user to their university based on email domain.
-    
+
     Returns:
         UniversityMembership if mapping successful, None otherwise.
     """
     if not user.email:
         logger.debug(f"User {user.id} has no email, skipping auto-map")
         return None
-    
+
     domain = extract_email_domain(user.email)
     if not domain:
         logger.debug(f"Could not extract domain from {user.email}")
         return None
-    
+
     university, university_domain = find_university_by_domain(domain)
     if not university:
         logger.debug(f"No university found for domain {domain}")
         return None
-    
+
     # Check if user already has membership at this university
     existing = UniversityMembership.objects.filter(
         user=user,
         university=university
     ).first()
-    
+
     if existing:
         logger.debug(f"User {user.id} already has membership at {university.code}")
         return existing
-    
+
     # Create new membership
     membership = UniversityMembership.objects.create(
         user=user,
@@ -137,7 +143,7 @@ def auto_map_user_to_university(user: User) -> Optional[UniversityMembership]:
         auto_mapped=True,
         verified_at=timezone.now() if university_domain.auto_verify else None
     )
-    
+
     logger.info(f"Auto-mapped user {user.id} to university {university.code}")
     return membership
 
@@ -150,24 +156,24 @@ def auto_map_user_on_create(sender, instance, created, **kwargs):
     """
     if not instance.email:
         return
-    
+
     try:
         # Check if user already has a primary university
         has_primary = UniversityMembership.objects.filter(
             user=instance,
             is_primary=True
         ).exists()
-        
+
         if has_primary:
             return
-        
+
         # Try to auto-map
         auto_map_user_to_university(instance)
     except Exception as e:
         # Handle case where community_university_memberships table doesn't exist yet
         # This can happen if migrations haven't been run
         # Import ProgrammingError to catch database errors specifically
-        from django.db.utils import ProgrammingError, OperationalError
+        from django.db.utils import OperationalError, ProgrammingError
         if isinstance(e, (ProgrammingError, OperationalError)):
             logger.debug(f"UniversityMembership table not available yet (migrations pending): {e}")
         else:
@@ -188,12 +194,12 @@ def update_post_stats(sender, instance, created, **kwargs):
         stats.total_posts = F('total_posts') + 1
         stats.last_activity_at = timezone.now()
         stats.save(update_fields=['total_posts', 'last_activity_at'])
-        
+
         # Update university post count
         if instance.university:
             instance.university.post_count = F('post_count') + 1
             instance.university.save(update_fields=['post_count'])
-    
+
     # Invalidate feed caches
     try:
         FeedCacheManager.invalidate_post(str(instance.id))
@@ -212,7 +218,7 @@ def update_comment_stats(sender, instance, created, **kwargs):
         stats.total_comments = F('total_comments') + 1
         stats.last_activity_at = timezone.now()
         stats.save(update_fields=['total_comments', 'last_activity_at'])
-    
+
     # Invalidate post cache when comment is added
     try:
         if instance.post_id:

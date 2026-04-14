@@ -3,10 +3,13 @@ Management command to seed sample curriculum data.
 Creates Cyber Defense track with modules, lessons, and sample missions.
 """
 from django.core.management.base import BaseCommand
-from django.utils import timezone
+
 from curriculum.models import (
-    CurriculumTrack, CurriculumModule, Lesson, ModuleMission,
-    RecipeRecommendation
+    CurriculumModule,
+    CurriculumTrack,
+    Lesson,
+    ModuleMission,
+    RecipeRecommendation,
 )
 
 
@@ -27,7 +30,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('Cleared existing data'))
 
         self.stdout.write('Seeding curriculum data...')
-        
+
         # Create Cyber Defense Track
         track, created = CurriculumTrack.objects.update_or_create(
             code='CYBERDEF',

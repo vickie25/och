@@ -2,16 +2,16 @@
 Backend view for generating student progress reports.
 """
 import logging
+from datetime import datetime
+
 from django.contrib.auth import get_user_model
-from django.conf import settings
 from django.http import HttpResponse
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from users.permissions import IsAdminOrDirector
-import json
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -35,7 +35,7 @@ class StudentProgressReportView(APIView):
             )
 
         format_type = request.data.get('format', 'pdf')
-        
+
         # Collect comprehensive progress data
         report_data = {
             'student': {
@@ -108,22 +108,29 @@ class StudentProgressReportView(APIView):
             try:
                 # Try to import reportlab
                 try:
-                    from reportlab.lib.pagesizes import letter, A4
-                    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-                    from reportlab.lib.units import inch
-                    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
                     from reportlab.lib import colors
+                    from reportlab.lib.pagesizes import A4, letter
+                    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+                    from reportlab.lib.units import inch
+                    from reportlab.platypus import (
+                        PageBreak,
+                        Paragraph,
+                        SimpleDocTemplate,
+                        Spacer,
+                        Table,
+                        TableStyle,
+                    )
                     REPORTLAB_AVAILABLE = True
                 except ImportError:
                     REPORTLAB_AVAILABLE = False
-                
+
                 if not REPORTLAB_AVAILABLE:
                     # Fallback: Return JSON data
                     return Response({
                         'error': 'PDF generation requires reportlab package. Install with: pip install reportlab',
                         'data': report_data,
                     }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-                
+
                 from io import BytesIO
 
                 buffer = BytesIO()
@@ -269,7 +276,7 @@ class StudentProgressReportView(APIView):
                 response = HttpResponse(buffer.read(), content_type='application/pdf')
                 filename = f"student_progress_report_{user.email}_{datetime.now().strftime('%Y%m%d')}.pdf"
                 response['Content-Disposition'] = f'attachment; filename="{filename}"'
-                
+
                 return response
 
             except Exception as e:

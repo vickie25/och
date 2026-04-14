@@ -1,11 +1,13 @@
 """
 Management command to seed mentorship test data.
 """
-from django.core.management.base import BaseCommand
-from django.contrib.auth import get_user_model
-from mentorship_coordination.models import MenteeMentorAssignment, MentorSession, MentorWorkQueue
-from django.utils import timezone
 from datetime import timedelta
+
+from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand
+from django.utils import timezone
+
+from mentorship_coordination.models import MenteeMentorAssignment, MentorSession, MentorWorkQueue
 
 User = get_user_model()
 
@@ -15,7 +17,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.stdout.write('Seeding mentorship coordination data...')
-        
+
         # Create or get mentor
         mentor, created = User.objects.get_or_create(
             email='mentor@och.africa',
@@ -33,7 +35,7 @@ class Command(BaseCommand):
                 }
             }
         )
-        
+
         if created:
             mentor.set_password('test123')
             mentor.save()
@@ -42,7 +44,7 @@ class Command(BaseCommand):
             mentor.is_mentor = True
             mentor.save()
             self.stdout.write(self.style.SUCCESS(f'Using existing mentor: {mentor.email}'))
-        
+
         # Create or get test mentee
         mentee, created = User.objects.get_or_create(
             email='test@och.africa',
@@ -52,12 +54,12 @@ class Command(BaseCommand):
                 'last_name': 'Student',
             }
         )
-        
+
         if created:
             mentee.set_password('test123')
             mentee.save()
             self.stdout.write(self.style.SUCCESS(f'Created mentee: {mentee.email}'))
-        
+
         # Create assignment
         assignment, created = MenteeMentorAssignment.objects.get_or_create(
             mentee=mentee,
@@ -68,10 +70,10 @@ class Command(BaseCommand):
                 'sessions_used': 2
             }
         )
-        
+
         if created:
             self.stdout.write(self.style.SUCCESS(f'Created assignment: {mentee.email} ← {mentor.email}'))
-        
+
         # Create test session
         session, created = MentorSession.objects.get_or_create(
             assignment=assignment,
@@ -85,10 +87,10 @@ class Command(BaseCommand):
                 'zoom_url': 'https://zoom.us/j/123456789'
             }
         )
-        
+
         if created:
             self.stdout.write(self.style.SUCCESS(f'Created session: {session.title}'))
-        
+
         # Create test work queue item
         work_item, created = MentorWorkQueue.objects.get_or_create(
             mentor=mentor,
@@ -103,9 +105,9 @@ class Command(BaseCommand):
                 'status': 'pending'
             }
         )
-        
+
         if created:
             self.stdout.write(self.style.SUCCESS(f'Created work queue item: {work_item.title}'))
-        
+
         self.stdout.write(self.style.SUCCESS('Mentorship coordination seeding complete!'))
 

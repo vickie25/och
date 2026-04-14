@@ -2,18 +2,19 @@
 Setup complete mentor data: cohorts, assignments, missions, sessions, analytics
 """
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from users.models import User, Role, UserRole
-from programs.models import Program, Track, Cohort, MentorAssignment, Enrollment
-from missions.models import Mission, MissionSubmission
-from mentorship_coordination.models import MentorSession, MentorWorkQueue
-from django.utils import timezone
 from datetime import timedelta
-import uuid
+
+from django.utils import timezone
+from missions.models import Mission, MissionSubmission
+from programs.models import Cohort, Enrollment, MentorAssignment, Program, Track
+
+from users.models import Role, User, UserRole
 
 print('='*60)
 print('SETTING UP MENTOR DATA')
@@ -187,7 +188,7 @@ if created:
 print('\n' + '='*60)
 print('SETUP COMPLETE!')
 print('='*60)
-print(f'\nSummary:')
+print('\nSummary:')
 print(f'  Programs: {Program.objects.count()}')
 print(f'  Tracks: {Track.objects.count()}')
 print(f'  Cohorts: {Cohort.objects.count()}')

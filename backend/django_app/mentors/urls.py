@@ -2,8 +2,9 @@
 Mentor Dashboard URLs
 Complete mentor command center API routes.
 """
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
 from . import views
 
 # Create router for ViewSets
@@ -32,10 +33,10 @@ urlpatterns = [
 
     # Boost/intervention actions
     path('<str:mentor_slug>/boost/', views.MentorBoostView.as_view(), name='mentor-boost'),
-    
+
     # Student rating (for credits)
     path('<str:mentor_slug>/rate/', views.StudentRateMentorView.as_view(), name='mentor-rate'),
-    
+
     # Mentor credits
     path('<str:mentor_slug>/credits/', views.MentorCreditsView.as_view(), name='mentor-credits'),
     path('<str:mentor_slug>/credits/redeem/', views.MentorRedeemCreditsView.as_view(), name='mentor-redeem-credits'),

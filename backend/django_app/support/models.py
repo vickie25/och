@@ -2,8 +2,8 @@
 Support app: problem tracking codes and support tickets.
 Enables support role to track issues, categorize by problem code, and resolve tickets.
 """
-from django.db import models
 from django.contrib.auth import get_user_model
+from django.db import models
 from django.utils import timezone
 
 User = get_user_model()

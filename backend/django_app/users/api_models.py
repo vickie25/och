@@ -1,14 +1,15 @@
 """
 API Key and Webhook models for service/partner integrations.
 """
-from django.db import models
-from django.contrib.auth import get_user_model
-from django.utils import timezone
-import secrets
 import hashlib
 import hmac
+import secrets
 import uuid
+
 from argon2 import PasswordHasher
+from django.contrib.auth import get_user_model
+from django.db import models
+from django.utils import timezone
 
 User = get_user_model()
 ph = PasswordHasher()
@@ -24,26 +25,26 @@ class APIKey(models.Model):
         ('org', 'Organization'),
         ('service', 'Service Account'),
     ]
-    
+
     KEY_TYPES = [
         ('service', 'Service Key'),
         ('partner', 'Partner Key'),
         ('webhook', 'Webhook Key'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100)
     key_type = models.CharField(max_length=20, choices=KEY_TYPES)
-    
+
     # Key management (per spec: stored hashed with Argon2id)
     key_prefix = models.CharField(max_length=20, db_index=True)  # First 8 chars for identification
     key_hash = models.CharField(max_length=128, unique=True, db_index=True)  # Argon2id hash
     key_value = models.CharField(max_length=255, null=True, blank=True)  # Encrypted, only shown once
-    
+
     # Ownership (per spec: owner_type enum)
     owner_type = models.CharField(max_length=20, choices=OWNER_TYPES, default='user')
     owner_id = models.UUIDField(null=True, blank=True, db_index=True)  # Generic owner ID
-    
+
     # Legacy ownership fields (for backward compatibility)
     user = models.ForeignKey(
         User,
@@ -59,23 +60,23 @@ class APIKey(models.Model):
         blank=True,
         related_name='api_keys'
     )
-    
+
     # Permissions (per spec: scoped API keys with least privilege)
     scopes = models.JSONField(default=list, blank=True)  # List of permission scopes
     allowed_ips = models.JSONField(default=list, blank=True)  # IP whitelist
     rate_limit_per_min = models.IntegerField(default=60)  # Per spec: rate_limit_per_min INT
-    
+
     # Lifecycle
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     last_used_at = models.DateTimeField(null=True, blank=True)
     revoked_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
-    
+
     # Metadata
     description = models.TextField(blank=True)
     metadata = models.JSONField(default=dict, blank=True)
-    
+
     class Meta:
         db_table = 'api_keys'
         indexes = [
@@ -84,11 +85,11 @@ class APIKey(models.Model):
             models.Index(fields=['organization', 'is_active']),
             models.Index(fields=['expires_at']),
         ]
-    
+
     def __str__(self):
         owner = self.user.email if self.user else (self.organization.name if self.organization else 'System')
         return f"{self.name} ({owner})"
-    
+
     @classmethod
     def generate_key(cls):
         """Generate a new API key (per spec: stored hashed with Argon2id)."""
@@ -97,7 +98,7 @@ class APIKey(models.Model):
         # Use Argon2id for hashing (per spec)
         key_hash = ph.hash(key_value)
         return key_value, key_prefix, key_hash
-    
+
     def verify_key(self, provided_key):
         """Verify if provided key matches this API key (using Argon2id)."""
         if not self.is_active or self.revoked_at:
@@ -124,44 +125,44 @@ class WebhookEndpoint(models.Model):
         blank=True,
         related_name='webhook_endpoints'
     )
-    
+
     # Events to subscribe to
     events = models.JSONField(default=list, blank=True)  # List of event types
-    
+
     # Security
     signing_secret = models.CharField(max_length=64, db_index=True)  # HMAC secret
     signing_secret_hash = models.CharField(max_length=64)  # SHA-256 hash
-    
+
     # Configuration
     is_active = models.BooleanField(default=True)
     verify_ssl = models.BooleanField(default=True)
     timeout = models.IntegerField(default=30)  # seconds
-    
+
     # Retry configuration
     max_retries = models.IntegerField(default=3)
     retry_backoff = models.FloatField(default=1.5)  # exponential backoff multiplier
-    
+
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_triggered_at = models.DateTimeField(null=True, blank=True)
-    
+
     class Meta:
         db_table = 'webhook_endpoints'
         indexes = [
             models.Index(fields=['organization', 'is_active']),
         ]
-    
+
     def __str__(self):
         return f"{self.name} - {self.url}"
-    
+
     @classmethod
     def generate_secret(cls):
         """Generate a new webhook signing secret."""
         secret = secrets.token_urlsafe(32)
         secret_hash = hashlib.sha256(secret.encode()).hexdigest()
         return secret, secret_hash
-    
+
     def verify_signature(self, payload, signature):
         """Verify webhook signature."""
         expected_signature = hmac.new(
@@ -179,7 +180,7 @@ class WebhookDelivery(models.Model):
     endpoint = models.ForeignKey(WebhookEndpoint, on_delete=models.CASCADE, related_name='deliveries')
     event_type = models.CharField(max_length=100)
     payload = models.JSONField()
-    
+
     # Delivery status
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -188,22 +189,22 @@ class WebhookDelivery(models.Model):
         ('retrying', 'Retrying'),
     ]
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    
+
     # HTTP response
     response_status = models.IntegerField(null=True, blank=True)
     response_body = models.TextField(null=True, blank=True)
     response_headers = models.JSONField(default=dict, blank=True)
-    
+
     # Retry tracking
     attempt_count = models.IntegerField(default=0)
     max_attempts = models.IntegerField(default=3)
     next_retry_at = models.DateTimeField(null=True, blank=True)
-    
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
     failed_at = models.DateTimeField(null=True, blank=True)
-    
+
     class Meta:
         db_table = 'webhook_deliveries'
         indexes = [
@@ -211,7 +212,7 @@ class WebhookDelivery(models.Model):
             models.Index(fields=['next_retry_at']),
             models.Index(fields=['created_at']),
         ]
-    
+
     def __str__(self):
         return f"{self.endpoint.name} - {self.event_type} ({self.status})"
 

@@ -1,13 +1,16 @@
 #!/usr/bin/env python
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from users.models import User, Entitlement, UserRole, Role
-from programs.models import Enrollment, Cohort, Track, Program
 from django.utils import timezone
+from programs.models import Cohort, Enrollment, Program, Track
+
+from users.models import Entitlement, Role, User, UserRole
+
 
 def setup_student_automation():
     """
@@ -17,17 +20,17 @@ def setup_student_automation():
     try:
         user = User.objects.get(email='bob@student.com')
         print(f'Setting up automation for: {user.email}')
-        
+
         # 1. GRANT BASIC ENTITLEMENTS (Should be automatic on registration)
         basic_entitlements = [
             'missions_access',
-            'curriculum_access', 
+            'curriculum_access',
             'starter_tier',
             'video_content',
             'quiz_access',
             'basic_mentorship'
         ]
-        
+
         for feature in basic_entitlements:
             entitlement, created = Entitlement.objects.get_or_create(
                 user=user,
@@ -45,7 +48,7 @@ def setup_student_automation():
                 entitlement.granted_at = timezone.now()
                 entitlement.save()
                 print(f'+ Updated {feature} entitlement')
-        
+
         # 2. ENSURE PROPER ROLE ASSIGNMENT
         try:
             student_role = Role.objects.get(name='student')
@@ -76,7 +79,7 @@ def setup_student_automation():
                 is_active=True
             )
             print('+ Created and assigned student role')
-        
+
         # 3. AUTO-ENROLL IN DEFAULT TRACK (Should be automatic)
         try:
             # Find or create a default program and track
@@ -90,7 +93,7 @@ def setup_student_automation():
                     'status': 'active'
                 }
             )
-            
+
             track, created = Track.objects.get_or_create(
                 program=program,
                 key='defender',
@@ -100,7 +103,7 @@ def setup_student_automation():
                     'description': 'Foundational cyber defense skills'
                 }
             )
-            
+
             # Create a cohort if none exists
             cohort, created = Cohort.objects.get_or_create(
                 track=track,
@@ -112,7 +115,7 @@ def setup_student_automation():
                     'status': 'active'
                 }
             )
-            
+
             # Enroll user in cohort
             enrollment, created = Enrollment.objects.get_or_create(
                 user=user,
@@ -124,7 +127,7 @@ def setup_student_automation():
                     'status': 'active'
                 }
             )
-            
+
             if created:
                 print(f'+ Auto-enrolled in {track.name}')
             else:
@@ -132,24 +135,24 @@ def setup_student_automation():
                 enrollment.payment_status = 'waived'
                 enrollment.save()
                 print(f'+ Updated enrollment in {track.name}')
-                
+
         except Exception as e:
             print(f'! Error with track enrollment: {e}')
-        
+
         # 4. UPDATE USER PROFILE FOR AUTOMATION
         user.profiling_complete = True
         user.foundations_complete = True
         user.account_status = 'active'
         user.is_active = True
         user.save()
-        
+
         print(f'\nSuccess! Automation setup complete for {user.email}!')
         print('+ Basic entitlements granted')
-        print('+ Student role assigned') 
+        print('+ Student role assigned')
         print('+ Track enrollment active')
         print('+ Profile completion flags set')
         print('\nUser should now have full access to missions and curriculum.')
-        
+
     except User.DoesNotExist:
         print('Error: User bob@student.com not found')
     except Exception as e:

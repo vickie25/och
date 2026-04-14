@@ -5,17 +5,19 @@ Supports PDF, CSV, and PowerPoint formats.
 import csv
 import io
 from datetime import datetime
+
 from django.http import HttpResponse
-from .models import Sponsor, SponsorCohort
+
 from . import services as sponsor_services
+from .models import Sponsor, SponsorCohort
 
 # Optional imports for PDF/PPTX generation
 try:
     from reportlab.lib import colors
-    from reportlab.lib.pagesizes import letter, A4
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.pagesizes import A4, letter
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import inch
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False

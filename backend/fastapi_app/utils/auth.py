@@ -1,10 +1,10 @@
 """
 Authentication utilities for FastAPI.
 """
-from fastapi import HTTPException, Depends, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import JWTError, jwt
 from config import settings
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError, jwt
 
 security = HTTPBearer()
 
@@ -12,8 +12,8 @@ security = HTTPBearer()
 async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """
     Verify JWT token (shared secret with Django).
-    
-    Django's rest_framework_simplejwt uses SECRET_KEY (DJANGO_SECRET_KEY env var) 
+
+    Django's rest_framework_simplejwt uses SECRET_KEY (DJANGO_SECRET_KEY env var)
     for signing. FastAPI must use the same key to verify tokens.
     """
     token = credentials.credentials
@@ -22,7 +22,7 @@ async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(secur
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing authentication token",
         )
-    
+
     try:
         # Use the secret key (should match Django's SECRET_KEY)
         secret_key = settings.JWT_SECRET_KEY
@@ -31,25 +31,25 @@ async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(secur
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="JWT secret key not configured",
             )
-        
+
         payload = jwt.decode(
             token,
             secret_key,
             algorithms=[settings.JWT_ALGORITHM],
         )
-        
+
         # rest_framework_simplejwt uses 'user_id' as the claim name
         user_id = payload.get("user_id")
         if user_id is None:
             # Try alternative claim names
             user_id = payload.get("sub") or payload.get("user")
-        
+
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication credentials: missing user_id",
             )
-        
+
         # Ensure user_id is an integer
         try:
             return int(user_id)
@@ -58,7 +58,7 @@ async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(secur
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication credentials: invalid user_id format",
             )
-            
+
     except JWTError as e:
         # Log the error for debugging
         import logging

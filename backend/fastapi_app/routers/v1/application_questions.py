@@ -1,23 +1,20 @@
 """
 FastAPI router for AI-generated application questions.
 """
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-
-from utils.auth import verify_token
 from services.application_questions_service import ApplicationQuestionAIService
-
+from utils.auth import verify_token
 
 router = APIRouter(prefix="/application-questions", tags=["application-questions"])
 
 
 class QuestionGenerationRequest(BaseModel):
   cohort_id: str = Field(..., description="Cohort UUID from Django")
-  cohort_name: Optional[str] = Field(None, description="Optional cohort name for better prompts")
-  tracks: List[str] = Field(default_factory=list, description="Track keys or names for this cohort")
-  categories: List[str] = Field(
+  cohort_name: str | None = Field(None, description="Optional cohort name for better prompts")
+  tracks: list[str] = Field(default_factory=list, description="Track keys or names for this cohort")
+  categories: list[str] = Field(
       default_factory=list,
       description="Requested categories: logical, critical, track, behavioral",
   )
@@ -27,13 +24,13 @@ class QuestionGenerationRequest(BaseModel):
 class GeneratedQuestion(BaseModel):
   type: str
   question_text: str
-  options: List[str]
+  options: list[str]
   correct_answer: str
   scoring_weight: float
 
 
 class QuestionGenerationResponse(BaseModel):
-  questions: List[GeneratedQuestion]
+  questions: list[GeneratedQuestion]
 
 
 @router.post("/generate", response_model=QuestionGenerationResponse)

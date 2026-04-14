@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Check if mission_progress table exists and create if needed."""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')

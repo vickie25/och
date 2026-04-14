@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Employer, MarketplaceProfile, EmployerInterestLog, JobPosting, JobApplication
+from .models import Employer, EmployerInterestLog, JobApplication, JobPosting, MarketplaceProfile
 
 
 class EmployerSerializer(serializers.ModelSerializer):
@@ -63,7 +63,7 @@ class MarketplaceProfileListSerializer(serializers.ModelSerializer):
             from dashboard.models import PortfolioItem
             # Count portfolio items for this user
             item_count = PortfolioItem.objects.filter(user=obj.mentee).count()
-            
+
             # Determine depth based on count
             if item_count == 0:
                 return ''
@@ -73,7 +73,7 @@ class MarketplaceProfileListSerializer(serializers.ModelSerializer):
                 return 'moderate'
             else:
                 return 'deep'
-        except Exception as e:
+        except Exception:
             # Fallback to stored value if calculation fails
             return obj.portfolio_depth or ''
 

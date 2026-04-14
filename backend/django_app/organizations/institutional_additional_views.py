@@ -1,22 +1,24 @@
 """
 Additional Institutional Billing Views - SSO, Bulk Import, Academic Calendar
 """
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework import status
-from django.shortcuts import get_object_or_404
-from django.db import transaction
-from django.core.mail import send_mail
-from django.conf import settings
 import csv
 import io
 import logging
 
+from django.conf import settings
+from django.core.mail import send_mail
+from django.db import transaction
+from django.shortcuts import get_object_or_404
+from programs.permissions import IsProgramDirector
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from users.models import User
+
 from .institutional_models import InstitutionalContract, InstitutionalStudent
 from .institutional_service import InstitutionalBillingService
-from users.models import User
-from programs.permissions import IsProgramDirector
 
 logger = logging.getLogger(__name__)
 
@@ -31,50 +33,50 @@ def bulk_import_students(request):
     try:
         contract_id = request.data.get('contract_id')
         csv_file = request.FILES.get('file')
-        
+
         if not contract_id or not csv_file:
             return Response(
                 {'error': 'contract_id and file are required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Get contract
         contract = get_object_or_404(InstitutionalContract, id=contract_id)
-        
+
         if contract.status != 'active':
             return Response(
                 {'error': 'Contract must be active for student imports'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Check available seats
         active_students = contract.enrolled_students.filter(is_active=True).count()
         available_seats = contract.student_seat_count - active_students
-        
+
         if available_seats <= 0:
             return Response(
                 {'error': 'No available seats in this contract'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Parse CSV
         try:
             csv_content = csv_file.read().decode('utf-8')
             csv_reader = csv.DictReader(io.StringIO(csv_content))
-            
+
             required_fields = ['first_name', 'last_name', 'email']
             if not all(field in csv_reader.fieldnames for field in required_fields):
                 return Response(
                     {'error': f'CSV must contain columns: {", ".join(required_fields)}'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
         except Exception as e:
             return Response(
                 {'error': f'Invalid CSV file: {str(e)}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Process students
         results = {
             'total_rows': 0,
@@ -83,26 +85,26 @@ def bulk_import_students(request):
             'errors': [],
             'imported_students': []
         }
-        
+
         with transaction.atomic():
             for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 for header
                 results['total_rows'] += 1
-                
+
                 # Stop if we've reached seat limit
                 if results['successful_imports'] >= available_seats:
-                    results['errors'].append(f'Seat limit reached. Remaining rows not processed.')
+                    results['errors'].append('Seat limit reached. Remaining rows not processed.')
                     break
-                
+
                 try:
                     # Validate required fields
                     first_name = row.get('first_name', '').strip()
                     last_name = row.get('last_name', '').strip()
                     email = row.get('email', '').strip().lower()
-                    
+
                     if not all([first_name, last_name, email]):
                         results['errors'].append(f'Row {row_num}: Missing required fields')
                         continue
-                    
+
                     # Check for existing user
                     user, created = User.objects.get_or_create(
                         email=email,
@@ -113,7 +115,7 @@ def bulk_import_students(request):
                             'is_active': True
                         }
                     )
-                    
+
                     if not created:
                         # Check if already enrolled in this contract
                         existing_enrollment = InstitutionalStudent.objects.filter(
@@ -121,19 +123,19 @@ def bulk_import_students(request):
                             user=user,
                             is_active=True
                         ).exists()
-                        
+
                         if existing_enrollment:
                             results['duplicates'] += 1
                             continue
-                    
+
                     # Create enrollment
-                    enrollment = InstitutionalBillingService.enroll_student(
+                    InstitutionalBillingService.enroll_student(
                         contract_id=contract.id,
                         user_id=user.id,
                         enrollment_type='bulk_import',
                         created_by=request.user
                     )
-                    
+
                     results['successful_imports'] += 1
                     results['imported_students'].append({
                         'email': user.email,
@@ -141,19 +143,19 @@ def bulk_import_students(request):
                         'last_name': user.last_name,
                         'status': 'imported'
                     })
-                    
+
                     # Send welcome email
                     try:
                         send_welcome_email(user, contract)
                     except Exception as e:
                         logger.warning(f'Failed to send welcome email to {user.email}: {str(e)}')
-                    
+
                 except Exception as e:
                     results['errors'].append(f'Row {row_num}: {str(e)}')
                     continue
-        
+
         return Response(results)
-        
+
     except Exception as e:
         logger.error(f'Bulk import error: {str(e)}')
         return Response(
@@ -172,9 +174,9 @@ def setup_sso_integration(request):
     try:
         contract_id = request.data.get('contract_id')
         sso_config = request.data.get('sso_config', {})
-        
+
         contract = get_object_or_404(InstitutionalContract, id=contract_id)
-        
+
         # Validate SSO configuration
         required_sso_fields = ['provider_type', 'entity_id', 'sso_url', 'certificate']
         if not all(field in sso_config for field in required_sso_fields):
@@ -182,7 +184,7 @@ def setup_sso_integration(request):
                 {'error': f'SSO config must contain: {", ".join(required_sso_fields)}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Store SSO configuration (extend contract model to include SSO fields)
         contract.sso_enabled = True
         contract.sso_provider_type = sso_config['provider_type']
@@ -192,13 +194,13 @@ def setup_sso_integration(request):
         contract.domain_auto_enrollment = sso_config.get('domain_auto_enrollment', False)
         contract.allowed_domains = sso_config.get('allowed_domains', [])
         contract.save()
-        
+
         return Response({
             'message': 'SSO integration configured successfully',
             'sso_login_url': f"{settings.FRONTEND_URL}/sso/login/{contract.id}",
             'metadata_url': f"{settings.FRONTEND_URL}/sso/metadata/{contract.id}"
         })
-        
+
     except Exception as e:
         logger.error(f'SSO setup error: {str(e)}')
         return Response(
@@ -218,46 +220,46 @@ def assign_mandatory_tracks(request):
         contract_id = request.data.get('contract_id')
         track_assignments = request.data.get('track_assignments', [])
         department_filter = request.data.get('department_filter')
-        
+
         contract = get_object_or_404(InstitutionalContract, id=contract_id)
-        
+
         # Get students to assign tracks to
         students_query = contract.enrolled_students.filter(is_active=True)
-        
+
         if department_filter:
             # Filter by department if specified
             students_query = students_query.filter(
                 user__profile__department=department_filter
             )
-        
+
         students = students_query.all()
-        
+
         results = {
             'students_processed': 0,
             'tracks_assigned': 0,
             'errors': []
         }
-        
+
         with transaction.atomic():
             for student in students:
                 try:
                     for track_assignment in track_assignments:
-                        track_id = track_assignment.get('track_id')
-                        is_mandatory = track_assignment.get('is_mandatory', True)
-                        completion_deadline = track_assignment.get('completion_deadline')
-                        
+                        track_assignment.get('track_id')
+                        track_assignment.get('is_mandatory', True)
+                        track_assignment.get('completion_deadline')
+
                         # Create track assignment (implement based on your track model)
                         # This would integrate with your existing track/curriculum system
-                        
+
                         results['tracks_assigned'] += 1
-                    
+
                     results['students_processed'] += 1
-                    
+
                 except Exception as e:
                     results['errors'].append(f'Student {student.user.email}: {str(e)}')
-        
+
         return Response(results)
-        
+
     except Exception as e:
         logger.error(f'Track assignment error: {str(e)}')
         return Response(
@@ -298,9 +300,9 @@ def academic_calendar_options(request):
                 {'value': 'pause_billing', 'label': 'Pause Summer Billing', 'description': 'No billing June-August'}
             ]
         }
-        
+
         return Response(options)
-        
+
     except Exception as e:
         logger.error(f'Academic calendar options error: {str(e)}')
         return Response(
@@ -318,17 +320,17 @@ def institutional_dashboard_analytics(request, contract_id):
     """
     try:
         contract = get_object_or_404(InstitutionalContract, id=contract_id)
-        
+
         # Get basic contract analytics
         base_analytics = InstitutionalBillingService.get_contract_analytics(contract_id)
-        
+
         # Add institutional-specific metrics
         students = contract.enrolled_students.filter(is_active=True)
-        
+
         # Seat utilization by department/pool
         seat_pools = []
         departments = students.values_list('user__profile__department', flat=True).distinct()
-        
+
         for dept in departments:
             if dept:
                 dept_students = students.filter(user__profile__department=dept)
@@ -340,7 +342,7 @@ def institutional_dashboard_analytics(request, contract_id):
                     'available': 0,  # Calculate based on department allocation
                     'utilization': 100.0  # Placeholder calculation
                 })
-        
+
         # Track assignments and completion
         track_assignments = {
             'mandatory_assignments': 0,  # Integrate with track system
@@ -348,14 +350,14 @@ def institutional_dashboard_analytics(request, contract_id):
             'overdue_assignments': 0,
             'completion_rate': 0.0
         }
-        
+
         # ROI metrics
         roi_metrics = {
             'cost_per_student': float(base_analytics['financial']['monthly_recurring_revenue'] / max(base_analytics['students']['active_students'], 1)),
             'roi_percentage': 150.0,  # Placeholder - calculate based on outcomes
             'certification_rate': 75.0  # Placeholder - integrate with certification system
         }
-        
+
         # Enhanced analytics
         enhanced_analytics = {
             **base_analytics,
@@ -374,9 +376,9 @@ def institutional_dashboard_analytics(request, contract_id):
             'track_assignments': track_assignments,
             'roi_metrics': roi_metrics
         }
-        
+
         return Response(enhanced_analytics)
-        
+
     except Exception as e:
         logger.error(f'Dashboard analytics error: {str(e)}')
         return Response(
@@ -389,7 +391,7 @@ def send_welcome_email(user, contract):
     """Send welcome email to newly imported student"""
     try:
         subject = f'Welcome to {contract.organization.name} Learning Program'
-        
+
         context = {
             'user': user,
             'contract': contract,
@@ -397,7 +399,7 @@ def send_welcome_email(user, contract):
             'login_url': f"{settings.FRONTEND_URL}/login",
             'portal_url': f"{settings.FRONTEND_URL}/student/dashboard"
         }
-        
+
         # Use template rendering here
         message = f"""
         Dear {user.first_name} {user.last_name},
@@ -414,7 +416,7 @@ def send_welcome_email(user, contract):
         Best regards,
         OCH Learning Platform
         """
-        
+
         send_mail(
             subject=subject,
             message=message,
@@ -422,9 +424,9 @@ def send_welcome_email(user, contract):
             recipient_list=[user.email],
             fail_silently=False
         )
-        
+
         return True
-        
+
     except Exception as e:
         logger.error(f'Failed to send welcome email: {str(e)}')
         return False

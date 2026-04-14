@@ -3,16 +3,18 @@ Tier 1 Foundations API views.
 Handles Foundations modules, progress tracking, and completion.
 """
 import logging
+
+from django.db import transaction
+from django.utils import timezone
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
-from django.utils import timezone
-from django.db import transaction
 
-from .models import FoundationsModule, FoundationsProgress
-from .assessment_questions import FOUNDATIONS_ASSESSMENT_QUESTIONS, calculate_assessment_score
 from users.models import User
+
+from .assessment_questions import FOUNDATIONS_ASSESSMENT_QUESTIONS, calculate_assessment_score
+from .models import FoundationsModule, FoundationsProgress
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +25,7 @@ def _issue_foundations_certificate(user: User) -> None:
     platform's certificate system can issue a certificate.
     """
     try:
-        from programs.models import Program, Track, Cohort, Enrollment
+        from programs.models import Cohort, Enrollment, Program, Track
         from programs.services.certificate_service import CertificateService
     except Exception as e:
         logger.error("Foundations certificate issuance unavailable: %s", e, exc_info=True)
@@ -54,7 +56,7 @@ def _issue_foundations_certificate(user: User) -> None:
     )
 
     # A single evergreen cohort used to anchor Foundations certificates.
-    from datetime import date, timedelta
+    from datetime import timedelta
     today = timezone.now().date()
     cohort, _ = Cohort.objects.get_or_create(
         track=track,
@@ -97,14 +99,14 @@ def _issue_foundations_certificate(user: User) -> None:
 def _get_missing_requirements(progress):
     """Helper function to identify what's missing for Foundations completion."""
     missing = []
-    
+
     # Check mandatory modules
     mandatory_modules = FoundationsModule.objects.filter(is_mandatory=True, is_active=True)
     for module in mandatory_modules:
         module_data = progress.modules_completed.get(str(module.id), {})
         if not module_data.get('completed', False):
             missing.append(f"Module: {module.title}")
-    
+
     # Check assessment
     assessment_modules = FoundationsModule.objects.filter(
         module_type='assessment',
@@ -113,7 +115,7 @@ def _get_missing_requirements(progress):
     )
     if assessment_modules.exists() and progress.assessment_score is None:
         missing.append("Assessment")
-    
+
     # Check reflection
     reflection_modules = FoundationsModule.objects.filter(
         module_type='reflection',
@@ -122,11 +124,11 @@ def _get_missing_requirements(progress):
     )
     if reflection_modules.exists() and not progress.goals_reflection:
         missing.append("Reflection")
-    
+
     # Check track confirmation
     if not progress.confirmed_track_key:
         missing.append("Track Confirmation")
-    
+
     return missing
 
 
@@ -138,7 +140,7 @@ def get_foundations_status(request):
     Get user's Foundations completion status and progress.
     """
     user = request.user
-    
+
     # Check if profiling is complete (prerequisite)
     if not user.profiling_complete:
         return Response({
@@ -146,17 +148,17 @@ def get_foundations_status(request):
             'reason': 'profiling_incomplete',
             'message': 'Please complete the AI profiler first'
         }, status=status.HTTP_403_FORBIDDEN)
-    
+
     # Get or create Foundations progress
     progress, created = FoundationsProgress.objects.get_or_create(
         user=user,
         defaults={'status': 'not_started'}
     )
-    
+
     if created:
         progress.started_at = timezone.now()
         progress.save()
-        
+
         # Track Profiler → Foundations transition timestamp
         try:
             from profiler.models import ProfilerSession
@@ -165,17 +167,17 @@ def get_foundations_status(request):
                 user=user,
                 status__in=['finished', 'locked']
             ).order_by('-completed_at').first()
-            
+
             if profiler_session:
                 profiler_session.foundations_transition_at = timezone.now()
                 profiler_session.save()
                 logger.info(f"Tracked foundations transition for user {user.id}, session {profiler_session.id}")
         except Exception as e:
             logger.warning(f"Failed to track foundations transition: {e}")
-    
+
     # Calculate completion
     progress.calculate_completion()
-    
+
     # Get all modules from Tier 1 foundations (foundations_modules table)
     modules = FoundationsModule.objects.filter(is_active=True).order_by('order')
     modules_data = []
@@ -198,11 +200,11 @@ def get_foundations_status(request):
             'source': 'foundations',
             'track_code': None,
         })
-    
+
     # If no Tier 1 foundations modules, fall back to Foundation curriculum track (director-edited modules)
     if not modules_data:
+        from curriculum.models import CurriculumModule, CurriculumTrack
         from django.db.models import Q, Sum
-        from curriculum.models import CurriculumTrack, CurriculumModule
         # Find Foundation curriculum track (director uses track.slug as module track_key)
         # Prefer tier=2 so curriculum tier2 page works; fall back to any tier matching "foundation"
         foundation_track = (
@@ -251,7 +253,7 @@ def get_foundations_status(request):
                     'source': 'curriculum',
                     'track_code': getattr(foundation_track, 'code', None) or foundation_track.slug or 'foundation',
                 })
-    
+
     return Response({
         'foundations_available': True,
         'status': progress.status,
@@ -277,13 +279,13 @@ def complete_module(request, module_id):
     Also tracks interaction data and updates time spent.
     """
     user = request.user
-    
+
     if not user.profiling_complete:
         return Response(
             {'detail': 'Profiling must be completed first'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     try:
         module = FoundationsModule.objects.get(id=module_id, is_active=True)
     except FoundationsModule.DoesNotExist:
@@ -291,15 +293,15 @@ def complete_module(request, module_id):
             {'detail': 'Module not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     progress, _ = FoundationsProgress.objects.get_or_create(user=user)
-    
+
     # Update module completion
     module_data = progress.modules_completed.get(str(module.id), {})
     module_data['completed'] = True
     module_data['watch_percentage'] = request.data.get('watch_percentage', 100)
     module_data['completed_at'] = timezone.now().isoformat()
-    
+
     # Track interaction data if provided
     interaction_data = request.data.get('interaction', None)
     if interaction_data:
@@ -310,24 +312,24 @@ def complete_module(request, module_id):
             'time_spent_seconds': interaction_data.get('timeSpent', 0),
             'completed_at': timezone.now().isoformat()
         }
-    
+
     # Update time spent if provided
     time_spent = request.data.get('time_spent_seconds', 0)
     if time_spent > 0:
         progress.total_time_spent_minutes += int(time_spent / 60)
-    
+
     progress.modules_completed[str(module.id)] = module_data
     progress.last_accessed_module_id = module.id
-    
+
     # Update status
     if progress.status == 'not_started':
         progress.status = 'in_progress'
         if not progress.started_at:
             progress.started_at = timezone.now()
-    
+
     # Recalculate completion
     progress.calculate_completion()
-    
+
     # Check if all mandatory modules are complete
     if progress.is_complete():
         progress.status = 'completed'
@@ -336,9 +338,9 @@ def complete_module(request, module_id):
         user.foundations_completed_at = timezone.now()
         user.save()
         _issue_foundations_certificate(user)
-    
+
     progress.save()
-    
+
     return Response({
         'success': True,
         'completion_percentage': float(progress.completion_percentage),
@@ -357,7 +359,7 @@ def update_module_progress(request, module_id):
     Also tracks interaction data and time spent.
     """
     user = request.user
-    
+
     try:
         module = FoundationsModule.objects.get(id=module_id, is_active=True)
     except FoundationsModule.DoesNotExist:
@@ -365,14 +367,14 @@ def update_module_progress(request, module_id):
             {'detail': 'Module not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     progress, _ = FoundationsProgress.objects.get_or_create(user=user)
-    
+
     # Update progress data
     module_data = progress.modules_completed.get(str(module.id), {})
     watch_percentage = request.data.get('watch_percentage', 0)
     module_data['watch_percentage'] = min(100, max(0, watch_percentage))
-    
+
     # Track interaction data if provided
     interaction_data = request.data.get('interaction', None)
     if interaction_data:
@@ -383,16 +385,16 @@ def update_module_progress(request, module_id):
             'time_spent_seconds': interaction_data.get('timeSpent', 0),
             'last_viewed_at': timezone.now().isoformat()
         }
-    
+
     # Update time spent
     time_spent = request.data.get('time_spent_seconds', 0)
     if time_spent > 0:
         progress.total_time_spent_minutes += int(time_spent / 60)
-    
+
     progress.modules_completed[str(module.id)] = module_data
     progress.last_accessed_module_id = module.id
     progress.save()
-    
+
     return Response({
         'success': True,
         'watch_percentage': module_data['watch_percentage'],
@@ -409,15 +411,15 @@ def track_drop_off(request):
     Used for analytics and onboarding optimization.
     """
     user = request.user
-    
+
     if not user.profiling_complete:
         return Response(
             {'detail': 'Profiling must be completed first'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     progress, _ = FoundationsProgress.objects.get_or_create(user=user)
-    
+
     module_id = request.data.get('module_id')
     if module_id:
         try:
@@ -427,9 +429,9 @@ def track_drop_off(request):
             logger.info(f"Tracked drop-off for user {user.id} at module {module.title} (ID: {module.id})")
         except FoundationsModule.DoesNotExist:
             logger.warning(f"Drop-off tracking: Module {module_id} not found")
-    
+
     progress.save()
-    
+
     return Response({
         'success': True,
         'message': 'Drop-off tracked successfully'
@@ -444,13 +446,13 @@ def get_assessment_questions(request):
     Get Foundations orientation assessment questions.
     """
     user = request.user
-    
+
     if not user.profiling_complete:
         return Response(
             {'detail': 'Profiling must be completed first'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     # Return questions without correct answers (for security)
     questions_data = []
     for question in FOUNDATIONS_ASSESSMENT_QUESTIONS:
@@ -466,7 +468,7 @@ def get_assessment_questions(request):
             ]
         }
         questions_data.append(question_data)
-    
+
     return Response({
         'questions': questions_data,
         'total_questions': len(questions_data)
@@ -482,29 +484,29 @@ def submit_assessment(request):
     Calculates score from answers automatically.
     """
     user = request.user
-    
+
     if not user.profiling_complete:
         return Response(
             {'detail': 'Profiling must be completed first'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     progress, _ = FoundationsProgress.objects.get_or_create(user=user)
-    
+
     answers = request.data.get('answers', {})
-    
+
     if not answers:
         return Response(
             {'detail': 'Answers are required'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     # Calculate score from answers
     score_percentage, detailed_results = calculate_assessment_score(answers)
-    
+
     progress.assessment_score = score_percentage
     progress.assessment_attempts += 1
-    
+
     # Mark assessment module as completed (find the assessment module and mark it)
     assessment_modules = FoundationsModule.objects.filter(
         module_type='assessment',
@@ -519,7 +521,7 @@ def submit_assessment(request):
         module_data['detailed_results'] = detailed_results
         module_data['completed_at'] = timezone.now().isoformat()
         progress.modules_completed[str(module.id)] = module_data
-    
+
     # Also store in 'assessment' key for backward compatibility
     progress.modules_completed['assessment'] = {
         'completed': True,
@@ -528,20 +530,20 @@ def submit_assessment(request):
         'detailed_results': detailed_results,
         'completed_at': timezone.now().isoformat()
     }
-    
+
     # Recalculate completion
     progress.calculate_completion()
     is_complete = progress.is_complete()
-    
+
     if is_complete:
         progress.status = 'completed'
         progress.completed_at = timezone.now()
         user.foundations_complete = True
         user.foundations_completed_at = timezone.now()
         user.save()
-    
+
     progress.save()
-    
+
     return Response({
         'success': True,
         'score': score_percentage,
@@ -562,24 +564,24 @@ def submit_reflection(request):
     Submit goals reflection and value statement.
     """
     user = request.user
-    
+
     if not user.profiling_complete:
         return Response(
             {'detail': 'Profiling must be completed first'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     progress, _ = FoundationsProgress.objects.get_or_create(user=user)
-    
+
     goals_reflection = request.data.get('goals_reflection', '')
     value_statement = request.data.get('value_statement', '')
-    
+
     if goals_reflection:
         progress.goals_reflection = goals_reflection
-    
+
     if value_statement:
         progress.value_statement = value_statement
-    
+
     # Mark reflection module as complete
     reflection_modules = FoundationsModule.objects.filter(
         module_type='reflection',
@@ -591,7 +593,7 @@ def submit_reflection(request):
         module_data['completed'] = True
         module_data['completed_at'] = timezone.now().isoformat()
         progress.modules_completed[str(module.id)] = module_data
-    
+
     # Recalculate completion
     progress.calculate_completion()
     if progress.is_complete():
@@ -600,9 +602,9 @@ def submit_reflection(request):
         user.foundations_complete = True
         user.foundations_completed_at = timezone.now()
         user.save()
-    
+
     progress.save()
-    
+
     return Response({
         'success': True,
         'completion_percentage': float(progress.completion_percentage),
@@ -618,28 +620,28 @@ def confirm_track(request):
     Confirm or override track selection from profiler.
     """
     user = request.user
-    
+
     if not user.profiling_complete:
         return Response(
             {'detail': 'Profiling must be completed first'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     progress, _ = FoundationsProgress.objects.get_or_create(user=user)
-    
+
     track_key = request.data.get('track_key')
     is_override = request.data.get('is_override', False)
-    
+
     if not track_key:
         return Response(
             {'detail': 'track_key is required'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     progress.confirmed_track_key = track_key
     progress.track_override = is_override
     progress.save()
-    
+
     return Response({
         'success': True,
         'confirmed_track_key': track_key,
@@ -655,47 +657,48 @@ def complete_foundations(request):
     Finalize Foundations completion and transition to Tier 2.
     """
     user = request.user
-    
+
     if not user.profiling_complete:
         return Response(
             {'detail': 'Profiling must be completed first'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     progress, _ = FoundationsProgress.objects.get_or_create(user=user)
-    
+
     # Mark as complete and transition
     with transaction.atomic():
         progress.status = 'completed'
         progress.completed_at = timezone.now()
         progress.transitioned_to_tier2_at = timezone.now()
         progress.save()
-        
+
         user.foundations_complete = True
         user.foundations_completed_at = timezone.now()
         user.save()
-        
+
         # Create first portfolio entry from Foundations reflection
         try:
-            from dashboard.models import PortfolioItem
             import json
-            
+
+            from dashboard.models import PortfolioItem
+
             # Combine value statement and goals reflection for portfolio entry
             portfolio_summary_parts = []
             if progress.value_statement:
                 portfolio_summary_parts.append(f"Value Statement: {progress.value_statement}")
             if progress.goals_reflection:
                 portfolio_summary_parts.append(f"\n\nGoals & Reflection: {progress.goals_reflection}")
-            
+
             portfolio_summary = "\n".join(portfolio_summary_parts) if portfolio_summary_parts else "Foundations orientation completed."
-            
+
             # Check if portfolio entry already exists (avoid duplicates)
             existing_entry = PortfolioItem.objects.filter(
                 user=user,
                 item_type='reflection',
                 title='Foundations: My Goals & Value Statement'
             ).first()
-            
+
             if not existing_entry:
                 PortfolioItem.objects.create(
                     user=user,
@@ -711,7 +714,7 @@ def complete_foundations(request):
         except Exception as e:
             logger.error(f"Failed to create portfolio entry for Foundations completion: {e}", exc_info=True)
             # Don't fail the entire completion if portfolio creation fails
-    
+
     return Response({
         'success': True,
         'message': 'Foundations completed successfully. You can now access Tier 2 tracks.',
@@ -729,47 +732,47 @@ def submit_feedback(request):
     Used to track clarity about OCH's structure (>90% positive feedback metric).
     """
     user = request.user
-    
+
     if not user.profiling_complete:
         return Response(
             {'detail': 'Profiling must be completed first'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     progress, _ = FoundationsProgress.objects.get_or_create(user=user)
-    
+
     # Only allow feedback if Foundations is complete
     if not progress.is_complete():
         return Response(
             {'detail': 'Foundations must be completed before submitting feedback'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     clarity_rating = request.data.get('clarity_rating')  # 1-5 scale
     feedback_text = request.data.get('feedback_text', '')
     would_recommend = request.data.get('would_recommend', None)  # boolean
-    
+
     if not clarity_rating:
         return Response(
             {'detail': 'clarity_rating is required (1-5 scale)'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     # Store feedback in interactions JSON field
     if not progress.interactions:
         progress.interactions = {}
-    
+
     progress.interactions['completion_feedback'] = {
         'clarity_rating': int(clarity_rating),
         'feedback_text': feedback_text,
         'would_recommend': would_recommend,
         'submitted_at': timezone.now().isoformat()
     }
-    
+
     progress.save()
-    
+
     logger.info(f"Foundations feedback submitted by user {user.id}: clarity={clarity_rating}, recommend={would_recommend}")
-    
+
     return Response({
         'success': True,
         'message': 'Feedback submitted successfully. Thank you!'
@@ -785,12 +788,12 @@ def sync_enterprise_readiness(request, cohort_id):
     Used by Enterprise Dashboard to track onboarding readiness.
     """
     user = request.user
-    
+
     # Check if user has permission to sync enterprise data
     user_roles = [ur.role.name for ur in user.user_roles.filter(is_active=True)]
     is_admin = 'admin' in user_roles or user.is_staff
     is_director = False
-    
+
     # Check if user is a director of a program that includes this cohort
     try:
         from programs.models import Cohort
@@ -802,13 +805,13 @@ def sync_enterprise_readiness(request, cohort_id):
             {'error': 'Cohort not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     if not (is_admin or is_director):
         return Response(
             {'error': 'Permission denied. Admin or director access required.'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     # Get all enrollments in this cohort
     try:
         from programs.models import Enrollment
@@ -816,12 +819,12 @@ def sync_enterprise_readiness(request, cohort_id):
             cohort_id=cohort_id,
             status__in=['active', 'pending']
         ).select_related('user')
-        
+
         readiness_data = []
         for enrollment in enrollments:
             student = enrollment.user
             progress = FoundationsProgress.objects.filter(user=student).first()
-            
+
             readiness_data.append({
                 'user_id': str(student.id),
                 'email': student.email,
@@ -834,9 +837,9 @@ def sync_enterprise_readiness(request, cohort_id):
                 'drop_off_module_id': str(progress.drop_off_module_id) if progress and progress.drop_off_module_id else None,
                 'last_accessed_module_id': str(progress.last_accessed_module_id) if progress and progress.last_accessed_module_id else None,
             })
-        
+
         logger.info(f"Synced Foundations readiness for cohort {cohort_id}: {len(readiness_data)} students")
-        
+
         return Response({
             'success': True,
             'cohort_id': str(cohort_id),

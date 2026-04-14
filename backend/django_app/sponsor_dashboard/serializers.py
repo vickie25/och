@@ -2,18 +2,19 @@
 Serializers for Sponsor Dashboard API.
 """
 from rest_framework import serializers
+
 from .models import (
-    SponsorDashboardCache,
+    SponsorCode,
     SponsorCohortDashboard,
+    SponsorDashboardCache,
     SponsorStudentAggregates,
-    SponsorCode
 )
 
 
 class SponsorDashboardSummarySerializer(serializers.ModelSerializer):
     """Serializer for sponsor dashboard summary."""
     org_id = serializers.SerializerMethodField()
-    
+
     def get_org_id(self, obj):
         """Safely get org ID."""
         return obj.org.id if obj.org else None
@@ -23,7 +24,7 @@ class SponsorDashboardSummarySerializer(serializers.ModelSerializer):
     budget_used_pct = serializers.DecimalField(max_digits=5, decimal_places=2, coerce_to_string=False)
     avg_readiness = serializers.DecimalField(max_digits=5, decimal_places=2, coerce_to_string=False)
     avg_completion_pct = serializers.DecimalField(max_digits=5, decimal_places=2, coerce_to_string=False)
-    
+
     class Meta:
         model = SponsorDashboardCache
         fields = [
@@ -41,7 +42,7 @@ class SponsorDashboardSummarySerializer(serializers.ModelSerializer):
             'alerts',
             'cache_updated_at',
         ]
-    
+
     def get_alerts(self, obj):
         """Generate alerts based on cache data."""
         alerts = []
@@ -58,13 +59,13 @@ class SponsorCohortListSerializer(serializers.ModelSerializer):
     """Serializer for sponsor cohort list."""
     cohort_id = serializers.SerializerMethodField()
     budget_remaining = serializers.SerializerMethodField()
-    
+
     def get_cohort_id(self, obj):
         """Safely get cohort ID."""
         if obj.cohort:
             return str(obj.cohort.id)
         return None
-    
+
     class Meta:
         model = SponsorCohortDashboard
         fields = [
@@ -83,7 +84,7 @@ class SponsorCohortListSerializer(serializers.ModelSerializer):
             'flags',
             'budget_remaining',
         ]
-    
+
     def get_budget_remaining(self, obj):
         """Calculate budget remaining (placeholder - integrate with billing)."""
         # TODO: Integrate with billing service
@@ -98,7 +99,7 @@ class SponsorCohortDetailSerializer(serializers.ModelSerializer):
     budget = serializers.SerializerMethodField()
     shared_profiles = serializers.SerializerMethodField()
     next_events = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = SponsorCohortDashboard
         fields = [
@@ -111,7 +112,7 @@ class SponsorCohortDetailSerializer(serializers.ModelSerializer):
             'shared_profiles',
             'next_events',
         ]
-    
+
     def get_seats(self, obj):
         return {
             'total': obj.seats_total,
@@ -120,14 +121,14 @@ class SponsorCohortDetailSerializer(serializers.ModelSerializer):
             'remaining': obj.seats_remaining,
             'at_risk': obj.at_risk_count,
         }
-    
+
     def get_progress(self, obj):
         return {
             'avg_readiness': float(obj.avg_readiness) if obj.avg_readiness else None,
             'completion_pct': float(obj.completion_pct) if obj.completion_pct else None,
             'portfolio_health': float(obj.portfolio_health_avg) if obj.portfolio_health_avg else None,
         }
-    
+
     def get_budget(self, obj):
         # TODO: Integrate with billing service
         return {
@@ -135,7 +136,7 @@ class SponsorCohortDetailSerializer(serializers.ModelSerializer):
             'spent': None,
             'remaining': None,
         }
-    
+
     def get_shared_profiles(self, obj):
         """Count of students with consent_employer_share=True."""
         return SponsorStudentAggregates.objects.filter(
@@ -143,11 +144,11 @@ class SponsorCohortDetailSerializer(serializers.ModelSerializer):
             cohort=obj.cohort,
             consent_employer_share=True
         ).count()
-    
+
     def get_next_events(self, obj):
         """Return upcoming events."""
         return obj.upcoming_events or []
-    
+
     def get_top_graduates(self, obj):
         """Return count of top graduates."""
         return obj.graduates_count
@@ -156,7 +157,7 @@ class SponsorCohortDetailSerializer(serializers.ModelSerializer):
 class SponsorStudentAggregateSerializer(serializers.ModelSerializer):
     """Serializer for sponsor student aggregates (consent-gated)."""
     student_id = serializers.UUIDField(source='student.id', read_only=True)
-    
+
     class Meta:
         model = SponsorStudentAggregates
         fields = [
@@ -172,7 +173,7 @@ class SponsorStudentAggregateSerializer(serializers.ModelSerializer):
 class SponsorCodeSerializer(serializers.ModelSerializer):
     """Serializer for sponsor codes."""
     is_valid = serializers.BooleanField(read_only=True)
-    
+
     class Meta:
         model = SponsorCode
         fields = [

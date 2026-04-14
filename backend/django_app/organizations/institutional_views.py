@@ -1,28 +1,25 @@
 """
 Institutional Billing Views - API endpoints for contract management and billing.
 """
-from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.shortcuts import get_object_or_404
-from django.utils import timezone
-from django.db.models import Q, Sum, Count
-from datetime import date, timedelta
 import logging
+from datetime import date, timedelta
+
+from django.db.models import Q, Sum
+from django.shortcuts import get_object_or_404
+from programs.permissions import IsFinanceUser, IsProgramDirector
+from rest_framework import status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from .institutional_models import (
-    InstitutionalContract,
     InstitutionalBilling,
-    InstitutionalSeatAdjustment,
+    InstitutionalBillingSchedule,
+    InstitutionalContract,
     InstitutionalStudent,
-    InstitutionalBillingSchedule
 )
 from .institutional_service import InstitutionalBillingService
 from .models import Organization
-from .serializers import OrganizationSerializer
-from users.models import User
-from programs.permissions import IsProgramDirector, IsFinanceUser
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +30,11 @@ class InstitutionalContractViewSet(viewsets.ModelViewSet):
     Supports CRUD operations and contract lifecycle management.
     """
     permission_classes = [IsAuthenticated, IsProgramDirector]
-    
+
     def get_queryset(self):
         """Filter contracts based on user permissions"""
         return InstitutionalContract.objects.select_related('organization').all()
-    
+
     def list(self, request):
         """
         GET /api/v1/institutional/contracts/
@@ -45,24 +42,24 @@ class InstitutionalContractViewSet(viewsets.ModelViewSet):
         """
         try:
             queryset = self.get_queryset()
-            
+
             # Apply filters
             status_filter = request.query_params.get('status')
             if status_filter:
                 queryset = queryset.filter(status=status_filter)
-            
+
             organization_id = request.query_params.get('organization_id')
             if organization_id:
                 queryset = queryset.filter(organization_id=organization_id)
-            
+
             # Pagination
             page_size = int(request.query_params.get('page_size', 20))
             page = int(request.query_params.get('page', 1))
             offset = (page - 1) * page_size
-            
+
             total_count = queryset.count()
             contracts = queryset[offset:offset + page_size]
-            
+
             contracts_data = []
             for contract in contracts:
                 # Get basic analytics
@@ -70,7 +67,7 @@ class InstitutionalContractViewSet(viewsets.ModelViewSet):
                 total_invoiced = contract.billing_records.aggregate(
                     total=Sum('total_amount')
                 )['total'] or 0
-                
+
                 contracts_data.append({
                     'id': str(contract.id),
                     'contract_number': contract.contract_number,
@@ -93,7 +90,7 @@ class InstitutionalContractViewSet(viewsets.ModelViewSet):
                     'is_renewable': contract.is_renewable,
                     'created_at': contract.created_at.isoformat()
                 })
-            
+
             return Response({
                 'contracts': contracts_data,
                 'pagination': {
@@ -103,14 +100,14 @@ class InstitutionalContractViewSet(viewsets.ModelViewSet):
                     'total_pages': (total_count + page_size - 1) // page_size
                 }
             })
-            
+
         except Exception as e:
             logger.error(f"Error listing contracts: {str(e)}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-    
+
     def create(self, request):
         """
         POST /api/v1/institutional/contracts/
@@ -118,7 +115,7 @@ class InstitutionalContractViewSet(viewsets.ModelViewSet):
         """
         try:
             data = request.data
-            
+
             # Validate required fields
             required_fields = ['organization_id', 'student_seat_count', 'billing_contact_name', 'billing_contact_email']
             for field in required_fields:
@@ -127,7 +124,7 @@ class InstitutionalContractViewSet(viewsets.ModelViewSet):
                         {'error': f'{field} is required'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-            
+
             # Get organization
             try:
                 organization = Organization.objects.get(id=data['organization_id'])
@@ -136,7 +133,7 @@ class InstitutionalContractViewSet(viewsets.ModelViewSet):
                     {'error': 'Organization not found'},
                     status=status.HTTP_404_NOT_FOUND
                 )
-            
+
             # Create contract
             contract = InstitutionalBillingService.create_contract(
                 organization=organization,
@@ -151,20 +148,20 @@ class InstitutionalContractViewSet(viewsets.ModelViewSet):
                 start_date=data.get('start_date'),
                 created_by=request.user
             )
-            
+
             return Response({
                 'id': str(contract.id),
                 'contract_number': contract.contract_number,
                 'message': f'Contract {contract.contract_number} created successfully'
             }, status=status.HTTP_201_CREATED)
-            
+
         except Exception as e:
             logger.error(f"Error creating contract: {str(e)}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-    
+
     def retrieve(self, request, pk=None):
         """
         GET /api/v1/institutional/contracts/{id}/
@@ -173,7 +170,7 @@ class InstitutionalContractViewSet(viewsets.ModelViewSet):
         try:
             contract = get_object_or_404(InstitutionalContract, id=pk)
             analytics = InstitutionalBillingService.get_contract_analytics(contract.id)
-            
+
             # Get recent invoices
             recent_invoices = contract.billing_records.order_by('-invoice_date')[:5]
             invoices_data = []
@@ -188,7 +185,7 @@ class InstitutionalContractViewSet(viewsets.ModelViewSet):
                     'is_overdue': invoice.is_overdue,
                     'days_overdue': invoice.days_overdue
                 })
-            
+
             # Get seat adjustments
             adjustments = contract.seat_adjustments.order_by('-created_at')[:10]
             adjustments_data = []
@@ -204,7 +201,7 @@ class InstitutionalContractViewSet(viewsets.ModelViewSet):
                     'reason': adj.reason,
                     'created_at': adj.created_at.isoformat()
                 })
-            
+
             contract_data = {
                 'id': str(contract.id),
                 'contract_number': contract.contract_number,
@@ -235,16 +232,16 @@ class InstitutionalContractViewSet(viewsets.ModelViewSet):
                 'recent_invoices': invoices_data,
                 'seat_adjustments': adjustments_data
             }
-            
+
             return Response(contract_data)
-            
+
         except Exception as e:
             logger.error(f"Error retrieving contract {pk}: {str(e)}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-    
+
     @action(detail=True, methods=['post'])
     def activate(self, request, pk=None):
         """
@@ -256,20 +253,20 @@ class InstitutionalContractViewSet(viewsets.ModelViewSet):
                 contract_id=pk,
                 signed_by=request.user
             )
-            
+
             return Response({
                 'message': f'Contract {contract.contract_number} activated successfully',
                 'status': contract.status,
                 'signed_at': contract.signed_at.isoformat()
             })
-            
+
         except Exception as e:
             logger.error(f"Error activating contract {pk}: {str(e)}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
-    
+
     @action(detail=True, methods=['post'])
     def adjust_seats(self, request, pk=None):
         """
@@ -281,13 +278,13 @@ class InstitutionalContractViewSet(viewsets.ModelViewSet):
             new_seat_count = data.get('new_seat_count')
             effective_date = data.get('effective_date')
             reason = data.get('reason', '')
-            
+
             if not new_seat_count:
                 return Response(
                     {'error': 'new_seat_count is required'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             adjustment = InstitutionalBillingService.adjust_seat_count(
                 contract_id=pk,
                 new_seat_count=int(new_seat_count),
@@ -295,21 +292,21 @@ class InstitutionalContractViewSet(viewsets.ModelViewSet):
                 reason=reason,
                 created_by=request.user
             )
-            
+
             return Response({
                 'message': f'Seat count adjusted from {adjustment.previous_seat_count} to {adjustment.new_seat_count}',
                 'adjustment_id': str(adjustment.id),
                 'prorated_amount': float(adjustment.prorated_amount),
                 'effective_date': adjustment.effective_date.isoformat()
             })
-            
+
         except Exception as e:
             logger.error(f"Error adjusting seats for contract {pk}: {str(e)}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
-    
+
     @action(detail=True, methods=['post'])
     def enroll_student(self, request, pk=None):
         """
@@ -319,33 +316,33 @@ class InstitutionalContractViewSet(viewsets.ModelViewSet):
         try:
             data = request.data
             user_id = data.get('user_id')
-            
+
             if not user_id:
                 return Response(
                     {'error': 'user_id is required'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
+
             enrollment = InstitutionalBillingService.enroll_student(
                 contract_id=pk,
                 user_id=user_id,
                 enrollment_type='director_enrolled',
                 created_by=request.user
             )
-            
+
             return Response({
                 'message': f'Student {enrollment.user.email} enrolled successfully',
                 'enrollment_id': str(enrollment.id),
                 'enrolled_at': enrollment.enrolled_at.isoformat()
             })
-            
+
         except Exception as e:
             logger.error(f"Error enrolling student in contract {pk}: {str(e)}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
-    
+
     @action(detail=True, methods=['get'])
     def renewal_quote(self, request, pk=None):
         """
@@ -355,15 +352,15 @@ class InstitutionalContractViewSet(viewsets.ModelViewSet):
         try:
             new_seat_count = request.query_params.get('new_seat_count')
             new_billing_cycle = request.query_params.get('new_billing_cycle')
-            
+
             quote = InstitutionalBillingService.generate_contract_renewal_quote(
                 contract_id=pk,
                 new_seat_count=int(new_seat_count) if new_seat_count else None,
                 new_billing_cycle=new_billing_cycle
             )
-            
+
             return Response(quote)
-            
+
         except Exception as e:
             logger.error(f"Error generating renewal quote for contract {pk}: {str(e)}")
             return Response(
@@ -378,13 +375,13 @@ class InstitutionalBillingViewSet(viewsets.ReadOnlyModelViewSet):
     Read-only access to billing records.
     """
     permission_classes = [IsAuthenticated, IsFinanceUser]
-    
+
     def get_queryset(self):
         """Get billing records with related data"""
         return InstitutionalBilling.objects.select_related(
             'contract__organization'
         ).all()
-    
+
     def list(self, request):
         """
         GET /api/v1/institutional/billing/
@@ -392,20 +389,20 @@ class InstitutionalBillingViewSet(viewsets.ReadOnlyModelViewSet):
         """
         try:
             queryset = self.get_queryset()
-            
+
             # Apply filters
             status_filter = request.query_params.get('status')
             if status_filter:
                 queryset = queryset.filter(status=status_filter)
-            
+
             contract_id = request.query_params.get('contract_id')
             if contract_id:
                 queryset = queryset.filter(contract_id=contract_id)
-            
+
             organization_id = request.query_params.get('organization_id')
             if organization_id:
                 queryset = queryset.filter(contract__organization_id=organization_id)
-            
+
             # Date range filter
             start_date = request.query_params.get('start_date')
             end_date = request.query_params.get('end_date')
@@ -413,15 +410,15 @@ class InstitutionalBillingViewSet(viewsets.ReadOnlyModelViewSet):
                 queryset = queryset.filter(invoice_date__gte=start_date)
             if end_date:
                 queryset = queryset.filter(invoice_date__lte=end_date)
-            
+
             # Pagination
             page_size = int(request.query_params.get('page_size', 20))
             page = int(request.query_params.get('page', 1))
             offset = (page - 1) * page_size
-            
+
             total_count = queryset.count()
             invoices = queryset.order_by('-invoice_date')[offset:offset + page_size]
-            
+
             invoices_data = []
             for invoice in invoices:
                 invoices_data.append({
@@ -443,12 +440,12 @@ class InstitutionalBillingViewSet(viewsets.ReadOnlyModelViewSet):
                     'sent_at': invoice.sent_at.isoformat() if invoice.sent_at else None,
                     'paid_at': invoice.paid_at.isoformat() if invoice.paid_at else None
                 })
-            
+
             # Calculate summary stats
             total_amount = queryset.aggregate(total=Sum('total_amount'))['total'] or 0
             paid_amount = queryset.filter(status='paid').aggregate(total=Sum('total_amount'))['total'] or 0
             overdue_amount = queryset.filter(status='overdue').aggregate(total=Sum('total_amount'))['total'] or 0
-            
+
             return Response({
                 'invoices': invoices_data,
                 'summary': {
@@ -464,14 +461,14 @@ class InstitutionalBillingViewSet(viewsets.ReadOnlyModelViewSet):
                     'total_pages': (total_count + page_size - 1) // page_size
                 }
             })
-            
+
         except Exception as e:
             logger.error(f"Error listing billing records: {str(e)}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-    
+
     def retrieve(self, request, pk=None):
         """
         GET /api/v1/institutional/billing/{id}/
@@ -479,7 +476,7 @@ class InstitutionalBillingViewSet(viewsets.ReadOnlyModelViewSet):
         """
         try:
             invoice = get_object_or_404(InstitutionalBilling, id=pk)
-            
+
             invoice_data = {
                 'id': str(invoice.id),
                 'invoice_number': invoice.invoice_number,
@@ -517,16 +514,16 @@ class InstitutionalBillingViewSet(viewsets.ReadOnlyModelViewSet):
                 'pdf_url': invoice.pdf_url,
                 'created_at': invoice.created_at.isoformat()
             }
-            
+
             return Response(invoice_data)
-            
+
         except Exception as e:
             logger.error(f"Error retrieving invoice {pk}: {str(e)}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-    
+
     @action(detail=True, methods=['post'])
     def mark_paid(self, request, pk=None):
         """
@@ -535,25 +532,25 @@ class InstitutionalBillingViewSet(viewsets.ReadOnlyModelViewSet):
         """
         try:
             invoice = get_object_or_404(InstitutionalBilling, id=pk)
-            
+
             payment_method = request.data.get('payment_method', '')
             payment_reference = request.data.get('payment_reference', '')
-            
+
             invoice.mark_as_paid(payment_method, payment_reference)
-            
+
             return Response({
                 'message': f'Invoice {invoice.invoice_number} marked as paid',
                 'paid_at': invoice.paid_at.isoformat(),
                 'status': invoice.status
             })
-            
+
         except Exception as e:
             logger.error(f"Error marking invoice {pk} as paid: {str(e)}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
-    
+
     @action(detail=True, methods=['post'])
     def send_invoice(self, request, pk=None):
         """
@@ -562,7 +559,7 @@ class InstitutionalBillingViewSet(viewsets.ReadOnlyModelViewSet):
         """
         try:
             success = InstitutionalBillingService.send_invoice_email(pk)
-            
+
             if success:
                 return Response({
                     'message': 'Invoice email sent successfully'
@@ -572,7 +569,7 @@ class InstitutionalBillingViewSet(viewsets.ReadOnlyModelViewSet):
                     {'error': 'Failed to send invoice email'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
-                
+
         except Exception as e:
             logger.error(f"Error sending invoice {pk}: {str(e)}")
             return Response(
@@ -694,7 +691,7 @@ def institutional_analytics(request):
         days = int(request.query_params.get('days', 30))
         end_date = date.today()
         start_date = end_date - timedelta(days=days)
-        
+
         # Contract metrics
         total_contracts = InstitutionalContract.objects.count()
         active_contracts = InstitutionalContract.objects.filter(status='active').count()
@@ -702,36 +699,36 @@ def institutional_analytics(request):
             status='active',
             end_date__lte=end_date + timedelta(days=60)
         ).count()
-        
+
         # Revenue metrics
         total_mrr = InstitutionalContract.objects.filter(
             status='active'
         ).aggregate(
             total=Sum('student_seat_count') * Sum('per_student_rate')
         )['total'] or 0
-        
+
         # Invoice metrics
         invoices_in_period = InstitutionalBilling.objects.filter(
             invoice_date__gte=start_date,
             invoice_date__lte=end_date
         )
-        
+
         total_invoiced = invoices_in_period.aggregate(total=Sum('total_amount'))['total'] or 0
         total_paid = invoices_in_period.filter(status='paid').aggregate(total=Sum('total_amount'))['total'] or 0
         total_overdue = InstitutionalBilling.objects.filter(status='overdue').aggregate(total=Sum('total_amount'))['total'] or 0
-        
+
         # Student metrics
         total_licensed_seats = InstitutionalContract.objects.filter(
             status='active'
         ).aggregate(total=Sum('student_seat_count'))['total'] or 0
-        
+
         active_students = InstitutionalStudent.objects.filter(
             is_active=True,
             contract__status='active'
         ).count()
-        
+
         seat_utilization = (active_students / total_licensed_seats * 100) if total_licensed_seats > 0 else 0
-        
+
         # Top organizations by revenue
         top_orgs = InstitutionalContract.objects.filter(
             status='active'
@@ -740,7 +737,7 @@ def institutional_analytics(request):
         ).annotate(
             monthly_revenue=Sum('student_seat_count') * Sum('per_student_rate')
         ).order_by('-monthly_revenue')[:10]
-        
+
         analytics = {
             'period': {
                 'start_date': start_date.isoformat(),
@@ -775,9 +772,9 @@ def institutional_analytics(request):
                 for org in top_orgs
             ]
         }
-        
+
         return Response(analytics)
-        
+
     except Exception as e:
         logger.error(f"Error generating institutional analytics: {str(e)}")
         return Response(
@@ -799,13 +796,13 @@ def process_scheduled_billing(request):
             is_processed=False,
             next_billing_date__lte=date.today()
         )
-        
+
         results = {
             'processed': 0,
             'errors': [],
             'invoices_generated': []
         }
-        
+
         for schedule in pending_schedules:
             try:
                 invoice = InstitutionalBillingService.process_scheduled_billing(schedule.id)
@@ -817,9 +814,9 @@ def process_scheduled_billing(request):
                 })
             except Exception as e:
                 results['errors'].append(f"Schedule {schedule.id}: {str(e)}")
-        
+
         return Response(results)
-        
+
     except Exception as e:
         logger.error(f"Error processing scheduled billing: {str(e)}")
         return Response(

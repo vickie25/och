@@ -1,36 +1,33 @@
 """
 Enhanced finance views with security, analytics, and automation features.
 """
-from decimal import Decimal
 from datetime import timedelta
+from decimal import Decimal
+
+from django.db.models import Count, Sum
 from django.utils import timezone
-from django.db import models
-from django.db.models import Q, Sum, Count, Avg
-from django.http import JsonResponse
-from rest_framework import status, viewsets, permissions
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.views import APIView
-from django.contrib.auth.decorators import permission_required
-from django.utils.decorators import method_decorator
 
-from .models import (
-    Wallet, Transaction, Credit, Contract, TaxRate,
-    MentorPayout, Invoice, Payment
+from .analytics import CustomerMetrics, FinancialAnalytics, RevenueStream
+from .audit import (
+    AuditLog,
+    ComplianceReport,
+    SecurityEvent,
+    log_financial_action,
+    log_security_event,
 )
+from .automation import DunningSequence, FinancialAutomation, PaymentRetryAttempt
+from .models import Wallet
 from .serializers import (
-    WalletSerializer, TransactionSerializer, CreditSerializer,
-    ContractSerializer, TaxRateSerializer, MentorPayoutSerializer,
-    InvoiceSerializer, PaymentSerializer
+    WalletSerializer,
 )
-from .audit import AuditLog, SecurityEvent, ComplianceReport, log_financial_action, log_security_event
-from .analytics import FinancialMetric, RevenueStream, CustomerMetrics, FinancialAnalytics
-from .automation import DunningSequence, PaymentRetryAttempt, FinancialAutomation
 
 
 class SecurityMixin:
     """Mixin to add security logging to financial operations."""
-    
+
     def dispatch(self, request, *args, **kwargs):
         # Log financial data access
         if hasattr(self, 'get_queryset'):
@@ -43,9 +40,9 @@ class SecurityMixin:
                 request=request,
                 risk_level='low'
             )
-        
+
         return super().dispatch(request, *args, **kwargs)
-    
+
     def perform_create(self, serializer):
         instance = serializer.save()
         log_financial_action(
@@ -58,11 +55,11 @@ class SecurityMixin:
             request=self.request,
             risk_level='medium'
         )
-    
+
     def perform_update(self, serializer):
         old_instance = self.get_object()
         old_values = {field.name: getattr(old_instance, field.name) for field in old_instance._meta.fields}
-        
+
         instance = serializer.save()
         log_financial_action(
             user=self.request.user,
@@ -75,7 +72,7 @@ class SecurityMixin:
             request=self.request,
             risk_level='medium'
         )
-    
+
     def perform_destroy(self, instance):
         log_financial_action(
             user=self.request.user,
@@ -94,12 +91,12 @@ class EnhancedWalletViewSet(SecurityMixin, viewsets.ModelViewSet):
     serializer_class = WalletSerializer
     permission_classes = [permissions.IsAuthenticated]
     audit_entity_type = 'wallet'
-    
+
     def get_queryset(self):
         if self.request.user.is_staff:
             return Wallet.objects.all()
         return Wallet.objects.filter(user=self.request.user)
-    
+
     @action(detail=True, methods=['post'])
     def top_up(self, request, pk=None):
         """Add balance to wallet with enhanced security."""
@@ -114,11 +111,11 @@ class EnhancedWalletViewSet(SecurityMixin, viewsets.ModelViewSet):
                 event_data={'wallet_id': str(wallet.id), 'wallet_owner': wallet.user.email}
             )
             return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-        
+
         amount = request.data.get('amount')
         if not amount or float(amount) <= 0:
             return Response({'error': 'Invalid amount'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Security check for large amounts
         if float(amount) > 10000:
             log_security_event(
@@ -129,10 +126,10 @@ class EnhancedWalletViewSet(SecurityMixin, viewsets.ModelViewSet):
                 request=request,
                 event_data={'amount': amount, 'wallet_id': str(wallet.id)}
             )
-        
+
         description = request.data.get('description', 'Wallet top-up')
         wallet.add_balance(Decimal(str(amount)), description)
-        
+
         return Response({
             'message': 'Wallet topped up successfully',
             'new_balance': wallet.balance
@@ -142,7 +139,7 @@ class EnhancedWalletViewSet(SecurityMixin, viewsets.ModelViewSet):
 class AnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
     """Financial analytics and reporting endpoints."""
     permission_classes = [permissions.IsAuthenticated]
-    
+
     @action(detail=False, methods=['get'])
     def revenue_dashboard(self, request):
         """Get comprehensive revenue dashboard data."""
@@ -247,7 +244,7 @@ class AnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
             'dunning_recovery': dunning_recovery,
             'subscriptions': subscriptions,
         })
-    
+
     @action(detail=False, methods=['get'])
     def customer_metrics(self, request):
         """Get customer financial metrics."""
@@ -319,29 +316,29 @@ class AnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
             'subscription_payment_leaders': subscription_payment_leaders,
             'subscription_payment_currency': 'KES',
         })
-    
+
     @action(detail=False, methods=['get'])
     def institution_roi(self, request):
         """Get ROI metrics for institutions."""
         organization_id = request.query_params.get('organization_id')
         if not organization_id:
             return Response({'error': 'organization_id required'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Check permissions
         if not request.user.is_staff:
             # Check if user belongs to the organization
             user_orgs = request.user.organizations.all()
             if not user_orgs.filter(id=organization_id).exists():
                 return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-        
+
         days = int(request.query_params.get('days', 90))
         end_date = timezone.now()
         start_date = end_date - timedelta(days=days)
-        
+
         roi_metrics = FinancialAnalytics.calculate_institution_roi(
             organization_id, start_date, end_date
         )
-        
+
         return Response(roi_metrics)
 
 
@@ -350,7 +347,7 @@ class ComplianceViewSet(viewsets.ReadOnlyModelViewSet):
     # In this implementation we allow any authenticated finance user
     # to view compliance dashboards. Tighten to IsAdminUser in production if needed.
     permission_classes = [permissions.IsAuthenticated]
-    
+
     @action(detail=False, methods=['get'])
     def audit_trail(self, request):
         """Get audit trail with filtering."""
@@ -360,10 +357,10 @@ class ComplianceViewSet(viewsets.ReadOnlyModelViewSet):
         user_id = request.query_params.get('user_id')
         risk_level = request.query_params.get('risk_level')
         days = int(request.query_params.get('days', 30))
-        
+
         # Build query
         queryset = AuditLog.objects.all()
-        
+
         if entity_type:
             queryset = queryset.filter(entity_type=entity_type)
         if entity_id:
@@ -372,19 +369,19 @@ class ComplianceViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(user_id=user_id)
         if risk_level:
             queryset = queryset.filter(risk_level=risk_level)
-        
+
         # Date range
         start_date = timezone.now() - timedelta(days=days)
         queryset = queryset.filter(timestamp__gte=start_date)
-        
+
         # Paginate
         page_size = int(request.query_params.get('page_size', 50))
         page = int(request.query_params.get('page', 1))
         offset = (page - 1) * page_size
-        
+
         total_count = queryset.count()
         audit_logs = queryset[offset:offset + page_size]
-        
+
         results_payload = []
         for log in audit_logs:
             # Core audit model (users.audit_models.AuditLog) uses actor_identifier/resource_type/resource_id/metadata
@@ -431,7 +428,7 @@ class ComplianceViewSet(viewsets.ReadOnlyModelViewSet):
             'page_size': page_size,
             'results': results_payload,
         })
-    
+
     @action(detail=False, methods=['get'])
     def security_events(self, request):
         """Get security events."""
@@ -439,21 +436,21 @@ class ComplianceViewSet(viewsets.ReadOnlyModelViewSet):
         event_type = request.query_params.get('event_type')
         is_resolved = request.query_params.get('is_resolved')
         days = int(request.query_params.get('days', 7))
-        
+
         queryset = SecurityEvent.objects.all()
-        
+
         if severity:
             queryset = queryset.filter(severity=severity)
         if event_type:
             queryset = queryset.filter(event_type=event_type)
         if is_resolved is not None:
             queryset = queryset.filter(is_resolved=is_resolved.lower() == 'true')
-        
+
         start_date = timezone.now() - timedelta(days=days)
         queryset = queryset.filter(detected_at__gte=start_date)
-        
+
         events = queryset[:100]  # Limit to 100 recent events
-        
+
         return Response({
             'total_count': queryset.count(),
             'events': [
@@ -470,20 +467,20 @@ class ComplianceViewSet(viewsets.ReadOnlyModelViewSet):
                 for event in events
             ]
         })
-    
+
     @action(detail=False, methods=['post'])
     def generate_compliance_report(self, request):
         """Generate compliance report."""
         report_type = request.data.get('report_type')
         period_start = request.data.get('period_start')
         period_end = request.data.get('period_end')
-        
+
         if not all([report_type, period_start, period_end]):
             return Response(
                 {'error': 'report_type, period_start, and period_end are required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Generate report data based on type
         if report_type == 'pci_dss':
             report_data = generate_pci_compliance_report(period_start, period_end)
@@ -493,7 +490,7 @@ class ComplianceViewSet(viewsets.ReadOnlyModelViewSet):
             report_data = generate_audit_trail_report(period_start, period_end)
         else:
             return Response({'error': 'Invalid report type'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Create compliance report record
         report = ComplianceReport.objects.create(
             report_type=report_type,
@@ -506,7 +503,7 @@ class ComplianceViewSet(viewsets.ReadOnlyModelViewSet):
             critical_issues=report_data.get('critical_issues', 0),
             generated_by=request.user
         )
-        
+
         return Response({
             'report_id': str(report.id),
             'report_type': report.report_type,
@@ -520,21 +517,21 @@ class ComplianceViewSet(viewsets.ReadOnlyModelViewSet):
 class AutomationViewSet(viewsets.ReadOnlyModelViewSet):
     """Financial automation monitoring and control."""
     permission_classes = [permissions.IsAdminUser]
-    
+
     @action(detail=False, methods=['get'])
     def dunning_dashboard(self, request):
         """Get dunning management dashboard."""
         # Active dunning sequences
         active_sequences = DunningSequence.objects.filter(status='active')
-        
+
         # Recovery metrics
         recovery_metrics = FinancialAutomation.calculate_dunning_recovery_rate()
-        
+
         # Recent retry attempts
         recent_attempts = PaymentRetryAttempt.objects.filter(
             attempted_at__gte=timezone.now() - timedelta(days=7)
         ).order_by('-attempted_at')[:50]
-        
+
         return Response({
             'active_sequences': {
                 'count': active_sequences.count(),
@@ -568,19 +565,19 @@ class AutomationViewSet(viewsets.ReadOnlyModelViewSet):
                 for attempt in recent_attempts
             ]
         })
-    
+
     @action(detail=False, methods=['get'])
     def payment_success_monitoring(self, request):
         """Monitor payment success rates."""
         days = int(request.query_params.get('days', 7))
-        
+
         # Daily success rates for the period
         daily_rates = []
         for i in range(days):
             date = timezone.now().date() - timedelta(days=i)
             start_datetime = timezone.make_aware(datetime.combine(date, datetime.min.time()))
             end_datetime = start_datetime + timedelta(days=1)
-            
+
             metrics = FinancialAutomation.calculate_payment_success_rate(start_datetime, end_datetime)
             daily_rates.append({
                 'date': date,
@@ -588,14 +585,14 @@ class AutomationViewSet(viewsets.ReadOnlyModelViewSet):
                 'total_payments': metrics['total_payments'],
                 'successful_payments': metrics['successful_payments']
             })
-        
+
         # Overall metrics
         overall_metrics = FinancialAutomation.calculate_payment_success_rate()
-        
+
         # Alert if below threshold
         alert_threshold = 95.0
         needs_attention = overall_metrics['success_rate'] < alert_threshold
-        
+
         return Response({
             'overall_metrics': overall_metrics,
             'daily_rates': daily_rates,
@@ -612,16 +609,16 @@ def generate_pci_compliance_report(period_start, period_end):
         is_pci_relevant=True,
         timestamp__range=[period_start, period_end]
     )
-    
+
     # Check for payment-related security events
     payment_events = SecurityEvent.objects.filter(
         event_type__in=['payment_fraud', 'suspicious_transaction'],
         detected_at__range=[period_start, period_end]
     )
-    
+
     compliance_score = 95.0  # Placeholder calculation
     issues_found = payment_events.filter(severity__in=['high', 'critical']).count()
-    
+
     return {
         'summary': f'PCI-DSS compliance report for {period_start} to {period_end}',
         'compliance_score': compliance_score,
@@ -638,9 +635,9 @@ def generate_gdpr_compliance_report(period_start, period_end):
         is_gdpr_relevant=True,
         timestamp__range=[period_start, period_end]
     )
-    
+
     compliance_score = 98.0  # Placeholder calculation
-    
+
     return {
         'summary': f'GDPR compliance report for {period_start} to {period_end}',
         'compliance_score': compliance_score,
@@ -655,12 +652,12 @@ def generate_audit_trail_report(period_start, period_end):
     total_logs = AuditLog.objects.filter(
         timestamp__range=[period_start, period_end]
     ).count()
-    
+
     high_risk_logs = AuditLog.objects.filter(
         timestamp__range=[period_start, period_end],
         risk_level__in=['high', 'critical']
     ).count()
-    
+
     return {
         'summary': f'Audit trail report for {period_start} to {period_end}',
         'compliance_score': 100.0,

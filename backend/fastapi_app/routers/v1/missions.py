@@ -1,13 +1,13 @@
 """
 FastAPI router for student missions endpoints.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from typing import Optional, List
-from pydantic import BaseModel, Field
 from datetime import datetime
 from uuid import UUID
+
 import httpx
 from config import settings
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/student/missions", tags=["student-missions"])
 
@@ -16,28 +16,28 @@ class MissionSubmissionResponse(BaseModel):
     id: UUID
     mission_id: UUID
     status: str
-    ai_score: Optional[float] = None
-    mentor_score: Optional[float] = None
-    notes: Optional[str] = None
-    submitted_at: Optional[datetime] = None
-    ai_reviewed_at: Optional[datetime] = None
-    mentor_reviewed_at: Optional[datetime] = None
+    ai_score: float | None = None
+    mentor_score: float | None = None
+    notes: str | None = None
+    submitted_at: datetime | None = None
+    ai_reviewed_at: datetime | None = None
+    mentor_reviewed_at: datetime | None = None
 
 
 class MissionArtifactResponse(BaseModel):
     id: UUID
     kind: str
     url: str
-    filename: Optional[str] = None
-    size_bytes: Optional[int] = None
+    filename: str | None = None
+    size_bytes: int | None = None
 
 
 class AIFeedbackResponse(BaseModel):
     id: UUID
     score: float
-    strengths: List[str]
-    gaps: List[str]
-    suggestions: List[str]
+    strengths: list[str]
+    gaps: list[str]
+    suggestions: list[str]
     competencies_detected: dict
     created_at: datetime
 
@@ -49,13 +49,13 @@ class MissionResponse(BaseModel):
     description: str
     difficulty: str
     type: str
-    estimated_time_minutes: Optional[int] = None
-    track_key: Optional[str] = None
-    competencies: List[str]
+    estimated_time_minutes: int | None = None
+    track_key: str | None = None
+    competencies: list[str]
     created_at: datetime
-    submission: Optional[MissionSubmissionResponse] = None
-    artifacts: List[MissionArtifactResponse] = []
-    ai_feedback: Optional[AIFeedbackResponse] = None
+    submission: MissionSubmissionResponse | None = None
+    artifacts: list[MissionArtifactResponse] = []
+    ai_feedback: AIFeedbackResponse | None = None
 
 
 class MissionFunnelResponse(BaseModel):
@@ -68,23 +68,23 @@ class MissionFunnelResponse(BaseModel):
     approved: int
     failed: int
     approval_rate: float
-    priority_missions: List[MissionResponse]
+    priority_missions: list[MissionResponse]
 
 
 class SubmissionCreateRequest(BaseModel):
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class SubmissionUpdateRequest(BaseModel):
-    notes: Optional[str] = None
-    status: Optional[str] = None
+    notes: str | None = None
+    status: str | None = None
 
 
 class ArtifactCreateRequest(BaseModel):
     kind: str
     url: str
-    filename: Optional[str] = None
-    size_bytes: Optional[int] = None
+    filename: str | None = None
+    size_bytes: int | None = None
 
 
 async def get_current_user_id() -> UUID:
@@ -110,11 +110,11 @@ async def get_mission_funnel(user_id: UUID = Depends(get_current_user_id)):
             )
 
 
-@router.get("", response_model=List[MissionResponse])
+@router.get("", response_model=list[MissionResponse])
 async def list_missions(
-    status: Optional[str] = Query(None),
-    difficulty: Optional[str] = Query(None),
-    track_key: Optional[str] = Query(None),
+    status: str | None = Query(None),
+    difficulty: str | None = Query(None),
+    track_key: str | None = Query(None),
     user_id: UUID = Depends(get_current_user_id)
 ):
     """List missions with optional filters."""
@@ -127,7 +127,7 @@ async def list_missions(
                 params["difficulty"] = difficulty
             if track_key:
                 params["track_key"] = track_key
-            
+
             response = await client.get(
                 f"{settings.DJANGO_API_URL}/api/v1/student/missions",
                 params=params,
@@ -209,7 +209,7 @@ async def update_submission(
             )
 
 
-@router.post("/submissions/{submission_id}/artifacts", response_model=List[MissionArtifactResponse])
+@router.post("/submissions/{submission_id}/artifacts", response_model=list[MissionArtifactResponse])
 async def create_artifact(
     submission_id: UUID,
     request: ArtifactCreateRequest,

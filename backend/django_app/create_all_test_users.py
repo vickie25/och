@@ -5,16 +5,18 @@ Run: python create_all_test_users.py
 """
 import os
 import sys
+
 import django
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from django.contrib.auth import get_user_model
-from users.models import Role, UserRole
-from django.db.models.signals import post_save
 from community import signals
+from django.contrib.auth import get_user_model
+from django.db.models.signals import post_save
+
+from users.models import Role, UserRole
 
 User = get_user_model()
 
@@ -37,7 +39,7 @@ try:
     for user_data in test_users:
         role_name = user_data.pop('role')
         email = user_data['email']
-        
+
         try:
             user = User.objects.get(email=email)
             user.set_password(password)
@@ -58,7 +60,7 @@ try:
                 **user_data
             )
             print(f'✓ Created: {email} ({role_name})')
-        
+
         # Assign role
         role, _ = Role.objects.get_or_create(name=role_name)
         UserRole.objects.get_or_create(
@@ -67,9 +69,9 @@ try:
             defaults={'scope': 'global', 'is_active': True}
         )
 
-    print(f'\n✅ All test users ready!')
+    print('\n✅ All test users ready!')
     print(f'Password for all users: {password}')
-    print(f'\nTest credentials:')
+    print('\nTest credentials:')
     for user_data in test_users:
         print(f'  - {user_data["email"]} / {password}')
 finally:

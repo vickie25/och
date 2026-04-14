@@ -1,9 +1,9 @@
 """Aggregated financial metrics for cohort managers (directors/coordinators)."""
 from decimal import Decimal
-from django.db.models import Sum, Count, Q
 
-from programs.models import Cohort, Enrollment
 from cohorts.models import CohortPayment
+from django.db.models import Count, Sum
+from programs.models import Cohort, Enrollment
 
 
 def _user_has_finance_rbac(user) -> bool:

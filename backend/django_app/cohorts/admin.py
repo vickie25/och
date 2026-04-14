@@ -2,15 +2,16 @@
 Cohorts Admin Configuration.
 """
 from django.contrib import admin
+
 from .models import (
     CohortDayMaterial,
-    CohortMaterialProgress,
     CohortExam,
     CohortExamSubmission,
     CohortGrade,
-    CohortPeerMessage,
+    CohortMaterialProgress,
     CohortMentorMessage,
-    CohortPayment
+    CohortPayment,
+    CohortPeerMessage,
 )
 
 

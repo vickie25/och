@@ -1,10 +1,12 @@
 """
 Organization serializers for DRF.
 """
-from rest_framework import serializers
 from django.utils import timezone
-from .models import Organization, OrganizationMember
+from rest_framework import serializers
+
 from users.serializers import UserSerializer
+
+from .models import Organization, OrganizationMember
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
@@ -17,7 +19,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
     slug = serializers.SlugField(required=False, allow_blank=True)
     enrollment_status = serializers.SerializerMethodField()
     enrollment_status_label = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Organization
         fields = [
@@ -50,7 +52,8 @@ class OrganizationSerializer(serializers.ModelSerializer):
         - pending_contract_creation: no contract yet
         """
         from finance.models import Contract, Invoice
-        from organizations.institutional_models import InstitutionalContract, InstitutionalBilling
+
+        from organizations.institutional_models import InstitutionalBilling, InstitutionalContract
 
         today = timezone.now().date()
 
@@ -96,18 +99,18 @@ class OrganizationSerializer(serializers.ModelSerializer):
             'pending_invoice_payment': 'Pending invoice payment',
         }
         return labels.get(status_value, status_value)
-    
+
     def validate(self, attrs):
         """Auto-generate slug from name if not provided."""
         from django.utils.text import slugify
-        
+
         # If slug is not provided or empty, generate it from name
         if not attrs.get('slug'):
             name = attrs.get('name', '')
             if name:
                 base_slug = slugify(name)[:50]  # Limit to 50 chars
                 slug = base_slug
-                
+
                 # Ensure uniqueness by appending number if needed
                 model = self.Meta.model
                 counter = 1
@@ -122,9 +125,9 @@ class OrganizationSerializer(serializers.ModelSerializer):
                     else:
                         slug = f"{base_slug}-{counter}"[:50]
                         counter += 1
-                
+
                 attrs['slug'] = slug
-        
+
         return attrs
 
 
@@ -134,7 +137,7 @@ class OrganizationMemberSerializer(serializers.ModelSerializer):
     """
     user = UserSerializer(read_only=True)
     organization = OrganizationSerializer(read_only=True)
-    
+
     class Meta:
         model = OrganizationMember
         fields = [

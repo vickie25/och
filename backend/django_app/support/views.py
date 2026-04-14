@@ -1,31 +1,31 @@
-from typing import Optional
 
-from rest_framework import viewsets, status, filters
-from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Q
 import secrets
 import time
+
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.mail import send_mail
+from django.db.models import Q
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
-from django.contrib.auth import get_user_model
-from django.contrib.auth import get_user_model
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+
 from users.permissions import IsSupportOrDirectorOrAdmin
 from users.utils.auth_utils import create_user_session
-from users.utils.audit_utils import log_audit_event
+
 from .models import ProblemCode, SupportTicket, SupportTicketResponse
 from .serializers import (
     ProblemCodeSerializer,
-    SupportTicketListSerializer,
-    SupportTicketDetailSerializer,
     SupportTicketCreateUpdateSerializer,
-    SupportTicketResponseSerializer,
+    SupportTicketDetailSerializer,
+    SupportTicketListSerializer,
     SupportTicketResponseCreateSerializer,
+    SupportTicketResponseSerializer,
 )
 
 
@@ -204,7 +204,7 @@ def _set_impersonation(code: str, payload: dict) -> None:
     _impersonation_store[code] = (payload, time.monotonic() + _IMPERSONATION_TTL_SECONDS)
 
 
-def _get_impersonation(code: str) -> Optional[dict]:
+def _get_impersonation(code: str) -> dict | None:
     payload = cache.get(f'impersonate:{code}')
     if payload is not None:
         return payload
@@ -251,8 +251,9 @@ def impersonate_user(request, user_id):
     except ValueError as e:
         return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     # Log so the *target user* sees it when they view their activity (user=target)
-    from users.audit_models import AuditLog
     from django.utils import timezone
+
+    from users.audit_models import AuditLog
     try:
         AuditLog.objects.create(
             user=target,

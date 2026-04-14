@@ -16,10 +16,8 @@ Missions are created with proper difficulty progression and locking based on use
 
 import os
 import sys
+
 import django
-from decimal import Decimal
-import uuid
-from datetime import datetime
 
 # Setup Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
@@ -27,7 +25,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 django.setup()
 
 from missions.models import Mission
-from django.utils import timezone
 
 
 def create_defender_track_missions():
@@ -269,7 +266,7 @@ def create_defender_track_missions():
             'requires_mentor_review': True
         }
     ]
-    
+
     return missions
 
 
@@ -425,7 +422,7 @@ def create_offensive_track_missions():
             'requires_mentor_review': True
         }
     ]
-    
+
     return missions
 
 
@@ -581,7 +578,7 @@ def create_grc_track_missions():
             'requires_mentor_review': True
         }
     ]
-    
+
     return missions
 
 
@@ -737,7 +734,7 @@ def create_innovation_track_missions():
             'requires_mentor_review': True
         }
     ]
-    
+
     return missions
 
 
@@ -902,7 +899,7 @@ def create_leadership_track_missions():
             'requires_mentor_review': True
         }
     ]
-    
+
     return missions
 
 
@@ -911,43 +908,43 @@ def seed_missions():
     print("\n" + "="*80)
     print("TIER 7 MISSION ENGINE - TEST DATA SEEDING")
     print("="*80)
-    
+
     all_missions = []
-    
+
     # Collect all missions from each track
     print("\n📍 Defender Track Missions...")
     defender_missions = create_defender_track_missions()
     all_missions.extend(defender_missions)
     print(f"   ✓ Created {len(defender_missions)} missions")
-    
+
     print("\n🔍 Offensive Track Missions...")
     offensive_missions = create_offensive_track_missions()
     all_missions.extend(offensive_missions)
     print(f"   ✓ Created {len(offensive_missions)} missions")
-    
+
     print("\n📋 GRC Track Missions...")
     grc_missions = create_grc_track_missions()
     all_missions.extend(grc_missions)
     print(f"   ✓ Created {len(grc_missions)} missions")
-    
+
     print("\n⚙️  Innovation Track Missions...")
     innovation_missions = create_innovation_track_missions()
     all_missions.extend(innovation_missions)
     print(f"   ✓ Created {len(innovation_missions)} missions")
-    
+
     print("\n👔 Leadership Track Missions...")
     leadership_missions = create_leadership_track_missions()
     all_missions.extend(leadership_missions)
     print(f"   ✓ Created {len(leadership_missions)} missions")
-    
+
     print(f"\n{'='*80}")
     print(f"TOTAL MISSIONS TO CREATE: {len(all_missions)}")
     print(f"{'='*80}\n")
-    
+
     # Create missions in database
     created_count = 0
     skipped_count = 0
-    
+
     for mission_data in all_missions:
         try:
             mission, created = Mission.objects.update_or_create(
@@ -972,41 +969,41 @@ def seed_missions():
                     'is_active': True
                 }
             )
-            
+
             if created:
                 created_count += 1
                 status = "✨ CREATED"
             else:
                 skipped_count += 1
                 status = "🔄 UPDATED"
-            
+
             print(f"{status} | {mission_data['code']} | {mission_data['title'][:40]}")
-        
+
         except Exception as e:
             print(f"❌ ERROR | {mission_data['code']} | {str(e)}")
-    
+
     print(f"\n{'='*80}")
-    print(f"SUMMARY:")
+    print("SUMMARY:")
     print(f"  ✨ Created: {created_count}")
     print(f"  🔄 Updated: {skipped_count}")
     print(f"  {'='*80}\n")
-    
+
     # Print summary by track
     print("📊 MISSIONS BY TRACK:\n")
     for track in ['defender', 'offensive', 'grc', 'innovation', 'leadership']:
         count = Mission.objects.filter(track=track).count()
         print(f"  {track.upper():12} | {count} missions")
-    
+
     # Print summary by tier
     print("\n📊 MISSIONS BY TIER:\n")
     for tier in ['beginner', 'intermediate', 'advanced']:
         count = Mission.objects.filter(tier=tier).count()
         print(f"  {tier.upper():12} | {count} missions")
-    
+
     print("\n" + "="*80)
     print("✅ MISSION SEEDING COMPLETE")
     print("="*80 + "\n")
-    
+
     # Print instructions for testing
     print("🧪 TESTING INSTRUCTIONS:\n")
     print("1. Access the missions dashboard:")

@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """Extract billing module pages from SMP Technical Specs."""
-import PyPDF2
-import sys
 import io
+import sys
+
+import PyPDF2
 
 # Set UTF-8 encoding for output
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')

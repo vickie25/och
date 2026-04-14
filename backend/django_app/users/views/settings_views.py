@@ -2,12 +2,12 @@
 User Settings API Views
 Handles user preferences and settings like portfolio visibility
 """
+import logging
+
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-import json
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -18,21 +18,21 @@ def user_settings(request):
     """
     GET /api/v1/settings
     PATCH /api/v1/settings
-    
+
     Get or update user settings (portfolio visibility, etc.)
     """
     user = request.user
-    
+
     if request.method == 'GET':
         # Get user settings from user.metadata JSONField
         settings = {}
         community_profile = {}
-        
+
         # Get from user.metadata (now that we've added the field)
         if user.metadata and isinstance(user.metadata, dict):
             settings = user.metadata.get('settings', {})
             community_profile = user.metadata.get('community_profile', {})
-        
+
         # Return defaults if not set
         default_settings = {
             'portfolioVisibility': 'private',  # Default to private
@@ -43,28 +43,28 @@ def user_settings(request):
 
         if community_profile and isinstance(community_profile, dict):
             default_settings['communityDisplayName'] = community_profile.get('display_name')
-        
+
         # Merge with defaults
         result = {**default_settings, **settings}
-        
+
         return Response(result, status=status.HTTP_200_OK)
-    
+
     elif request.method == 'PATCH':
         # Update user settings
         updates = request.data
-        
+
         # Get current settings from metadata
         current_settings = {}
         if user.metadata and isinstance(user.metadata, dict) and 'settings' in user.metadata:
             current_settings = user.metadata['settings']
-        
+
         # Merge updates
         updated_settings = {**current_settings, **updates}
 
         community_display_name = updates.get('communityDisplayName', None)
         country = updates.get('country', None)
         tz = updates.get('timezone', None)
-        
+
         # Validate portfolioVisibility
         if 'portfolioVisibility' in updates:
             valid_values = ['private', 'public', 'unlisted']
@@ -99,7 +99,7 @@ def user_settings(request):
                     {'detail': 'timezone is too long (max 50 characters)'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-        
+
         # Save to user.metadata
         try:
             # Ensure metadata is a dict

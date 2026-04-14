@@ -5,16 +5,18 @@ Run: python create_och_users.py
 """
 import os
 import sys
+
 import django
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from django.contrib.auth import get_user_model
-from users.models import Role, UserRole
-from django.db.models.signals import post_save
 from community import signals
+from django.contrib.auth import get_user_model
+from django.db.models.signals import post_save
+
+from users.models import Role, UserRole
 
 User = get_user_model()
 
@@ -93,7 +95,7 @@ try:
     for user_data in och_users:
         role_name = user_data.pop('role')
         email = user_data['email']
-        
+
         try:
             user = User.objects.get(email=email)
             # Update existing user
@@ -117,7 +119,7 @@ try:
             )
             created_count += 1
             print(f'✓ Created: {email} ({role_name})')
-        
+
         # Assign role
         role, _ = Role.objects.get_or_create(name=role_name)
         UserRole.objects.get_or_create(
@@ -133,7 +135,7 @@ try:
     print(f'Created: {created_count} users')
     print(f'Updated: {updated_count} users')
     print(f'\nPassword for all users: {password}')
-    print(f'\nLogin Credentials:')
+    print('\nLogin Credentials:')
     for user_data in och_users:
         print(f'  - {user_data["email"]} / {password}')
     print()

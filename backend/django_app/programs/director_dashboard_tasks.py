@@ -3,9 +3,10 @@ Celery tasks for Director Dashboard cache refresh.
 Runs every 5 minutes per director for scale.
 """
 import logging
-from django.utils import timezone
-from django.db import transaction
+
 from django.contrib.auth import get_user_model
+from django.db import transaction
+
 from programs.director_dashboard_services import DirectorDashboardAggregationService
 from programs.models import Cohort
 
@@ -29,10 +30,10 @@ def refresh_director_dashboard_cache_task(director_id):
     """
     try:
         director = User.objects.get(id=director_id)
-        
+
         with transaction.atomic():
-            cache = DirectorDashboardAggregationService.refresh_director_cache(director)
-            
+            DirectorDashboardAggregationService.refresh_director_cache(director)
+
             # Also refresh all cohort dashboards for this director
             cohorts = DirectorDashboardAggregationService.get_director_cohorts(director)
             for cohort in cohorts:
@@ -45,10 +46,10 @@ def refresh_director_dashboard_cache_task(director_id):
                         f"Error refreshing cohort {cohort.id} dashboard: {e}",
                         exc_info=True
                     )
-        
+
         logger.info(f"Successfully refreshed dashboard cache for director {director_id}")
         return {'status': 'success', 'director_id': director_id}
-        
+
     except User.DoesNotExist:
         logger.error(f"Director {director_id} not found")
         return {'status': 'error', 'message': 'Director not found'}
@@ -67,7 +68,7 @@ def refresh_all_directors_cache_task():
     directors = User.objects.filter(
         directed_tracks__isnull=False
     ).distinct()
-    
+
     results = []
     for director in directors:
         try:
@@ -76,7 +77,7 @@ def refresh_all_directors_cache_task():
         except Exception as e:
             logger.error(f"Error queuing refresh for director {director.id}: {e}")
             results.append({'director_id': director.id, 'error': str(e)})
-    
+
     logger.info(f"Queued refresh tasks for {len(results)} directors")
     return {'status': 'queued', 'count': len(results), 'results': results}
 
@@ -90,15 +91,15 @@ def refresh_cohort_dashboard_task(director_id, cohort_id):
     try:
         director = User.objects.get(id=director_id)
         cohort = Cohort.objects.get(id=cohort_id)
-        
+
         with transaction.atomic():
-            dashboard = DirectorDashboardAggregationService.refresh_cohort_dashboard(
+            DirectorDashboardAggregationService.refresh_cohort_dashboard(
                 director, cohort
             )
-        
+
         logger.info(f"Successfully refreshed cohort {cohort_id} dashboard")
         return {'status': 'success', 'cohort_id': str(cohort_id)}
-        
+
     except (User.DoesNotExist, Cohort.DoesNotExist) as e:
         logger.error(f"Director or cohort not found: {e}")
         return {'status': 'error', 'message': 'Director or cohort not found'}

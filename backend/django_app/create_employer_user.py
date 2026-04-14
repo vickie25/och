@@ -9,8 +9,8 @@ Run: python create_employer_user.py
 """
 import os
 import sys
+
 import django
-from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
@@ -18,8 +18,9 @@ django.setup()
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from users.models import Role, UserRole
+
 from organizations.models import Organization
+from users.models import Role, UserRole
 
 User = get_user_model()
 
@@ -48,7 +49,7 @@ def create_employer_user():
             user.save()
         # Also check if old email exists and update it
         elif User.objects.filter(email='ongozacyberhub@gmail.com').exists():
-            print(f"Updating existing user from old email to new email...")
+            print("Updating existing user from old email to new email...")
             user = User.objects.get(email='ongozacyberhub@gmail.com')
             user.email = email
             user.set_password(password)

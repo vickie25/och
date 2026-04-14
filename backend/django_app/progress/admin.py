@@ -2,6 +2,7 @@
 Admin configuration for progress app.
 """
 from django.contrib import admin
+
 from .models import Progress
 
 

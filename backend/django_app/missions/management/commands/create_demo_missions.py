@@ -1,10 +1,12 @@
 """
 Management command to create demo missions with subtasks for all tracks
 """
-from django.core.management.base import BaseCommand
-from missions.models import Mission
-from programs.models import Track
 import uuid
+
+from django.core.management.base import BaseCommand
+from programs.models import Track
+
+from missions.models import Mission
 
 
 class Command(BaseCommand):

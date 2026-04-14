@@ -7,9 +7,9 @@ Endpoints tested:
 - GET /api/v1/mentorships/{mentee_id}/presence
 """
 import pytest
-from rest_framework import status
-from mentorship.models import ChatMessage, ChatAttachment
 from django.core.files.uploadedfile import SimpleUploadedFile
+from mentorship.models import ChatMessage
+from rest_framework import status
 
 
 @pytest.mark.django_db
@@ -93,7 +93,7 @@ class TestSendChatMessageEndpoint:
         # Assign mentor role
         from users.models import UserRole
         UserRole.objects.create(user=mentor_user, role=mentor_role, scope='global')
-        
+
         data = {
             'message': 'Hello mentor',
             'mentor_id': str(mentor_user.id)

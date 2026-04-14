@@ -1,9 +1,21 @@
 """
 Serializers for Mentorship Coordination Engine.
 """
-from rest_framework import serializers
+from datetime import UTC
+
 from django.contrib.auth import get_user_model
-from .models import MenteeMentorAssignment, MentorSession, MentorWorkQueue, MentorFlag, MentorshipMessage, MessageAttachment, DirectorMentorMessage, NotificationLog
+from rest_framework import serializers
+
+from .models import (
+    DirectorMentorMessage,
+    MenteeMentorAssignment,
+    MentorFlag,
+    MentorSession,
+    MentorshipMessage,
+    MentorWorkQueue,
+    MessageAttachment,
+    NotificationLog,
+)
 
 User = get_user_model()
 
@@ -14,7 +26,7 @@ class MenteeMentorAssignmentSerializer(serializers.ModelSerializer):
     mentee_name = serializers.CharField(source='mentee.get_full_name', read_only=True)
     mentor_email = serializers.EmailField(source='mentor.email', read_only=True)
     mentor_name = serializers.CharField(source='mentor.get_full_name', read_only=True)
-    
+
     class Meta:
         model = MenteeMentorAssignment
         fields = [
@@ -31,7 +43,7 @@ class MentorSessionSerializer(serializers.ModelSerializer):
     mentee_name = serializers.CharField(source='mentee.get_full_name', read_only=True)
     mentee_email = serializers.EmailField(source='mentee.email', read_only=True)
     mentor_name = serializers.CharField(source='mentor.get_full_name', read_only=True)
-    
+
     class Meta:
         model = MentorSession
         fields = [
@@ -49,7 +61,7 @@ class MentorWorkQueueSerializer(serializers.ModelSerializer):
     mentee_name = serializers.CharField(source='mentee.get_full_name', read_only=True)
     mentee_email = serializers.EmailField(source='mentee.email', read_only=True)
     sla_remaining = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = MentorWorkQueue
         fields = [
@@ -59,7 +71,7 @@ class MentorWorkQueueSerializer(serializers.ModelSerializer):
             'sla_remaining', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
-    
+
     def get_sla_remaining(self, obj):
         """Calculate remaining SLA time."""
         if obj.completed_at or not obj.due_at:
@@ -84,7 +96,7 @@ class MentorFlagSerializer(serializers.ModelSerializer):
     raised_by = serializers.CharField(source='mentor.id', read_only=True)
     raised_at = serializers.DateTimeField(source='created_at', read_only=True)
     status = serializers.SerializerMethodField()
-    
+
     def get_flag_type(self, obj):
         """Extract flag_type from reason if it matches known patterns, otherwise return 'struggling' as default."""
         reason = obj.reason or ''
@@ -99,7 +111,7 @@ class MentorFlagSerializer(serializers.ModelSerializer):
                 return flag_type
         # Default to 'struggling' if no pattern matches
         return 'struggling'
-    
+
     def get_description(self, obj):
         """Extract description from reason, removing flag_type prefix if present."""
         reason = obj.reason or ''
@@ -109,13 +121,13 @@ class MentorFlagSerializer(serializers.ModelSerializer):
             if len(parts) > 1:
                 return parts[1].strip()
         return reason
-    
+
     def get_status(self, obj):
         """Map resolved boolean to status string."""
         if obj.resolved:
             return 'resolved'
         return 'open'
-    
+
     class Meta:
         model = MentorFlag
         fields = [
@@ -142,61 +154,62 @@ class CreateGroupSessionSerializer(serializers.Serializer):
     scheduled_at = serializers.CharField()  # Accept as string first, then parse in validation
     duration_minutes = serializers.IntegerField(default=60, min_value=15, max_value=240, required=False)
     meeting_type = serializers.ChoiceField(
-        choices=[('zoom', 'Zoom'), ('google_meet', 'Google Meet'), ('in_person', 'In Person')], 
+        choices=[('zoom', 'Zoom'), ('google_meet', 'Google Meet'), ('in_person', 'In Person')],
         default='zoom',
         required=False
     )
     meeting_link = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
     track_assignment = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=100, default='')
     cohort_id = serializers.UUIDField(required=False, allow_null=True)
-    
+
     def validate_scheduled_at(self, value):
         """Parse scheduled_at string and ensure it's timezone-aware."""
+        from datetime import datetime
+
         from django.utils import timezone as django_timezone
-        from datetime import datetime, timezone as dt_timezone
-        
+
         if not isinstance(value, str):
             raise serializers.ValidationError("scheduled_at must be a string")
-        
+
         original_value = value
-        
+
         # Remove Z suffix and parse manually for better control
         clean_value = value.replace('Z', '')
-        
+
         # Try parsing with different formats (in order of specificity)
         dt = None
-        
+
         # Count colons in time part to determine format
         time_part = clean_value.split('T')[1] if 'T' in clean_value else clean_value.split(' ')[1] if ' ' in clean_value else ''
         colon_count = time_part.count(':') if time_part else 0
-        
+
         formats_to_try = []
-        
+
         # With microseconds: 2026-02-02T06:00:00.000
         if '.' in clean_value:
             formats_to_try.append(('%Y-%m-%dT%H:%M:%S.%f', clean_value))
-        
+
         # With seconds: 2026-02-02T06:00:00 (2 colons in time part)
         if colon_count == 2:
             formats_to_try.append(('%Y-%m-%dT%H:%M:%S', clean_value))
             formats_to_try.append(('%Y-%m-%d %H:%M:%S', clean_value.replace('T', ' ')))
-        
+
         # Without seconds: 2026-02-02T06:00 (1 colon in time part - DateTimePicker format)
         if colon_count == 1:
             formats_to_try.append(('%Y-%m-%dT%H:%M', clean_value))
             formats_to_try.append(('%Y-%m-%d %H:%M', clean_value.replace('T', ' ')))
-        
+
         # Try all formats
         for fmt, val in formats_to_try:
             try:
                 dt = datetime.strptime(val, fmt)
                 # Make timezone-aware (assume UTC if no timezone info)
                 if django_timezone.is_naive(dt):
-                    dt = django_timezone.make_aware(dt, dt_timezone.utc)
+                    dt = django_timezone.make_aware(dt, UTC)
                 return dt
             except ValueError:
                 continue
-        
+
         # If all parsing attempts failed
         raise serializers.ValidationError(
             f"Invalid datetime format: '{original_value}'. "
@@ -230,7 +243,7 @@ class CreateFlagSerializer(serializers.Serializer):
         required=False
     )
     severity = serializers.ChoiceField(choices=MentorFlag.SEVERITY_CHOICES, default='medium')
-    
+
     def validate_mentee_id(self, value):
         """Convert string to appropriate type (UUID or int)."""
         import uuid
@@ -247,7 +260,7 @@ class CreateFlagSerializer(serializers.Serializer):
                 except ValueError:
                     raise serializers.ValidationError(f"Invalid mentee_id format: {value}. Must be UUID or integer.")
         return value
-    
+
     def validate(self, attrs):
         """Ensure either reason or description is provided."""
         if not attrs.get('reason') and not attrs.get('description'):
@@ -267,7 +280,7 @@ class RequestSessionSerializer(serializers.Serializer):
 class MessageAttachmentSerializer(serializers.ModelSerializer):
     """Serializer for message attachments."""
     file = serializers.SerializerMethodField()
-    
+
     def get_file(self, obj):
         """Return full URL for the file."""
         if obj.file:
@@ -277,7 +290,7 @@ class MessageAttachmentSerializer(serializers.ModelSerializer):
             # Fallback to relative URL if no request context
             return obj.file.url
         return None
-    
+
     class Meta:
         model = MessageAttachment
         fields = ['id', 'filename', 'file_size', 'content_type', 'file', 'created_at']
@@ -291,7 +304,7 @@ class MentorshipMessageSerializer(serializers.ModelSerializer):
     recipient_name = serializers.SerializerMethodField()
     recipient_email = serializers.SerializerMethodField()
     attachments = MessageAttachmentSerializer(many=True, read_only=True)
-    
+
     def get_sender_name(self, obj):
         if not obj.sender:
             return ''
@@ -327,10 +340,10 @@ class MentorshipMessageSerializer(serializers.ModelSerializer):
             return obj.sender.email or ''
         except Exception:
             return obj.sender.email or ''
-    
+
     def get_sender_email(self, obj):
         return obj.sender.email if obj.sender else ''
-    
+
     def get_recipient_name(self, obj):
         if not obj.recipient:
             return ''
@@ -349,13 +362,13 @@ class MentorshipMessageSerializer(serializers.ModelSerializer):
             return obj.recipient.email or ''
         except Exception:
             return obj.recipient.email or ''
-    
+
     def get_recipient_email(self, obj):
         return obj.recipient.email if obj.recipient else ''
-    
+
     sender = serializers.SerializerMethodField()
     recipient = serializers.SerializerMethodField()
-    
+
     def get_sender(self, obj):
         if not obj.sender:
             return None
@@ -364,7 +377,7 @@ class MentorshipMessageSerializer(serializers.ModelSerializer):
             'name': self.get_sender_name(obj),
             'email': self.get_sender_email(obj)
         }
-    
+
     def get_recipient(self, obj):
         if not obj.recipient:
             return None
@@ -373,7 +386,7 @@ class MentorshipMessageSerializer(serializers.ModelSerializer):
             'name': self.get_recipient_name(obj),
             'email': self.get_recipient_email(obj)
         }
-    
+
     class Meta:
         model = MentorshipMessage
         fields = [
@@ -466,7 +479,7 @@ class NotificationLogSerializer(serializers.ModelSerializer):
     """Serializer for notification logs."""
     recipient_name = serializers.CharField(source='recipient.get_full_name', read_only=True)
     recipient_email = serializers.EmailField(source='recipient.email', read_only=True)
-    
+
     class Meta:
         model = NotificationLog
         fields = [

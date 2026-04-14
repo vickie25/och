@@ -1,8 +1,8 @@
 """
 Django management command to seed missions.
 """
-import uuid
 from django.core.management.base import BaseCommand
+
 from missions.models import Mission
 
 

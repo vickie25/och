@@ -2,7 +2,8 @@
 Admin interface for Mentorship Coordination Engine.
 """
 from django.contrib import admin
-from .models import MenteeMentorAssignment, MentorSession, MentorWorkQueue, MentorFlag
+
+from .models import MenteeMentorAssignment, MentorFlag, MentorSession, MentorWorkQueue
 
 
 @admin.register(MenteeMentorAssignment)

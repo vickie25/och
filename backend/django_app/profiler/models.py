@@ -3,10 +3,11 @@ Profiler Engine models - Future-You persona generation and track recommendation.
 Comprehensive profiling system with aptitude and behavioral assessments.
 """
 import uuid
-import json
+
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
+
 from users.models import User
 
 
@@ -22,7 +23,7 @@ class ProfilerSession(models.Model):
         ('finished', 'Finished'),
         ('locked', 'Locked'),  # One-time attempt completed
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
         User,
@@ -51,7 +52,7 @@ class ProfilerSession(models.Model):
     )
     current_question_index = models.IntegerField(default=0)
     total_questions = models.IntegerField(default=0)
-    
+
     # Assessment data
     aptitude_responses = models.JSONField(
         default=dict,
@@ -73,7 +74,7 @@ class ProfilerSession(models.Model):
         blank=True,
         help_text='{name: "Cyber Sentinel", archetype: "Defender", skills: [...]}'
     )
-    
+
     # Results and analysis
     aptitude_score = models.DecimalField(
         max_digits=5,
@@ -102,7 +103,7 @@ class ProfilerSession(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(1)],
         help_text='Confidence score 0.0-1.0'
     )
-    
+
     # Telemetry fields
     technical_exposure_score = models.DecimalField(
         max_digits=5,
@@ -151,7 +152,7 @@ class ProfilerSession(models.Model):
         db_index=True,
         help_text='Timestamp when user transitioned from Profiler to Foundations'
     )
-    
+
     # Timing
     started_at = models.DateTimeField(auto_now_add=True, db_index=True)
     last_activity = models.DateTimeField(auto_now=True)
@@ -162,7 +163,7 @@ class ProfilerSession(models.Model):
         blank=True,
         help_text='Time spent per module in seconds: {"identity_value": 120, "cyber_aptitude": 300, ...}'
     )
-    
+
     # Lock mechanism (one-time attempt)
     is_locked = models.BooleanField(default=False, db_index=True)
     locked_at = models.DateTimeField(null=True, blank=True)
@@ -174,7 +175,7 @@ class ProfilerSession(models.Model):
         related_name='profiler_resets',
         help_text='Admin who reset this session'
     )
-    
+
     # Anti-cheat fields
     ip_address = models.GenericIPAddressField(
         null=True,
@@ -209,7 +210,7 @@ class ProfilerSession(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(100)],
         help_text='Anti-cheat confidence score (0-100, higher = more suspicious)'
     )
-    
+
     class Meta:
         db_table = 'profilersessions'
         indexes = [
@@ -217,10 +218,10 @@ class ProfilerSession(models.Model):
             models.Index(fields=['user', 'is_locked']),
             models.Index(fields=['session_token']),
         ]
-    
+
     def __str__(self):
         return f"Profiler Session: {self.user.email} - {self.status}"
-    
+
     def lock(self):
         """Lock the session after completion (one-time attempt)."""
         self.is_locked = True
@@ -228,7 +229,7 @@ class ProfilerSession(models.Model):
         self.locked_at = timezone.now()
         self.completed_at = timezone.now()
         self.save()
-    
+
     def can_resume(self):
         """Check if session can be resumed."""
         return not self.is_locked and self.status not in ['finished', 'locked']
@@ -240,7 +241,7 @@ class ProfilerQuestion(models.Model):
         ('aptitude', 'Aptitude'),
         ('behavioral', 'Behavioral'),
     ]
-    
+
     ANSWER_TYPES = [
         ('multiple_choice', 'Multiple Choice'),
         ('scale', 'Scale (1-10)'),
@@ -248,20 +249,20 @@ class ProfilerQuestion(models.Model):
         ('text', 'Text Response'),
         ('boolean', 'Yes/No'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     question_type = models.CharField(max_length=20, choices=QUESTION_TYPES, db_index=True)
     answer_type = models.CharField(max_length=20, choices=ANSWER_TYPES)
     question_text = models.TextField()
     question_order = models.IntegerField(default=0, db_index=True)
-    
+
     # Options for multiple choice questions
     options = models.JSONField(
         default=list,
         blank=True,
         help_text='For multiple choice: ["Option 1", "Option 2", ...]'
     )
-    
+
     # Scoring
     correct_answer = models.JSONField(
         null=True,
@@ -269,15 +270,15 @@ class ProfilerQuestion(models.Model):
         help_text='Correct answer for aptitude questions'
     )
     points = models.IntegerField(default=1, help_text='Points awarded for correct answer')
-    
+
     # Category/tags for analysis
     category = models.CharField(max_length=100, blank=True, db_index=True)
     tags = models.JSONField(default=list, blank=True, help_text='Tags: ["networking", "problem-solving"]')
-    
+
     is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'profilerquestions'
         ordering = ['question_type', 'question_order']
@@ -285,7 +286,7 @@ class ProfilerQuestion(models.Model):
             models.Index(fields=['question_type', 'is_active']),
             models.Index(fields=['category']),
         ]
-    
+
     def __str__(self):
         return f"{self.question_type}: {self.question_text[:50]}..."
 
@@ -319,7 +320,7 @@ class ProfilerAnswer(models.Model):
     points_earned = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'profileranswers'
         indexes = [
@@ -327,7 +328,7 @@ class ProfilerAnswer(models.Model):
             models.Index(fields=['session', 'question_key']),
         ]
         unique_together = [['session', 'question']]
-    
+
     def __str__(self):
         return f"Answer: {self.question_key} = {self.answer}"
 
@@ -347,7 +348,7 @@ class ProfilerResult(models.Model):
         related_name='profiler_results',
         db_index=True
     )
-    
+
     # Overall scores
     overall_score = models.DecimalField(
         max_digits=5,
@@ -365,7 +366,7 @@ class ProfilerResult(models.Model):
         decimal_places=2,
         validators=[MinValueValidator(0), MaxValueValidator(100)]
     )
-    
+
     # Detailed analysis
     aptitude_breakdown = models.JSONField(
         default=dict,
@@ -375,7 +376,7 @@ class ProfilerResult(models.Model):
         default=dict,
         help_text='Behavioral analysis: {leadership: 8, teamwork: 9, ...}'
     )
-    
+
     # Recommendations
     strengths = models.JSONField(default=list, help_text='Identified strengths')
     areas_for_growth = models.JSONField(default=list, help_text='Areas for improvement')
@@ -387,22 +388,22 @@ class ProfilerResult(models.Model):
         default=list,
         help_text='Suggested learning paths'
     )
-    
+
     # OCH System Mapping
     och_mapping = models.JSONField(
         default=dict,
         help_text='Mapping to OCH system: {tier: 1, foundations: [...], tracks: [...]}'
     )
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'profilerresults'
         indexes = [
             models.Index(fields=['user']),
             models.Index(fields=['session']),
         ]
-    
+
     def __str__(self):
         return f"Profiler Result: {self.user.email} - Score: {self.overall_score}"
 
@@ -415,7 +416,7 @@ class ProfilerRetakeRequest(models.Model):
         ('rejected', 'Rejected'),
         ('completed', 'Completed'),  # Retake completed
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
         User,
@@ -438,7 +439,7 @@ class ProfilerRetakeRequest(models.Model):
         default='pending',
         db_index=True
     )
-    
+
     # Admin fields
     reviewed_by = models.ForeignKey(
         User,
@@ -453,7 +454,7 @@ class ProfilerRetakeRequest(models.Model):
         help_text='Admin notes on approval/rejection'
     )
     reviewed_at = models.DateTimeField(null=True, blank=True)
-    
+
     # New session after approval
     new_session = models.ForeignKey(
         ProfilerSession,
@@ -463,10 +464,10 @@ class ProfilerRetakeRequest(models.Model):
         related_name='retake_from_request',
         help_text='New session created after approval'
     )
-    
+
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'profilerretakerequests'
         indexes = [
@@ -474,10 +475,10 @@ class ProfilerRetakeRequest(models.Model):
             models.Index(fields=['status', 'created_at']),
         ]
         ordering = ['-created_at']
-    
+
     def __str__(self):
         return f"Retake Request: {self.user.email} - {self.status}"
-    
+
     def approve(self, admin_user, notes=''):
         """Approve retake request."""
         self.status = 'approved'
@@ -485,7 +486,7 @@ class ProfilerRetakeRequest(models.Model):
         self.admin_notes = notes
         self.reviewed_at = timezone.now()
         self.save()
-    
+
     def reject(self, admin_user, notes=''):
         """Reject retake request."""
         self.status = 'rejected'

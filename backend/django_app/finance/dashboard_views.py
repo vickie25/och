@@ -3,21 +3,20 @@ Financial Dashboard Views - Complete Implementation
 API endpoints for all dashboard types and financial operations
 """
 
-from rest_framework import status, viewsets, permissions
-from rest_framework.decorators import api_view, permission_classes, action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from django.shortcuts import get_object_or_404
-from django.db import transaction
-from django.utils import timezone
-from django.db.models import Sum, Count, Avg, Q
-from datetime import datetime, timedelta, date
 import logging
+from datetime import datetime, timedelta
 
-from .models import *
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from rest_framework import status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.response import Response
+
 from .dashboard_models import *
-from .services import *
+from .models import *
 from .serializers import *
+from .services import *
 
 logger = logging.getLogger(__name__)
 
@@ -25,29 +24,29 @@ class FinancialDashboardViewSet(viewsets.ModelViewSet):
     """ViewSet for financial dashboard management"""
     serializer_class = FinancialDashboardSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         return FinancialDashboard.objects.filter(user=self.request.user)
-    
+
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
-    
+
     @action(detail=False, methods=['get'])
     def admin_dashboard(self, request):
         """Get admin financial dashboard data"""
         if not request.user.is_staff:
-            return Response({'error': 'Admin access required'}, 
+            return Response({'error': 'Admin access required'},
                           status=status.HTTP_403_FORBIDDEN)
-        
+
         today = timezone.now().date()
         last_month = today - timedelta(days=30)
-        
+
         # Revenue metrics
         analytics = FinancialAnalyticsService()
         mrr = analytics.calculate_mrr()
         arr = analytics.calculate_arr()
         revenue_breakdown = analytics.generate_revenue_breakdown(last_month, today)
-        
+
         # KPIs
         kpis = FinancialKPI.objects.all()
         kpi_data = []
@@ -61,7 +60,7 @@ class FinancialDashboardViewSet(viewsets.ModelViewSet):
                 'target_achievement': float(kpi.target_achievement),
                 'unit': kpi.unit
             })
-        
+
         # Active alerts
         alerts = FinancialAlert.objects.filter(status='active').order_by('-created_at')[:10]
         alert_data = []
@@ -74,12 +73,12 @@ class FinancialDashboardViewSet(viewsets.ModelViewSet):
                 'description': alert.description,
                 'created_at': alert.created_at
             })
-        
+
         # Cash flow projection
         cash_flow = CashFlowProjection.objects.filter(
             projection_type='monthly'
         ).order_by('-created_at').first()
-        
+
         cash_flow_data = None
         if cash_flow:
             cash_flow_data = {
@@ -88,7 +87,7 @@ class FinancialDashboardViewSet(viewsets.ModelViewSet):
                 'net_cash_flow': float(cash_flow.net_cash_flow),
                 'confidence_score': float(cash_flow.confidence_score)
             }
-        
+
         return Response({
             'revenue_metrics': {
                 'mrr': float(mrr),
@@ -100,12 +99,12 @@ class FinancialDashboardViewSet(viewsets.ModelViewSet):
             'cash_flow': cash_flow_data,
             'last_updated': timezone.now()
         })
-    
+
     @action(detail=False, methods=['get'])
     def student_dashboard(self, request):
         """Get student financial dashboard data"""
         user = request.user
-        
+
         # Subscription info
         subscription = getattr(user, 'subscription', None)
         subscription_data = None
@@ -116,7 +115,7 @@ class FinancialDashboardViewSet(viewsets.ModelViewSet):
                 'current_period_end': subscription.current_period_end,
                 'enhanced_access_expires_at': subscription.enhanced_access_expires_at
             }
-        
+
         # Wallet info
         wallet = getattr(user, 'wallet', None)
         wallet_data = None
@@ -126,7 +125,7 @@ class FinancialDashboardViewSet(viewsets.ModelViewSet):
                 'currency': wallet.currency,
                 'last_transaction_at': wallet.last_transaction_at
             }
-            
+
             # Recent transactions
             recent_transactions = wallet.transactions.order_by('-created_at')[:5]
             wallet_data['recent_transactions'] = []
@@ -137,7 +136,7 @@ class FinancialDashboardViewSet(viewsets.ModelViewSet):
                     'description': transaction.description,
                     'created_at': transaction.created_at
                 })
-        
+
         # Cohort enrollments
         enrollments = user.enrollments.filter(status='active')
         enrollment_data = []
@@ -148,7 +147,7 @@ class FinancialDashboardViewSet(viewsets.ModelViewSet):
                 'payment_status': enrollment.payment_status,
                 'joined_at': enrollment.joined_at
             })
-        
+
         # Payment history
         payments = PaymentTransaction.objects.filter(user=user).order_by('-created_at')[:10]
         payment_data = []
@@ -159,14 +158,14 @@ class FinancialDashboardViewSet(viewsets.ModelViewSet):
                 'status': payment.status,
                 'created_at': payment.created_at
             })
-        
+
         return Response({
             'subscription': subscription_data,
             'wallet': wallet_data,
             'enrollments': enrollment_data,
             'payment_history': payment_data
         })
-    
+
     @action(detail=False, methods=['get'])
     def institution_dashboard(self, request):
         """Get institution financial dashboard data"""
@@ -174,14 +173,14 @@ class FinancialDashboardViewSet(viewsets.ModelViewSet):
         try:
             organization = request.user.organization_memberships.first().organization
         except:
-            return Response({'error': 'No organization found'}, 
+            return Response({'error': 'No organization found'},
                           status=status.HTTP_404_NOT_FOUND)
-        
+
         # Contract info
         contracts = organization.contracts.filter(status='active')
         contract_data = []
         total_contract_value = 0
-        
+
         for contract in contracts:
             contract_data.append({
                 'id': str(contract.id),
@@ -192,7 +191,7 @@ class FinancialDashboardViewSet(viewsets.ModelViewSet):
                 'days_until_expiry': contract.days_until_expiry
             })
             total_contract_value += contract.total_value
-        
+
         # Student enrollments
         enrollments = Enrollment.objects.filter(org=organization)
         enrollment_metrics = {
@@ -200,7 +199,7 @@ class FinancialDashboardViewSet(viewsets.ModelViewSet):
             'active_enrollments': enrollments.filter(status='active').count(),
             'completed_enrollments': enrollments.filter(status='completed').count()
         }
-        
+
         # Invoices
         invoices = organization.invoices.order_by('-created_at')[:10]
         invoice_data = []
@@ -212,7 +211,7 @@ class FinancialDashboardViewSet(viewsets.ModelViewSet):
                 'due_date': invoice.due_date,
                 'created_at': invoice.created_at
             })
-        
+
         return Response({
             'organization': {
                 'name': organization.name,
@@ -222,16 +221,16 @@ class FinancialDashboardViewSet(viewsets.ModelViewSet):
             'enrollment_metrics': enrollment_metrics,
             'recent_invoices': invoice_data
         })
-    
+
     @action(detail=False, methods=['get'])
     def employer_dashboard(self, request):
         """Get employer financial dashboard data"""
         try:
             employer = request.user.employer_profile
         except:
-            return Response({'error': 'Employer profile not found'}, 
+            return Response({'error': 'Employer profile not found'},
                           status=status.HTTP_404_NOT_FOUND)
-        
+
         # Job postings
         job_postings = employer.job_postings.filter(is_active=True)
         job_data = []
@@ -242,7 +241,7 @@ class FinancialDashboardViewSet(viewsets.ModelViewSet):
                 'applications_count': applications_count,
                 'posted_at': job.posted_at
             })
-        
+
         # Talent interactions
         interest_logs = employer.interest_logs.order_by('-created_at')[:10]
         interaction_data = []
@@ -252,7 +251,7 @@ class FinancialDashboardViewSet(viewsets.ModelViewSet):
                 'candidate_email': log.profile.mentee.email,
                 'created_at': log.created_at
             })
-        
+
         return Response({
             'employer': {
                 'company_name': employer.company_name,
@@ -269,19 +268,19 @@ def revenue_analytics(request):
     period = request.GET.get('period', '30')  # days
     end_date = timezone.now().date()
     start_date = end_date - timedelta(days=int(period))
-    
+
     analytics = FinancialAnalyticsService()
-    
+
     # Revenue breakdown
     revenue_breakdown = analytics.generate_revenue_breakdown(start_date, end_date)
-    
+
     # Key metrics
     mrr = analytics.calculate_mrr()
     arr = analytics.calculate_arr()
     churn_rate = analytics.calculate_churn_rate(start_date, end_date)
     arpu = analytics.calculate_arpu(start_date, end_date)
     ltv = analytics.calculate_ltv()
-    
+
     return Response({
         'revenue_breakdown': revenue_breakdown,
         'key_metrics': {
@@ -305,9 +304,9 @@ def generate_report(request):
     report_type = request.data.get('report_type')
     period_start = datetime.strptime(request.data.get('period_start'), '%Y-%m-%d').date()
     period_end = datetime.strptime(request.data.get('period_end'), '%Y-%m-%d').date()
-    
+
     reporting_service = FinancialReportingService()
-    
+
     try:
         if report_type == 'revenue_summary':
             report = reporting_service.generate_revenue_summary_report(
@@ -326,19 +325,19 @@ def generate_report(request):
                 period_start, period_end, request.user
             )
         else:
-            return Response({'error': 'Invalid report type'}, 
+            return Response({'error': 'Invalid report type'},
                           status=status.HTTP_400_BAD_REQUEST)
-        
+
         return Response({
             'report_id': str(report.id),
             'status': report.status,
             'title': report.title,
             'created_at': report.created_at
         }, status=status.HTTP_201_CREATED)
-        
+
     except Exception as e:
         logger.error(f"Failed to generate report: {str(e)}")
-        return Response({'error': 'Failed to generate report'}, 
+        return Response({'error': 'Failed to generate report'},
                       status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
@@ -346,11 +345,11 @@ def generate_report(request):
 def cash_flow_projections(request):
     """Get cash flow projections"""
     projection_type = request.GET.get('type', 'monthly')
-    
+
     projections = CashFlowProjection.objects.filter(
         projection_type=projection_type
     ).order_by('-created_at')[:12]  # Last 12 periods
-    
+
     projection_data = []
     for projection in projections:
         projection_data.append({
@@ -362,7 +361,7 @@ def cash_flow_projections(request):
             'confidence_score': float(projection.confidence_score),
             'created_at': projection.created_at
         })
-    
+
     return Response({
         'projections': projection_data,
         'projection_type': projection_type
@@ -377,7 +376,7 @@ def update_cash_flow_projections(request):
         return Response({'message': 'Cash flow projections updated successfully'})
     except Exception as e:
         logger.error(f"Failed to update cash flow projections: {str(e)}")
-        return Response({'error': 'Failed to update projections'}, 
+        return Response({'error': 'Failed to update projections'},
                       status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
@@ -386,13 +385,13 @@ def financial_alerts(request):
     """Get financial alerts"""
     status_filter = request.GET.get('status', 'active')
     severity_filter = request.GET.get('severity')
-    
+
     alerts = FinancialAlert.objects.filter(status=status_filter)
     if severity_filter:
         alerts = alerts.filter(severity=severity_filter)
-    
+
     alerts = alerts.order_by('-created_at')[:50]
-    
+
     alert_data = []
     for alert in alerts:
         alert_data.append({
@@ -406,7 +405,7 @@ def financial_alerts(request):
             'created_at': alert.created_at,
             'assigned_to': alert.assigned_to.email if alert.assigned_to else None
         })
-    
+
     return Response({
         'alerts': alert_data,
         'total_count': len(alert_data)
@@ -422,7 +421,7 @@ def acknowledge_alert(request, alert_id):
         alert.acknowledged_by = request.user
         alert.acknowledged_at = timezone.now()
         alert.save()
-        
+
         return Response({'message': 'Alert acknowledged successfully'})
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -437,7 +436,7 @@ def resolve_alert(request, alert_id):
         alert.resolved_by = request.user
         alert.resolved_at = timezone.now()
         alert.save()
-        
+
         return Response({'message': 'Alert resolved successfully'})
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -447,12 +446,12 @@ def resolve_alert(request, alert_id):
 def kpi_dashboard(request):
     """Get KPI dashboard data"""
     kpis = FinancialKPI.objects.all().order_by('category', 'name')
-    
+
     kpi_data = {}
     for kpi in kpis:
         if kpi.category not in kpi_data:
             kpi_data[kpi.category] = []
-        
+
         kpi_data[kpi.category].append({
             'name': kpi.name,
             'current_value': float(kpi.current_value),
@@ -464,7 +463,7 @@ def kpi_dashboard(request):
             'period': kpi.period,
             'last_updated': kpi.last_updated
         })
-    
+
     return Response({
         'kpis_by_category': kpi_data,
         'last_updated': timezone.now()
@@ -479,7 +478,7 @@ def update_kpis(request):
         return Response({'message': 'KPIs updated successfully'})
     except Exception as e:
         logger.error(f"Failed to update KPIs: {str(e)}")
-        return Response({'error': 'Failed to update KPIs'}, 
+        return Response({'error': 'Failed to update KPIs'},
                       status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
@@ -487,7 +486,7 @@ def update_kpis(request):
 def compliance_status(request):
     """Get compliance status overview"""
     compliance_status = ComplianceService.check_compliance_status()
-    
+
     # Recent compliance records
     recent_records = ComplianceRecord.objects.order_by('-created_at')[:10]
     record_data = []
@@ -500,7 +499,7 @@ def compliance_status(request):
             'compliance_date': record.compliance_date,
             'next_review_date': record.next_review_date
         })
-    
+
     return Response({
         'compliance_overview': compliance_status,
         'recent_records': record_data
@@ -514,21 +513,21 @@ def audit_logs(request):
     page = int(request.GET.get('page', 1))
     action_type = request.GET.get('action_type')
     user_id = request.GET.get('user_id')
-    
+
     logs = AuditLog.objects.all()
-    
+
     if action_type:
         logs = logs.filter(action_type=action_type)
     if user_id:
         logs = logs.filter(user_id=user_id)
-    
+
     logs = logs.order_by('-created_at')
-    
+
     # Pagination
     start = (page - 1) * page_size
     end = start + page_size
     paginated_logs = logs[start:end]
-    
+
     log_data = []
     for log in paginated_logs:
         log_data.append({
@@ -541,7 +540,7 @@ def audit_logs(request):
             'created_at': log.created_at,
             'ip_address': log.ip_address
         })
-    
+
     return Response({
         'logs': log_data,
         'total_count': logs.count(),
@@ -558,5 +557,5 @@ def run_financial_checks(request):
         return Response({'message': 'Financial checks completed successfully'})
     except Exception as e:
         logger.error(f"Failed to run financial checks: {str(e)}")
-        return Response({'error': 'Failed to run financial checks'}, 
+        return Response({'error': 'Failed to run financial checks'},
                       status=status.HTTP_500_INTERNAL_SERVER_ERROR)

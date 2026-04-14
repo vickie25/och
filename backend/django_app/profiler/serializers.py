@@ -2,7 +2,8 @@
 Serializers for Profiler Engine.
 """
 from rest_framework import serializers
-from .models import ProfilerSession, ProfilerAnswer
+
+from .models import ProfilerAnswer, ProfilerSession
 
 
 class ProfilerAnswerSerializer(serializers.ModelSerializer):
@@ -16,7 +17,7 @@ class ProfilerAnswerSerializer(serializers.ModelSerializer):
 class ProfilerSessionSerializer(serializers.ModelSerializer):
     """Serializer for profiler session."""
     answers = ProfilerAnswerSerializer(many=True, read_only=True)
-    
+
     class Meta:
         model = ProfilerSession
         fields = [

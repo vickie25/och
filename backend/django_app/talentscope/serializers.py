@@ -2,7 +2,8 @@
 Serializers for TalentScope API.
 """
 from rest_framework import serializers
-from .models import SkillSignal, BehaviorSignal, MentorInfluence, ReadinessSnapshot
+
+from .models import BehaviorSignal, MentorInfluence, ReadinessSnapshot, SkillSignal
 
 
 class SkillSignalSerializer(serializers.ModelSerializer):

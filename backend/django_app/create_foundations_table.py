@@ -2,6 +2,7 @@
 """Create foundations_progress table"""
 import os
 import sys
+
 import django
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -10,11 +11,12 @@ django.setup()
 
 from django.db import connection
 
+
 def main():
     print("\n" + "="*80)
     print("Creating foundations_progress table")
     print("="*80 + "\n")
-    
+
     with connection.cursor() as cursor:
         print("[1] Creating foundations_progress table...")
         cursor.execute("""
@@ -40,18 +42,18 @@ def main():
             )
         """)
         print("[PASS] Table created\n")
-        
+
         print("[2] Creating indexes...")
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS foundations_progress_user_id_idx 
+            CREATE INDEX IF NOT EXISTS foundations_progress_user_id_idx
             ON foundations_progress(user_id)
         """)
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS foundations_progress_status_idx 
+            CREATE INDEX IF NOT EXISTS foundations_progress_status_idx
             ON foundations_progress(status)
         """)
         print("[PASS] Indexes created\n")
-        
+
         print("="*80)
         print("[SUCCESS] foundations_progress table ready!")
         print("="*80 + "\n")

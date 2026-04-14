@@ -3,20 +3,21 @@ Portfolio API Views
 Handles CRUD operations for student portfolio items
 """
 
+import json
+import os
+import uuid
+
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+from programs.models import Enrollment
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
-from django.utils import timezone
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
-from django.conf import settings
-from .models import PortfolioItem, ReadinessScore
+
 from users.models import User
-from programs.models import Enrollment
-import json
-import uuid
-import os
+
+from .models import PortfolioItem, ReadinessScore
 
 
 @api_view(['GET'])
@@ -34,25 +35,25 @@ def get_portfolio_items(request, user_id):
         )
 
     items = PortfolioItem.objects.filter(user=request.user).order_by('-created_at')
-    
+
     items_data = []
     for item in items:
         # Parse JSON fields safely
         skill_tags = []
         evidence_files = []
-        
+
         if item.skill_tags:
             try:
                 skill_tags = json.loads(item.skill_tags) if isinstance(item.skill_tags, str) else item.skill_tags
             except:
                 skill_tags = []
-        
+
         if item.evidence_files:
             try:
                 evidence_files = json.loads(item.evidence_files) if isinstance(item.evidence_files, str) else item.evidence_files
             except:
                 evidence_files = []
-        
+
         items_data.append({
             'id': str(item.id),
             'title': item.title,
@@ -65,7 +66,7 @@ def get_portfolio_items(request, user_id):
             'createdAt': item.created_at.isoformat() if item.created_at else None,
             'updatedAt': item.updated_at.isoformat() if item.updated_at else None,
         })
-    
+
     return Response({'items': items_data})
 
 
@@ -89,29 +90,29 @@ def get_portfolio_item(request, item_id):
             {'detail': 'Portfolio item not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     # Only allow users to access their own portfolio items
     if item.user != request.user:
         return Response(
             {'detail': 'You can only access your own portfolio items'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     skill_tags = []
     evidence_files = []
-    
+
     if item.skill_tags:
         try:
             skill_tags = json.loads(item.skill_tags) if isinstance(item.skill_tags, str) else item.skill_tags
         except:
             skill_tags = []
-    
+
     if item.evidence_files:
         try:
             evidence_files = json.loads(item.evidence_files) if isinstance(item.evidence_files, str) else item.evidence_files
         except:
             evidence_files = []
-    
+
     return Response({
         'id': str(item.id),
         'title': item.title,
@@ -153,10 +154,10 @@ def create_portfolio_item(request, user_id):
         skill_tags=json.dumps(data.get('skillTags', [])),
         evidence_files=json.dumps(data.get('evidenceFiles', [])),
     )
-    
+
     skill_tags = data.get('skillTags', [])
     evidence_files = data.get('evidenceFiles', [])
-    
+
     return Response({
         'id': str(item.id),
         'title': item.title,
@@ -180,16 +181,16 @@ def update_portfolio_item_logic(request, item_id):
             {'detail': 'Portfolio item not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     # Only allow users to update their own portfolio items
     if item.user != request.user:
         return Response(
             {'detail': 'You can only update your own portfolio items'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     data = request.data
-    
+
     # Update fields
     if 'title' in data:
         item.title = data['title']
@@ -205,24 +206,24 @@ def update_portfolio_item_logic(request, item_id):
         item.skill_tags = json.dumps(data['skillTags'])
     if 'evidenceFiles' in data:
         item.evidence_files = json.dumps(data['evidenceFiles'])
-    
+
     item.save()
-    
+
     skill_tags = []
     evidence_files = []
-    
+
     if item.skill_tags:
         try:
             skill_tags = json.loads(item.skill_tags) if isinstance(item.skill_tags, str) else item.skill_tags
         except:
             skill_tags = []
-    
+
     if item.evidence_files:
         try:
             evidence_files = json.loads(item.evidence_files) if isinstance(item.evidence_files, str) else item.evidence_files
         except:
             evidence_files = []
-    
+
     return Response({
         'id': str(item.id),
         'title': item.title,
@@ -246,14 +247,14 @@ def delete_portfolio_item_logic(request, item_id):
             {'detail': 'Portfolio item not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     # Only allow users to delete their own portfolio items
     if item.user != request.user:
         return Response(
             {'detail': 'You can only delete your own portfolio items'},
             status=status.HTTP_403_FORBIDDEN
         )
-    
+
     item.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -277,13 +278,13 @@ def get_portfolio_health(request, user_id):
     approved_items = items.filter(status='approved').count()
     pending_items = items.filter(status__in=['draft', 'submitted', 'pending']).count()
     in_review_items = items.filter(status='in_review').count()
-    
+
     # Calculate health score (0-100)
     if total_items > 0:
         health_score = (approved_items / total_items) * 100
     else:
         health_score = 0
-    
+
     # Get top skills from all items
     all_skills = []
     for item in items:
@@ -294,18 +295,18 @@ def get_portfolio_health(request, user_id):
                     all_skills.extend(skills)
             except:
                 pass
-    
+
     # Count skill frequency
     skill_counts = {}
     for skill in all_skills:
         if skill:  # Only count non-empty skills
             skill_counts[skill] = skill_counts.get(skill, 0) + 1
-    
+
     # Get top 10 skills with count and score
     # Score is based on frequency (normalized to 0-10 scale)
     top_skills = sorted(skill_counts.items(), key=lambda x: x[1], reverse=True)[:10]
     max_count = top_skills[0][1] if top_skills else 1  # Get max count for normalization
-    
+
     top_skills_list = [
         {
             'skill': skill,
@@ -314,12 +315,12 @@ def get_portfolio_health(request, user_id):
         }
         for skill, count in top_skills
     ]
-    
+
     # Readiness score from ReadinessScore model (TalentScope/profiler)
     readiness = ReadinessScore.objects.filter(user=request.user).order_by('-updated_at').first()
     readiness_score = readiness.score if readiness else 0
     readiness_trend = readiness.trend if readiness else 0
-    
+
     return Response({
         'totalItems': total_items,
         'approvedItems': approved_items,
@@ -372,7 +373,7 @@ def upload_portfolio_file(request, user_id):
         'application/x-pcap', 'application/octet-stream'  # For .pcap files
     ]
     allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.webm', '.ogg', '.pdf', '.txt', '.md', '.pcap', '.log']
-    
+
     file_extension = os.path.splitext(uploaded_file.name)[1].lower()
     if uploaded_file.content_type not in allowed_types or file_extension not in allowed_extensions:
         return Response(

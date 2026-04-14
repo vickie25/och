@@ -2,11 +2,12 @@
 User models for the Ongoza CyberHub platform.
 Comprehensive identity, authentication, and authorization system.
 """
+import uuid
+
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
-from django.core.validators import RegexValidator
-import uuid
 
 
 class User(AbstractUser):
@@ -17,13 +18,13 @@ class User(AbstractUser):
     # ID field: Use Django's default BigAutoField (bigint in PostgreSQL)
     # This matches the Wilson database backup schema
     # Do NOT override id field - let Django handle it
-    
+
     # UUID field for foreign key references (database has this column)
     uuid_id = models.UUIDField(unique=True, default=uuid.uuid4, editable=False, db_index=True)
-    
+
     # Override email to make it unique and indexed (AbstractUser has email but not unique by default)
     email = models.EmailField(unique=True, db_index=True)
-    
+
     # Account lifecycle
     ACCOUNT_STATUS_CHOICES = [
         ('pending_verification', 'Pending Verification'),
@@ -49,7 +50,7 @@ class User(AbstractUser):
     activated_at = models.DateTimeField(null=True, blank=True)
     deactivated_at = models.DateTimeField(null=True, blank=True)
     erased_at = models.DateTimeField(null=True, blank=True)
-    
+
     # ABAC Attributes
     cohort_id = models.CharField(max_length=100, null=True, blank=True, db_index=True)
     track_key = models.CharField(max_length=100, null=True, blank=True, db_index=True)
@@ -64,7 +65,7 @@ class User(AbstractUser):
     country = models.CharField(max_length=2, null=True, blank=True)  # ISO 3166-1 alpha-2
     timezone = models.CharField(max_length=50, default='UTC')
     language = models.CharField(max_length=10, default='en')  # ISO 639-1 language code
-    
+
     # Risk and security
     RISK_LEVEL_CHOICES = [
         ('low', 'Low'),
@@ -86,7 +87,7 @@ class User(AbstractUser):
     )
     password_changed_at = models.DateTimeField(null=True, blank=True)
     last_login_ip = models.GenericIPAddressField(null=True, blank=True)
-    
+
     # Profile fields
     bio = models.TextField(blank=True, null=True)
     avatar_url = models.URLField(blank=True, null=True)
@@ -112,7 +113,7 @@ class User(AbstractUser):
         null=True,
         help_text='User gender (optional)'
     )
-    
+
     # Student onboarding fields (for TalentScope baseline)
     LEARNING_STYLE_CHOICES = [
         ('visual', 'Visual'),
@@ -133,11 +134,11 @@ class User(AbstractUser):
         null=True,
         help_text='Career goals and aspirations for TalentScope baseline'
     )
-    
+
     # Profile completion tracking
     profile_complete = models.BooleanField(default=False)
     onboarding_complete = models.BooleanField(default=False)
-    
+
     # Onboarding email tracking
     ONBOARDED_EMAIL_STATUS_CHOICES = [
         ('sent', 'Sent'),
@@ -151,16 +152,16 @@ class User(AbstractUser):
         db_index=True,
         help_text='Status of onboarding email: null (not sent), sent (sent but not opened), sent_and_seen (sent and opened)'
     )
-    
+
     # Profiling completion tracking (mandatory Tier 0 gateway)
     profiling_complete = models.BooleanField(default=False, db_index=True)
     profiling_completed_at = models.DateTimeField(null=True, blank=True)
     profiling_session_id = models.UUIDField(null=True, blank=True, help_text='Completed profiling session ID')
-    
+
     # Foundations completion tracking (mandatory Tier 1 gateway)
     foundations_complete = models.BooleanField(default=False, db_index=True)
     foundations_completed_at = models.DateTimeField(null=True, blank=True)
-    
+
     # Mentor fields
     is_mentor = models.BooleanField(default=False, db_index=True)
     mentor_capacity_weekly = models.IntegerField(default=10)
@@ -179,15 +180,15 @@ class User(AbstractUser):
         null=True,
         help_text='Current cyber security exposure level for TalentScope baseline'
     )
-    
+
     # Metadata and settings
     metadata = models.JSONField(default=dict, blank=True, help_text='User metadata and settings')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
-    
+
     class Meta:
         db_table = 'users'
         ordering = ['-created_at']
@@ -201,10 +202,10 @@ class User(AbstractUser):
             models.Index(fields=['mfa_enabled']),
             models.Index(fields=['onboarded_email_status']),
         ]
-    
+
     def __str__(self):
         return self.email
-    
+
     def get_profiling_session_id_safe(self):
         """Safely get profiling_session_id, handling invalid UUID values."""
         try:
@@ -230,7 +231,7 @@ class User(AbstractUser):
             logger = logging.getLogger(__name__)
             logger.warning(f"Failed to get profiling_session_id for user {self.id}: {e}")
             return None
-    
+
     def activate(self):
         """Activate user account."""
         self.account_status = 'active'
@@ -238,14 +239,14 @@ class User(AbstractUser):
         if not self.activated_at:
             self.activated_at = timezone.now()
         self.save()
-    
+
     def deactivate(self):
         """Deactivate user account."""
         self.account_status = 'deactivated'
         self.is_active = False
         self.deactivated_at = timezone.now()
         self.save()
-    
+
     def erase(self):
         """Erase user data (GDPR compliance)."""
         self.account_status = 'erased'
@@ -259,45 +260,46 @@ class User(AbstractUser):
         self.bio = None
         self.phone_number = None
         self.save()
-    
+
     def generate_verification_token(self):
         """
         Generate secure email verification token with hashing (Elite security standard).
-        
+
         Returns:
             str: Raw token (URL-safe, 32 bytes) - MUST be used immediately, NOT stored in DB
-        
+
         Security Features:
             - Uses secrets.token_urlsafe(32) for cryptographically secure generation
             - SHA-256 hashing at-rest (only hash stored in DB)
             - 24-hour expiration timestamp
             - One-time use (hash cleared after verification)
         """
-        import secrets
         import hashlib
-        from django.conf import settings
+        import secrets
         from datetime import timedelta
-        
+
+        from django.conf import settings
+
         # Generate raw token (URL-safe, 32 bytes = ~43 characters)
         raw_token = secrets.token_urlsafe(32)
-        
+
         # Hash the token using SHA-256 (64 character hex string)
         token_hash = hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
-        
+
         # Calculate expiration (24 hours from now)
         expiry_hours = getattr(settings, 'ACTIVATION_TOKEN_EXPIRY', 24)
         self.token_expires_at = timezone.now() + timedelta(hours=expiry_hours)
-        
+
         # Store only the hash in database (raw token is NEVER stored)
         self.verification_hash = token_hash
-        
+
         # Clear legacy fields if they exist
         self.email_verification_token = None
         self.email_token_created_at = None
-        
+
         # Save hash and expiration
         self.save()
-        
+
         # Return raw token (must be used immediately)
         return raw_token
 
@@ -311,13 +313,13 @@ class User(AbstractUser):
     def verify_email_token(self, raw_token):
         """
         Verify email verification token using hashed comparison (Elite security standard).
-        
+
         Args:
             raw_token: The raw token from the URL
-        
+
         Returns:
             bool: True if token is valid and not expired, False otherwise
-        
+
         Security Features:
             - Hashes incoming token and compares with stored hash
             - Checks expiration timestamp
@@ -325,23 +327,23 @@ class User(AbstractUser):
             - Prevents timing attacks with constant-time comparison
         """
         import hashlib
-        from django.conf import settings
-        
+
+
         # Check if user has a verification hash
         if not self.verification_hash or not self.token_expires_at:
             return False
-        
+
         # Check if token has expired
         if timezone.now() > self.token_expires_at:
             return False
-        
+
         # Hash the incoming raw token
         incoming_hash = hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
-        
+
         # Constant-time comparison to prevent timing attacks
         if not self._constant_time_compare(self.verification_hash, incoming_hash):
             return False
-        
+
         # Token is valid - activate user and clear hash (one-time use)
         self.email_verified = True
         self.email_verified_at = timezone.now()
@@ -349,26 +351,26 @@ class User(AbstractUser):
         self.account_status = 'active'
         if not self.activated_at:
             self.activated_at = timezone.now()
-        
+
         # Clear hash and expiration (one-time use)
         self.verification_hash = None
         self.token_expires_at = None
-        
+
         # Clear legacy fields if they exist
         self.email_verification_token = None
         self.email_token_created_at = None
-        
+
         self.save()
         return True
-    
+
     def _constant_time_compare(self, val1, val2):
         """
         Constant-time string comparison to prevent timing attacks.
-        
+
         Args:
             val1: First string to compare
             val2: Second string to compare
-        
+
         Returns:
             bool: True if strings are equal, False otherwise
         """
@@ -398,25 +400,25 @@ class Role(models.Model):
     """
     RBAC Role model for global/base roles.
     """
-    
+
     name = models.CharField(max_length=50, unique=True)
     display_name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     is_system_role = models.BooleanField(default=False)  # Custom roles are not system roles
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     # Permissions (many-to-many relationship)
     permissions = models.ManyToManyField(
         'Permission',
         related_name='roles',
         blank=True
     )
-    
+
     class Meta:
         db_table = 'roles'
         ordering = ['name']
-    
+
     def __str__(self):
         return self.display_name
 
@@ -440,7 +442,7 @@ class Permission(models.Model):
         ('webhook', 'Webhook'),
         ('subscription', 'Subscription'),
     ]
-    
+
     ACTION_TYPES = [
         ('create', 'Create'),
         ('read', 'Read'),
@@ -449,18 +451,18 @@ class Permission(models.Model):
         ('list', 'List'),
         ('manage', 'Manage'),
     ]
-    
+
     name = models.CharField(max_length=100, unique=True)
     resource_type = models.CharField(max_length=50, choices=RESOURCE_TYPES)
     action = models.CharField(max_length=20, choices=ACTION_TYPES)
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         db_table = 'permissions'
         unique_together = ['resource_type', 'action']
         ordering = ['resource_type', 'action']
-    
+
     def __str__(self):
         return f"{self.action}_{self.resource_type}"
 
@@ -476,14 +478,14 @@ class UserRole(models.Model):
         ('cohort', 'Cohort'),
         ('track', 'Track'),
     ]
-    
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_roles')
     role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='user_roles')
-    
+
     # Scope for ABAC (per specification)
     scope = models.CharField(max_length=20, choices=SCOPE_CHOICES, default='global')
     scope_ref = models.UUIDField(null=True, blank=True, db_index=True)  # Reference to org/cohort/track UUID
-    
+
     # Legacy fields (for backward compatibility)
     cohort_id = models.CharField(max_length=100, null=True, blank=True)
     track_key = models.CharField(max_length=100, null=True, blank=True)
@@ -494,7 +496,7 @@ class UserRole(models.Model):
         blank=True,
         related_name='role_assignments'
     )
-    
+
     # Assignment metadata
     assigned_by = models.ForeignKey(
         User,
@@ -505,7 +507,7 @@ class UserRole(models.Model):
     assigned_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
-    
+
     class Meta:
         db_table = 'user_roles'
         unique_together = [
@@ -519,7 +521,7 @@ class UserRole(models.Model):
             models.Index(fields=['track_key']),
             models.Index(fields=['org_id']),
         ]
-    
+
     def __str__(self):
         context = []
         if self.scope != 'global':
@@ -547,7 +549,7 @@ class ConsentScope(models.Model):
         ('public_portfolio', 'Public Portfolio'),
         ('employer_share', 'Employer Share'),
     ]
-    
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='consent_scopes')
     scope_type = models.CharField(max_length=50, choices=SCOPE_TYPES)
     granted = models.BooleanField(default=False)
@@ -556,14 +558,14 @@ class ConsentScope(models.Model):
     expires_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'consent_scopes'
         unique_together = ['user', 'scope_type']
         indexes = [
             models.Index(fields=['user', 'granted']),
         ]
-    
+
     def __str__(self):
         status = "Granted" if self.granted else "Revoked"
         return f"{self.user.email} - {self.scope_type} ({status})"
@@ -579,7 +581,7 @@ class Entitlement(models.Model):
     granted_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
-    
+
     class Meta:
         db_table = 'entitlements'
         unique_together = ['user', 'feature']
@@ -587,7 +589,7 @@ class Entitlement(models.Model):
             models.Index(fields=['user', 'granted']),
             models.Index(fields=['feature']),
         ]
-    
+
     def __str__(self):
         return f"{self.user.email} - {self.feature}"
 
@@ -622,7 +624,7 @@ class SponsorStudentLink(models.Model):
         db_column='created_by'
     )
     is_active = models.BooleanField(default=True)
-    
+
     class Meta:
         db_table = 'sponsor_student_links'
         unique_together = ['sponsor', 'student']
@@ -630,6 +632,6 @@ class SponsorStudentLink(models.Model):
             models.Index(fields=['sponsor', 'is_active']),
             models.Index(fields=['student', 'is_active']),
         ]
-    
+
     def __str__(self):
         return f"{self.sponsor.email} -> {self.student.email}"

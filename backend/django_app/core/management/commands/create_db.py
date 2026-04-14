@@ -2,11 +2,10 @@
 Django management command to create the database.
 Usage: python manage.py create_db
 """
-import os
 import psycopg2
-from psycopg2 import sql
-from django.core.management.base import BaseCommand
 from django.conf import settings
+from django.core.management.base import BaseCommand
+from psycopg2 import sql
 
 
 class Command(BaseCommand):

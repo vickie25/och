@@ -2,8 +2,10 @@
 Serializers for Cohorts, Modules, Milestones, and Specializations API endpoints.
 """
 from rest_framework import serializers
-from .models import Cohort, Module, Milestone, Specialization, Track, Program
+
 from users.models import User
+
+from .models import Cohort, Milestone, Module, Program, Specialization, Track
 
 
 class ProgramNestedSerializer(serializers.ModelSerializer):
@@ -16,7 +18,7 @@ class ProgramNestedSerializer(serializers.ModelSerializer):
 class TrackNestedSerializer(serializers.ModelSerializer):
     """Nested track serializer for related objects."""
     program = ProgramNestedSerializer(read_only=True)
-    
+
     class Meta:
         model = Track
         fields = ['id', 'name', 'program']
@@ -37,7 +39,7 @@ class CohortSerializer(serializers.ModelSerializer):
     seat_utilization = serializers.ReadOnlyField()
     completion_rate = serializers.ReadOnlyField()
     profile_image_url = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Cohort
         fields = [
@@ -47,7 +49,7 @@ class CohortSerializer(serializers.ModelSerializer):
             'completion_rate', 'published_to_homepage', 'profile_image', 'profile_image_url',
             'registration_form_fields', 'created_at', 'updated_at'
         ]
-    
+
     def get_profile_image_url(self, obj):
         if obj.profile_image:
             request = self.context.get('request')
@@ -55,7 +57,7 @@ class CohortSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.profile_image.url)
             return obj.profile_image.url if obj.profile_image else None
         return None
-    
+
     def get_enrollment_count(self, obj):
         return obj.enrollments.filter(status='active').count()
 
@@ -71,7 +73,7 @@ class CreateCohortSerializer(serializers.ModelSerializer):
         allow_empty=True,
         help_text='List of curriculum track slugs'
     )
-    
+
     class Meta:
         model = Cohort
         fields = [
@@ -80,13 +82,13 @@ class CreateCohortSerializer(serializers.ModelSerializer):
             'coordinator', 'seat_pool', 'assigned_staff', 'status',
             'published_to_homepage', 'profile_image', 'registration_form_fields'
         ]
-    
+
     def validate_track(self, value):
         try:
             return Track.objects.get(id=value)
         except Track.DoesNotExist:
             raise serializers.ValidationError("Track not found")
-    
+
     def validate_coordinator(self, value):
         if value:
             try:
@@ -94,20 +96,20 @@ class CreateCohortSerializer(serializers.ModelSerializer):
             except User.DoesNotExist:
                 raise serializers.ValidationError("Coordinator not found")
         return None
-    
+
     def create(self, validated_data):
         track = validated_data.pop('track', None)
         coordinator = validated_data.pop('coordinator', None)
         assigned_staff = validated_data.pop('assigned_staff', {})
         curriculum_tracks = validated_data.pop('curriculum_tracks', [])
-        
+
         cohort = Cohort.objects.create(
             track=track,
             coordinator=coordinator,
             curriculum_tracks=curriculum_tracks,
             **validated_data
         )
-        
+
         # Handle mentor assignments if provided
         if assigned_staff.get('mentors'):
             from .models import MentorAssignment
@@ -121,14 +123,14 @@ class CreateCohortSerializer(serializers.ModelSerializer):
                     )
                 except User.DoesNotExist:
                     pass  # Skip invalid mentor IDs
-        
+
         return cohort
 
 
 class MilestoneNestedSerializer(serializers.ModelSerializer):
     """Nested milestone serializer for modules."""
     track = TrackNestedSerializer(read_only=True)
-    
+
     class Meta:
         model = Milestone
         fields = ['id', 'name', 'track']
@@ -138,7 +140,7 @@ class ModuleSerializer(serializers.ModelSerializer):
     """Module serializer with nested milestone information."""
     milestone = MilestoneNestedSerializer(read_only=True)
     applicable_tracks = TrackNestedSerializer(many=True, read_only=True)
-    
+
     class Meta:
         model = Module
         fields = [
@@ -156,7 +158,7 @@ class CreateModuleSerializer(serializers.ModelSerializer):
         required=False,
         allow_empty=True
     )
-    
+
     class Meta:
         model = Module
         fields = [
@@ -164,13 +166,13 @@ class CreateModuleSerializer(serializers.ModelSerializer):
             'content_url', 'order', 'estimated_hours', 'skills',
             'applicable_tracks'
         ]
-    
+
     def validate_milestone(self, value):
         try:
             return Milestone.objects.get(id=value)
         except Milestone.DoesNotExist:
             raise serializers.ValidationError("Milestone not found")
-    
+
     def validate_applicable_tracks(self, value):
         if value:
             tracks = Track.objects.filter(id__in=value)
@@ -178,19 +180,19 @@ class CreateModuleSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("One or more tracks not found")
             return tracks
         return []
-    
+
     def create(self, validated_data):
         milestone = validated_data.pop('milestone')
         applicable_tracks = validated_data.pop('applicable_tracks', [])
-        
+
         module = Module.objects.create(
             milestone=milestone,
             **validated_data
         )
-        
+
         if applicable_tracks:
             module.applicable_tracks.set(applicable_tracks)
-        
+
         return module
 
 
@@ -198,7 +200,7 @@ class MilestoneSerializer(serializers.ModelSerializer):
     """Milestone serializer with nested track information."""
     track = TrackNestedSerializer(read_only=True)
     modules = ModuleSerializer(many=True, read_only=True)
-    
+
     class Meta:
         model = Milestone
         fields = [
@@ -210,17 +212,17 @@ class MilestoneSerializer(serializers.ModelSerializer):
 class CreateMilestoneSerializer(serializers.ModelSerializer):
     """Serializer for creating milestones."""
     track = serializers.UUIDField()
-    
+
     class Meta:
         model = Milestone
         fields = ['track', 'name', 'description', 'order', 'duration_weeks']
-    
+
     def validate_track(self, value):
         try:
             return Track.objects.get(id=value)
         except Track.DoesNotExist:
             raise serializers.ValidationError("Track not found")
-    
+
     def create(self, validated_data):
         track = validated_data.pop('track')
         return Milestone.objects.create(track=track, **validated_data)
@@ -229,7 +231,7 @@ class CreateMilestoneSerializer(serializers.ModelSerializer):
 class SpecializationSerializer(serializers.ModelSerializer):
     """Specialization serializer with nested track information."""
     track = TrackNestedSerializer(read_only=True)
-    
+
     class Meta:
         model = Specialization
         fields = [
@@ -241,17 +243,17 @@ class SpecializationSerializer(serializers.ModelSerializer):
 class CreateSpecializationSerializer(serializers.ModelSerializer):
     """Serializer for creating specializations."""
     track = serializers.UUIDField()
-    
+
     class Meta:
         model = Specialization
         fields = ['track', 'name', 'description', 'missions', 'duration_weeks']
-    
+
     def validate_track(self, value):
         try:
             return Track.objects.get(id=value)
         except Track.DoesNotExist:
             raise serializers.ValidationError("Track not found")
-    
+
     def create(self, validated_data):
         track = validated_data.pop('track')
         return Specialization.objects.create(track=track, **validated_data)

@@ -2,7 +2,14 @@
 Serializers for the Sponsors app.
 """
 from rest_framework import serializers
-from .models import Sponsor, SponsorCohort, SponsorStudentCohort, SponsorAnalytics, SponsorCohortAssignment
+
+from .models import (
+    Sponsor,
+    SponsorAnalytics,
+    SponsorCohort,
+    SponsorCohortAssignment,
+    SponsorStudentCohort,
+)
 
 
 class SponsorCohortAssignmentSerializer(serializers.ModelSerializer):

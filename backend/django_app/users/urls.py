@@ -1,54 +1,63 @@
 """
 URL configuration for users app - Authentication endpoints.
 """
-from django.urls import path, include
-from .views import UserViewSet, register_user, verify_email, request_password_reset, reset_password, change_password, setup_password, check_password_status, setup_password
-from .views.auth_views import resend_verification_email, resend_verification_email
+from django.urls import path
+
+from .views import (
+    change_password,
+    check_password_status,
+    register_user,
+    request_password_reset,
+    reset_password,
+    setup_password,
+    verify_email,
+)
 from .views.auth_views import (
-    SignupView,
-    LoginView,
-    SimpleLoginView,
-    MagicLinkView,
-    MFAEnrollView,
-    MFAVerifyView,
-    MFASendChallengeView,
-    MFACompleteView,
-    MFAMethodsListView,
-    MFABackupCodesRegenerateView,
-    MFADisableView,
-    RefreshTokenView,
-    LogoutView,
-    MeView,
-    ProfileView,
     ConsentView,
+    LoginView,
+    LogoutView,
+    MagicLinkView,
+    MeView,
+    MFABackupCodesRegenerateView,
+    MFACompleteView,
+    MFADisableView,
+    MFAEnrollView,
+    MFAMethodsListView,
+    MFASendChallengeView,
+    MFAVerifyView,
+    ProfileView,
+    RefreshTokenView,
     SessionsView,
+    SignupView,
+    SimpleLoginView,
+    resend_verification_email,
 )
-from .views.password_reset_views import (
-    PasswordResetRequestView,
-    PasswordResetConfirmView,
-)
-from .views.sso_views import (
-    SSOLoginView,
-    google_sso_login,
-    microsoft_sso_login,
-    apple_sso_login,
-    okta_sso_login,
-)
+from .views.create_och_users_view import create_och_users
 from .views.google_oauth_views import (
-    GoogleOAuthInitiateView,
     GoogleOAuthCallbackView,
+    GoogleOAuthInitiateView,
 )
 from .views.onboarding_views import (
     check_onboarding_status,
     complete_onboarding_step,
 )
+from .views.password_reset_views import (
+    PasswordResetConfirmView,
+    PasswordResetRequestView,
+)
 from .views.settings_views import user_settings
-from .views.create_och_users_view import create_och_users
+from .views.sso_views import (
+    SSOLoginView,
+    apple_sso_login,
+    google_sso_login,
+    microsoft_sso_login,
+    okta_sso_login,
+)
 
 urlpatterns = [
     # User management endpoints
     # Note: UserViewSet is registered in api/urls.py router to create /api/v1/users endpoint
-    
+
     # Authentication endpoints (support both with and without trailing slash)
     path('auth/signup', SignupView.as_view(), name='signup'),
     path('auth/signup/', SignupView.as_view(), name='signup-slash'),
@@ -116,7 +125,7 @@ urlpatterns = [
     path('auth/sso/microsoft', microsoft_sso_login, name='sso-microsoft'),
     path('auth/sso/apple', apple_sso_login, name='sso-apple'),
     path('auth/sso/okta', okta_sso_login, name='sso-okta'),
-    
+
     # Google OAuth 2.0 flow (for account activation/signup)
     path('auth/google/initiate', GoogleOAuthInitiateView.as_view(), name='google-oauth-initiate'),
     path('auth/google/initiate/', GoogleOAuthInitiateView.as_view(), name='google-oauth-initiate-slash'),
@@ -128,7 +137,7 @@ urlpatterns = [
     path('auth/onboarding/status/', check_onboarding_status, name='onboarding-status-slash'),
     path('auth/onboarding/complete-step', complete_onboarding_step, name='onboarding-complete-step'),
     path('auth/onboarding/complete-step/', complete_onboarding_step, name='onboarding-complete-step-slash'),
-    
+
     # OCH users creation endpoint (for initial setup)
     path('users/create-och-users', create_och_users, name='create-och-users'),
     path('users/create-och-users/', create_och_users, name='create-och-users-slash'),

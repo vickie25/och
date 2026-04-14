@@ -1,13 +1,14 @@
 """
 Calendar Event ViewSet for managing calendar events (assessment windows).
 """
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
+from rest_framework import status, viewsets
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from users.models import Role, UserRole
+
 from ..models import CalendarEvent
 from ..serializers import CalendarEventSerializer
-from users.models import Role, UserRole
 
 
 class CalendarEventViewSet(viewsets.ModelViewSet):
@@ -27,17 +28,17 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter calendar events by cohort if provided."""
         queryset = CalendarEvent.objects.all().order_by('-start_ts')
-        
+
         # Filter by cohort_id if provided
         cohort_id = self.request.query_params.get('cohort_id')
         if cohort_id:
             queryset = queryset.filter(cohort_id=cohort_id)
-        
+
         # Filter by type if provided (for assessment windows)
         event_type = self.request.query_params.get('type')
         if event_type:
             queryset = queryset.filter(type=event_type)
-        
+
         return queryset
 
     def get_permissions(self):
@@ -67,7 +68,7 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
                     {'detail': 'Only program directors and administrators can create calendar events'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-        
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
@@ -95,7 +96,7 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
                     {'detail': 'Only program directors and administrators can update calendar events'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-        
+
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
@@ -119,6 +120,6 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
                     {'detail': 'Only program directors and administrators can delete calendar events'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-        
+
         return super().destroy(request, *args, **kwargs)
 

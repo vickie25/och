@@ -5,6 +5,7 @@ Reads credentials from environment and creates/updates the SSOProvider in databa
 """
 import os
 import sys
+
 import django
 
 # Setup Django
@@ -14,19 +15,20 @@ django.setup()
 
 from users.auth_models import SSOProvider
 
+
 def setup_google_oauth():
     """Create or update Google OAuth provider with credentials from .env"""
-    
+
     # Support both naming conventions
     client_id = os.getenv('GOOGLE_OAUTH_CLIENT_ID') or os.getenv('GOOGLE_CLIENT_ID')
     client_secret = os.getenv('GOOGLE_OAUTH_CLIENT_SECRET') or os.getenv('GOOGLE_CLIENT_SECRET')
-    
+
     if not client_id or not client_secret:
         print("❌ Error: Google OAuth credentials must be set in .env")
         print("   Required: GOOGLE_OAUTH_CLIENT_ID (or GOOGLE_CLIENT_ID)")
         print("   Required: GOOGLE_OAUTH_CLIENT_SECRET (or GOOGLE_CLIENT_SECRET)")
         return False
-    
+
     # Create or update Google SSO provider
     provider, created = SSOProvider.objects.update_or_create(
         name='google',
@@ -42,16 +44,16 @@ def setup_google_oauth():
             'is_active': True,
         }
     )
-    
+
     if created:
-        print(f"✅ Created Google OAuth provider")
+        print("✅ Created Google OAuth provider")
     else:
-        print(f"✅ Updated Google OAuth provider")
-    
+        print("✅ Updated Google OAuth provider")
+
     print(f"   Client ID: {client_id}")
     print(f"   Active: {provider.is_active}")
     print(f"   Scopes: {', '.join(provider.scopes)}")
-    
+
     return True
 
 if __name__ == '__main__':

@@ -3,6 +3,7 @@ Management command to seed initial Foundations modules.
 Run: python manage.py seed_foundations_modules
 """
 from django.core.management.base import BaseCommand
+
 from foundations.models import FoundationsModule
 
 

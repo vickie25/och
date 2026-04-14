@@ -2,15 +2,21 @@
 Enhanced Billing Engine Serializers
 """
 from rest_framework import serializers
+
 from .billing_engine import (
-    EnhancedSubscription, SubscriptionPlanVersion, BillingPeriod,
-    DunningSequence, SubscriptionChange, ProrationCredit, SubscriptionInvoice
+    BillingPeriod,
+    DunningSequence,
+    EnhancedSubscription,
+    ProrationCredit,
+    SubscriptionChange,
+    SubscriptionInvoice,
+    SubscriptionPlanVersion,
 )
 
 
 class SubscriptionPlanVersionSerializer(serializers.ModelSerializer):
     """Serializer for subscription plan versions."""
-    
+
     class Meta:
         model = SubscriptionPlanVersion
         fields = [
@@ -24,12 +30,12 @@ class SubscriptionPlanVersionSerializer(serializers.ModelSerializer):
 
 class EnhancedSubscriptionSerializer(serializers.ModelSerializer):
     """Serializer for enhanced subscriptions."""
-    
+
     plan_version = SubscriptionPlanVersionSerializer(read_only=True)
     user_email = serializers.CharField(source='user.email', read_only=True)
     days_until_period_end = serializers.SerializerMethodField()
     can_reactivate = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = EnhancedSubscription
         fields = [
@@ -40,7 +46,7 @@ class EnhancedSubscriptionSerializer(serializers.ModelSerializer):
             'days_until_period_end', 'can_reactivate', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
-    
+
     def get_days_until_period_end(self, obj):
         """Calculate days until current period ends."""
         if obj.current_period_end:
@@ -48,7 +54,7 @@ class EnhancedSubscriptionSerializer(serializers.ModelSerializer):
             delta = obj.current_period_end - timezone.now()
             return max(0, delta.days)
         return None
-    
+
     def get_can_reactivate(self, obj):
         """Check if subscription can be reactivated."""
         if obj.status != 'SUSPENDED':
@@ -61,7 +67,7 @@ class EnhancedSubscriptionSerializer(serializers.ModelSerializer):
 
 class BillingPeriodSerializer(serializers.ModelSerializer):
     """Serializer for billing periods."""
-    
+
     class Meta:
         model = BillingPeriod
         fields = [
@@ -74,7 +80,7 @@ class BillingPeriodSerializer(serializers.ModelSerializer):
 
 class DunningSequenceSerializer(serializers.ModelSerializer):
     """Serializer for dunning sequences."""
-    
+
     class Meta:
         model = DunningSequence
         fields = [
@@ -88,9 +94,9 @@ class DunningSequenceSerializer(serializers.ModelSerializer):
 
 class SubscriptionChangeSerializer(serializers.ModelSerializer):
     """Serializer for subscription change audit records."""
-    
+
     created_by_email = serializers.CharField(source='created_by.email', read_only=True)
-    
+
     class Meta:
         model = SubscriptionChange
         fields = [
@@ -103,7 +109,7 @@ class SubscriptionChangeSerializer(serializers.ModelSerializer):
 
 class ProrationCreditSerializer(serializers.ModelSerializer):
     """Serializer for proration credits."""
-    
+
     class Meta:
         model = ProrationCredit
         fields = [
@@ -115,7 +121,7 @@ class ProrationCreditSerializer(serializers.ModelSerializer):
 
 class SubscriptionInvoiceSerializer(serializers.ModelSerializer):
     """Serializer for subscription invoices."""
-    
+
     class Meta:
         model = SubscriptionInvoice
         fields = [
@@ -129,9 +135,9 @@ class SubscriptionInvoiceSerializer(serializers.ModelSerializer):
 
 class PlanChangePreviewSerializer(serializers.Serializer):
     """Serializer for plan change preview calculations."""
-    
+
     new_plan_id = serializers.CharField()
-    
+
     def validate_new_plan_id(self, value):
         """Validate that the new plan exists and is active."""
         plan = SubscriptionPlanVersion.get_active_plan(value)
@@ -142,7 +148,7 @@ class PlanChangePreviewSerializer(serializers.Serializer):
 
 class CancellationSerializer(serializers.Serializer):
     """Serializer for subscription cancellation requests."""
-    
+
     type = serializers.ChoiceField(
         choices=['immediate', 'end_of_period'],
         default='end_of_period'
@@ -156,13 +162,13 @@ class CancellationSerializer(serializers.Serializer):
 
 class ReactivationSerializer(serializers.Serializer):
     """Serializer for subscription reactivation requests."""
-    
+
     payment_method = serializers.CharField(max_length=100)
 
 
 class PaymentMethodUpdateSerializer(serializers.Serializer):
     """Serializer for payment method updates."""
-    
+
     payment_method = serializers.CharField(max_length=100)
     gateway = serializers.ChoiceField(
         choices=['stripe', 'paystack'],

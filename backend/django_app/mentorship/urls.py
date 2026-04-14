@@ -2,7 +2,8 @@
 URL configuration for mentorship endpoints.
 """
 from django.urls import path
-from .views import get_chat_messages, send_chat_message, get_mentor_presence
+
+from .views import get_chat_messages, get_mentor_presence, send_chat_message
 
 app_name = 'mentorship'
 

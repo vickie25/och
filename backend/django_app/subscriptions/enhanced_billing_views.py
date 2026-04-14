@@ -1,25 +1,26 @@
 """
 Enhanced Billing API Views - Academic Discounts and Promotional Codes
 """
-from rest_framework import status, permissions
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
-from django.shortcuts import get_object_or_404
+import logging
+from decimal import Decimal
+
 from django.db import transaction
 from django.utils import timezone
-from decimal import Decimal
-import logging
-
-from .promotional_models import (
-    AcademicDiscount, PromotionalCode, PromotionalCodeRedemption,
-    EnhancedTrialConfiguration
-)
-from .enhanced_billing_services import (
-    AcademicDiscountService, PromotionalCodeService,
-    EnhancedTrialService, GracePeriodService
-)
-from .billing_engine import EnhancedSubscription, SubscriptionPlanVersion
 from programs.permissions import IsProgramDirector
+from rest_framework import permissions, status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+
+from .billing_engine import EnhancedSubscription, SubscriptionPlanVersion
+from .enhanced_billing_services import (
+    AcademicDiscountService,
+    EnhancedTrialService,
+    PromotionalCodeService,
+)
+from .promotional_models import (
+    AcademicDiscount,
+    PromotionalCode,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +39,9 @@ def verify_academic_email(request):
                 {'error': 'Educational email is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         discount, message = AcademicDiscountService.verify_edu_email(request.user, edu_email)
-        
+
         return Response({
             'success': True,
             'message': message,
@@ -52,7 +53,7 @@ def verify_academic_email(request):
                 'expires_at': discount.expires_at.isoformat() if discount.expires_at else None
             }
         })
-        
+
     except Exception as e:
         logger.error(f"Academic email verification error: {str(e)}")
         return Response(
@@ -72,17 +73,17 @@ def upload_academic_document(request):
         document = request.FILES.get('document')
         document_type = request.data.get('document_type')
         institution_name = request.data.get('institution_name')
-        
+
         if not all([document, document_type, institution_name]):
             return Response(
                 {'error': 'Document, document type, and institution name are required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         discount, message = AcademicDiscountService.upload_verification_document(
             request.user, document, document_type, institution_name
         )
-        
+
         return Response({
             'success': True,
             'message': message,
@@ -93,7 +94,7 @@ def upload_academic_document(request):
                 'institution_name': discount.institution_name
             }
         })
-        
+
     except Exception as e:
         logger.error(f"Document upload error: {str(e)}")
         return Response(
@@ -111,7 +112,7 @@ def get_academic_discount_status(request):
     """
     try:
         discount = AcademicDiscount.objects.get(user=request.user)
-        
+
         return Response({
             'has_discount': True,
             'discount': {
@@ -125,7 +126,7 @@ def get_academic_discount_status(request):
                 'is_valid': discount.is_valid
             }
         })
-        
+
     except AcademicDiscount.DoesNotExist:
         return Response({
             'has_discount': False,
@@ -144,13 +145,13 @@ def validate_promo_code(request):
         code = request.data.get('code')
         plan_id = request.data.get('plan_id')
         billing_cycle = request.data.get('billing_cycle', 'monthly')
-        
+
         if not code:
             return Response(
                 {'error': 'Promotional code is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Get plan version if plan_id provided
         original_amount = None
         if plan_id:
@@ -163,11 +164,11 @@ def validate_promo_code(request):
                     )
             except:
                 pass
-        
+
         promo_result, message = PromotionalCodeService.validate_and_apply_code(
             code, request.user, plan_id, original_amount
         )
-        
+
         if promo_result:
             return Response({
                 'valid': True,
@@ -189,7 +190,7 @@ def validate_promo_code(request):
                 'message': message,
                 'discount': None
             })
-            
+
     except Exception as e:
         logger.error(f"Promo code validation error: {str(e)}")
         return Response(
@@ -209,13 +210,13 @@ def calculate_pricing_with_discounts(request):
         plan_id = request.data.get('plan_id')
         billing_cycle = request.data.get('billing_cycle', 'monthly')
         promo_code = request.data.get('promo_code')
-        
+
         if not plan_id:
             return Response(
                 {'error': 'Plan ID is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Get plan version
         plan_version = SubscriptionPlanVersion.get_active_plan(plan_id)
         if not plan_version:
@@ -223,12 +224,12 @@ def calculate_pricing_with_discounts(request):
                 {'error': 'Plan not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         # Calculate combined discounts
         pricing = PromotionalCodeService.calculate_combined_discount(
             request.user, plan_version, billing_cycle, promo_code
         )
-        
+
         return Response({
             'plan': {
                 'id': plan_version.plan_id,
@@ -251,7 +252,7 @@ def calculate_pricing_with_discounts(request):
                 'promo_details': pricing['promo_details']
             }
         })
-        
+
     except Exception as e:
         logger.error(f"Pricing calculation error: {str(e)}")
         return Response(
@@ -271,13 +272,13 @@ def create_enhanced_subscription(request):
         plan_id = request.data.get('plan_id')
         billing_cycle = request.data.get('billing_cycle', 'monthly')
         promo_code = request.data.get('promo_code')
-        
+
         if not plan_id:
             return Response(
                 {'error': 'Plan ID is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Check for existing subscription
         existing = EnhancedSubscription.objects.filter(user=request.user).first()
         if existing and existing.status not in ['EXPIRED', 'CANCELED']:
@@ -285,7 +286,7 @@ def create_enhanced_subscription(request):
                 {'error': 'You already have an active subscription'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Get plan version
         plan_version = SubscriptionPlanVersion.get_active_plan(plan_id)
         if not plan_version:
@@ -293,18 +294,18 @@ def create_enhanced_subscription(request):
                 {'error': 'Plan not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         with transaction.atomic():
             # Create enhanced trial subscription
             subscription = EnhancedTrialService.create_enhanced_trial(
                 request.user, plan_version, billing_cycle, promo_code
             )
-            
+
             # Calculate final pricing for response
             pricing = PromotionalCodeService.calculate_combined_discount(
                 request.user, plan_version, billing_cycle, promo_code
             )
-            
+
             return Response({
                 'success': True,
                 'message': 'Enhanced subscription created successfully!',
@@ -318,7 +319,7 @@ def create_enhanced_subscription(request):
                 },
                 'pricing': pricing
             }, status=status.HTTP_201_CREATED)
-            
+
     except Exception as e:
         logger.error(f"Enhanced subscription creation error: {str(e)}")
         return Response(
@@ -336,7 +337,7 @@ def get_available_plans_with_pricing(request):
     """
     try:
         plans = SubscriptionPlanVersion.objects.filter(status='active').order_by('price_monthly')
-        
+
         plans_data = []
         for plan in plans:
             # Calculate pricing for both billing cycles
@@ -346,10 +347,10 @@ def get_available_plans_with_pricing(request):
             annual_pricing = PromotionalCodeService.calculate_combined_discount(
                 request.user, plan, 'annual'
             )
-            
+
             # Get trial configuration
             trial_config = EnhancedTrialService.get_trial_configuration(plan)
-            
+
             plans_data.append({
                 'id': plan.plan_id,
                 'name': plan.name,
@@ -380,14 +381,14 @@ def get_available_plans_with_pricing(request):
                     }
                 }
             })
-        
+
         return Response({
             'plans': plans_data,
             'user_discounts': {
                 'has_academic': AcademicDiscount.objects.filter(user=request.user, status='verified').exists()
             }
         })
-        
+
     except Exception as e:
         logger.error(f"Plans with pricing error: {str(e)}")
         return Response(
@@ -406,11 +407,11 @@ def admin_academic_discounts(request):
     """
     try:
         status_filter = request.GET.get('status', 'pending')
-        
+
         discounts = AcademicDiscount.objects.filter(
             status=status_filter
         ).select_related('user').order_by('-created_at')
-        
+
         discounts_data = []
         for discount in discounts:
             discounts_data.append({
@@ -430,12 +431,12 @@ def admin_academic_discounts(request):
                 'verified_at': discount.verified_at.isoformat() if discount.verified_at else None,
                 'expires_at': discount.expires_at.isoformat() if discount.expires_at else None
             })
-        
+
         return Response({
             'discounts': discounts_data,
             'total_count': len(discounts_data)
         })
-        
+
     except Exception as e:
         logger.error(f"Admin academic discounts error: {str(e)}")
         return Response(
@@ -454,11 +455,11 @@ def admin_review_academic_discount(request, discount_id):
     try:
         approved = request.data.get('approved', False)
         notes = request.data.get('notes', '')
-        
+
         discount, message = AcademicDiscountService.admin_review_discount(
             discount_id, approved, request.user, notes
         )
-        
+
         return Response({
             'success': True,
             'message': message,
@@ -469,7 +470,7 @@ def admin_review_academic_discount(request, discount_id):
                 'review_notes': discount.review_notes
             }
         })
-        
+
     except Exception as e:
         logger.error(f"Admin review error: {str(e)}")
         return Response(
@@ -488,7 +489,7 @@ def admin_promotional_codes(request):
     if request.method == 'GET':
         try:
             codes = PromotionalCodeService.get_active_codes_for_admin()
-            
+
             codes_data = []
             for code in codes:
                 codes_data.append({
@@ -505,19 +506,19 @@ def admin_promotional_codes(request):
                     'usage_percentage': code.usage_percentage,
                     'created_at': code.created_at.isoformat()
                 })
-            
+
             return Response({
                 'codes': codes_data,
                 'total_count': len(codes_data)
             })
-            
+
         except Exception as e:
             logger.error(f"Admin promo codes list error: {str(e)}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-    
+
     elif request.method == 'POST':
         try:
             with transaction.atomic():
@@ -538,7 +539,7 @@ def admin_promotional_codes(request):
                     bonus_credits=request.data.get('bonus_credits', 0),
                     created_by=request.user
                 )
-                
+
                 return Response({
                     'success': True,
                     'message': 'Promotional code created successfully',
@@ -549,7 +550,7 @@ def admin_promotional_codes(request):
                         'status': code.status
                     }
                 }, status=status.HTTP_201_CREATED)
-                
+
         except Exception as e:
             logger.error(f"Admin promo code creation error: {str(e)}")
             return Response(
@@ -567,7 +568,7 @@ def admin_promo_code_analytics(request, code_id):
     """
     try:
         analytics = PromotionalCodeService.get_code_analytics(code_id)
-        
+
         return Response({
             'code': {
                 'id': str(analytics['code'].id),
@@ -585,7 +586,7 @@ def admin_promo_code_analytics(request, code_id):
                 'redemption_timeline': analytics['redemption_timeline']
             }
         })
-        
+
     except Exception as e:
         logger.error(f"Promo code analytics error: {str(e)}")
         return Response(

@@ -3,16 +3,14 @@ Institution license invoicing: per-student tier × seat_cap × billing cycle.
 """
 from __future__ import annotations
 
-from decimal import Decimal
 from datetime import timedelta
-from typing import Optional
+from decimal import Decimal
 
 from django.db import IntegrityError
 from django.utils import timezone
 
 from .models import Contract, Invoice
 from .services import DynamicPricingService
-
 
 # USD per student / month by volume tier (2.2.2) - LEGACY FALLBACK
 PER_STUDENT_MONTHLY_USD = {
@@ -23,7 +21,7 @@ PER_STUDENT_MONTHLY_USD = {
 }
 
 
-def _invoice_amount_for_period(contract: Contract) -> Optional[Decimal]:
+def _invoice_amount_for_period(contract: Contract) -> Decimal | None:
     """
     Calculate invoice amount using dynamic pricing service.
     Falls back to hardcoded rates if no dynamic pricing configured.
@@ -31,21 +29,21 @@ def _invoice_amount_for_period(contract: Contract) -> Optional[Decimal]:
     tier = contract.institution_pricing_tier
     cycle = contract.billing_cycle
     seats = int(contract.seat_cap or 0)
-    
+
     if not tier or not cycle or seats < 1:
         return None
-    
+
     # Use dynamic pricing service first
     amount = DynamicPricingService.calculate_institution_invoice(contract, cycle)
-    
+
     if amount is not None:
         return amount
-    
+
     # Fallback to legacy hardcoded calculation
     rate = PER_STUDENT_MONTHLY_USD.get(tier)
     if rate is None:
         return None
-    
+
     monthly = rate * seats
     if cycle == 'monthly':
         return monthly
@@ -57,7 +55,7 @@ def _invoice_amount_for_period(contract: Contract) -> Optional[Decimal]:
     return None
 
 
-def ensure_institution_contract_invoice(contract: Contract) -> Optional[Invoice]:
+def ensure_institution_contract_invoice(contract: Contract) -> Invoice | None:
     """
     Create or update unpaid invoice when institution tier + billing + seats are set.
     """

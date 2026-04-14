@@ -5,13 +5,13 @@ Implements aggressive caching for feed queries to achieve <500ms response times.
 Uses Django's cache framework with Redis as the backend for production.
 """
 
-from django.core.cache import cache
-from django.conf import settings
-from functools import wraps
 import hashlib
 import json
 import logging
-from typing import Any, Callable, Optional, List
+from collections.abc import Callable
+from functools import wraps
+
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ def generate_cache_key(prefix: str, *args, **kwargs) -> str:
 def cached_feed(ttl: int = FEED_CACHE_TTL):
     """
     Decorator for caching feed queries.
-    
+
     Usage:
         @cached_feed()
         def get_university_feed(university_id, page, ...):
@@ -51,23 +51,23 @@ def cached_feed(ttl: int = FEED_CACHE_TTL):
         def wrapper(*args, **kwargs):
             # Skip cache if explicitly requested
             skip_cache = kwargs.pop('skip_cache', False)
-            
+
             if skip_cache:
                 return func(*args, **kwargs)
-            
+
             cache_key = generate_cache_key(FEED_CACHE_PREFIX, func.__name__, *args, **kwargs)
-            
+
             # Try to get from cache
             cached_result = cache.get(cache_key)
             if cached_result is not None:
                 logger.debug(f"Cache hit for feed: {cache_key}")
                 return cached_result
-            
+
             # Execute function and cache result
             result = func(*args, **kwargs)
             cache.set(cache_key, result, ttl)
             logger.debug(f"Cache miss for feed: {cache_key}, cached for {ttl}s")
-            
+
             return result
         return wrapper
     return decorator
@@ -79,19 +79,19 @@ def cached_post(ttl: int = POST_CACHE_TTL):
         @wraps(func)
         def wrapper(*args, **kwargs):
             skip_cache = kwargs.pop('skip_cache', False)
-            
+
             if skip_cache:
                 return func(*args, **kwargs)
-            
+
             cache_key = generate_cache_key(POST_CACHE_PREFIX, func.__name__, *args, **kwargs)
-            
+
             cached_result = cache.get(cache_key)
             if cached_result is not None:
                 return cached_result
-            
+
             result = func(*args, **kwargs)
             cache.set(cache_key, result, ttl)
-            
+
             return result
         return wrapper
     return decorator
@@ -103,14 +103,14 @@ def cached_leaderboard(ttl: int = LEADERBOARD_CACHE_TTL):
         @wraps(func)
         def wrapper(*args, **kwargs):
             cache_key = generate_cache_key(LEADERBOARD_CACHE_PREFIX, func.__name__, *args, **kwargs)
-            
+
             cached_result = cache.get(cache_key)
             if cached_result is not None:
                 return cached_result
-            
+
             result = func(*args, **kwargs)
             cache.set(cache_key, result, ttl)
-            
+
             return result
         return wrapper
     return decorator
@@ -121,37 +121,37 @@ class FeedCacheManager:
     Manager class for community feed caching operations.
     Provides methods for cache invalidation and warming.
     """
-    
+
     @staticmethod
     def invalidate_university_feed(university_id: str) -> None:
         """Invalidate all cached feeds for a university."""
         pattern = f"{FEED_CACHE_PREFIX}*university*{university_id}*"
         _invalidate_by_pattern(pattern)
         logger.info(f"Invalidated university feed cache: {university_id}")
-    
+
     @staticmethod
     def invalidate_global_feed() -> None:
         """Invalidate the global feed cache."""
         pattern = f"{FEED_CACHE_PREFIX}*global*"
         _invalidate_by_pattern(pattern)
         logger.info("Invalidated global feed cache")
-    
+
     @staticmethod
     def invalidate_user_feed(user_id: str) -> None:
         """Invalidate feeds related to a specific user."""
         pattern = f"{FEED_CACHE_PREFIX}*user*{user_id}*"
         _invalidate_by_pattern(pattern)
         logger.info(f"Invalidated user feed cache: {user_id}")
-    
+
     @staticmethod
     def invalidate_post(post_id: str) -> None:
         """Invalidate cache for a specific post."""
         cache_key = f"{POST_CACHE_PREFIX}{post_id}"
         cache.delete(cache_key)
         logger.debug(f"Invalidated post cache: {post_id}")
-    
+
     @staticmethod
-    def invalidate_leaderboard(scope: str, university_id: Optional[str] = None) -> None:
+    def invalidate_leaderboard(scope: str, university_id: str | None = None) -> None:
         """Invalidate leaderboard cache."""
         if university_id:
             pattern = f"{LEADERBOARD_CACHE_PREFIX}*{scope}*{university_id}*"
@@ -159,7 +159,7 @@ class FeedCacheManager:
             pattern = f"{LEADERBOARD_CACHE_PREFIX}*{scope}*"
         _invalidate_by_pattern(pattern)
         logger.info(f"Invalidated leaderboard cache: {scope}")
-    
+
     @staticmethod
     def warm_university_feed(university_id: str, feed_func: Callable) -> None:
         """
@@ -170,16 +170,16 @@ class FeedCacheManager:
             # Warm first page
             result = feed_func(university_id=university_id, page=1, skip_cache=True)
             cache_key = generate_cache_key(
-                FEED_CACHE_PREFIX, 
-                feed_func.__name__, 
-                university_id=university_id, 
+                FEED_CACHE_PREFIX,
+                feed_func.__name__,
+                university_id=university_id,
                 page=1
             )
             cache.set(cache_key, result, FEED_CACHE_TTL)
             logger.info(f"Warmed university feed cache: {university_id}")
         except Exception as e:
             logger.error(f"Failed to warm university feed cache: {e}")
-    
+
     @staticmethod
     def get_cache_stats() -> dict:
         """Get cache statistics (if supported by backend)."""
@@ -196,7 +196,7 @@ class QueryOptimizer:
     Optimizes database queries for feed retrieval.
     Uses select_related, prefetch_related, and query optimization techniques.
     """
-    
+
     @staticmethod
     def optimize_post_queryset(queryset):
         """
@@ -221,7 +221,7 @@ class QueryOptimizer:
             # University fields
             'university__id', 'university__name', 'university__code', 'university__logo_url',
         )
-    
+
     @staticmethod
     def optimize_comment_queryset(queryset):
         """Optimize a Comment queryset."""
@@ -235,20 +235,20 @@ class QueryOptimizer:
             'author__id', 'author__username', 'author__first_name', 'author__last_name',
             'post__id',
         )
-    
+
     @staticmethod
-    def batch_fetch_user_profiles(user_ids: List[str]) -> dict:
+    def batch_fetch_user_profiles(user_ids: list[str]) -> dict:
         """
         Batch fetch user profile data for multiple users.
         Returns a dict mapping user_id to profile data.
         """
         from django.contrib.auth import get_user_model
         User = get_user_model()
-        
+
         users = User.objects.filter(id__in=user_ids).only(
             'id', 'username', 'first_name', 'last_name', 'email'
         )
-        
+
         return {str(u.id): {
             'id': str(u.id),
             'username': u.username,

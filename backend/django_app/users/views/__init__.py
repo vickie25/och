@@ -1,32 +1,32 @@
 # Export views
-from .user_views import UserViewSet
+from .admin_views import (
+    APIKeyViewSet,
+    OrganizationViewSet,
+    RoleViewSet,
+    UserRoleAssignmentView,
+)
+from .audit_views import AuditLogViewSet
 from .auth_views import (
-    SignupView,
+    ConsentView,
     LoginView,
+    LogoutView,
     MagicLinkView,
+    MeView,
     MFAEnrollView,
     MFAVerifyView,
     RefreshTokenView,
-    LogoutView,
-    MeView,
-    ConsentView,
+    SignupView,
+    change_password,
+    check_password_status,
     register_user,
-    verify_email,
     request_password_reset,
     reset_password,
     setup_password,
-    change_password,
-    check_password_status,
-)
-from .admin_views import (
-    RoleViewSet,
-    UserRoleAssignmentView,
-    OrganizationViewSet,
-    APIKeyViewSet,
+    verify_email,
 )
 from .password_reset_views import (
-    PasswordResetRequestView,
     PasswordResetConfirmView,
+    PasswordResetRequestView,
 )
-from .audit_views import AuditLogViewSet
+from .user_views import UserViewSet
 

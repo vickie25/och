@@ -1,7 +1,7 @@
 """
 Personality analysis API endpoints.
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from schemas.personality import (
     PersonalityAnalysisRequest,
     PersonalityAnalysisResponse,

@@ -1,39 +1,38 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from .views import (
-    MarketplaceTalentListView,
-    MarketplaceProfileMeView,
-    EmployerInterestLogView,
-    EmployerInterestListView,
-    StudentContactRequestsView,
-    JobPostingListCreateView,
-    JobPostingRetrieveUpdateDestroyView,
-)
-from .student_job_views import (
-    StudentJobBrowseView,
-    StudentJobDetailView,
-    StudentJobApplicationView,
-    StudentJobApplicationsView,
-    StudentJobApplicationDetailView,
+from .admin_views import (
+    AdminEmployerViewSet,
+    AdminInterestLogViewSet,
+    AdminJobPostingViewSet,
+    AdminMarketplaceAnalyticsView,
+    AdminMarketplaceProfileViewSet,
+    AdminMarketplaceSettingsView,
 )
 from .employer_application_views import (
-    EmployerJobApplicationsView,
     EmployerAllApplicationsView,
     EmployerApplicationDetailView,
     EmployerApplicationStatusUpdateView,
+    EmployerJobApplicationsView,
 )
-from .admin_views import (
-    AdminEmployerViewSet,
-    AdminMarketplaceProfileViewSet,
-    AdminJobPostingViewSet,
-    AdminInterestLogViewSet,
-    AdminMarketplaceAnalyticsView,
-    AdminMarketplaceSettingsView,
-)
-from .profiler_integration import get_talent_matches_by_profiler
 from .escrow_views import MarketplaceEscrowViewSet
-
+from .profiler_integration import get_talent_matches_by_profiler
+from .student_job_views import (
+    StudentJobApplicationDetailView,
+    StudentJobApplicationsView,
+    StudentJobApplicationView,
+    StudentJobBrowseView,
+    StudentJobDetailView,
+)
+from .views import (
+    EmployerInterestListView,
+    EmployerInterestLogView,
+    JobPostingListCreateView,
+    JobPostingRetrieveUpdateDestroyView,
+    MarketplaceProfileMeView,
+    MarketplaceTalentListView,
+    StudentContactRequestsView,
+)
 
 escrow_router = DefaultRouter()
 escrow_router.register(r'marketplace/escrow', MarketplaceEscrowViewSet, basename='marketplace-escrow')

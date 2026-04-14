@@ -4,6 +4,7 @@ Create user directly with raw SQL to bypass migration issues.
 """
 import os
 import sys
+
 import django
 
 # Setup Django
@@ -11,8 +12,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from django.db import connection
 from django.contrib.auth.hashers import make_password
+from django.db import connection
+
 
 def create_user():
     cursor = connection.cursor()

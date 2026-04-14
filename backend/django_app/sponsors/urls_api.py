@@ -2,7 +2,8 @@
 URL patterns for Sponsor/Employer APIs based on OCH SMP Technical Specifications.
 Implements all required API endpoints for sponsor/employer dashboard operations.
 """
-from django.urls import path, include
+from django.urls import include, path
+
 from . import views_api
 
 app_name = 'sponsors_api'
@@ -84,21 +85,21 @@ analytics_patterns = [
 urlpatterns = [
     # Identity & Organization APIs
     path('auth/', include(auth_patterns)),
-    
-    # Program & Cohort Management APIs  
+
+    # Program & Cohort Management APIs
     path('programs/', include(programs_patterns)),
-    
+
     # Billing & Finance APIs
     path('billing/', include(billing_patterns)),
     # Platform-level Finance (internal Finance, cross-sponsor)
     path('finance/', include(finance_patterns)),
-    
+
     # Notifications & Automation APIs
     path('notifications/', include(notifications_patterns)),
-    
+
     # Consent & Privacy APIs
     path('privacy/', include(privacy_patterns)),
-    
+
     # Analytics & Reporting APIs
     path('analytics/', include(analytics_patterns)),
 ]

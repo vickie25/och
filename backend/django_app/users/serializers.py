@@ -1,13 +1,12 @@
 """
 User serializers for DRF - Updated for comprehensive auth system.
 """
-from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from .models import Role, UserRole, ConsentScope, Entitlement, Permission
-from .identity_models import UserIdentity
-from .auth_models import MFAMethod, UserSession
+from rest_framework import serializers
+
 from .audit_models import AuditLog
+from .models import Permission, Role
 
 User = get_user_model()
 
@@ -20,7 +19,7 @@ class UserSerializer(serializers.ModelSerializer):
     consent_scopes = serializers.SerializerMethodField()
     entitlements = serializers.SerializerMethodField()
     recommended_track = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = User
         fields = [
@@ -75,7 +74,7 @@ class UserSerializer(serializers.ModelSerializer):
         # Removed account_status and email_verified from read_only to allow admin override
         # Note: ViewSet permissions still control who can modify these fields
         read_only_fields = ['id', 'created_at', 'updated_at']
-    
+
     def get_roles(self, obj):
         """Get user roles with scope information and user_role ID for revocation."""
         return [
@@ -88,21 +87,21 @@ class UserSerializer(serializers.ModelSerializer):
             }
             for role in obj.user_roles.filter(is_active=True)
         ]
-    
+
     def get_consent_scopes(self, obj):
         """Get granted consent scopes."""
         return list(
             obj.consent_scopes.filter(granted=True, expires_at__isnull=True)
             .values_list('scope_type', flat=True)
         )
-    
+
     def get_entitlements(self, obj):
         """Get user entitlements."""
         return list(
             obj.entitlements.filter(granted=True, expires_at__isnull=True)
             .values_list('feature', flat=True)
         )
-    
+
     def get_recommended_track(self, obj):
         """Get recommended track from StudentDashboardCache if available."""
         try:
@@ -177,7 +176,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
     Serializer for creating new users (signup).
     """
     password = serializers.CharField(write_only=True, validators=[validate_password])
-    
+
     class Meta:
         model = User
         fields = [
@@ -192,7 +191,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
             'cohort_id',
             'track_key',
         ]
-    
+
     def create(self, validated_data):
         password = validated_data.pop('password')
         user = User.objects.create_user(password=password, **validated_data)
@@ -228,7 +227,7 @@ class SignupSerializer(serializers.Serializer):
         default='student',
         required=False
     )
-    
+
     # Student onboarding profile fields (optional during signup, can be completed later)
     preferred_learning_style = serializers.ChoiceField(
         choices=User.LEARNING_STYLE_CHOICES,

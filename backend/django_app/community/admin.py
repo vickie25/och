@@ -2,14 +2,34 @@
 Django Admin configuration for Community module.
 """
 from django.contrib import admin
+
 from .models import (
-    University, UniversityDomain, UniversityMembership, Post, Comment, Reaction,
-    CommunityEvent, EventParticipant, Badge, UserBadge,
-    Leaderboard, UserCommunityStats, PollVote, Follow, ModerationLog,
+    AISummary,
+    Badge,
     # Advanced features
-    Channel, ChannelMembership, StudySquad, SquadMembership,
-    CommunityReputation, AISummary, CollabRoom, CollabRoomParticipant,
-    CommunityContribution, EnterpriseCohort
+    Channel,
+    ChannelMembership,
+    CollabRoom,
+    CollabRoomParticipant,
+    Comment,
+    CommunityContribution,
+    CommunityEvent,
+    CommunityReputation,
+    EnterpriseCohort,
+    EventParticipant,
+    Follow,
+    Leaderboard,
+    ModerationLog,
+    PollVote,
+    Post,
+    Reaction,
+    SquadMembership,
+    StudySquad,
+    University,
+    UniversityDomain,
+    UniversityMembership,
+    UserBadge,
+    UserCommunityStats,
 )
 
 

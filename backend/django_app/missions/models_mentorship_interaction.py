@@ -3,10 +3,10 @@ Mentorship Interaction Model for Mastery Tracks
 Multi-phase reviews, audio/video feedback, and mentor scoring meetings.
 """
 import uuid
-from django.db import models
+
 from django.contrib.auth import get_user_model
-from django.core.validators import MinValueValidator, MaxValueValidator
-from django.utils import timezone
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
 
 User = get_user_model()
 
@@ -15,7 +15,7 @@ User = get_user_model()
 
 class MentorshipInteraction(models.Model):
     """Mentorship interactions for Mastery missions and capstone projects"""
-    
+
     INTERACTION_TYPE_CHOICES = [
         ('mission_review', 'Mission Review'),
         ('capstone_review', 'Capstone Review'),
@@ -25,7 +25,7 @@ class MentorshipInteraction(models.Model):
         ('feedback_session', 'Feedback Session'),
         ('progress_check', 'Progress Check'),
     ]
-    
+
     PHASE_CHOICES = [
         ('investigation', 'Investigation Phase'),
         ('decision_making', 'Decision Making Phase'),
@@ -34,14 +34,14 @@ class MentorshipInteraction(models.Model):
         ('presentation', 'Presentation Phase'),
         ('final', 'Final Review'),
     ]
-    
+
     STATUS_CHOICES = [
         ('scheduled', 'Scheduled'),
         ('in_progress', 'In Progress'),
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
     ]
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     mentor = models.ForeignKey(
         User,
@@ -93,7 +93,7 @@ class MentorshipInteraction(models.Model):
         default='scheduled',
         db_index=True
     )
-    
+
     # Multi-phase Review Support
     review_phase = models.IntegerField(
         default=1,
@@ -103,7 +103,7 @@ class MentorshipInteraction(models.Model):
         default=1,
         help_text='Total number of review phases'
     )
-    
+
     # Written Feedback
     written_feedback = models.TextField(
         blank=True,
@@ -119,7 +119,7 @@ class MentorshipInteraction(models.Model):
         blank=True,
         help_text='Feedback per decision point: {decision_id: feedback_text}'
     )
-    
+
     # Audio/Video Feedback
     audio_feedback_url = models.URLField(
         max_length=500,
@@ -143,7 +143,7 @@ class MentorshipInteraction(models.Model):
         blank=True,
         help_text='Duration of video feedback in seconds'
     )
-    
+
     # Scoring
     rubric_scores = models.JSONField(
         default=dict,
@@ -163,7 +163,7 @@ class MentorshipInteraction(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(100)],
         help_text='Overall score 0-100'
     )
-    
+
     # Scoring Meeting (Optional)
     is_scoring_meeting = models.BooleanField(
         default=False,
@@ -178,7 +178,7 @@ class MentorshipInteraction(models.Model):
         blank=True,
         help_text='Duration of scoring meeting in minutes'
     )
-    
+
     # Recommendations
     recommended_next_steps = models.JSONField(
         default=list,
@@ -190,7 +190,7 @@ class MentorshipInteraction(models.Model):
         blank=True,
         help_text='Recommended recipes: [recipe_id or slug]'
     )
-    
+
     # Timestamps
     scheduled_at = models.DateTimeField(
         null=True,
@@ -210,7 +210,7 @@ class MentorshipInteraction(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = 'mentorship_interactions'
         indexes = [
@@ -222,14 +222,14 @@ class MentorshipInteraction(models.Model):
             models.Index(fields=['phase', 'status']),
             models.Index(fields=['completed_at']),
         ]
-    
+
     def __str__(self):
         return f"{self.mentor.email} → {self.mentee.email} - {self.interaction_type} ({self.status})"
-    
+
     def is_multi_phase(self):
         """Check if this is part of a multi-phase review"""
         return self.total_phases > 1
-    
+
     def get_next_phase(self):
         """Get the next phase number if multi-phase"""
         if self.review_phase < self.total_phases:

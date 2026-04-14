@@ -2,19 +2,20 @@
 Admin and organization management views.
 Role and permission management use CanManageRoles (RBAC user.manage or is_staff).
 """
-from rest_framework import viewsets, permissions, status
+from django.contrib.auth import get_user_model
+from django.db.models import Exists, OuterRef
+from django.utils import timezone
+from programs.permissions import user_has_finance_role
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.contrib.auth import get_user_model
+
 from organizations.models import Organization, OrganizationMember
 from organizations.serializers import OrganizationSerializer
-from users.models import Role, UserRole, Permission
 from users.api_models import APIKey
+from users.models import Permission, Role, UserRole
 from users.permissions import CanManageRoles
-from django.utils import timezone
-from django.db.models import Exists, OuterRef
-from programs.permissions import user_has_finance_role
-from users.serializers import UserSerializer, RoleSerializer, PermissionSerializer
+from users.serializers import PermissionSerializer, RoleSerializer
 
 User = get_user_model()
 
@@ -46,7 +47,7 @@ class RoleViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        role = serializer.save()
+        serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def retrieve(self, request, *args, **kwargs):
@@ -84,7 +85,7 @@ class UserRoleAssignmentView(viewsets.ViewSet):
     Assign/revoke role to user with scope.
     """
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def create(self, request, id=None):
         """Assign role to user."""
         # Check permissions (only admin or program_director can assign roles)
@@ -95,13 +96,13 @@ class UserRoleAssignmentView(viewsets.ViewSet):
                 role=director_role,
                 is_active=True
             ).exists() if director_role else False
-            
+
             if not is_director:
                 return Response(
                     {'detail': 'Only administrators and program directors can assign roles'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-        
+
         try:
             user = User.objects.get(id=id)
         except User.DoesNotExist:
@@ -109,17 +110,17 @@ class UserRoleAssignmentView(viewsets.ViewSet):
                 {'detail': 'User not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         role_id = request.data.get('role_id')
         scope = request.data.get('scope', 'global')
         scope_ref = request.data.get('scope_ref')
-        
+
         if not role_id:
             return Response(
                 {'detail': 'role_id is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
             role = Role.objects.get(id=role_id)
         except Role.DoesNotExist:
@@ -127,7 +128,7 @@ class UserRoleAssignmentView(viewsets.ViewSet):
                 {'detail': 'Role not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         # Check if role assignment already exists (check all unique_together combinations)
         existing_user_role = UserRole.objects.filter(
             user=user,
@@ -136,7 +137,7 @@ class UserRoleAssignmentView(viewsets.ViewSet):
             scope_ref=scope_ref,
             is_active=True
         ).first()
-        
+
         # Also check legacy unique_together fields
         if not existing_user_role and scope == 'global':
             existing_user_role = UserRole.objects.filter(
@@ -147,7 +148,7 @@ class UserRoleAssignmentView(viewsets.ViewSet):
                 org_id__isnull=True,
                 is_active=True
             ).first()
-        
+
         if existing_user_role:
             return Response({
                 'detail': 'Role already assigned to this user',
@@ -158,7 +159,7 @@ class UserRoleAssignmentView(viewsets.ViewSet):
                     'scope_ref': str(existing_user_role.scope_ref) if existing_user_role.scope_ref else None,
                 }
             }, status=status.HTTP_200_OK)
-        
+
         # Create new role assignment
         try:
             user_role = UserRole.objects.create(
@@ -180,7 +181,7 @@ class UserRoleAssignmentView(viewsets.ViewSet):
                 {'detail': f'Failed to assign role: {error_msg}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         return Response({
             'detail': 'Role assigned successfully',
             'user_role': {
@@ -190,7 +191,7 @@ class UserRoleAssignmentView(viewsets.ViewSet):
                 'scope_ref': str(scope_ref) if scope_ref else None,
             }
         }, status=status.HTTP_201_CREATED)
-    
+
     def destroy(self, request, id=None, role_id=None):
         """Revoke role from user."""
         # Check permissions (only admin or program_director can revoke roles)
@@ -201,13 +202,13 @@ class UserRoleAssignmentView(viewsets.ViewSet):
                 role=director_role,
                 is_active=True
             ).exists() if director_role else False
-            
+
             if not is_director:
                 return Response(
                     {'detail': 'Only administrators and program directors can revoke roles'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-        
+
         # role_id is the user_role id, id is the user id
         try:
             user_role = UserRole.objects.get(id=role_id, user_id=id)
@@ -216,10 +217,10 @@ class UserRoleAssignmentView(viewsets.ViewSet):
                 {'detail': 'User role assignment not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         user_role.is_active = False
         user_role.save()
-        
+
         return Response(
             {'detail': 'Role revoked successfully'},
             status=status.HTTP_200_OK
@@ -236,7 +237,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     serializer_class = OrganizationSerializer
     permission_classes = [permissions.IsAuthenticated]
     lookup_field = 'slug'
-    
+
     def get_object(self):
         """
         Override to support both ID and slug lookups.
@@ -251,7 +252,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 # Use ID lookup - check both filtered queryset and all orgs for better error message
                 queryset = self.get_queryset()
                 obj = queryset.filter(id=org_id).first()
-                
+
                 # If not found in filtered queryset, check if org exists at all (for better error message)
                 if not obj:
                     org_exists = Organization.objects.filter(id=org_id).exists()
@@ -263,13 +264,13 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         # Org doesn't exist
                         from rest_framework.exceptions import NotFound
                         raise NotFound('Organization not found')
-                
+
                 self.check_object_permissions(self.request, obj)
                 return obj
             except (ValueError, TypeError):
                 # Not numeric, treat as slug
                 pass
-        
+
         # Check if we have 'slug' in kwargs (slug-based lookup)
         if 'slug' in self.kwargs:
             # Temporarily set lookup_field to slug for super().get_object()
@@ -279,11 +280,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 return super().get_object()
             finally:
                 self.lookup_field = original_lookup_field
-        
+
         # If neither pk nor slug, raise error
         from rest_framework.exceptions import NotFound
         raise NotFound('Organization not found')
-    
+
     def get_queryset(self):
         """Filter organizations by user membership or role."""
         user = self.request.user
@@ -291,7 +292,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Organization.objects.all()
         if user_has_finance_role(user):
             return Organization.objects.all()
-        
+
         # Check if user is admin or program director
         user_roles = getattr(user, 'user_roles', None)
         if user_roles:
@@ -301,14 +302,14 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             ).exists()
             if has_admin_or_director_role:
                 return Organization.objects.all()
-        
+
         # Otherwise, only return organizations where user is a member
         return Organization.objects.filter(members=user).distinct()
-    
+
     def perform_create(self, serializer):
         """Set owner when creating organization."""
         serializer.save(owner=self.request.user)
-    
+
     @action(detail=False, methods=['get'], url_path='enrollment-eligible-institutions')
     def enrollment_eligible_institutions(self, request):
         """
@@ -332,8 +333,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_403_FORBIDDEN,
                 )
         from finance.models import Contract, Invoice
-        from organizations.institutional_models import InstitutionalContract, InstitutionalBilling
-        
+
+        from organizations.institutional_models import InstitutionalBilling, InstitutionalContract
+
         today = timezone.now().date()
         paid_finance_contracts = Contract.objects.filter(
             type='institution',
@@ -366,14 +368,14 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         orgs = Organization.objects.filter(id__in=org_ids).order_by('name')
         serializer = self.get_serializer(orgs, many=True)
         return Response(serializer.data)
-    
+
     @action(detail=True, methods=['post'])
     def members(self, request, slug=None):
         """Add member to organization."""
         org = self.get_object()
         user_id = request.data.get('user_id')
         role_id = request.data.get('role_id')
-        
+
         try:
             user = User.objects.get(id=user_id)
             role = Role.objects.get(id=role_id)
@@ -382,13 +384,13 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 {'detail': 'User or role not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         org_member, created = OrganizationMember.objects.get_or_create(
             organization=org,
             user=user,
             defaults={'role': 'member'}
         )
-        
+
         # Also assign role in UserRole
         UserRole.objects.create(
             user=user,
@@ -397,7 +399,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             scope_ref=org.id,
             assigned_by=request.user,
         )
-        
+
         return Response({
             'detail': 'Member added successfully',
         }, status=status.HTTP_201_CREATED)
@@ -410,25 +412,25 @@ class APIKeyViewSet(viewsets.ModelViewSet):
     """
     queryset = APIKey.objects.all()
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_queryset(self):
         """Filter API keys by owner."""
         user = self.request.user
         if user.is_staff:
             return APIKey.objects.all()
         return APIKey.objects.filter(user=user)
-    
+
     def create(self, request):
         """Create API key."""
         from users.api_models import APIKey
-        
+
         name = request.data.get('name')
         key_type = request.data.get('key_type', 'service')
         scopes = request.data.get('scopes', [])
-        
+
         # Generate key
         key_value, key_prefix, key_hash = APIKey.generate_key()
-        
+
         api_key = APIKey.objects.create(
             name=name,
             key_type=key_type,
@@ -438,7 +440,7 @@ class APIKeyViewSet(viewsets.ModelViewSet):
             user=request.user,
             scopes=scopes,
         )
-        
+
         return Response({
             'id': api_key.id,
             'name': api_key.name,
@@ -446,7 +448,7 @@ class APIKeyViewSet(viewsets.ModelViewSet):
             'key': key_value,  # Show only once
             'detail': 'Store this key securely. It will not be shown again.',
         }, status=status.HTTP_201_CREATED)
-    
+
     def destroy(self, request, id=None):
         """Revoke API key."""
         try:
@@ -456,18 +458,18 @@ class APIKeyViewSet(viewsets.ModelViewSet):
                 {'detail': 'API key not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         # Check permissions
         if not request.user.is_staff and api_key.user != request.user:
             return Response(
                 {'detail': 'Permission denied'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
         api_key.revoked_at = timezone.now()
         api_key.is_active = False
         api_key.save()
-        
+
         return Response(
             {'detail': 'API key revoked successfully'},
             status=status.HTTP_200_OK

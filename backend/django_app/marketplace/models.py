@@ -7,10 +7,11 @@ talent is exposed to employers with strict consent and tier rules.
 
 import uuid
 from decimal import Decimal
-from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
-from django.utils import timezone
+
 from django.contrib.auth import get_user_model
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
+from django.utils import timezone
 
 User = get_user_model()
 

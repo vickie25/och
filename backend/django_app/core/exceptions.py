@@ -4,12 +4,12 @@ Provides clean, production-safe error responses
 """
 
 import logging
-from rest_framework.views import exception_handler
-from rest_framework.response import Response
-from rest_framework import status
-from django.http import Http404
+
 from django.core.exceptions import PermissionDenied, ValidationError
-import traceback
+from django.http import Http404
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import exception_handler
 
 logger = logging.getLogger(__name__)
 
@@ -58,34 +58,34 @@ def custom_exception_handler(exc, context):
                 else:
                     formatted_errors[field] = [str(errors)]
             response.data = {'detail': formatted_errors}
-    
+
     # In production, remove sensitive information
     import os
     is_production = os.environ.get('DJANGO_SETTINGS_MODULE', '').endswith('production')
-    
+
     if is_production:
         # Remove stack traces and internal paths
         if isinstance(response.data, dict):
             # Keep only safe error information
             safe_data = {}
-            
+
             # Preserve standard DRF error structure
             if 'detail' in response.data:
                 safe_data['detail'] = response.data['detail']
-            
+
             # Preserve field validation errors
             for key, value in response.data.items():
                 if key != 'detail' and not key.startswith('_'):
                     safe_data[key] = value
-            
+
             response.data = safe_data
-            
+
             # Ensure we never expose stack traces
             if 'stacktrace' in response.data:
                 del response.data['stacktrace']
             if 'traceback' in response.data:
                 del response.data['traceback']
-    
+
     # Log the error for debugging
     logger.error(
         f"API Error: {exc.__class__.__name__}: {str(exc)}",

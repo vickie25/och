@@ -21,8 +21,9 @@ Runs periodic jobs that enforce billing business rules from the DSD spec:
       • Marks expired discounts
 """
 import logging
-from django.utils import timezone
 from datetime import timedelta
+
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ def enforce_grace_period_and_downgrade():
     Also handles:
       - Canceled subs whose period_end has passed → downgrade to Free Tier
     """
-    from subscriptions.models import UserSubscription, SubscriptionPlan
+    from subscriptions.models import SubscriptionPlan, UserSubscription
 
     now = timezone.now()
 
@@ -62,9 +63,9 @@ def enforce_grace_period_and_downgrade():
             grace_days = 7 if period_days > 180 else 3  # 7 for annual, 3 for monthly
         else:
             grace_days = 3  # Default to monthly
-        
+
         grace_cutoff = now - timedelta(days=grace_days)
-        
+
         if sub.updated_at <= grace_cutoff:
             old_plan = sub.plan.name
             sub.plan = free_plan
@@ -97,7 +98,7 @@ def attempt_subscription_renewals():
     """
     DSD §2.1.4: Auto-renewal logic
     Attempts payment 1 day before current_period_end for active subscriptions.
-    
+
     Flow:
       1. Find subscriptions expiring in 1 day
       2. Attempt payment via gateway
@@ -105,26 +106,28 @@ def attempt_subscription_renewals():
       4. Failure: Mark past_due, create retry schedule
     """
     from subscriptions.models import (
-        UserSubscription, PaymentTransaction, SubscriptionInvoice,
-        PaymentRetryAttempt
+        PaymentRetryAttempt,
+        PaymentTransaction,
+        SubscriptionInvoice,
+        UserSubscription,
     )
     from subscriptions.utils import attempt_payment_charge, generate_invoice_pdf, send_invoice_email
-    
+
     now = timezone.now()
     tomorrow = now + timedelta(days=1)
-    
+
     # Find subscriptions expiring tomorrow
     due_qs = UserSubscription.objects.filter(
         status='active',
         current_period_end__date=tomorrow.date(),
     ).exclude(plan__tier='free').select_related('user', 'plan')
-    
+
     for sub in due_qs:
         logger.info(f'[renewal] Attempting renewal for {sub.user.email} | {sub.plan.name}')
-        
+
         # Calculate amount (with academic discount if applicable)
         amount = sub.plan.price_monthly or 0
-        
+
         # Apply academic discount if active
         try:
             if hasattr(sub.user, 'academic_discount') and sub.user.academic_discount.is_active():
@@ -132,7 +135,7 @@ def attempt_subscription_renewals():
                 logger.info(f'[renewal] Academic discount applied: {amount} KES')
         except Exception as e:
             logger.warning(f'[renewal] Academic discount check failed: {e}')
-        
+
         # Attempt payment
         try:
             success, transaction_id, error = attempt_payment_charge(
@@ -141,14 +144,14 @@ def attempt_subscription_renewals():
                 currency='KES',
                 description=f'Subscription renewal - {sub.plan.name}'
             )
-            
+
             if success:
                 # Payment successful - extend subscription
                 old_end = sub.current_period_end
                 sub.current_period_start = sub.current_period_end
                 sub.current_period_end = sub.current_period_end + timedelta(days=30)
                 sub.save(update_fields=['current_period_start', 'current_period_end', 'updated_at'])
-                
+
                 # Create payment transaction
                 transaction = PaymentTransaction.objects.create(
                     user=sub.user,
@@ -159,7 +162,7 @@ def attempt_subscription_renewals():
                     gateway_transaction_id=transaction_id,
                     processed_at=now,
                 )
-                
+
                 # Generate invoice
                 invoice = SubscriptionInvoice.objects.create(
                     invoice_number=SubscriptionInvoice.generate_invoice_number(),
@@ -181,7 +184,7 @@ def attempt_subscription_renewals():
                         'total': float(amount),
                     }],
                 )
-                
+
                 # Generate PDF and send email (async)
                 try:
                     pdf_url = generate_invoice_pdf(invoice)
@@ -190,7 +193,7 @@ def attempt_subscription_renewals():
                     send_invoice_email(invoice)
                 except Exception as e:
                     logger.error(f'[renewal] Invoice generation/email failed: {e}')
-                
+
                 logger.info(
                     f'[renewal] Success: {sub.user.email} | {sub.plan.name} | '
                     f'{old_end.date()} → {sub.current_period_end.date()} | Invoice: {invoice.invoice_number}'
@@ -199,7 +202,7 @@ def attempt_subscription_renewals():
                 # Payment failed - mark past_due and schedule retries
                 sub.status = 'past_due'
                 sub.save(update_fields=['status', 'updated_at'])
-                
+
                 # Create retry schedule: Day 1, 3, 5
                 for retry_day in [1, 3, 5]:
                     PaymentRetryAttempt.objects.create(
@@ -210,12 +213,12 @@ def attempt_subscription_renewals():
                         currency='KES',
                         scheduled_at=now + timedelta(days=retry_day),
                     )
-                
+
                 logger.warning(
                     f'[renewal] Failed: {sub.user.email} | {sub.plan.name} | '
                     f'Error: {error} | Retry schedule created'
                 )
-                
+
         except Exception as e:
             logger.error(f'[renewal] Exception for {sub.user.email}: {e}', exc_info=True)
 
@@ -224,30 +227,30 @@ def process_payment_retries():
     """
     DSD §3.1: Payment retry sequence
     Processes scheduled retry attempts for failed payments.
-    
+
     Retry schedule: Day 1, 3, 5 after initial failure
     """
     from subscriptions.models import PaymentRetryAttempt, PaymentTransaction, SubscriptionInvoice
     from subscriptions.utils import attempt_payment_charge, send_retry_notification
-    
+
     now = timezone.now()
-    
+
     # Find pending retries that are due
     pending_retries = PaymentRetryAttempt.objects.filter(
         status='pending',
         scheduled_at__lte=now,
     ).select_related('subscription', 'subscription__user', 'subscription__plan')
-    
+
     for retry in pending_retries:
         sub = retry.subscription
         logger.info(
             f'[retry] Attempt #{retry.attempt_number} for {sub.user.email} | {sub.plan.name}'
         )
-        
+
         retry.status = 'processing'
         retry.attempted_at = now
         retry.save(update_fields=['status', 'attempted_at', 'updated_at'])
-        
+
         try:
             success, transaction_id, error = attempt_payment_charge(
                 user=sub.user,
@@ -255,18 +258,18 @@ def process_payment_retries():
                 currency=retry.currency,
                 description=f'Retry #{retry.attempt_number} - {sub.plan.name}'
             )
-            
+
             if success:
                 # Retry successful - restore subscription
                 retry.status = 'success'
                 retry.completed_at = now
                 retry.save(update_fields=['status', 'completed_at', 'updated_at'])
-                
+
                 sub.status = 'active'
                 sub.current_period_start = now
                 sub.current_period_end = now + timedelta(days=30)
                 sub.save(update_fields=['status', 'current_period_start', 'current_period_end', 'updated_at'])
-                
+
                 # Create transaction and invoice
                 transaction = PaymentTransaction.objects.create(
                     user=sub.user,
@@ -277,7 +280,7 @@ def process_payment_retries():
                     gateway_transaction_id=transaction_id,
                     processed_at=now,
                 )
-                
+
                 invoice = SubscriptionInvoice.objects.create(
                     invoice_number=SubscriptionInvoice.generate_invoice_number(),
                     user=sub.user,
@@ -297,13 +300,13 @@ def process_payment_retries():
                         'total': float(retry.amount),
                     }],
                 )
-                
+
                 # Cancel remaining retries
                 PaymentRetryAttempt.objects.filter(
                     subscription=sub,
                     status='pending',
                 ).update(status='failed', error_message='Cancelled - earlier retry succeeded')
-                
+
                 logger.info(
                     f'[retry] Success: {sub.user.email} | Attempt #{retry.attempt_number} | '
                     f'Subscription restored | Invoice: {invoice.invoice_number}'
@@ -314,15 +317,15 @@ def process_payment_retries():
                 retry.completed_at = now
                 retry.error_message = error or 'Payment failed'
                 retry.save(update_fields=['status', 'completed_at', 'error_message', 'updated_at'])
-                
+
                 # Send notification
                 send_retry_notification(sub.user, retry.attempt_number, error)
-                
+
                 logger.warning(
                     f'[retry] Failed: {sub.user.email} | Attempt #{retry.attempt_number} | '
                     f'Error: {error}'
                 )
-                
+
         except Exception as e:
             retry.status = 'failed'
             retry.completed_at = now
@@ -338,29 +341,29 @@ def check_academic_discount_expiry():
     """
     from subscriptions.models import AcademicDiscount
     from subscriptions.utils import send_reverification_reminder
-    
+
     now = timezone.now()
     reminder_date = now + timedelta(days=30)
-    
+
     # Send reminders for discounts expiring in 30 days
     expiring_soon = AcademicDiscount.objects.filter(
         verification_status='verified',
         expires_at__date=reminder_date.date(),
     ).select_related('user')
-    
+
     for discount in expiring_soon:
         try:
             send_reverification_reminder(discount.user, discount.expires_at)
             logger.info(f'[academic] Reminder sent to {discount.user.email} | Expires: {discount.expires_at.date()}')
         except Exception as e:
             logger.error(f'[academic] Reminder failed for {discount.user.email}: {e}')
-    
+
     # Mark expired discounts
     expired = AcademicDiscount.objects.filter(
         verification_status='verified',
         expires_at__lte=now,
     ).select_related('user')
-    
+
     for discount in expired:
         discount.verification_status = 'expired'
         discount.save(update_fields=['verification_status', 'updated_at'])
@@ -374,11 +377,11 @@ def start():
     Start APScheduler with the subscription jobs.
     Called from the subscriptions AppConfig.ready() hook.
     """
+    import django_apscheduler.util as aputil
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.cron import CronTrigger
     from django_apscheduler.jobstores import DjangoJobStore
     from django_apscheduler.models import DjangoJobExecution
-    import django_apscheduler.util as aputil
 
     scheduler = BackgroundScheduler(timezone='UTC')
     scheduler.add_jobstore(DjangoJobStore(), 'default')

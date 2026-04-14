@@ -2,27 +2,27 @@
 MXP Mission Execution Platform API Views
 Full implementation of mission workflow
 """
-from django.utils import timezone
-from django.db.models import Q, Count
-from django.db import transaction
-from datetime import timedelta
-from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes, parser_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from rest_framework.response import Response
-from users.models import User
-from programs.models import Enrollment
-from .models import Mission, MissionSubmission, MissionArtifact, AIFeedback
-from .models_mxp import MissionProgress, MissionFile
-from .serializers import MissionSerializer, MissionSubmissionSerializer
-from subscriptions.utils import get_user_tier, require_tier
-from subscriptions.models import UserSubscription
-from .tasks import process_mission_ai_review
-from student_dashboard.services import DashboardAggregationService
-from dashboard.models import PortfolioItem
-from talentscope.models import SkillSignal
 import logging
+from datetime import timedelta
+
+from dashboard.models import PortfolioItem
+from django.db import transaction
+from django.db.models import Count, Q
+from django.utils import timezone
+from programs.models import Enrollment
+from rest_framework import status
+from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from student_dashboard.services import DashboardAggregationService
+from subscriptions.utils import get_user_tier, require_tier
+from talentscope.models import SkillSignal
+
+from .models import Mission
+from .models_mxp import MissionFile, MissionProgress
+from .serializers import MissionSerializer
+from .tasks import process_mission_ai_review
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ def mission_dashboard(request):
     user = request.user
     track = request.query_params.get('track', 'defender')
     tier = request.query_params.get('tier', 'beginner')
-    
+
     # CRITICAL: Check Foundations completion - gate missions until Foundations is complete
     if not user.foundations_complete:
         return Response({
@@ -46,17 +46,16 @@ def mission_dashboard(request):
             'message': 'Please complete Foundations orientation before accessing missions.',
             'foundations_url': '/dashboard/student/foundations'
         }, status=status.HTTP_403_FORBIDDEN)
-    
+
     # Get user's subscription tier
     user_tier = get_user_tier(user)
-    
+
     # Get user's enrollment for track
-    enrollment = Enrollment.objects.filter(user=user, status='active').select_related('cohort__track').first()
-    
+    Enrollment.objects.filter(user=user, status='active').select_related('cohort__track').first()
+
     # Get track_key from enrollment (uses the property that accesses cohort.track.key)
     # This uses the track_key defined by the director when assigning the student to a cohort
-    user_track = enrollment.track_key if enrollment and enrollment.track_key else track
-    
+
     # Progressive tier unlocking: Users start with Beginner, unlock higher tiers based on progress
     # Get user's highest completed mission tier
     completed_tiers = []
@@ -64,51 +63,51 @@ def mission_dashboard(request):
         user=user,
         status='approved'
     ).select_related('mission')
-    
+
     for progress in completed_missions:
         if progress.mission.tier:
             completed_tiers.append(progress.mission.tier)
-    
+
     # Determine available tiers
     # Beginner always available after Foundations
     available_tiers = ['beginner']
-    
+
     # Unlock Intermediate if user has completed Beginner missions
     beginner_completed = any(t == 'beginner' for t in completed_tiers)
     if beginner_completed:
         available_tiers.append('intermediate')
-    
+
     # Unlock Advanced if user has completed Intermediate missions
     intermediate_completed = any(t == 'intermediate' for t in completed_tiers)
     if intermediate_completed:
         available_tiers.append('advanced')
-    
+
     # Unlock Mastery if user has completed Advanced missions
     advanced_completed = any(t == 'advanced' for t in completed_tiers)
     if advanced_completed:
         available_tiers.append('mastery')
-    
+
     # Filter missions by available tier
     # If requesting a locked tier, only show missions user has access to
     if tier not in available_tiers:
         tier = 'beginner'  # Fallback to beginner if tier is locked
-    
+
     # Get all missions for this track/tier
     all_missions = Mission.objects.filter(
         Q(track=track) | Q(track_id=track),  # Support both track field and track_id
         Q(tier=tier) | Q(mission_type=tier),  # Support both tier field and mission_type
         is_active=True
     )
-    
+
     # Check coaching eligibility
     coaching_eligibility = None
     available_missions = []
     locked_missions = []
-    
+
     try:
         from coaching.integrations import check_mission_eligibility
         coaching_eligibility = check_mission_eligibility(user)
-        
+
         for mission in all_missions:
             # Check if already in progress
             existing = MissionProgress.objects.filter(
@@ -116,10 +115,10 @@ def mission_dashboard(request):
                 mission=mission,
                 status__in=['in_progress', 'submitted', 'approved', 'failed']
             ).exists()
-            
+
             if existing:
                 continue
-            
+
             if coaching_eligibility['eligible']:
                 available_missions.append(mission)
             else:
@@ -136,19 +135,19 @@ def mission_dashboard(request):
                 status__in=['in_progress', 'submitted', 'approved', 'failed']
             ).values_list('mission_id', flat=True)
         )
-    
+
     # Get in-progress missions
     in_progress = MissionProgress.objects.filter(
         user=user,
         status__in=['in_progress', 'submitted', 'ai_reviewed', 'mentor_review']
     ).select_related('mission')
-    
+
     # Get completed missions
     completed = MissionProgress.objects.filter(
         user=user,
         final_status__in=['pass', 'fail']
     ).select_related('mission').order_by('-submitted_at')[:10]
-    
+
     # Filter missions by profiler difficulty
     try:
         from missions.services import get_max_mission_difficulty_for_user
@@ -166,25 +165,25 @@ def mission_dashboard(request):
         logger.debug(f"Filtered missions by profiler difficulty: max_difficulty={max_difficulty}")
     except Exception as e:
         logger.warning(f"Failed to apply profiler difficulty filter: {e}")
-    
+
     # Get recommended recipes (from gaps analysis - placeholder)
     recommended_recipes = []  # TODO: Integrate with RecipeEngine
-    
+
     # Get next mission (Profiler-guided - prioritize by difficulty match)
     next_mission = None
     if available_missions:
         # Sort by difficulty ascending (start with easier missions)
         available_missions.sort(key=lambda m: m.difficulty if hasattr(m, 'difficulty') else 999)
         next_mission = available_missions[0].id
-    
+
     # Check tier lock
     tier_lock = False
     if user_tier == 'free' and tier in ['advanced', 'mastery', 'capstone']:
         tier_lock = True
-    
+
     # Tier locking based on progress (in addition to subscription)
     tier_locked_by_progress = tier not in available_tiers
-    
+
     return Response({
         'track': track,
         'tier': tier,
@@ -219,7 +218,7 @@ def start_mission(request, mission_id):
     Ensures Foundations is complete before allowing mission start.
     """
     user = request.user
-    
+
     # CRITICAL: Check Foundations completion
     if not user.foundations_complete:
         return Response({
@@ -227,12 +226,12 @@ def start_mission(request, mission_id):
             'message': 'Please complete Foundations orientation before starting missions.',
             'foundations_url': '/dashboard/student/foundations'
         }, status=status.HTTP_403_FORBIDDEN)
-    
+
     try:
         mission = Mission.objects.get(id=mission_id, is_active=True)
     except Mission.DoesNotExist:
         return Response({'error': 'Mission not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     # Coaching OS Gatekeeping: Check mission eligibility
     try:
         from coaching.integrations import check_mission_eligibility
@@ -250,21 +249,21 @@ def start_mission(request, mission_id):
             )
     except ImportError:
         logger.warning("Coaching integrations not available, skipping gatekeeping")
-    
+
     # Check if mission already in progress
     existing_progress = MissionProgress.objects.filter(
         user=user,
         mission=mission,
         status__in=['in_progress', 'submitted', 'ai_reviewed', 'mentor_review']
     ).first()
-    
+
     if existing_progress:
         return Response({
             'progress_id': str(existing_progress.id),
             'status': existing_progress.status,
             'current_subtask': existing_progress.current_subtask,
         }, status=status.HTTP_200_OK)
-    
+
     # Create new progress entry
     with transaction.atomic():
         progress = MissionProgress.objects.create(
@@ -275,22 +274,22 @@ def start_mission(request, mission_id):
             subtasks_progress={},
             started_at=timezone.now()
         )
-        
+
         # Calculate deadline if mission has time constraint
         deadline_at = None
         if mission.time_constraint_hours:
             deadline_at = progress.started_at + timedelta(hours=mission.time_constraint_hours)
-        
+
         # Initialize subtasks progress
         if mission.subtasks:
-            for idx, subtask in enumerate(mission.subtasks, start=1):
+            for idx, _subtask in enumerate(mission.subtasks, start=1):
                 progress.subtasks_progress[str(idx)] = {
                     'completed': False,
                     'evidence': [],
                     'notes': '',
                 }
             progress.save()
-    
+
     # Calculate deadline info if time-bound
     deadline_info = None
     if mission.time_constraint_hours and progress.started_at:
@@ -302,7 +301,7 @@ def start_mission(request, mission_id):
             'is_expired': time_remaining.total_seconds() <= 0,
             'time_constraint_hours': mission.time_constraint_hours
         }
-    
+
     return Response({
         'progress_id': str(progress.id),
         'status': progress.status,
@@ -321,34 +320,34 @@ def save_subtask_progress(request, progress_id):
     Save subtask progress with evidence
     """
     user = request.user
-    
+
     try:
         progress = MissionProgress.objects.get(id=progress_id, user=user)
     except MissionProgress.DoesNotExist:
         return Response({'error': 'Progress not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     subtask_number = request.data.get('subtask_number')
     evidence = request.data.get('evidence', [])
     notes = request.data.get('notes', '')
-    
+
     if not subtask_number:
         return Response({'error': 'subtask_number is required'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     # Update subtask progress
     subtask_key = str(subtask_number)
     if subtask_key not in progress.subtasks_progress:
         progress.subtasks_progress[subtask_key] = {'completed': False, 'evidence': [], 'notes': ''}
-    
+
     progress.subtasks_progress[subtask_key]['completed'] = True
     progress.subtasks_progress[subtask_key]['evidence'] = evidence
     progress.subtasks_progress[subtask_key]['notes'] = notes
-    
+
     # Update current subtask if needed
     if subtask_number > progress.current_subtask:
         progress.current_subtask = subtask_number
-    
+
     progress.save()
-    
+
     return Response({
         'status': 'saved',
         'current_subtask': progress.current_subtask,
@@ -364,15 +363,15 @@ def check_subtask_unlockable(request, progress_id, subtask_id):
     Check if a subtask can be unlocked based on dependencies.
     """
     user = request.user
-    
+
     try:
         progress = MissionProgress.objects.get(id=progress_id, user=user)
     except MissionProgress.DoesNotExist:
         return Response({'error': 'Progress not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     # Check unlockability
     result = progress.check_subtask_unlockable(subtask_id)
-    
+
     return Response({
         'subtask_id': subtask_id,
         'unlockable': result['unlockable'],
@@ -392,22 +391,22 @@ def upload_mission_file(request, progress_id):
     Upload evidence file for a subtask
     """
     user = request.user
-    
+
     try:
         progress = MissionProgress.objects.get(id=progress_id, user=user)
     except MissionProgress.DoesNotExist:
         return Response({'error': 'Progress not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     subtask_number = int(request.data.get('subtask_number', 1))
     file = request.FILES.get('file')
-    
+
     if not file:
         return Response({'error': 'File is required'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     # TODO: Upload to S3 and get URL
     # For now, placeholder
     file_url = f'/media/missions/{progress_id}/{file.name}'
-    
+
     # Create MissionFile record
     mission_file = MissionFile.objects.create(
         mission_progress=progress,
@@ -418,17 +417,17 @@ def upload_mission_file(request, progress_id):
         file_size=file.size,
         metadata={'content_type': file.content_type}
     )
-    
+
     # Update subtask progress
     subtask_key = str(subtask_number)
     if subtask_key not in progress.subtasks_progress:
         progress.subtasks_progress[subtask_key] = {'completed': False, 'evidence': [], 'notes': ''}
-    
+
     if file_url not in progress.subtasks_progress[subtask_key]['evidence']:
         progress.subtasks_progress[subtask_key]['evidence'].append(file_url)
-    
+
     progress.save()
-    
+
     return Response({
         'file_id': str(mission_file.id),
         'file_url': file_url,
@@ -444,24 +443,24 @@ def submit_mission(request, progress_id):
     Submit complete mission for review
     """
     user = request.user
-    
+
     try:
         progress = MissionProgress.objects.get(id=progress_id, user=user)
     except MissionProgress.DoesNotExist:
         return Response({'error': 'Progress not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     if progress.status not in ['in_progress']:
         return Response({'error': 'Mission already submitted'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     reflection = request.data.get('reflection', '')
-    final_evidence_bundle = request.data.get('final_evidence_bundle', [])
-    
+    request.data.get('final_evidence_bundle', [])
+
     with transaction.atomic():
         progress.status = 'submitted'
         progress.submitted_at = timezone.now()
         progress.reflection = reflection
         progress.save()
-        
+
         # Trigger AI review (async)
         # Note: process_mission_ai_review expects MissionSubmission, but we're using MissionProgress
         # For now, create a MissionSubmission if it doesn't exist, or update the task to handle MissionProgress
@@ -476,11 +475,11 @@ def submit_mission(request, progress_id):
             submission.submitted_at = timezone.now()
             submission.save()
         process_mission_ai_review.delay(str(submission.id))
-        
+
         # Update progress status after submission is created
         progress.status = 'submitted'
         progress.save()
-    
+
     return Response({
         'status': 'submitted',
         'progress_id': str(progress.id),
@@ -496,18 +495,18 @@ def get_ai_review(request, progress_id):
     Get AI review results
     """
     user = request.user
-    
+
     try:
         progress = MissionProgress.objects.get(id=progress_id, user=user)
     except MissionProgress.DoesNotExist:
         return Response({'error': 'Progress not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     if progress.status != 'ai_reviewed':
         return Response({
             'status': progress.status,
             'message': 'AI review not yet completed'
         }, status=status.HTTP_200_OK)
-    
+
     # Get AI feedback if available
     ai_feedback = None
     if hasattr(progress, 'ai_feedback_detail'):
@@ -518,7 +517,7 @@ def get_ai_review(request, progress_id):
             'suggestions': progress.ai_feedback_detail.suggestions,
             'competencies_detected': progress.ai_feedback_detail.competencies_detected,
         }
-    
+
     return Response({
         'status': progress.status,
         'ai_score': float(progress.ai_score) if progress.ai_score else None,
@@ -535,19 +534,19 @@ def submit_for_mentor_review(request, progress_id):
     Submit for mentor review (Premium only)
     """
     user = request.user
-    
+
     try:
         progress = MissionProgress.objects.get(id=progress_id, user=user)
     except MissionProgress.DoesNotExist:
         return Response({'error': 'Progress not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     if progress.status != 'ai_reviewed':
         return Response({'error': 'Mission must be AI reviewed first'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     with transaction.atomic():
         progress.status = 'mentor_review'
         progress.save()
-    
+
     return Response({
         'status': 'mentor_review',
         'message': 'Mission submitted for mentor review',
@@ -564,30 +563,30 @@ def mentor_review_submission(request, progress_id):
     """
     # TODO: Check if user is mentor
     user = request.user
-    
+
     try:
         progress = MissionProgress.objects.get(id=progress_id)
     except MissionProgress.DoesNotExist:
         return Response({'error': 'Progress not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     score_breakdown = request.data.get('score_breakdown', {})
     subtask_scores = request.data.get('subtask_scores', {})  # Per-subtask scores
-    comments = request.data.get('comments', '')
+    request.data.get('comments', '')
     pass_fail = request.data.get('pass_fail', 'pending')
-    next_mission_id = request.data.get('next_mission_id')
+    request.data.get('next_mission_id')
     recommended_recipes = request.data.get('recommended_recipes', [])  # Mentor can recommend recipes
     recommended_next_missions = request.data.get('recommended_next_missions', [])  # Alternative field name
-    
+
     with transaction.atomic():
         # Store per-subtask scores if provided
         if subtask_scores:
             progress.subtask_scores = subtask_scores
-        
+
         # Store mentor-recommended recipes
         recipes_to_store = recommended_recipes or recommended_next_missions or []
         if recipes_to_store:
             progress.mentor_recommended_recipes = recipes_to_store
-        
+
         # Calculate overall mentor score (weighted by subtask scores if available)
         if subtask_scores:
             # Use subtask scores if available
@@ -601,16 +600,16 @@ def mentor_review_submission(request, progress_id):
             mentor_score = sum(score_breakdown.values()) / len(score_breakdown)
         else:
             mentor_score = None
-        
+
         progress.mentor_score = mentor_score
         progress.final_status = pass_fail
         progress.status = 'approved' if pass_fail == 'pass' else 'failed'
-        
+
         # Store mentor-recommended recipes
         recipes_to_store = recommended_recipes or recommended_next_missions or []
         if recipes_to_store:
             progress.mentor_recommended_recipes = recipes_to_store
-        
+
         # Sync mission completion to Coaching OS
         portfolio_item = None
         if pass_fail == 'pass':
@@ -625,10 +624,10 @@ def mentor_review_submission(request, progress_id):
                 )
             except Exception as e:
                 logger.error(f"Failed to sync mission to coaching: {e}")
-            
+
             # Create portfolio item with comprehensive metadata
             import json
-            
+
             # Collect evidence files
             evidence_files = []
             mission_files = MissionFile.objects.filter(mission_progress=progress)
@@ -639,7 +638,7 @@ def mentor_review_submission(request, progress_id):
                     'file_type': mf.file_type,
                     'subtask_number': mf.subtask_number
                 })
-            
+
             # Create portfolio item
             portfolio_item, created = PortfolioItem.objects.get_or_create(
                 user=progress.user,
@@ -653,13 +652,13 @@ def mentor_review_submission(request, progress_id):
                     'evidence_files': json.dumps(evidence_files),
                 }
             )
-            
+
             # If portfolio item already exists, update it
             if not created:
                 portfolio_item.status = 'approved' if mentor_score and mentor_score >= 85 else 'draft'
                 portfolio_item.evidence_files = json.dumps(evidence_files)
                 portfolio_item.save()
-            
+
             # Update TalentScope skill signals
             if progress.mission.skills_tags:
                 for skill_tag in progress.mission.skills_tags:
@@ -673,15 +672,15 @@ def mentor_review_submission(request, progress_id):
                             'last_practiced': timezone.now(),
                         }
                     )
-            
+
             # Refresh dashboard
             DashboardAggregationService.invalidate_cache(progress.user)
-            
+
             logger.info(f"Portfolio item created/updated for mission {progress.mission.id}: {portfolio_item.id}")
-        
+
         progress.mentor_reviewed_at = timezone.now()
         progress.save()
-    
+
     return Response({
         'status': progress.status,
         'final_status': progress.final_status,
@@ -700,49 +699,49 @@ def get_mission_hints(request, mission_id, subtask_id):
     Get hints for a specific subtask.
     """
     user = request.user
-    
+
     try:
         mission = Mission.objects.get(id=mission_id, is_active=True)
     except Mission.DoesNotExist:
         return Response({'error': 'Mission not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     # Get user's progress
     progress = MissionProgress.objects.filter(user=user, mission=mission).first()
     if not progress:
         return Response({'error': 'Mission not started'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     # Get hints for this subtask
     hints = mission.hints or []
     subtask_hints = [h for h in hints if h.get('subtask_id') == subtask_id]
-    
+
     if not subtask_hints:
         return Response({
             'subtask_id': subtask_id,
             'hints': [],
             'message': 'No hints available for this subtask'
         })
-    
+
     # Track hint usage
     if not progress.hints_used:
         progress.hints_used = []
-    
+
     # Add hint access to tracking (without revealing hint text yet)
     hint_access = {
         'subtask_id': subtask_id,
         'hint_level': subtask_hints[0].get('hint_level', 1),
         'timestamp': timezone.now().isoformat()
     }
-    
+
     # Check if already accessed
     already_accessed = any(
-        h.get('subtask_id') == subtask_id 
+        h.get('subtask_id') == subtask_id
         for h in progress.hints_used
     )
-    
+
     if not already_accessed:
         progress.hints_used.append(hint_access)
         progress.save()
-    
+
     return Response({
         'subtask_id': subtask_id,
         'hints': subtask_hints,
@@ -758,31 +757,31 @@ def get_mission_decisions(request, mission_id):
     Get available decision points for a mission.
     """
     user = request.user
-    
+
     try:
         mission = Mission.objects.get(id=mission_id, is_active=True)
     except Mission.DoesNotExist:
         return Response({'error': 'Mission not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     # Get user's progress
     progress = MissionProgress.objects.filter(user=user, mission=mission).first()
     if not progress:
         return Response({'error': 'Mission not started'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     # Get branching paths
     branching_paths = mission.branching_paths or {}
-    
+
     # Filter decisions available for current subtask
     current_subtask = progress.current_subtask
     available_decisions = {}
-    
+
     for subtask_id, decision_data in branching_paths.items():
         if int(subtask_id) <= current_subtask:
             available_decisions[subtask_id] = decision_data
-    
+
     # Include user's previous decisions
     user_decisions = progress.decision_paths or {}
-    
+
     return Response({
         'mission_id': str(mission_id),
         'current_subtask': current_subtask,
@@ -799,24 +798,24 @@ def record_decision(request, mission_id, decision_id):
     Record user's decision choice.
     """
     user = request.user
-    
+
     try:
         mission = Mission.objects.get(id=mission_id, is_active=True)
     except Mission.DoesNotExist:
         return Response({'error': 'Mission not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     # Get user's progress
     progress = MissionProgress.objects.filter(user=user, mission=mission).first()
     if not progress:
         return Response({'error': 'Mission not started'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     choice_id = request.data.get('choice_id')
     if not choice_id:
         return Response({'error': 'choice_id is required'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     # Get branching paths
     branching_paths = mission.branching_paths or {}
-    
+
     # Find the decision point
     decision_found = False
     for subtask_id, decision_data in branching_paths.items():
@@ -824,7 +823,7 @@ def record_decision(request, mission_id, decision_id):
             decision_found = True
             choices = decision_data.get('choices', [])
             consequences = decision_data.get('consequences', {})
-            
+
             # Validate choice
             valid_choices = [c.get('id') for c in choices]
             if choice_id not in valid_choices:
@@ -832,21 +831,21 @@ def record_decision(request, mission_id, decision_id):
                     'error': 'Invalid choice_id',
                     'valid_choices': valid_choices
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
+
             # Record decision
             if not progress.decision_paths:
                 progress.decision_paths = {}
-            
+
             progress.decision_paths[decision_id] = {
                 'choice_id': choice_id,
                 'timestamp': timezone.now().isoformat(),
                 'subtask_id': int(subtask_id)
             }
             progress.save()
-            
+
             # Return consequence if available
             consequence = consequences.get(choice_id, {})
-            
+
             return Response({
                 'success': True,
                 'decision_id': decision_id,
@@ -854,7 +853,7 @@ def record_decision(request, mission_id, decision_id):
                 'consequence': consequence,
                 'message': 'Decision recorded successfully'
             })
-    
+
     if not decision_found:
         return Response({'error': 'Decision point not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -867,22 +866,22 @@ def track_time_stage(request, progress_id):
     Track time spent on current subtask/stage.
     """
     user = request.user
-    
+
     try:
         progress = MissionProgress.objects.get(id=progress_id, user=user)
     except MissionProgress.DoesNotExist:
         return Response({'error': 'Progress not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     subtask_id = request.data.get('subtask_id', progress.current_subtask)
     minutes_spent = request.data.get('minutes_spent', 0)
-    
+
     if not progress.time_per_stage:
         progress.time_per_stage = {}
-    
+
     current_time = progress.time_per_stage.get(str(subtask_id), 0)
     progress.time_per_stage[str(subtask_id)] = current_time + minutes_spent
     progress.save()
-    
+
     return Response({
         'success': True,
         'subtask_id': subtask_id,
@@ -898,23 +897,23 @@ def track_tool_usage(request, progress_id):
     Track tools used during mission.
     """
     user = request.user
-    
+
     try:
         progress = MissionProgress.objects.get(id=progress_id, user=user)
     except MissionProgress.DoesNotExist:
         return Response({'error': 'Progress not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     tool_name = request.data.get('tool_name')
     if not tool_name:
         return Response({'error': 'tool_name is required'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     if not progress.tools_used:
         progress.tools_used = []
-    
+
     if tool_name not in progress.tools_used:
         progress.tools_used.append(tool_name)
         progress.save()
-    
+
     return Response({
         'success': True,
         'tools_used': progress.tools_used
@@ -929,20 +928,20 @@ def submit_reflection(request, progress_id):
     Submit mission reflection.
     """
     user = request.user
-    
+
     try:
         progress = MissionProgress.objects.get(id=progress_id, user=user)
     except MissionProgress.DoesNotExist:
         return Response({'error': 'Progress not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     reflection_text = request.data.get('reflection', '')
     if not reflection_text:
         return Response({'error': 'reflection text is required'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     progress.reflection = reflection_text
     progress.reflection_submitted = True
     progress.save()
-    
+
     return Response({
         'success': True,
         'message': 'Reflection submitted successfully'
@@ -958,50 +957,50 @@ def mission_performance_analytics(request):
     Returns completion rates, subtask performance, decision paths, drop-off points, etc.
     """
     user = request.user
-    
+
     # Check if user is admin or has analytics permissions
     user_roles = [ur.role.name for ur in user.user_roles.filter(is_active=True)]
     is_admin = 'admin' in user_roles or user.is_staff
-    
+
     if not is_admin:
         return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     # Get all mission progress data
-    from django.db.models import Avg, Count, Q, F
+
+    from django.db.models import Avg
     from django.utils import timezone
-    from datetime import timedelta
-    
+
     # Overall statistics
     total_missions = Mission.objects.filter(is_active=True).count()
     total_progress = MissionProgress.objects.count()
     completed_missions = MissionProgress.objects.filter(status='approved').count()
     in_progress = MissionProgress.objects.filter(status__in=['in_progress', 'submitted', 'ai_reviewed', 'mentor_review']).count()
-    
+
     # Completion rate
     completion_rate = (completed_missions / total_progress * 100) if total_progress > 0 else 0
-    
+
     # Average scores
     avg_ai_score = MissionProgress.objects.filter(ai_score__isnull=False).aggregate(
         avg=Avg('ai_score')
     )['avg'] or 0
-    
+
     avg_mentor_score = MissionProgress.objects.filter(mentor_score__isnull=False).aggregate(
         avg=Avg('mentor_score')
     )['avg'] or 0
-    
+
     # Drop-off analysis
     drop_off_data = MissionProgress.objects.filter(
         drop_off_stage__isnull=False
     ).values('drop_off_stage').annotate(
         count=Count('id')
     ).order_by('drop_off_stage')
-    
+
     # Time per stage analysis
     time_analysis = []
     progress_with_time = MissionProgress.objects.filter(
         time_per_stage__isnull=False
     ).exclude(time_per_stage={})
-    
+
     for progress in progress_with_time[:100]:  # Sample first 100
         time_per_stage = progress.time_per_stage or {}
         for subtask_id, minutes in time_per_stage.items():
@@ -1009,13 +1008,13 @@ def mission_performance_analytics(request):
                 'subtask_id': subtask_id,
                 'minutes': minutes
             })
-    
+
     # Decision path analysis
     decision_paths_data = []
     progress_with_decisions = MissionProgress.objects.filter(
         decision_paths__isnull=False
     ).exclude(decision_paths={})
-    
+
     for progress in progress_with_decisions[:100]:  # Sample first 100
         decision_paths = progress.decision_paths or {}
         for decision_id, choice_data in decision_paths.items():
@@ -1024,12 +1023,12 @@ def mission_performance_analytics(request):
                 'choice_id': choice_data.get('choice_id'),
                 'subtask_id': choice_data.get('subtask_id')
             })
-    
+
     # Mission difficulty breakdown
     difficulty_breakdown = Mission.objects.filter(is_active=True).values('difficulty').annotate(
         count=Count('id')
     ).order_by('difficulty')
-    
+
     return Response({
         'overall_stats': {
             'total_missions': total_missions,
@@ -1057,37 +1056,36 @@ def mission_completion_heatmap(request):
     Shows completion patterns by mission, tier, track, etc.
     """
     user = request.user
-    
+
     # Check if user is admin
     user_roles = [ur.role.name for ur in user.user_roles.filter(is_active=True)]
     is_admin = 'admin' in user_roles or user.is_staff
-    
+
     if not is_admin:
         return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
-    
-    from django.db.models import Count, Q
-    
+
+
     # Heatmap by mission
     mission_completions = MissionProgress.objects.filter(
         status='approved'
     ).values('mission__title', 'mission__tier', 'mission__track').annotate(
         completions=Count('id')
     ).order_by('-completions')[:50]
-    
+
     # Heatmap by tier
     tier_completions = MissionProgress.objects.filter(
         status='approved'
     ).values('mission__tier').annotate(
         completions=Count('id')
     ).order_by('mission__tier')
-    
+
     # Heatmap by track
     track_completions = MissionProgress.objects.filter(
         status='approved'
     ).values('mission__track').annotate(
         completions=Count('id')
     ).order_by('mission__track')
-    
+
     return Response({
         'mission_heatmap': list(mission_completions),
         'tier_heatmap': list(tier_completions),
@@ -1104,18 +1102,18 @@ def enterprise_mission_analytics(request, cohort_id=None):
     Enterprise dashboard mission performance analytics for a specific cohort.
     """
     user = request.user
-    
+
     # Check if user is admin, director, or has enterprise access
     user_roles = [ur.role.name for ur in user.user_roles.filter(is_active=True)]
     is_admin = 'admin' in user_roles or user.is_staff
     is_director = 'director' in user_roles
-    
+
     if not (is_admin or is_director):
         return Response({'error': 'Admin or Director access required'}, status=status.HTTP_403_FORBIDDEN)
-    
-    from django.db.models import Avg, Count, Q, F
+
+    from django.db.models import Avg
     from programs.models import Enrollment
-    
+
     # Get cohort enrollments
     if cohort_id:
         enrollments = Enrollment.objects.filter(
@@ -1127,30 +1125,30 @@ def enterprise_mission_analytics(request, cohort_id=None):
         enrollments = Enrollment.objects.filter(
             status='active'
         ).select_related('user')
-    
+
     student_ids = [e.user.id for e in enrollments]
-    
+
     # Mission completion stats for cohort
     cohort_progress = MissionProgress.objects.filter(
         user_id__in=student_ids
     )
-    
+
     total_attempts = cohort_progress.count()
     completed = cohort_progress.filter(status='approved', final_status='pass').count()
     in_progress = cohort_progress.filter(status__in=['in_progress', 'submitted', 'ai_reviewed', 'mentor_review']).count()
     failed = cohort_progress.filter(final_status='fail').count()
-    
+
     completion_rate = (completed / total_attempts * 100) if total_attempts > 0 else 0
-    
+
     # Average scores
     avg_ai_score = cohort_progress.filter(ai_score__isnull=False).aggregate(
         avg=Avg('ai_score')
     )['avg'] or 0
-    
+
     avg_mentor_score = cohort_progress.filter(mentor_score__isnull=False).aggregate(
         avg=Avg('mentor_score')
     )['avg'] or 0
-    
+
     # Mission performance by tier
     tier_performance = cohort_progress.filter(
         status='approved'
@@ -1158,7 +1156,7 @@ def enterprise_mission_analytics(request, cohort_id=None):
         completions=Count('id'),
         avg_score=Avg('mentor_score')
     ).order_by('mission__tier')
-    
+
     # Mission performance by track
     track_performance = cohort_progress.filter(
         status='approved'
@@ -1166,7 +1164,7 @@ def enterprise_mission_analytics(request, cohort_id=None):
         completions=Count('id'),
         avg_score=Avg('mentor_score')
     ).order_by('mission__track')
-    
+
     # Student-level summary
     student_summaries = []
     for enrollment in enrollments[:50]:  # Limit to first 50 students
@@ -1181,7 +1179,7 @@ def enterprise_mission_analytics(request, cohort_id=None):
             'in_progress': student_progress.filter(status__in=['in_progress', 'submitted', 'ai_reviewed', 'mentor_review']).count(),
             'avg_score': float(student_progress.filter(mentor_score__isnull=False).aggregate(avg=Avg('mentor_score'))['avg'] or 0),
         })
-    
+
     return Response({
         'cohort_id': str(cohort_id) if cohort_id else None,
         'overall_stats': {

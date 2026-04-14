@@ -1,25 +1,26 @@
 """
 Recipe Engine URL configuration.
 """
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
 from .views import (
-    RecipeViewSet,
-    UserRecipeProgressViewSet,
-    RecipeContextLinkViewSet,
     BookmarkedRecipesView,
-    RecipeStatsView,
-    UserRecipesView,
-    UserRecipeProgressView,
-    RecipeSourceViewSet,
-    RecipeSourceIngestView,
     LLMNormalizeRecipesView,
+    RecipeContextLinkViewSet,
     RecipeEnvStatusView,
     RecipeGenerateView,
+    RecipeSourceIngestView,
+    RecipeSourceViewSet,
+    RecipeStatsView,
+    RecipeViewSet,
+    UserRecipeProgressView,
+    UserRecipeProgressViewSet,
+    UserRecipesView,
+    get_mission_stage_recipes,
     get_profiler_based_recipes,
     get_sample_recipe,
-    get_mission_stage_recipes,
-    recipe_effectiveness_analytics
+    recipe_effectiveness_analytics,
 )
 
 router = DefaultRouter()

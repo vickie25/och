@@ -1,10 +1,11 @@
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from users.models import User, Role, UserRole
+from users.models import Role, User, UserRole
 
 # Create roles first
 roles_to_create = [

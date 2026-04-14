@@ -4,7 +4,8 @@ Auto-syncs programs.Track -> curriculum.CurriculumTrack when Directors create/up
 This ensures Director-created tracks appear in the student curriculum automatically.
 """
 import logging
-from django.db.models.signals import post_save, post_delete, pre_save
+
+from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
 from django.utils.text import slugify
 
@@ -16,32 +17,32 @@ def sync_track_to_curriculum(sender, instance, created, **kwargs):
     """
     When a Director creates or updates a programs.Track,
     automatically create/update the corresponding curriculum.CurriculumTrack.
-    
+
     This bridges the Director management system with the student-facing curriculum.
     """
     try:
         from curriculum.models import CurriculumTrack
-        
+
         # Determine tier based on track_type
         tier = 2  # Default: Tier 2 (Beginner Tracks)
         if instance.track_type == 'cross_track':
             tier = 6  # Tier 6 (Cross-Track Programs)
-        
+
         # Generate a unique code from the track key
         code = instance.key.upper().replace('-', '_').replace(' ', '_')[:50]
         slug = slugify(instance.key)[:50] or slugify(instance.name)[:50]
-        
+
         # Determine level from tier
         level = 'beginner'
-        
+
         # Count missions linked to this track
         mission_count = len(instance.missions) if isinstance(instance.missions, list) else 0
-        
+
         # Try to find existing curriculum track linked to this programs.Track
         curriculum_track = CurriculumTrack.objects.filter(
             program_track_id=instance.id
         ).first()
-        
+
         if curriculum_track:
             # Update existing curriculum track
             curriculum_track.name = instance.name
@@ -77,7 +78,7 @@ def sync_track_to_curriculum(sender, instance, created, **kwargs):
                 while CurriculumTrack.objects.filter(slug=slug).exists():
                     slug = f"{base_slug}-{counter}"
                     counter += 1
-                
+
                 # Create new curriculum track
                 CurriculumTrack.objects.create(
                     code=code,
@@ -120,11 +121,11 @@ def deactivate_curriculum_track_on_delete(sender, instance, **kwargs):
     """
     try:
         from curriculum.models import CurriculumTrack
-        
+
         updated = CurriculumTrack.objects.filter(
             program_track_id=instance.id
         ).update(is_active=False)
-        
+
         if updated:
             logger.info(
                 f"[SYNC] Deactivated CurriculumTrack for deleted programs.Track '{instance.name}'"

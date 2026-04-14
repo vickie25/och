@@ -2,6 +2,7 @@
 Admin interface for Foundations models.
 """
 from django.contrib import admin
+
 from .models import FoundationsModule, FoundationsProgress
 
 
@@ -19,7 +20,7 @@ class FoundationsProgressAdmin(admin.ModelAdmin):
     list_filter = ['status']
     search_fields = ['user__email', 'user__username']
     readonly_fields = ['id', 'created_at', 'updated_at']
-    
+
     def is_complete(self, obj):
         return obj.is_complete()
     is_complete.boolean = True

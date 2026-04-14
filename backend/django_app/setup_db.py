@@ -2,9 +2,10 @@
 """
 Simple script to create SQLite database with recipe tables for demo purposes.
 """
-import sqlite3
-import os
 import json
+import os
+import sqlite3
+
 
 def create_database():
     # Remove existing database

@@ -2,11 +2,10 @@
 AI integration services for sponsor dashboards.
 Connects to ReadinessScore, DropoutRisk, and NudgeEngine services.
 """
-import requests
-from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
-from .models import SponsorCohort, SponsorStudentCohort, SponsorAnalytics
+
+from .models import SponsorCohort, SponsorStudentCohort
 
 
 class ReadinessScoreService:

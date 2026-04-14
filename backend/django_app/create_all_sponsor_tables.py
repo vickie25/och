@@ -3,6 +3,7 @@ Create all missing sponsor dashboard tables.
 """
 import os
 import sys
+
 import django
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -28,7 +29,7 @@ TABLES = {
             overdue_invoices_count INTEGER NOT NULL DEFAULT 0,
             low_utilization_cohorts INTEGER NOT NULL DEFAULT 0,
             cache_updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-            CONSTRAINT sponsor_dashboard_cache_org_id_fkey FOREIGN KEY (org_id) 
+            CONSTRAINT sponsor_dashboard_cache_org_id_fkey FOREIGN KEY (org_id)
                 REFERENCES organizations(id) ON DELETE CASCADE
         );
     """,
@@ -55,9 +56,9 @@ TABLES = {
             upcoming_events JSONB DEFAULT '[]'::jsonb,
             flags JSONB DEFAULT '[]'::jsonb,
             updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-            CONSTRAINT sponsor_cohort_dashboard_org_id_fkey FOREIGN KEY (org_id) 
+            CONSTRAINT sponsor_cohort_dashboard_org_id_fkey FOREIGN KEY (org_id)
                 REFERENCES organizations(id) ON DELETE CASCADE,
-            CONSTRAINT sponsor_cohort_dashboard_cohort_id_fkey FOREIGN KEY (cohort_id) 
+            CONSTRAINT sponsor_cohort_dashboard_cohort_id_fkey FOREIGN KEY (cohort_id)
                 REFERENCES cohorts(id) ON DELETE CASCADE
         );
         CREATE INDEX IF NOT EXISTS sponsor_coh_org_id_17cd8a_idx ON sponsor_cohort_dashboard(org_id, updated_at);
@@ -76,11 +77,11 @@ TABLES = {
             portfolio_items INTEGER NOT NULL DEFAULT 0,
             consent_employer_share BOOLEAN NOT NULL DEFAULT FALSE,
             updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-            CONSTRAINT sponsor_student_aggregates_org_id_fkey FOREIGN KEY (org_id) 
+            CONSTRAINT sponsor_student_aggregates_org_id_fkey FOREIGN KEY (org_id)
                 REFERENCES organizations(id) ON DELETE CASCADE,
-            CONSTRAINT sponsor_student_aggregates_cohort_id_fkey FOREIGN KEY (cohort_id) 
+            CONSTRAINT sponsor_student_aggregates_cohort_id_fkey FOREIGN KEY (cohort_id)
                 REFERENCES cohorts(id) ON DELETE CASCADE,
-            CONSTRAINT sponsor_student_aggregates_student_id_fkey FOREIGN KEY (student_id) 
+            CONSTRAINT sponsor_student_aggregates_student_id_fkey FOREIGN KEY (student_id)
                 REFERENCES users_user(id) ON DELETE CASCADE
         );
         CREATE INDEX IF NOT EXISTS sponsor_stu_org_id_411bac_idx ON sponsor_student_aggregates(org_id, cohort_id);
@@ -101,7 +102,7 @@ TABLES = {
             status VARCHAR(20) NOT NULL DEFAULT 'active',
             created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-            CONSTRAINT sponsor_codes_org_id_fkey FOREIGN KEY (org_id) 
+            CONSTRAINT sponsor_codes_org_id_fkey FOREIGN KEY (org_id)
                 REFERENCES organizations(id) ON DELETE CASCADE
         );
         CREATE INDEX IF NOT EXISTS sponsor_cod_org_id_8a84aa_idx ON sponsor_codes(org_id, status);
@@ -114,8 +115,8 @@ def check_table_exists(table_name):
     with connection.cursor() as cursor:
         cursor.execute("""
             SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_schema = 'public' 
+                SELECT FROM information_schema.tables
+                WHERE table_schema = 'public'
                 AND table_name = %s
             );
         """, [table_name])
@@ -126,7 +127,7 @@ def create_table(table_name, sql):
     if check_table_exists(table_name):
         print(f"✅ Table {table_name} already exists")
         return True
-    
+
     print(f"Creating table {table_name}...")
     with connection.cursor() as cursor:
         try:
@@ -142,8 +143,8 @@ def create_table(table_name, sql):
                 print(f"❌ Error creating {table_name}: {e}")
                 # Check if it's a dependency issue (cohorts table might not exist)
                 if 'cohorts' in error_msg or 'relation "cohorts"' in error_msg:
-                    print(f"   Note: This table depends on 'cohorts' table which may not exist yet.")
-                    print(f"   This is OK - cohorts will be created when needed.")
+                    print("   Note: This table depends on 'cohorts' table which may not exist yet.")
+                    print("   This is OK - cohorts will be created when needed.")
                     return False
                 return False
 
@@ -151,22 +152,21 @@ def main():
     print("=" * 60)
     print("Creating All Sponsor Dashboard Tables")
     print("=" * 60)
-    
+
     created = 0
-    skipped = 0
     failed = 0
-    
+
     for table_name, sql in TABLES.items():
         print(f"\n{table_name}:")
         if create_table(table_name, sql):
             created += 1
         else:
             failed += 1
-    
+
     print("\n" + "=" * 60)
     print(f"Summary: {created} created/skipped, {failed} failed")
     print("=" * 60)
-    
+
     if failed == 0:
         print("\n✅ All tables ready!")
     else:

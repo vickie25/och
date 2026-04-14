@@ -1,7 +1,7 @@
 """
 Personality analysis service for analyzing user behavior and traits.
 """
-from typing import Optional
+
 import httpx
 from config import settings
 from schemas.personality import PersonalityAnalysisResponse, PersonalityTrait
@@ -12,10 +12,10 @@ class PersonalityService:
     """
     Service for analyzing user personality based on progress and behavior.
     """
-    
+
     def __init__(self):
         self.django_api_url = settings.DJANGO_API_URL
-    
+
     async def get_user_progress(self, user_id: int) -> list[dict]:
         """
         Fetch user progress from Django API.
@@ -28,15 +28,15 @@ class PersonalityService:
             )
             response.raise_for_status()
             return response.json()["results"]
-    
+
     async def analyze_personality(
         self,
         user_id: int,
-        progress_data: Optional[list[ProgressResponse]] = None,
+        progress_data: list[ProgressResponse] | None = None,
     ) -> PersonalityAnalysisResponse:
         """
         Analyze user personality based on progress data.
-        
+
         Pseudocode:
         1. Fetch progress data if not provided
         2. Analyze completion patterns
@@ -47,12 +47,12 @@ class PersonalityService:
         # TODO: Implement personality analysis logic
         # if not progress_data:
         #     progress_data = await self.get_user_progress(user_id)
-        
+
         # Analyze patterns
         # traits = self._calculate_traits(progress_data)
         # summary = self._generate_summary(traits, progress_data)
         # recommendations = self._generate_recommendations(traits)
-        
+
         # Placeholder: return default analysis
         return PersonalityAnalysisResponse(
             user_id=user_id,
@@ -63,8 +63,8 @@ class PersonalityService:
             summary="User shows strong learning engagement and persistence.",
             recommendations=["Focus on interactive content", "Provide progress milestones"],
         )
-    
-    async def get_cached_personality(self, user_id: int) -> Optional[PersonalityAnalysisResponse]:
+
+    async def get_cached_personality(self, user_id: int) -> PersonalityAnalysisResponse | None:
         """
         Get cached personality analysis if available.
         TODO: Implement caching mechanism.

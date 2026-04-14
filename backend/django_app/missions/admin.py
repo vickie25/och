@@ -2,6 +2,7 @@
 Admin interface for Missions MXP.
 """
 from django.contrib import admin
+
 from .models import Mission, MissionSubmission
 
 

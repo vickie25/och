@@ -3,23 +3,21 @@ API views for TalentScope analytics.
 Analyst role: read-only access; consent-gated for cross-user data; all access audited.
 """
 from datetime import datetime, timedelta
-from django.db.models import Avg, Count, Sum, Q, F, Max
+
+from django.db.models import Avg, Count, Max, Q, Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
 from users.models import User
-from users.utils.consent_utils import check_consent
 from users.utils.audit_utils import log_analytics_access
-from .models import SkillSignal, BehaviorSignal, MentorInfluence, ReadinessSnapshot
+from users.utils.consent_utils import check_consent
+
+from .models import BehaviorSignal, ReadinessSnapshot, SkillSignal
 from .serializers import (
-    ReadinessOverTimeSerializer,
-    SkillHeatmapSerializer,
-    SkillMasterySerializer,
-    BehavioralTrendSerializer,
-    ReadinessWindowSerializer,
     ReadinessSnapshotSerializer,
 )
 
@@ -50,7 +48,7 @@ def readiness_over_time(request, mentee_id):
             {'error': 'Mentee not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     if not _can_access_mentee_analytics(request, mentee):
         return Response(
             {'error': 'Permission denied or analytics consent required'},
@@ -61,30 +59,30 @@ def readiness_over_time(request, mentee_id):
     # Get filter parameters
     start_date = request.query_params.get('start_date')
     end_date = request.query_params.get('end_date')
-    track_id = request.query_params.get('track_id')
-    
+    request.query_params.get('track_id')
+
     # Query readiness snapshots
     snapshots = ReadinessSnapshot.objects.filter(mentee=mentee)
-    
+
     if start_date:
         try:
             start = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
             snapshots = snapshots.filter(snapshot_date__gte=start)
         except ValueError:
             pass
-    
+
     if end_date:
         try:
             end = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
             snapshots = snapshots.filter(snapshot_date__lte=end)
         except ValueError:
             pass
-    
+
     # Group by date and get average score
     readiness_data = snapshots.values('snapshot_date').annotate(
         score=Avg('core_readiness_score')
     ).order_by('snapshot_date')
-    
+
     result = [
         {
             'date': item['snapshot_date'].strftime('%Y-%m-%d'),
@@ -93,7 +91,7 @@ def readiness_over_time(request, mentee_id):
         }
         for item in readiness_data
     ]
-    
+
     return Response(result, status=status.HTTP_200_OK)
 
 
@@ -111,7 +109,7 @@ def skills_heatmap(request, mentee_id):
             {'error': 'Mentee not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     if not _can_access_mentee_analytics(request, mentee):
         return Response(
             {'error': 'Permission denied or analytics consent required'},
@@ -123,33 +121,33 @@ def skills_heatmap(request, mentee_id):
     start_date = request.query_params.get('start_date')
     end_date = request.query_params.get('end_date')
     skill_category = request.query_params.get('skill_category')
-    
+
     # Query skill signals
     skills = SkillSignal.objects.filter(mentee=mentee)
-    
+
     if skill_category:
         skills = skills.filter(skill_category=skill_category)
-    
+
     if start_date:
         try:
             start = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
             skills = skills.filter(created_at__gte=start)
         except ValueError:
             pass
-    
+
     if end_date:
         try:
             end = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
             skills = skills.filter(created_at__lte=end)
         except ValueError:
             pass
-    
+
     # Get latest mastery level for each skill
     latest_skills = skills.values('skill_name', 'skill_category').annotate(
         mastery_level=Avg('mastery_level'),
         last_practiced=Max('last_practiced')
     ).order_by('-mastery_level')
-    
+
     result = [
         {
             'skill_name': item['skill_name'],
@@ -159,7 +157,7 @@ def skills_heatmap(request, mentee_id):
         }
         for item in latest_skills
     ]
-    
+
     return Response(result, status=status.HTTP_200_OK)
 
 
@@ -177,7 +175,7 @@ def skill_mastery(request, mentee_id):
             {'error': 'Mentee not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     if not _can_access_mentee_analytics(request, mentee):
         return Response(
             {'error': 'Permission denied or analytics consent required'},
@@ -186,20 +184,20 @@ def skill_mastery(request, mentee_id):
     log_analytics_access(request, request.user, 'talentscope_skill_mastery', str(mentee.id), {'mentee_id': str(mentee.id)})
 
     category = request.query_params.get('category')
-    
+
     # Query skill signals
     skills = SkillSignal.objects.filter(mentee=mentee)
-    
+
     if category:
         skills = skills.filter(skill_category=category)
-    
+
     # Aggregate by skill
     skill_data = skills.values('skill_name', 'skill_category').annotate(
         mastery_percentage=Avg('mastery_level'),
         hours_practiced=Sum('hours_practiced'),
         last_updated=Max('updated_at')
     ).order_by('-mastery_percentage')
-    
+
     result = []
     for item in skill_data:
         # Generate a deterministic UUID from skill name for consistency
@@ -213,7 +211,7 @@ def skill_mastery(request, mentee_id):
             'hours_practiced': float(item['hours_practiced'] or 0),
             'last_updated': item['last_updated'].isoformat() if item['last_updated'] else None
         })
-    
+
     return Response(result, status=status.HTTP_200_OK)
 
 
@@ -231,7 +229,7 @@ def behavioral_trends(request, mentee_id):
             {'error': 'Mentee not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     if not _can_access_mentee_analytics(request, mentee):
         return Response(
             {'error': 'Permission denied or analytics consent required'},
@@ -245,21 +243,21 @@ def behavioral_trends(request, mentee_id):
 
     # Query behavior signals
     behaviors = BehaviorSignal.objects.filter(mentee=mentee)
-    
+
     if start_date:
         try:
             start = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
             behaviors = behaviors.filter(recorded_at__gte=start)
         except ValueError:
             pass
-    
+
     if end_date:
         try:
             end = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
             behaviors = behaviors.filter(recorded_at__lte=end)
         except ValueError:
             pass
-    
+
     # Group by date and aggregate
     trends = behaviors.annotate(
         date=TruncDate('recorded_at')
@@ -277,7 +275,7 @@ def behavioral_trends(request, mentee_id):
             filter=Q(behavior_type='reflection_frequency')
         )
     ).order_by('date')
-    
+
     result = [
         {
             'date': item['date'].strftime('%Y-%m-%d') if item['date'] else None,
@@ -287,7 +285,7 @@ def behavioral_trends(request, mentee_id):
         }
         for item in trends
     ]
-    
+
     return Response(result, status=status.HTTP_200_OK)
 
 
@@ -305,7 +303,7 @@ def readiness_window(request, mentee_id):
             {'error': 'Mentee not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     if not _can_access_mentee_analytics(request, mentee):
         return Response(
             {'error': 'Permission denied or analytics consent required'},
@@ -315,38 +313,38 @@ def readiness_window(request, mentee_id):
 
     # Get latest readiness snapshot
     snapshot = ReadinessSnapshot.objects.filter(mentee=mentee).order_by('-snapshot_date').first()
-    
+
     if not snapshot:
         return Response(
             {'error': 'No readiness data available'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     # Calculate estimated date based on learning velocity
     estimated_date = None
     confidence = 'low'
-    
+
     if snapshot.learning_velocity and snapshot.learning_velocity > 0:
         # Calculate days to reach 100% readiness
         current_score = float(snapshot.core_readiness_score)
         points_needed = 100 - current_score
         days_needed = (points_needed / float(snapshot.learning_velocity)) * 30  # Convert to days
-        
+
         estimated_date = timezone.now() + timedelta(days=int(days_needed))
-        
+
         # Set confidence based on data quality
         if snapshot.learning_velocity > 10:
             confidence = 'high'
         elif snapshot.learning_velocity > 5:
             confidence = 'medium'
-    
+
     result = {
         'label': snapshot.estimated_readiness_window or 'Not available',
         'estimated_date': estimated_date.date().isoformat() if estimated_date else None,
         'confidence': confidence,
         'category': snapshot.career_readiness_stage
     }
-    
+
     return Response(result, status=status.HTTP_200_OK)
 
 
@@ -364,7 +362,7 @@ def export_report(request, mentee_id):
             {'error': 'Mentee not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     if not _can_access_mentee_analytics(request, mentee):
         return Response(
             {'error': 'Permission denied or analytics consent required'},
@@ -373,25 +371,25 @@ def export_report(request, mentee_id):
     log_analytics_access(request, request.user, 'talentscope_export', str(mentee.id), {'mentee_id': str(mentee.id), 'format': request.query_params.get('format', 'csv')})
 
     format_type = request.query_params.get('format', 'csv').lower()
-    
+
     if format_type not in ['csv', 'pdf']:
         return Response(
             {'error': 'Invalid format. Use "csv" or "pdf"'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     # Get latest snapshot
     snapshot = ReadinessSnapshot.objects.filter(mentee=mentee).order_by('-snapshot_date').first()
-    
+
     if not snapshot:
         return Response(
             {'error': 'No data available for export'},
             status=status.HTTP_404_NOT_FOUND
         )
-    
+
     # For now, return JSON (actual PDF/CSV generation would require additional libraries)
-    serializer = ReadinessSnapshotSerializer(snapshot)
-    
+    ReadinessSnapshotSerializer(snapshot)
+
     if format_type == 'csv':
         # Simple CSV response (would need proper CSV library for production)
         from django.http import HttpResponse

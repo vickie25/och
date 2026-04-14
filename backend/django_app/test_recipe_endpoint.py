@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 """Test recipe generate endpoint."""
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
 from django.urls import resolve, reverse
-from django.test import RequestFactory
 from recipes.views import RecipeGenerateView
 
 print("Testing recipe generate endpoint...\n")

@@ -1,19 +1,18 @@
 """Book balance computation for reconciliation (payments recorded in Django)."""
-from decimal import Decimal
 from datetime import date
-from typing import Tuple
+from decimal import Decimal
 
+from cohorts.models import CohortPayment
 from django.db.models import Sum
 
 from .models import Payment, ReconciliationRun
-from cohorts.models import CohortPayment
 
 
 def compute_book_total_for_period(
     period_start: date,
     period_end: date,
     currency: str = 'USD',
-) -> Tuple[Decimal, int]:
+) -> tuple[Decimal, int]:
     """
     Sum successful finance Payments and completed cohort payments in [period_start, period_end].
     Uses Payment.created_at and CohortPayment.completed_at date parts.

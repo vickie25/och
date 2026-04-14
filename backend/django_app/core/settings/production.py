@@ -1,8 +1,9 @@
 """
 Production settings for core project.
 """
-from .base import *
 import os
+
+from .base import *
 
 DEBUG = False
 

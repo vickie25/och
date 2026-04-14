@@ -2,7 +2,8 @@
 Admin configuration for TalentScope models.
 """
 from django.contrib import admin
-from .models import SkillSignal, BehaviorSignal, MentorInfluence, ReadinessSnapshot
+
+from .models import BehaviorSignal, MentorInfluence, ReadinessSnapshot, SkillSignal
 
 
 @admin.register(SkillSignal)

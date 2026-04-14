@@ -1,41 +1,38 @@
 """
 API views for Subscription Engine.
 """
-import os
-import re
-import json
-import hmac
 import hashlib
+import hmac
+import json
+import logging
+import os
 import random
+import re
 import string
+
 import requests
-from django.utils import timezone
-from django.db import transaction
 from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.http import JsonResponse
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from django.http import JsonResponse
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+
 from .models import (
     TIER_FREE,
-    SubscriptionPlan,
-    UserSubscription,
-    PaymentTransaction,
     PaymentGateway,
     PaymentSettings,
+    PaymentTransaction,
+    SubscriptionPlan,
+    UserSubscription,
 )
 from .serializers import (
-    SubscriptionPlanSerializer,
-    UserSubscriptionSerializer,
-    SubscriptionStatusSerializer,
     UpgradeSubscriptionSerializer,
 )
-from .utils import get_user_tier
-from student_dashboard.services import DashboardAggregationService
-import logging
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -110,7 +107,7 @@ def subscription_status(request):
     Get user's subscription status.
     """
     user = request.user
-    
+
     try:
         subscription = user.subscription
         plan = subscription.plan
@@ -126,7 +123,7 @@ def subscription_status(request):
             'ai_coach_daily_limit': 0,
             'policy': get_stream_policy(),
         })
-    
+
     # Map DB tier to frontend tier name
     # DB: free | starter | premium   →   Frontend: free | starter | professional
     TIER_MAP = {'free': 'free', 'starter': 'starter', 'premium': 'professional'}
@@ -170,15 +167,20 @@ def upgrade_subscription(request):
         "mock": true (optional)
     }
     """
-    from .utils import calculate_proration, apply_promo_code, record_promo_redemption, attempt_payment_charge
-    
+    from .utils import (
+        apply_promo_code,
+        attempt_payment_charge,
+        calculate_proration,
+        record_promo_redemption,
+    )
+
     serializer = UpgradeSubscriptionSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    
+
     plan_identifier = serializer.validated_data['plan']
     promo_code = request.data.get('promo_code', '').strip()
     mock_upgrade = request.data.get('mock', False)
-    
+
     # Find plan
     try:
         plan = SubscriptionPlan.objects.get(name=plan_identifier)
@@ -196,9 +198,9 @@ def upgrade_subscription(request):
                 {'error': f'Invalid plan: {plan_identifier}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-    
+
     user = request.user
-    
+
     try:
         with transaction.atomic():
             # Get current subscription
@@ -209,10 +211,10 @@ def upgrade_subscription(request):
                 # Create new subscription
                 current_subscription = None
                 old_plan = None
-            
+
             # Calculate base amount
             base_amount = plan.price_monthly or 0
-            
+
             # Apply academic discount if active
             try:
                 if hasattr(user, 'academic_discount') and user.academic_discount.is_active():
@@ -220,7 +222,7 @@ def upgrade_subscription(request):
                     logger.info(f'Academic discount applied: {base_amount} KES')
             except Exception:
                 pass
-            
+
             # Apply promo code if provided
             promo_discount = Decimal('0')
             promo_code_obj = None
@@ -232,7 +234,7 @@ def upgrade_subscription(request):
                     promo_code_obj = PromotionalCode.objects.get(code=promo_code.upper())
                 else:
                     return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
-            
+
             # Calculate proration if upgrading existing subscription
             proration_amount = Decimal('0')
             if current_subscription and old_plan and old_plan != plan:
@@ -243,10 +245,10 @@ def upgrade_subscription(request):
                 )
                 proration_amount = proration_data['proration_amount']
                 logger.info(f'Proration calculated: {proration_amount} KES')
-            
+
             # Calculate final amount
             final_amount = max(Decimal('0'), Decimal(str(base_amount)) - promo_discount + proration_amount)
-            
+
             # Process payment if not mock and amount > 0
             if not mock_upgrade and final_amount > 0:
                 success, transaction_id, error = attempt_payment_charge(
@@ -255,7 +257,7 @@ def upgrade_subscription(request):
                     currency='KES',
                     description=f'Subscription upgrade to {plan.name}'
                 )
-                
+
                 if not success:
                     return Response(
                         {'error': f'Payment failed: {error}'},
@@ -263,7 +265,7 @@ def upgrade_subscription(request):
                     )
             else:
                 transaction_id = f'mock_upgrade_{timezone.now().timestamp()}'
-            
+
             # Create or update subscription
             if current_subscription:
                 current_subscription.plan = plan
@@ -280,14 +282,14 @@ def upgrade_subscription(request):
                     current_period_start=timezone.now(),
                     current_period_end=timezone.now() + timedelta(days=30),
                 )
-            
+
             # Set enhanced access for starter tier
             if plan.tier == 'starter':
                 if not current_subscription.enhanced_access_expires_at:
                     current_subscription.enhanced_access_expires_at = timezone.now() + timedelta(days=180)
-            
+
             current_subscription.save()
-            
+
             # Create payment transaction
             transaction = PaymentTransaction.objects.create(
                 user=user,
@@ -298,18 +300,18 @@ def upgrade_subscription(request):
                 gateway_transaction_id=transaction_id,
                 processed_at=timezone.now(),
             )
-            
+
             # Record promo code redemption
             if promo_code_obj:
                 record_promo_redemption(
                     promo_code_obj, user, current_subscription,
                     Decimal(str(base_amount)), promo_discount
                 )
-            
+
             # Generate invoice if payment was made
             if final_amount > 0:
                 from .models import SubscriptionInvoice
-                invoice = SubscriptionInvoice.objects.create(
+                SubscriptionInvoice.objects.create(
                     invoice_number=SubscriptionInvoice.generate_invoice_number(),
                     user=user,
                     subscription=current_subscription,
@@ -329,9 +331,9 @@ def upgrade_subscription(request):
                         'total': float(final_amount),
                     }],
                 )
-            
+
             logger.info(f'Upgrade successful: {user.email} → {plan.name} | Amount: {final_amount} KES')
-            
+
             return Response({
                 'success': True,
                 'plan': plan.name,
@@ -341,7 +343,7 @@ def upgrade_subscription(request):
                 'proration_amount': float(proration_amount),
                 'message': 'Subscription upgraded successfully',
             }, status=status.HTTP_200_OK)
-            
+
     except Exception as e:
         logger.error(f'Upgrade error for {user.email}: {e}', exc_info=True)
         return Response(
@@ -357,19 +359,16 @@ def stripe_webhook(request):
     POST /api/v1/subscription/webhooks/stripe
     Handle Stripe webhooks.
     """
-    import json
-    import hmac
-    import hashlib
-    
+
     stripe_key = os.environ.get('STRIPE_SECRET_KEY')
     webhook_secret = os.environ.get('STRIPE_WEBHOOK_SECRET')
-    
+
     if not stripe_key or not webhook_secret:
         return Response({'error': 'Stripe not configured'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     payload = request.body
     sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
-    
+
     try:
         import stripe
         stripe.api_key = stripe_key
@@ -378,11 +377,11 @@ def stripe_webhook(request):
         return Response({'error': 'Invalid payload'}, status=status.HTTP_400_BAD_REQUEST)
     except stripe.error.SignatureVerificationError:
         return Response({'error': 'Invalid signature'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     # Handle events
     from subscriptions.tasks import process_stripe_webhook_task
     process_stripe_webhook_task.delay(event)
-    
+
     return Response({'status': 'received'}, status=status.HTTP_200_OK)
 
 
@@ -394,20 +393,20 @@ def billing_history(request):
     Get user's billing history (payment transactions).
     """
     user = request.user
-    
+
     # Get payment transactions for this user
     transactions = PaymentTransaction.objects.filter(
         user=user,
         status='completed'
     ).select_related('subscription', 'gateway').order_by('-created_at')[:12]  # Last 12 transactions
-    
+
     billing_history = []
     for transaction in transactions:
         # Get plan name from subscription
         plan_name = 'Subscription'
         if transaction.subscription and transaction.subscription.plan:
             plan_name = transaction.subscription.plan.name.replace('_', ' ').title()
-        
+
         billing_history.append({
             'id': str(transaction.id),
             'date': transaction.created_at.isoformat(),
@@ -418,7 +417,7 @@ def billing_history(request):
             'description': f'{plan_name} - {transaction.created_at.strftime("%B %Y")}',
             'gateway_transaction_id': transaction.gateway_transaction_id,
         })
-    
+
     # If no transactions but user has subscription, create entries from subscription periods
     if not billing_history:
         try:
@@ -437,7 +436,7 @@ def billing_history(request):
                 })
         except UserSubscription.DoesNotExist:
             pass
-    
+
     return Response({
         'billing_history': billing_history,
         'total': len(billing_history),
@@ -455,14 +454,14 @@ def list_user_subscriptions(request):
     Supports filtering by plan.
     """
     plan_id = request.query_params.get('plan')
-    
+
     subscriptions = UserSubscription.objects.select_related('user', 'plan').filter(
         status__in=['active', 'trial']
     )
-    
+
     if plan_id:
         subscriptions = subscriptions.filter(plan_id=plan_id)
-    
+
     data = []
     for sub in subscriptions:
         cat = sub.plan.catalog or {}
@@ -485,7 +484,7 @@ def list_user_subscriptions(request):
             'days_remaining': (sub.current_period_end - timezone.now()).days if sub.current_period_end else None,
             'created_at': sub.created_at.isoformat(),
         })
-    
+
     return Response(data, status=status.HTTP_200_OK)
 
 
@@ -839,7 +838,7 @@ def paystack_initialize(request):
             timeout=10,
         )
         data = resp.json()
-    except requests.RequestException as e:
+    except requests.RequestException:
         logger.exception('Paystack initialize request failed')
         return Response({'error': 'Could not start payment'}, status=status.HTTP_502_BAD_GATEWAY)
 
@@ -884,7 +883,7 @@ def paystack_verify(request):
             timeout=10,
         )
         data = resp.json()
-    except requests.RequestException as e:
+    except requests.RequestException:
         logger.exception('Paystack verify request failed')
         return Response({'error': 'Verification request failed'}, status=status.HTTP_502_BAD_GATEWAY)
 
@@ -1119,29 +1118,29 @@ def validate_promo_code(request):
     Validate promotional code without applying it.
     Body: {"code": "CYBER2026", "plan": "starter_3"}
     """
-    from .utils import apply_promo_code
     from .models import SubscriptionPlan
-    
+    from .utils import apply_promo_code
+
     code = request.data.get('code', '').strip()
     plan_name = request.data.get('plan', '').strip()
-    
+
     if not code:
         return Response({'error': 'Code is required'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     if not plan_name:
         return Response({'error': 'Plan is required'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         plan = SubscriptionPlan.objects.get(name=plan_name)
     except SubscriptionPlan.DoesNotExist:
         return Response({'error': 'Invalid plan'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     success, discount_amount, error = apply_promo_code(code, request.user, plan)
-    
+
     if success:
         base_amount = float(plan.price_monthly or 0)
         final_amount = base_amount - float(discount_amount)
-        
+
         return Response({
             'valid': True,
             'code': code.upper(),
@@ -1165,11 +1164,11 @@ def promo_code_history(request):
     Get user's promo code redemption history.
     """
     from .models import PromoCodeRedemption
-    
+
     redemptions = PromoCodeRedemption.objects.filter(
         user=request.user
     ).select_related('code').order_by('-redeemed_at')[:10]
-    
+
     data = []
     for redemption in redemptions:
         data.append({
@@ -1180,7 +1179,7 @@ def promo_code_history(request):
             'final_amount': float(redemption.final_amount),
             'redeemed_at': redemption.redeemed_at.isoformat(),
         })
-    
+
     return Response(data, status=status.HTTP_200_OK)
 
 
@@ -1200,21 +1199,21 @@ def apply_academic_discount(request):
     }
     """
     from .models import AcademicDiscount
-    
+
     method = request.data.get('method', '').strip()
     edu_email = request.data.get('edu_email', '').strip()
     institution_name = request.data.get('institution_name', '').strip()
     document_url = request.data.get('document_url', '').strip()
-    
+
     if method not in ['edu_email', 'document']:
         return Response({'error': 'Invalid verification method'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     if method == 'edu_email' and not edu_email.endswith('.edu'):
         return Response({'error': 'Please provide a valid .edu email address'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     if method == 'document' and not document_url:
         return Response({'error': 'Document URL is required'}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         # Check if user already has academic discount
         try:
@@ -1242,14 +1241,14 @@ def apply_academic_discount(request):
                 institution_name=institution_name,
                 document_url=document_url if method == 'document' else None,
             )
-        
+
         # Auto-verify .edu emails
         if method == 'edu_email':
             discount.verification_status = 'verified'
             discount.verified_at = timezone.now()
             discount.expires_at = timezone.now() + timezone.timedelta(days=365)  # 1 year
             discount.save()
-            
+
             return Response({
                 'success': True,
                 'status': 'verified',
@@ -1263,7 +1262,7 @@ def apply_academic_discount(request):
                 'status': 'pending',
                 'message': 'Academic discount application submitted for review. You will be notified within 1-2 business days.',
             }, status=status.HTTP_200_OK)
-            
+
     except Exception as e:
         logger.error(f'Academic discount application error: {e}')
         return Response({'error': 'Failed to process application'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -1305,44 +1304,45 @@ def subscription_analytics(request):
     GET /api/v1/subscription/analytics
     Get advanced subscription analytics for finance dashboard.
     """
-    from django.db.models import Count, Sum, Avg, Q
+    from datetime import timedelta
+
+    from django.db.models import Count, Q, Sum
     from django.db.models.functions import TruncMonth
-    from datetime import datetime, timedelta
-    
+
     # Check if user has finance role
     if not request.user.user_roles.filter(role__name='finance').exists():
         return Response({'error': 'Finance role required'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     now = timezone.now()
     last_month = now - timedelta(days=30)
-    last_3_months = now - timedelta(days=90)
-    
+    now - timedelta(days=90)
+
     # Basic metrics
     total_subscriptions = UserSubscription.objects.filter(status='active').count()
     total_revenue = PaymentTransaction.objects.filter(
         status='completed',
         created_at__gte=last_month
     ).aggregate(total=Sum('amount'))['total'] or 0
-    
+
     # MRR (Monthly Recurring Revenue)
     mrr = UserSubscription.objects.filter(
         status='active'
     ).select_related('plan').aggregate(
         mrr=Sum('plan__price_monthly')
     )['mrr'] or 0
-    
+
     # Churn rate (canceled in last 30 days / total active 30 days ago)
     canceled_last_month = UserSubscription.objects.filter(
         status='canceled',
         updated_at__gte=last_month
     ).count()
-    
+
     active_last_month = UserSubscription.objects.filter(
         Q(status='active') | Q(status='canceled', updated_at__gte=last_month)
     ).count()
-    
+
     churn_rate = (canceled_last_month / max(active_last_month, 1)) * 100
-    
+
     # Plan breakdown
     plan_breakdown = UserSubscription.objects.filter(
         status='active'
@@ -1350,7 +1350,7 @@ def subscription_analytics(request):
         count=Count('id'),
         revenue=Sum('plan__price_monthly')
     ).order_by('-count')
-    
+
     # Monthly revenue trend (last 6 months)
     revenue_trend = PaymentTransaction.objects.filter(
         status='completed',
@@ -1361,16 +1361,16 @@ def subscription_analytics(request):
         revenue=Sum('amount'),
         transactions=Count('id')
     ).order_by('month')
-    
+
     # Failed payments
     failed_payments = PaymentRetryAttempt.objects.filter(
         status='failed',
         created_at__gte=last_month
     ).count()
-    
+
     # Grace period stats
     past_due_count = UserSubscription.objects.filter(status='past_due').count()
-    
+
     # Promo code usage
     promo_usage = PromoCodeRedemption.objects.filter(
         redeemed_at__gte=last_month
@@ -1378,14 +1378,14 @@ def subscription_analytics(request):
         total_redemptions=Count('id'),
         total_discount=Sum('discount_applied')
     )
-    
+
     # Academic discounts
     academic_stats = AcademicDiscount.objects.aggregate(
         total_applications=Count('id'),
         verified=Count('id', filter=Q(verification_status='verified')),
         pending=Count('id', filter=Q(verification_status='pending')),
     )
-    
+
     return Response({
         'overview': {
             'total_subscriptions': total_subscriptions,
@@ -1435,14 +1435,14 @@ def retry_attempts_status(request):
     """
     if not request.user.user_roles.filter(role__name='finance').exists():
         return Response({'error': 'Finance role required'}, status=status.HTTP_403_FORBIDDEN)
-    
+
     from .models import PaymentRetryAttempt
-    
+
     # Get pending and recent retry attempts
     attempts = PaymentRetryAttempt.objects.filter(
         scheduled_at__gte=timezone.now() - timedelta(days=7)
     ).select_related('subscription', 'subscription__user', 'subscription__plan').order_by('-scheduled_at')[:50]
-    
+
     data = []
     for attempt in attempts:
         data.append({
@@ -1457,5 +1457,5 @@ def retry_attempts_status(request):
             'attempted_at': attempt.attempted_at.isoformat() if attempt.attempted_at else None,
             'error_message': attempt.error_message,
         })
-    
+
     return Response(data, status=status.HTTP_200_OK)

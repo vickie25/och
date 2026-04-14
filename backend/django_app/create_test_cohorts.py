@@ -4,22 +4,23 @@ Run this script to add sample cohorts to the database.
 """
 import os
 import sys
-import django
 from datetime import date, timedelta
+
+import django
 
 # Add the Django project to the Python path
 sys.path.append('/path/to/och/backend/django_app')
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
 django.setup()
 
-from programs.models import Cohort, Program, Track
 from django.contrib.auth import get_user_model
+from programs.models import Cohort, Program, Track
 
 User = get_user_model()
 
 def create_test_cohorts():
     """Create test cohorts for browsing."""
-    
+
     # Get or create a test program
     program, created = Program.objects.get_or_create(
         name='Cybersecurity Professional Program',
@@ -30,7 +31,7 @@ def create_test_cohorts():
             'default_price': 100.00
         }
     )
-    
+
     # Get or create test tracks
     defender_track, created = Track.objects.get_or_create(
         program=program,
@@ -40,7 +41,7 @@ def create_test_cohorts():
             'description': 'Learn defensive cybersecurity techniques'
         }
     )
-    
+
     offensive_track, created = Track.objects.get_or_create(
         program=program,
         key='offensive',
@@ -49,7 +50,7 @@ def create_test_cohorts():
             'description': 'Learn ethical hacking and penetration testing'
         }
     )
-    
+
     grc_track, created = Track.objects.get_or_create(
         program=program,
         key='grc',
@@ -58,7 +59,7 @@ def create_test_cohorts():
             'description': 'Learn cybersecurity governance and compliance'
         }
     )
-    
+
     # Create test cohorts
     cohorts_data = [
         {
@@ -98,7 +99,7 @@ def create_test_cohorts():
             'enrollment_fee': 250.00,
         }
     ]
-    
+
     created_count = 0
     for cohort_data in cohorts_data:
         cohort, created = Cohort.objects.get_or_create(
@@ -115,7 +116,7 @@ def create_test_cohorts():
             print(f"Created cohort: {cohort.name}")
         else:
             print(f"Cohort already exists: {cohort.name}")
-    
+
     print(f"\nCreated {created_count} new cohorts")
     print(f"Total published cohorts: {Cohort.objects.filter(published_to_homepage=True).count()}")
 

@@ -2,12 +2,22 @@
 Admin configuration for Programs app.
 """
 from django.contrib import admin
+
+from programs.director_dashboard_models import DirectorCohortDashboard, DirectorDashboardCache
+
 from .models import (
-    Program, Track, Specialization, Cohort, Enrollment,
-    CalendarEvent, MentorAssignment, ProgramRule, Certificate, Waitlist,
-    CohortPublicApplication
+    CalendarEvent,
+    Certificate,
+    Cohort,
+    CohortPublicApplication,
+    Enrollment,
+    MentorAssignment,
+    Program,
+    ProgramRule,
+    Specialization,
+    Track,
+    Waitlist,
 )
-from programs.director_dashboard_models import DirectorDashboardCache, DirectorCohortDashboard
 
 
 @admin.register(Program)

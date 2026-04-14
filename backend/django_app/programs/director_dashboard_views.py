@@ -2,24 +2,24 @@
 Director Dashboard API Views
 High-performance cached endpoints for director dashboard.
 """
-from rest_framework.decorators import api_view, permission_classes, action
+from datetime import timedelta
+
+from django.utils import timezone
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
-from django.utils import timezone
-from datetime import timedelta
-from django.db.models import Q
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
-from drf_spectacular.types import OpenApiTypes
-from programs.director_dashboard_models import DirectorDashboardCache, DirectorCohortDashboard
-from programs.director_dashboard_services import DirectorDashboardAggregationService
+
+from programs.director_dashboard_models import DirectorCohortDashboard, DirectorDashboardCache
 from programs.director_dashboard_serializers import (
-    DirectorDashboardCacheSerializer,
     DirectorCohortDashboardSerializer,
-    DirectorDashboardSummarySerializer
+    DirectorDashboardSummarySerializer,
 )
-from programs.models import Cohort, Enrollment, MentorAssignment, CalendarEvent
+from programs.director_dashboard_services import DirectorDashboardAggregationService
 from programs.director_dashboard_tasks import refresh_director_dashboard_cache_task
+from programs.models import Cohort, MentorAssignment
 from programs.permissions import IsProgramDirector
 
 
@@ -37,14 +37,14 @@ from programs.permissions import IsProgramDirector
 def director_dashboard_summary(request):
     """
     GET /api/v1/director/dashboard/summary
-    
+
     Returns cached overview aggregating across all programs/cohorts.
     Falls back to real-time calculation if cache is stale (>5 minutes).
-    
+
     RLS: Directors can only see their own dashboard data.
     """
     director = request.user
-    
+
     # RLS: Ensure director has access (they must direct at least one track)
     if not director.is_staff:
         if not director.directed_tracks.exists():
@@ -52,17 +52,17 @@ def director_dashboard_summary(request):
                 {'detail': 'You do not have director access'},
                 status=status.HTTP_403_FORBIDDEN
             )
-    
+
     # Check cache freshness (5 minutes)
     cache_age_threshold = timezone.now() - timedelta(minutes=5)
-    
+
     try:
         cache = DirectorDashboardCache.objects.get(director=director)
-        
+
         # If cache is stale, trigger refresh in background
         if cache.cache_updated_at < cache_age_threshold:
             refresh_director_dashboard_cache_task.delay(director.id)
-        
+
         # Build alerts list
         alerts = []
         if cache.cohorts_flagged_count > 0:
@@ -73,7 +73,7 @@ def director_dashboard_summary(request):
             alerts.append(f"Payment overdue on {cache.payments_overdue_count} seats")
         if cache.missions_bottlenecked_count > 0:
             alerts.append(f"{cache.missions_bottlenecked_count} missions bottlenecked")
-        
+
         summary_data = {
             'active_programs_count': cache.active_programs_count,
             'active_cohorts_count': cache.active_cohorts_count,
@@ -87,15 +87,15 @@ def director_dashboard_summary(request):
             'alerts': alerts,
             'cache_updated_at': cache.cache_updated_at.isoformat(),
         }
-        
+
         serializer = DirectorDashboardSummarySerializer(data=summary_data)
         serializer.is_valid(raise_exception=True)
         return Response(serializer.validated_data)
-        
+
     except DirectorDashboardCache.DoesNotExist:
         # Cache doesn't exist, calculate on-demand and create cache
         cache = DirectorDashboardAggregationService.refresh_director_cache(director)
-        
+
         alerts = []
         if cache.cohorts_flagged_count > 0:
             alerts.append(f"{cache.cohorts_flagged_count} cohorts flagged")
@@ -103,7 +103,7 @@ def director_dashboard_summary(request):
             alerts.append(f"{cache.mentors_over_capacity_count} mentors over capacity")
         if cache.payments_overdue_count > 0:
             alerts.append(f"Payment overdue on {cache.payments_overdue_count} seats")
-        
+
         summary_data = {
             'active_programs_count': cache.active_programs_count,
             'active_cohorts_count': cache.active_cohorts_count,
@@ -117,7 +117,7 @@ def director_dashboard_summary(request):
             'alerts': alerts,
             'cache_updated_at': cache.cache_updated_at.isoformat(),
         }
-        
+
         serializer = DirectorDashboardSummarySerializer(data=summary_data)
         serializer.is_valid(raise_exception=True)
         return Response(serializer.validated_data)
@@ -142,14 +142,14 @@ def director_dashboard_summary(request):
 def director_cohorts_list(request):
     """
     GET /api/v1/director/dashboard/cohorts
-    
+
     Returns paginated array of detailed cohort cards.
     Uses cached cohort dashboard data for performance.
-    
+
     RLS: Directors can only see cohorts they manage.
     """
     director = request.user
-    
+
     # RLS: Ensure director has access
     if not director.is_staff:
         if not director.directed_tracks.exists():
@@ -157,33 +157,33 @@ def director_cohorts_list(request):
                 {'detail': 'You do not have director access'},
                 status=status.HTTP_403_FORBIDDEN
             )
-    
+
     # Get pagination params
     page = int(request.query_params.get('page', 1))
     page_size = int(request.query_params.get('page_size', 20))
     offset = (page - 1) * page_size
-    
+
     # Get cached cohort dashboards
     cohort_dashboards = DirectorCohortDashboard.objects.filter(
         director=director
     ).select_related('cohort', 'cohort__track', 'cohort__track__program')
-    
+
     # Apply filters
     status_filter = request.query_params.get('status')
     if status_filter:
         cohort_dashboards = cohort_dashboards.filter(
             cohort__status=status_filter
         )
-    
+
     # Sort by updated_at (most recently active first)
     cohort_dashboards = cohort_dashboards.order_by('-updated_at')
-    
+
     # Pagination
     total = cohort_dashboards.count()
     cohort_dashboards = cohort_dashboards[offset:offset + page_size]
-    
+
     serializer = DirectorCohortDashboardSerializer(cohort_dashboards, many=True)
-    
+
     return Response({
         'count': total,
         'next': f'/api/v1/director/dashboard/cohorts?page={page + 1}' if offset + page_size < total else None,
@@ -218,15 +218,15 @@ def director_cohorts_list(request):
 def director_cohort_detail(request, cohort_id):
     """
     GET /api/v1/director/dashboard/cohorts/{cohort_id}
-    
+
     Deep analytics for a specific cohort.
     Includes enrollment, mentors, readiness distributions, competency heatmaps.
     """
     director = request.user
-    
+
     try:
         cohort = Cohort.objects.get(id=cohort_id)
-        
+
         # Verify director has access
         if not director.is_staff:
             programs = DirectorDashboardAggregationService.get_director_programs(director)
@@ -235,7 +235,7 @@ def director_cohort_detail(request, cohort_id):
                     {'detail': 'You do not have access to this cohort'},
                     status=status.HTTP_403_FORBIDDEN
                 )
-        
+
         # Get or refresh cohort dashboard cache
         # For staff/admin users, use any director's cache or create a generic one
         if director.is_staff:
@@ -280,13 +280,13 @@ def director_cohort_detail(request, cohort_id):
             'scholarship': enrollments.filter(status='active', seat_type='scholarship').count(),
             'sponsored': enrollments.filter(status='active', seat_type='sponsored').count(),
         }
-        
+
         # Get mentor details
         mentor_assignments = MentorAssignment.objects.filter(
             cohort=cohort,
             active=True
         ).select_related('mentor')
-        
+
         mentors = [
             {
                 'mentor_id': str(ma.mentor.id),
@@ -296,19 +296,12 @@ def director_cohort_detail(request, cohort_id):
             }
             for ma in mentor_assignments
         ]
-        
+
         # Mock readiness distribution (should come from TalentScope)
-        readiness_distribution = {
-            '0-20': 0,
-            '21-40': 0,
-            '41-60': 0,
-            '61-80': 0,
-            '81-100': 0,
-        }
-        
+
         # Mock competency heatmap (should come from TalentScope)
         competency_heatmap = {}
-        
+
         # Mock mission funnel (should come from Missions MXP)
         mission_funnel = {
             'assigned': 0,
@@ -316,20 +309,20 @@ def director_cohort_detail(request, cohort_id):
             'approved': 0,
             'stuck': 0,
         }
-        
+
         # Mock portfolio health (should come from Portfolio Engine)
         portfolio_health = {}
-        
+
         # Payment details
         payments = {
             'total_due': 0,  # TODO: From billing
             'overdue': 0,  # TODO: From billing
             'refunds': 0,  # TODO: From billing
         }
-        
+
         # Alerts
         alerts = cohort_dashboard.flags_active.copy()
-        
+
         return Response({
             'cohort_id': str(cohort.id),
             'name': cohort.name,
@@ -348,7 +341,7 @@ def director_cohort_detail(request, cohort_id):
                 'portfolio_health_avg': float(cohort_dashboard.portfolio_health_avg),
             }
         })
-        
+
     except Cohort.DoesNotExist:
         return Response(
             {'detail': 'Cohort not found'},
