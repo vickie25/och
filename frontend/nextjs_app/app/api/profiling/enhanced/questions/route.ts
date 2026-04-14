@@ -38,11 +38,12 @@ export async function GET(request: NextRequest) {
     });
     console.log('[profiling/enhanced/questions] FastAPI response status:', res.status);
 
-
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ error: 'Failed to load profiling questions' }));
+      const errorData = await res.json().catch(() => ({ error: 'Failed' }));
+      console.log('[profiling/enhanced/questions] FastAPI error body:', errorData);
       return NextResponse.json(errorData, { status: res.status });
     }
+
 
     const data = await res.json();
     return NextResponse.json(data);
