@@ -467,6 +467,7 @@ _use_tls = (os.environ.get('MAIL_ENCRYPTION', '').lower() == 'tls')
 _use_ssl = (EMAIL_PORT == 465) or (not _use_tls and EMAIL_PORT in (465, 994))
 EMAIL_USE_SSL = _use_ssl
 EMAIL_USE_TLS = _use_tls and not _use_ssl
+EMAIL_TIMEOUT = 30  # 30 seconds timeout to prevent hanging
 
 # Token expiry settings
 ACTIVATION_TOKEN_EXPIRY = int(os.environ.get('ACTIVATION_TOKEN_EXPIRY', 24))

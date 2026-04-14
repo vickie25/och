@@ -75,7 +75,9 @@ module.exports = (phase) => {
     // create an infinite loop when proxying to Django (APPEND_SLASH).
     skipTrailingSlashRedirect: true,
     experimental: {
-      ...(lowResourceBuild ? { cpus: 1, workerThreads: false } : {}),
+      // Force aggressive low-memory build profile
+      cpus: 1,
+      workerThreads: false,
     },
     typescript: {
       ignoreBuildErrors: true,
