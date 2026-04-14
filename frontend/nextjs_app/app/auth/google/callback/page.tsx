@@ -13,6 +13,8 @@ import { apiGateway } from '@/services/apiGateway'
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { getRedirectRoute } from '@/utils/redirect'
+import type { User } from '@/services/types/user'
 
 function normalizeRoleName(roleName: string): string {
   const normalized = (roleName || '').toLowerCase().trim()
@@ -245,8 +247,23 @@ function GoogleOAuthCallbackPageInner() {
           return roleName === 'student' || roleName === 'mentee'
         })
 
-        let redirectPath = '/dashboard'
+        let redirectPath = getRedirectRoute(user as User)
         
+        // CRITICAL: Double safety for mentor/finance/support roles
+        // This mirrors the logic in LoginForm-full.tsx for total consistency
+        const roles = userRoles.map((r: any) => {
+          const roleName = typeof r === 'string' ? r : (r?.role || r?.name || r?.role_display_name || '').toLowerCase().trim()
+          return roleName
+        })
+
+        if (roles.includes('mentor')) {
+          redirectPath = '/dashboard/mentor'
+        } else if (roles.includes('finance') || roles.includes('finance_admin')) {
+          redirectPath = '/dashboard/finance'
+        } else if (roles.includes('support')) {
+          redirectPath = '/support/dashboard'
+        }
+
         if (isStudent) {
           // For newly created student accounts via Google SSO, we now send a
           // self-onboarding email (password → MFA → profiling). Do NOT drop
@@ -288,38 +305,6 @@ function GoogleOAuthCallbackPageInner() {
             redirectPath = '/onboarding/ai-profiler'
           } else {
             redirectPath = '/dashboard/student'
-          }
-        } else {
-          // Determine dashboard for other roles
-          const roleName = (primaryRole || '').toLowerCase()
-          
-          switch (roleName) {
-            case 'mentor':
-              redirectPath = '/dashboard/mentor'
-              break
-            case 'program_director':
-              redirectPath = '/dashboard/director'
-              break
-            case 'sponsor_admin':
-              redirectPath = '/dashboard/sponsor'
-              break
-            case 'analyst':
-              redirectPath = '/dashboard/analyst'
-              break
-            case 'employer':
-              redirectPath = '/dashboard/employer'
-              break
-            case 'finance':
-              redirectPath = '/dashboard/finance'
-              break
-            case 'admin':
-              redirectPath = '/dashboard/admin'
-              break
-            case 'support':
-              redirectPath = '/support/dashboard'
-              break
-            default:
-              redirectPath = '/dashboard'
           }
         }
 

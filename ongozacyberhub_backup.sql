@@ -25,8 +25,10 @@ SET default_table_access_method = heap;
 
 --
 -- Name: ai_coach_messages; Type: TABLE; Schema: public; Owner: postgres
---
+--status table: user state
+CREATE TABLE cohort_public_applications_pkey(
 
+)
 CREATE TABLE public.ai_coach_messages (
     id uuid NOT NULL,
     role character varying(20) NOT NULL,
@@ -36,6 +38,7 @@ CREATE TABLE public.ai_coach_messages (
     created_at timestamp with time zone NOT NULL,
     session_id uuid NOT NULL
 );
+
 
 
 ALTER TABLE public.ai_coach_messages OWNER TO postgres;

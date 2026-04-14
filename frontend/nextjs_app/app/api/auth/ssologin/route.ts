@@ -18,6 +18,7 @@ function normalizeRoleName(roleName: string): string {
   if (normalized === 'analyst') return 'analyst'
   if (normalized === 'employer') return 'employer'
   if (normalized === 'finance' || normalized === 'finance_admin') return 'finance'
+  if (normalized === 'support') return 'support'
   return normalized
 }
 
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
     nextResponse.cookies.set('access_token', access_token, {
       ...cookieBase,
       httpOnly: false,
-      maxAge: 60 * 15,
+      maxAge: 60 * 60 * 24 * 30,
     })
 
     // Refresh token (HttpOnly for server refresh flow), optional

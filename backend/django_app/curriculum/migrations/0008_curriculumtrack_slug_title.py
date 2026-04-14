@@ -23,7 +23,13 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="curriculumtrack",
             name="slug",
-            field=models.SlugField(blank=True, default="", max_length=50),
+            field=models.SlugField(
+                unique=True,
+                max_length=50,
+                help_text="'defender', 'offensive', 'grc', 'innovation', 'leadership'",
+                default="tmp_slug",
+            ),
+            preserve_default=False,
         ),
         migrations.AddField(
             model_name="curriculumtrack",
@@ -33,13 +39,4 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.RunPython(backfill_slug_title, migrations.RunPython.noop),
-        migrations.AlterField(
-            model_name="curriculumtrack",
-            name="slug",
-            field=models.SlugField(
-                unique=True,
-                max_length=50,
-                help_text="'defender', 'offensive', 'grc', 'innovation', 'leadership'",
-            ),
-        ),
     ]

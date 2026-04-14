@@ -6,11 +6,18 @@ import { NextResponse } from 'next/server';
 
 function normalizeRoleName(roleName: string): string {
   const normalized = (roleName || '').toLowerCase().trim()
-  if (normalized === 'program_director' || normalized === 'director') return 'program_director'
-  if (normalized === 'sponsor_admin' || normalized === 'sponsor') return 'sponsor_admin'
+  if (normalized === 'program_director' || normalized === 'program director' || normalized === 'programdirector' || normalized === 'director') return 'program_director'
+  if (normalized === 'mentee') return 'mentee'
+  if (normalized === 'student') return 'student'
+  if (normalized === 'mentor') return 'mentor'
+  if (normalized === 'admin') return 'admin'
+  if (normalized === 'sponsor_admin' || normalized === 'sponsor' || normalized === 'sponsor/employer admin' || normalized === 'sponsoremployer admin') return 'sponsor_admin'
   if (normalized === 'institution_admin' || normalized === 'institution admin' || normalized === 'institutional_admin' || normalized === 'institutional admin') return 'institution_admin'
   if (normalized === 'organization_admin' || normalized === 'organization admin') return 'organization_admin'
+  if (normalized === 'analyst') return 'analyst'
+  if (normalized === 'employer') return 'employer'
   if (normalized === 'finance' || normalized === 'finance_admin') return 'finance'
+  if (normalized === 'support') return 'support'
   return normalized
 }
 
