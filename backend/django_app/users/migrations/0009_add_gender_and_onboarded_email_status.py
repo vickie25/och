@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("users", "0008_fix_mfa_codes_user_id_uuid"),
+        ("users", "0006_sqlite_compatible"),
     ]
 
     operations = [

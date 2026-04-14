@@ -60,7 +60,6 @@ class MFACode(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name='mfa_codes',
-        to_field='uuid_id',
     )
     code = models.CharField(max_length=64, db_index=True)  # Increased for magic link tokens
     method = models.CharField(max_length=20)  # totp, sms, email
@@ -197,7 +196,6 @@ class DeviceTrust(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name='trusted_devices',
-        to_field='uuid_id',
     )
     device_id = models.UUIDField(unique=True, db_index=True, default=uuid.uuid4)
     device_name = models.CharField(max_length=255)
