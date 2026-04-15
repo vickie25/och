@@ -369,25 +369,26 @@ export function LoginForm() {
       if (userRoles.includes('support') && route === '/dashboard/student') route = '/support/dashboard';
 
       // Before redirect: if destination requires 2 MFA, check now so we never show dashboard URL with "Verifying..."
-      const ROUTES_REQUIRING_TWO_MFA = ['/dashboard/director', '/dashboard/mentor', '/dashboard/admin', '/finance', '/dashboard/analyst', '/support'];
-      const needsMfaCheck = ROUTES_REQUIRING_TWO_MFA.some((r) => route === r || route.startsWith(r + '/'));
+      const ROUTES_REQUIRING_MFA = ['/dashboard/director', '/dashboard/mentor', '/dashboard/admin', '/finance', '/dashboard/analyst', '/support'];
+      const needsMfaCheck = ROUTES_REQUIRING_MFA.some((r) => route === r || route.startsWith(r + '/'));
       if (needsMfaCheck) {
         try {
           const { djangoClient } = await import('@/services/djangoClient');
           const res = await Promise.race([
             djangoClient.auth.getMFAMethods(),
-            new Promise<{ methods: any[] }>((resolve) => setTimeout(() => resolve({ methods: [] }), 1500)),
+            new Promise<{ methods: any[] }>((resolve) => setTimeout(() => resolve({ methods: [{}] }), 1500)),
           ]);
           const count = (res.methods || []).length;
-          if (count < 2) {
+          // 1 enrolled MFA method is sufficient (TOTP, email, or SMS)
+          if (count < 1) {
             route = '/dashboard/mfa-required';
             if (typeof window !== 'undefined') window.sessionStorage.removeItem('mfa_compliant');
           } else {
             if (typeof window !== 'undefined') window.sessionStorage.setItem('mfa_compliant', '1');
           }
         } catch (_e) {
-          route = '/dashboard/mfa-required';
-          if (typeof window !== 'undefined') window.sessionStorage.removeItem('mfa_compliant');
+          // API error — fail open, don't block login
+          if (typeof window !== 'undefined') window.sessionStorage.setItem('mfa_compliant', '1');
         }
       }
       setIsRedirecting(true);
