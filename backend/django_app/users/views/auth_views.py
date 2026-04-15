@@ -462,6 +462,14 @@ class LoginView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Institutional domain-based auto-enrollment (idempotent)
+        try:
+            from organizations.institutional_service import InstitutionalBillingService
+
+            InstitutionalBillingService.auto_enroll_user_by_domain(user)
+        except Exception:
+            pass
+
         # Calculate risk score
         ip_address = _get_client_ip(request)
         user_agent = request.META.get('HTTP_USER_AGENT', '')

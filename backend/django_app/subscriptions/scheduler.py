@@ -27,6 +27,15 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
+def _add_months_anchored(dt, months: int, anchor_day: int):
+    """Add months keeping a stable anchor day when possible."""
+    import calendar
+    year = dt.year + (dt.month - 1 + months) // 12
+    month = (dt.month - 1 + months) % 12 + 1
+    last_day = calendar.monthrange(year, month)[1]
+    day = min(anchor_day, last_day)
+    return dt.replace(year=year, month=month, day=day)
+
 
 # ── Job functions ─────────────────────────────────────────────────────────────
 
@@ -64,9 +73,21 @@ def enforce_grace_period_and_downgrade():
         else:
             grace_days = 3  # Default to monthly
 
-        grace_cutoff = now - timedelta(days=grace_days)
+        # Notifications at day 1 and day 3 of grace; final warning on last day.
+        try:
+            from subscriptions.email_service import SubscriptionEmailService
+            if sub.grace_period_end:
+                grace_start = sub.grace_period_end - timedelta(days=grace_days)
+                day_number = (now.date() - grace_start.date()).days
+                days_remaining = max(0, (sub.grace_period_end.date() - now.date()).days)
+                if day_number in [1, 3]:
+                    SubscriptionEmailService.send_grace_period_notification(sub, day_number=day_number, days_remaining=days_remaining, final_warning=False)
+                if days_remaining == 0:
+                    SubscriptionEmailService.send_grace_period_notification(sub, day_number=day_number, days_remaining=days_remaining, final_warning=True)
+        except Exception:
+            pass
 
-        if sub.updated_at <= grace_cutoff:
+        if sub.grace_period_end and now >= sub.grace_period_end:
             old_plan = sub.plan.name
             sub.plan = free_plan
             sub.status = 'canceled'
@@ -92,6 +113,22 @@ def enforce_grace_period_and_downgrade():
             f'[scheduler] Canceled period ended: {sub.user.email} moved '
             f'{old_plan} → free'
         )
+
+    # -- 3. pending downgrades at period end --------------------------------
+    due_downgrades = UserSubscription.objects.filter(
+        pending_downgrade_plan__isnull=False,
+        current_period_end__lte=now,
+        status__in=['active', 'past_due', 'trial', 'canceled'],
+    ).select_related('user', 'plan', 'pending_downgrade_plan')
+
+    for sub in due_downgrades:
+        old_plan = sub.plan.name
+        new_plan = sub.pending_downgrade_plan
+        sub.plan = new_plan
+        sub.pending_downgrade_plan = None
+        sub.enhanced_access_expires_at = None
+        sub.save(update_fields=['plan', 'pending_downgrade_plan', 'enhanced_access_expires_at', 'updated_at'])
+        logger.info(f'[scheduler] Downgrade applied: {sub.user.email} {old_plan} → {new_plan.name}')
 
 
 def attempt_subscription_renewals():
@@ -125,8 +162,12 @@ def attempt_subscription_renewals():
     for sub in due_qs:
         logger.info(f'[renewal] Attempting renewal for {sub.user.email} | {sub.plan.name}')
 
-        # Calculate amount (with academic discount if applicable)
-        amount = sub.plan.price_monthly or 0
+        # Calculate amount (monthly vs annual) with academic discount if applicable
+        is_annual = getattr(sub, 'billing_interval', None) == 'annual' or getattr(sub.plan, 'billing_interval', None) == 'annual'
+        if is_annual:
+            amount = sub.plan.price_annual or 0
+        else:
+            amount = sub.plan.price_monthly or 0
 
         # Apply academic discount if active
         try:
@@ -149,7 +190,18 @@ def attempt_subscription_renewals():
                 # Payment successful - extend subscription
                 old_end = sub.current_period_end
                 sub.current_period_start = sub.current_period_end
-                sub.current_period_end = sub.current_period_end + timedelta(days=30)
+                # Calendar anchoring:
+                # - monthly: same day-of-month as original end date (clamped for short months)
+                # - annual: anniversary date (handles leap years by clamping)
+                if is_annual:
+                    try:
+                        sub.current_period_end = sub.current_period_end.replace(year=sub.current_period_end.year + 1)
+                    except ValueError:
+                        # Feb 29 → Feb 28 on non-leap years
+                        sub.current_period_end = sub.current_period_end.replace(year=sub.current_period_end.year + 1, month=2, day=28)
+                else:
+                    anchor_day = old_end.day if old_end else sub.current_period_end.day
+                    sub.current_period_end = _add_months_anchored(sub.current_period_end, 1, anchor_day)
                 sub.save(update_fields=['current_period_start', 'current_period_end', 'updated_at'])
 
                 # Create payment transaction
@@ -170,8 +222,8 @@ def attempt_subscription_renewals():
                     subscription=sub,
                     transaction=transaction,
                     status='paid',
-                    subtotal=sub.plan.price_monthly or 0,
-                    discount_amount=(sub.plan.price_monthly or 0) - amount,
+                    subtotal=(sub.plan.price_annual if is_annual else (sub.plan.price_monthly or 0)) or 0,
+                    discount_amount=(((sub.plan.price_annual if is_annual else (sub.plan.price_monthly or 0)) or 0) - amount),
                     total_amount=amount,
                     currency='KES',
                     invoice_date=now,
@@ -180,7 +232,7 @@ def attempt_subscription_renewals():
                     line_items=[{
                         'description': f'{sub.plan.name} subscription',
                         'quantity': 1,
-                        'unit_price': float(sub.plan.price_monthly or 0),
+                        'unit_price': float((sub.plan.price_annual if is_annual else (sub.plan.price_monthly or 0)) or 0),
                         'total': float(amount),
                     }],
                 )
@@ -201,7 +253,10 @@ def attempt_subscription_renewals():
             else:
                 # Payment failed - mark past_due and schedule retries
                 sub.status = 'past_due'
-                sub.save(update_fields=['status', 'updated_at'])
+                # Grace period end: 3 days monthly, 7 days annual
+                grace_days = 7 if is_annual else 3
+                sub.grace_period_end = now + timedelta(days=grace_days)
+                sub.save(update_fields=['status', 'grace_period_end', 'updated_at'])
 
                 # Create retry schedule: Day 1, 3, 5
                 for retry_day in [1, 3, 5]:
@@ -213,6 +268,13 @@ def attempt_subscription_renewals():
                         currency='KES',
                         scheduled_at=now + timedelta(days=retry_day),
                     )
+
+                # Grace notifications: Day 1 and Day 3
+                try:
+                    from subscriptions.email_service import SubscriptionEmailService
+                    SubscriptionEmailService.send_payment_failed_notification(sub, 1, 1)
+                except Exception:
+                    pass
 
                 logger.warning(
                     f'[renewal] Failed: {sub.user.email} | {sub.plan.name} | '
@@ -265,9 +327,17 @@ def process_payment_retries():
                 retry.completed_at = now
                 retry.save(update_fields=['status', 'completed_at', 'updated_at'])
 
+                # Restore subscription. Use billing interval to anchor period end.
+                is_annual = getattr(sub, 'billing_interval', None) == 'annual' or getattr(sub.plan, 'billing_interval', None) == 'annual'
                 sub.status = 'active'
                 sub.current_period_start = now
-                sub.current_period_end = now + timedelta(days=30)
+                if is_annual:
+                    try:
+                        sub.current_period_end = now.replace(year=now.year + 1)
+                    except ValueError:
+                        sub.current_period_end = now.replace(year=now.year + 1, month=2, day=28)
+                else:
+                    sub.current_period_end = _add_months_anchored(now, 1, now.day)
                 sub.save(update_fields=['status', 'current_period_start', 'current_period_end', 'updated_at'])
 
                 # Create transaction and invoice

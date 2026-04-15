@@ -5,6 +5,7 @@ import uuid
 
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from users.models import User
@@ -211,6 +212,22 @@ class UserSubscription(models.Model):
         blank=True,
         db_index=True
     )
+    payment_gateway = models.CharField(
+        max_length=20,
+        choices=[('stripe', 'Stripe'), ('paystack', 'Paystack')],
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='Gateway holding the default payment method'
+    )
+    payment_method_ref = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='Gateway payment method reference (e.g. Stripe pm_...)'
+    )
+    payment_method_added_at = models.DateTimeField(null=True, blank=True)
     billing_interval = models.CharField(
         max_length=16,
         choices=SubscriptionPlan.BILLING_INTERVAL_CHOICES,
@@ -440,6 +457,37 @@ class PromotionalCode(models.Model):
 
     def __str__(self):
         return f"{self.code} ({self.get_discount_type_display()})"
+
+    def clean(self):
+        if self.code:
+            self.code = self.code.upper().strip()
+            # Keep it simple for marketing/share links
+            for ch in self.code:
+                if not ('A' <= ch <= 'Z' or '0' <= ch <= '9'):
+                    raise ValidationError("Promo code must contain only letters A-Z and numbers 0-9")
+
+        if self.valid_until and self.valid_from and self.valid_until <= self.valid_from:
+            raise ValidationError("valid_until must be after valid_from")
+
+        now = timezone.now()
+        if self.pk:
+            prior = PromotionalCode.objects.filter(pk=self.pk).values('valid_until', 'is_active').first()
+            if prior:
+                prior_valid_until = prior.get('valid_until')
+                # If the code was already expired, it can never be reactivated or extended.
+                if prior_valid_until and prior_valid_until < now:
+                    if self.is_active:
+                        raise ValidationError("Expired promo codes cannot be reactivated")
+                    if self.valid_until and self.valid_until > prior_valid_until:
+                        raise ValidationError("Expired promo codes cannot have their expiration extended")
+
+        # Auto-expire: after valid_until, force-disable.
+        if self.valid_until and self.valid_until < now:
+            self.is_active = False
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
 
     def is_valid(self):
         """Check if code is currently valid."""

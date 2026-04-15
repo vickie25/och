@@ -31,7 +31,24 @@ from .views import (
     subscription_analytics,
     subscription_status,
     upgrade_subscription,
+    update_legacy_trial_payment_method,
+    schedule_downgrade,
+    cancel_scheduled_downgrade,
     validate_promo_code,
+)
+from .enhanced_billing_views import (
+    calculate_pricing_with_discounts as enhanced_calculate_pricing_with_discounts,
+    create_enhanced_subscription as enhanced_create_enhanced_subscription,
+    schedule_enhanced_downgrade as enhanced_schedule_enhanced_downgrade,
+    cancel_enhanced_scheduled_downgrade as enhanced_cancel_enhanced_scheduled_downgrade,
+    get_available_plans_with_pricing as enhanced_get_available_plans_with_pricing,
+    get_academic_discount_status as enhanced_get_academic_discount_status,
+    upload_academic_document as enhanced_upload_academic_document,
+    validate_promo_code as enhanced_validate_promo_code,
+    verify_academic_email as enhanced_verify_academic_email,
+    update_trial_payment_method as enhanced_update_trial_payment_method,
+    cancel_enhanced_subscription as enhanced_cancel_enhanced_subscription,
+    reactivate_enhanced_subscription as enhanced_reactivate_enhanced_subscription,
 )
 
 app_name = 'subscriptions'
@@ -61,6 +78,12 @@ urlpatterns = [
     path('subscription/simulate-payment', simulate_payment, name='simulate-payment-no-slash'),
     path('subscription/cancel/', cancel_subscription, name='cancel'),
     path('subscription/cancel', cancel_subscription, name='cancel-no-slash'),
+    path('subscription/payment-method/', update_legacy_trial_payment_method, name='payment-method'),
+    path('subscription/payment-method', update_legacy_trial_payment_method, name='payment-method-no-slash'),
+    path('subscription/downgrade/', schedule_downgrade, name='downgrade'),
+    path('subscription/downgrade', schedule_downgrade, name='downgrade-no-slash'),
+    path('subscription/downgrade/cancel/', cancel_scheduled_downgrade, name='downgrade-cancel'),
+    path('subscription/downgrade/cancel', cancel_scheduled_downgrade, name='downgrade-cancel-no-slash'),
     path('subscription/billing-history/', billing_history, name='billing-history'),
     path('subscription/billing-history', billing_history, name='billing-history-no-slash'),
     path('subscription/webhooks/stripe/', stripe_webhook, name='stripe-webhook'),
@@ -93,5 +116,19 @@ urlpatterns = [
     path('subscription/retry-attempts', retry_attempts_status, name='retry-attempts-status-no-slash'),
     # ── Admin endpoints ──────────────────────────────────────────────────────
     path('', include(admin_router.urls)),
+
+    # ── Enhanced billing (plan-version engine) ───────────────────────────────
+    path('enhanced-billing/academic/verify-email/', enhanced_verify_academic_email, name='enhanced-academic-verify-email'),
+    path('enhanced-billing/academic/upload-document/', enhanced_upload_academic_document, name='enhanced-academic-upload-document'),
+    path('enhanced-billing/academic/status/', enhanced_get_academic_discount_status, name='enhanced-academic-status'),
+    path('enhanced-billing/promo/validate/', enhanced_validate_promo_code, name='enhanced-promo-validate'),
+    path('enhanced-billing/pricing/calculate/', enhanced_calculate_pricing_with_discounts, name='enhanced-pricing-calculate'),
+    path('enhanced-billing/plans/with-pricing/', enhanced_get_available_plans_with_pricing, name='enhanced-plans-with-pricing'),
+    path('enhanced-billing/subscription/create-enhanced/', enhanced_create_enhanced_subscription, name='enhanced-subscription-create'),
+    path('enhanced-billing/subscription/payment-method/', enhanced_update_trial_payment_method, name='enhanced-subscription-payment-method'),
+    path('enhanced-billing/subscription/cancel/', enhanced_cancel_enhanced_subscription, name='enhanced-subscription-cancel'),
+    path('enhanced-billing/subscription/reactivate/', enhanced_reactivate_enhanced_subscription, name='enhanced-subscription-reactivate'),
+    path('enhanced-billing/subscription/downgrade/', enhanced_schedule_enhanced_downgrade, name='enhanced-subscription-downgrade'),
+    path('enhanced-billing/subscription/downgrade/cancel/', enhanced_cancel_enhanced_scheduled_downgrade, name='enhanced-subscription-downgrade-cancel'),
 ]
 

@@ -9,8 +9,10 @@ from .institutional_management_views import (
     InstitutionalBulkImportViewSet,
     InstitutionalSeatPoolViewSet,
     export_student_data,
+    export_student_report_pdf,
     institutional_dashboard,
     recycle_seats,
+    forfeit_unused_seats,
     student_progress_report,
     user_portal_access,
 )
@@ -41,6 +43,8 @@ urlpatterns = [
     path('dashboard/', institutional_dashboard, name='institutional-management-dashboard'),
     path('student-progress/', student_progress_report, name='institutional-student-progress'),
     path('recycle-seats/', recycle_seats, name='institutional-recycle-seats'),
+    path('forfeit-unused-seats/', forfeit_unused_seats, name='institutional-forfeit-unused-seats'),
     path('export-students/', export_student_data, name='institutional-export-students'),
+    path('export-students-pdf/', export_student_report_pdf, name='institutional-export-students-pdf'),
     path('portal-access/', user_portal_access, name='institutional-portal-access'),
 ] + additional_urlpatterns

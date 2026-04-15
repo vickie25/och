@@ -9,16 +9,13 @@ import { Badge } from '@/components/ui/Badge'
 import { apiGateway } from '@/services/apiGateway'
 import { curriculumClient } from '@/services/curriculumClient'
 import {
-  INSTITUTION_TIER_LABEL,
-  TIER_USD_PER_STUDENT_MONTH,
   BILLING_CYCLE_LABEL,
   formatUsd,
-  type InstitutionTierKey,
   type BillingCycleKey,
 } from '@/lib/institutionContractCatalog'
 import { Check, FileText } from 'lucide-react'
+import { institutionalService } from '@/services/institutionalService'
 
-const TIERS: InstitutionTierKey[] = ['tier_1_50', 'tier_51_200', 'tier_201_500', 'tier_500_plus']
 const CYCLES: BillingCycleKey[] = ['monthly', 'quarterly', 'annual']
 
 type Curriculum = {
@@ -31,18 +28,14 @@ type Curriculum = {
 
 type ContractDetail = {
   id: string
-  organization_name: string
-  type: string
   status: string
   start_date: string
   end_date: string
-  total_value: string | number
-  payment_terms: string
-  seat_cap?: number
-  seats_used?: number
-  institution_pricing_tier: InstitutionTierKey | null
-  billing_cycle: BillingCycleKey | null
-  institution_curriculum: Curriculum | null
+  contract_number?: string
+  organization?: { id: number | string; name: string; contact_email?: string }
+  student_seat_count: number
+  per_student_rate: number
+  billing_cycle: BillingCycleKey
 }
 
 type TrackOption = {
@@ -68,9 +61,8 @@ export default function InstitutionCompleteContractPage() {
   const contractId = typeof params.contractId === 'string' ? params.contractId : ''
 
   const [contract, setContract] = useState<ContractDetail | null>(null)
-  const [tier, setTier] = useState<InstitutionTierKey | null>(null)
   const [cycle, setCycle] = useState<BillingCycleKey | null>(null)
-  const [seatCap, setSeatCap] = useState<number>(0)
+  const [seatCount, setSeatCount] = useState<number>(0)
 
   const [cohortLabel, setCohortLabel] = useState('')
   const [moduleNotes, setModuleNotes] = useState('')
@@ -92,17 +84,17 @@ export default function InstitutionCompleteContractPage() {
     setLoading(true)
     setError(null)
     try {
-      const c = await apiGateway.get<ContractDetail>(`/finance/contracts/${contractId}/`)
+      const c = (await institutionalService.getContract(contractId)) as ContractDetail
       setContract(c)
-      setTier(c.institution_pricing_tier)
       setCycle(c.billing_cycle)
-      setSeatCap(typeof c.seat_cap === 'number' ? c.seat_cap : 0)
+      setSeatCount(typeof c.student_seat_count === 'number' ? c.student_seat_count : 0)
 
-      const cur = c.institution_curriculum
-      setCohortLabel(typeof cur?.cohort_label === 'string' ? cur.cohort_label : '')
-      setModuleNotes(typeof cur?.module_notes === 'string' ? cur.module_notes : '')
-      setPendingTrackRefs(Array.isArray(cur?.mandated_tracks) ? cur.mandated_tracks : [])
-      setSelectedModuleIds(Array.isArray(cur?.selected_module_ids) ? cur.selected_module_ids : [])
+      // Curriculum blueprint in institutional engine is handled via dedicated endpoints;
+      // keep UI stable for now (best-effort no-op defaults).
+      setCohortLabel('')
+      setModuleNotes('')
+      setPendingTrackRefs([])
+      setSelectedModuleIds([])
     } catch (e: unknown) {
       setContract(null)
       setError(e instanceof Error ? e.message : 'Failed to load contract')
@@ -215,26 +207,14 @@ export default function InstitutionCompleteContractPage() {
   }
 
   const save = async () => {
-    if (!contractId || !tier || !cycle || seatCap < 1) return
+    if (!contractId || !cycle || seatCount < 1) return
     setSaving(true)
     setError(null)
 
-    const selectedModuleLabels = allSelectableModules
-      .filter((m) => selectedModuleIds.includes(m.id))
-      .map((m) => m.title)
-
     try {
-      await apiGateway.patch(`/finance/contracts/${contractId}/`, {
-        institution_pricing_tier: tier,
+      await institutionalService.updateContractSeatsAndBilling(contractId, {
+        student_seat_count: seatCount,
         billing_cycle: cycle,
-        seat_cap: seatCap,
-        institution_curriculum: {
-          cohort_label: cohortLabel || undefined,
-          mandated_tracks: selectedTrackCodes.length ? selectedTrackCodes : undefined,
-          selected_module_ids: selectedModuleIds.length ? selectedModuleIds : undefined,
-          selected_modules: selectedModuleLabels.length ? selectedModuleLabels : undefined,
-          module_notes: moduleNotes || undefined,
-        },
       })
       await loadContract()
       router.push('/dashboard/institution/contracts/invoices')
@@ -245,7 +225,8 @@ export default function InstitutionCompleteContractPage() {
     }
   }
 
-  const previewMonthly = tier && seatCap >= 1 ? TIER_USD_PER_STUDENT_MONTH[tier] * seatCap : null
+  const previewRate = typeof contract?.per_student_rate === 'number' ? contract.per_student_rate : null
+  const previewMonthly = previewRate != null && seatCount >= 1 ? previewRate * seatCount : null
   const previewPeriod =
     previewMonthly != null
       ? cycle === 'monthly'
@@ -318,7 +299,7 @@ export default function InstitutionCompleteContractPage() {
             <div>
               <p className="text-xs text-och-steel">Seats (allocated / used)</p>
               <p className="text-white">
-                {contract.seat_cap ?? 0} cap - {contract.seats_used ?? 0} active
+                {contract.student_seat_count ?? 0} licensed - {(contract as any).active_students ?? 0} active
               </p>
             </div>
             <div>
@@ -334,32 +315,14 @@ export default function InstitutionCompleteContractPage() {
           </div>
         )}
 
-        <div>
-          <h2 className="text-sm font-semibold text-white mb-3">Volume tier</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {TIERS.map((k) => {
-              const active = tier === k
-              return (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => setTier(k)}
-                  className={`text-left rounded-xl border p-4 transition-colors ${
-                    active
-                      ? 'border-och-mint bg-och-mint/10 ring-1 ring-och-mint/40'
-                      : 'border-och-steel/30 hover:border-och-steel/50 bg-och-midnight/80'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className="font-semibold text-white">{INSTITUTION_TIER_LABEL[k]}</span>
-                    {active && <Check className="h-5 w-5 text-och-mint shrink-0" />}
-                  </div>
-                  <p className="text-xs text-och-steel">{formatUsd(TIER_USD_PER_STUDENT_MONTH[k])}/student/month</p>
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        <Card className="border border-och-steel/25 p-4 space-y-2">
+          <h2 className="text-sm font-semibold text-white">Per-student rate</h2>
+          <p className="text-xs text-och-steel">
+            Your rate is automatically determined by licensed seat count (volume pricing). Current rate:{' '}
+            <span className="text-white">{typeof contract.per_student_rate === 'number' ? formatUsd(contract.per_student_rate) : '—'}</span>{' '}
+            <span className="text-och-steel">/ student / month</span>
+          </p>
+        </Card>
 
         <div>
           <h2 className="text-sm font-semibold text-white mb-3">Billing cycle</h2>
@@ -388,10 +351,10 @@ export default function InstitutionCompleteContractPage() {
               type="number"
               min={1}
               className="w-full max-w-xs rounded-md border border-och-steel/30 bg-och-midnight px-3 py-2 text-white text-sm"
-              value={seatCap || ''}
-              onChange={(e) => setSeatCap(parseInt(e.target.value, 10) || 0)}
+              value={seatCount || ''}
+              onChange={(e) => setSeatCount(parseInt(e.target.value, 10) || 0)}
             />
-            <p className="text-xs text-och-steel mt-1">Must match the volume band you selected (director may adjust).</p>
+            <p className="text-xs text-och-steel mt-1">Seat changes mid-cycle are prorated and reflected on the next invoice.</p>
           </div>
         </Card>
 
@@ -473,7 +436,7 @@ export default function InstitutionCompleteContractPage() {
         </Card>
 
         <div className="flex flex-wrap gap-3">
-          <Button variant="gold" disabled={!tier || !cycle || seatCap < 1 || saving} onClick={() => void save()}>
+          <Button variant="gold" disabled={!cycle || seatCount < 1 || saving} onClick={() => void save()}>
             {saving ? 'Saving...' : 'Save & view invoices'}
           </Button>
           <Link

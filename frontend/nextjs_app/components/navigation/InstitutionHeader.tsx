@@ -5,16 +5,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { Breadcrumbs } from './Breadcrumbs'
 import { Notifications } from './Notifications'
 import { InstitutionProfileDropdown } from './InstitutionProfileDropdown'
-import { apiGateway } from '@/services/apiGateway'
-
-type ContractRow = {
-  id: string
-  type: string
-  seat_cap: number
-  seats_used?: number
-  organization_name?: string
-  institution_pricing_tier?: string | null
-}
+import { institutionalService, type InstitutionalContractListItem } from '@/services/institutionalService'
 
 export function InstitutionHeader() {
   const { user } = useAuth()
@@ -24,11 +15,8 @@ export function InstitutionHeader() {
     let cancelled = false
     ;(async () => {
       try {
-        const data = await apiGateway.get<unknown>('/finance/contracts/')
-        const list: ContractRow[] = Array.isArray(data)
-          ? (data as ContractRow[])
-          : (data as { results?: ContractRow[] })?.results ?? []
-        const inst = list.filter((c) => c.type === 'institution')
+        const data = await institutionalService.listContracts()
+        const inst: InstitutionalContractListItem[] = Array.isArray((data as any)?.contracts) ? (data as any).contracts : []
         if (cancelled || inst.length === 0) {
           if (!cancelled) {
             setSummary({
@@ -41,15 +29,15 @@ export function InstitutionHeader() {
           }
           return
         }
-        const cap = inst.reduce((s, c) => s + (c.seat_cap ?? 0), 0)
-        const used = inst.reduce((s, c) => s + (c.seats_used ?? 0), 0)
-        const orgName = inst[0]?.organization_name || 'Your organization'
-        const tier = inst[0]?.institution_pricing_tier
-        const tierNote = tier ? tier.replace(/_/g, ' ') : 'tier not set'
+        const cap = inst.reduce((s, c) => s + (c.student_seat_count ?? 0), 0)
+        const used = inst.reduce((s, c) => s + (c.active_students ?? 0), 0)
+        const orgName = inst[0]?.organization?.name || 'Your organization'
+        const rate = inst[0]?.per_student_rate
+        const rateNote = typeof rate === 'number' ? `$${rate}/student/mo` : 'rate not set'
         if (!cancelled) {
           setSummary({
             label: orgName,
-            sub: `Seats: ${used} / ${cap} · ${tierNote} · ${inst.length} contract${inst.length !== 1 ? 's' : ''}`,
+            sub: `Seats: ${used} / ${cap} · ${rateNote} · ${inst.length} contract${inst.length !== 1 ? 's' : ''}`,
           })
         }
       } catch {

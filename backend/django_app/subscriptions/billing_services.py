@@ -3,6 +3,7 @@ Billing Engine Services - Core business logic for subscription management
 """
 from datetime import timedelta
 from decimal import Decimal
+import os
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -80,7 +81,7 @@ class SubscriptionLifecycleManager:
             status='current',
             amount=subscription.plan_version.price_monthly if subscription.billing_cycle == 'monthly'
                    else subscription.plan_version.price_annual,
-            currency='USD'
+            currency='KES'
         )
 
         return subscription
@@ -125,6 +126,19 @@ class BillingCycleManager:
         next_period_start = subscription.current_period_end
         next_period_end = BillingCycleManager.calculate_next_billing_date(subscription)
 
+        # Apply any scheduled downgrade at the period boundary before charging the next cycle.
+        try:
+            if (
+                getattr(subscription, 'pending_downgrade_plan_version', None)
+                and getattr(subscription, 'pending_downgrade_effective_at', None)
+                and subscription.pending_downgrade_effective_at <= next_period_start
+            ):
+                subscription.plan_version = subscription.pending_downgrade_plan_version
+                subscription.pending_downgrade_plan_version = None
+                subscription.pending_downgrade_effective_at = None
+        except Exception:
+            pass
+
         # Create new billing period
         billing_period = BillingPeriod.objects.create(
             subscription=subscription,
@@ -133,7 +147,7 @@ class BillingCycleManager:
             status='current',
             amount=subscription.plan_version.price_monthly if subscription.billing_cycle == 'monthly'
                    else subscription.plan_version.price_annual,
-            currency='USD'
+            currency='KES'
         )
 
         # Update subscription period
@@ -197,6 +211,44 @@ class ProrationCalculator:
             # Store old plan for audit
             old_plan = subscription.plan_version
 
+            # Charge net proration immediately for upgrades (no refunds for negative net).
+            # Only charge when moving to a higher priced plan (or otherwise net>0).
+            net_to_charge = proration['net'] or Decimal('0.00')
+            invoice = None
+            billing_period = None
+            if net_to_charge > 0:
+                period_start = timezone.now()
+                period_end = subscription.current_period_end
+                billing_period = BillingPeriod.objects.create(
+                    subscription=subscription,
+                    period_start=period_start,
+                    period_end=period_end,
+                    status='current',
+                    amount=net_to_charge,
+                    currency='KES',
+                )
+                invoice = InvoiceGenerator.create_subscription_invoice(billing_period)
+                billing_period.payment_attempted_at = timezone.now()
+                billing_period.save(update_fields=['payment_attempted_at', 'updated_at'])
+
+                success, txn_id, error, _raw = PaymentProcessor.charge_subscription(
+                    subscription,
+                    amount=invoice.total_amount,
+                    currency=invoice.currency or 'KES',
+                    description=f'Upgrade proration charge {invoice.invoice_number}',
+                )
+                if not success:
+                    billing_period.status = 'failed'
+                    billing_period.payment_failed_at = timezone.now()
+                    billing_period.save(update_fields=['status', 'payment_failed_at', 'updated_at'])
+                    raise ValidationError(f'Upgrade payment failed: {error}')
+
+                billing_period.status = 'completed'
+                billing_period.payment_completed_at = timezone.now()
+                billing_period.save(update_fields=['status', 'payment_completed_at', 'updated_at'])
+                invoice.mark_as_paid()
+                InvoiceGenerator.send_invoice(invoice)
+
             # Update subscription
             subscription.plan_version = new_plan_version
             subscription.save()
@@ -221,7 +273,7 @@ class ProrationCalculator:
                     subscription=subscription,
                     subscription_change=change_record,
                     amount=proration['credit'],
-                    currency='USD',
+                    currency='KES',
                     status='pending'
                 )
 
@@ -229,6 +281,7 @@ class ProrationCalculator:
                 'subscription': subscription,
                 'proration': proration,
                 'change_record': change_record
+                , 'invoice': invoice
             }
 
 
@@ -301,7 +354,7 @@ class InvoiceGenerator:
             subtotal=subtotal,
             tax_amount=tax_amount,
             total_amount=total_amount,
-            currency='USD',
+            currency='KES',
             due_date=timezone.now() + timedelta(days=7),
             line_items=[{
                 'description': f'{subscription.plan_version.name} - {subscription.billing_cycle.title()} Subscription',
@@ -329,3 +382,121 @@ class InvoiceGenerator:
         invoice.save()
 
         return True
+
+
+class PaymentProcessor:
+    """Gateway charge helpers for enhanced billing engine."""
+
+    @staticmethod
+    def charge_subscription(subscription: EnhancedSubscription, amount: Decimal, currency: str = 'usd', description: str = ''):
+        """
+        Attempt an off-session charge for an enhanced subscription.
+        Returns: (success: bool, transaction_id: str|None, error: str|None, raw: dict|None)
+        """
+        # Single-gateway policy: Paystack only.
+        gateway = (subscription.payment_gateway or 'paystack').lower()
+        if gateway != 'paystack':
+            return False, None, f'Unsupported gateway (expected paystack): {gateway}', None
+
+        secret = os.environ.get('PAYSTACK_SECRET_KEY') or os.environ.get('PAYSTACK_SECRET')
+        if not secret:
+            return False, None, 'Paystack not configured (missing PAYSTACK_SECRET_KEY)', None
+
+        authorization_code = (subscription.payment_method_ref or '').strip()
+        if not authorization_code:
+            return False, None, 'No Paystack authorization_code on file', None
+
+        email = getattr(subscription.user, 'email', None) or ''
+        if not email:
+            return False, None, 'User email required for Paystack charge', None
+
+        # Paystack expects smallest unit (kobo/cents). For KES, 1 KES = 100 “cents”.
+        amount_in_cents = int((Decimal(amount) * 100).quantize(Decimal('1')))
+        try:
+            import requests
+            resp = requests.post(
+                "https://api.paystack.co/transaction/charge_authorization",
+                headers={
+                    'Authorization': f'Bearer {secret}',
+                    'Content-Type': 'application/json',
+                },
+                json={
+                    'authorization_code': authorization_code,
+                    'email': email,
+                    'amount': amount_in_cents,
+                    'currency': (currency or 'KES').upper(),
+                    'metadata': {'subscription_id': str(subscription.id), 'description': description},
+                },
+                timeout=15,
+            )
+            data = resp.json()
+        except Exception as e:
+            return False, None, str(e), None
+
+        if not data.get('status'):
+            return False, None, data.get('message') or 'Paystack charge_authorization failed', data
+
+        inner = data.get('data') or {}
+        if inner.get('status') != 'success':
+            return False, None, f"Paystack status: {inner.get('status')}", data
+
+        return True, inner.get('reference') or inner.get('id'), None, data
+
+
+class ReactivationManager:
+    """Reactivation flow for suspended subscriptions within window."""
+
+    @staticmethod
+    def reactivate(subscription, payment_method_ref=None, payment_gateway=None):
+        """
+        Charge outstanding balance and reactivate.
+        Current implementation uses existing billing amount and records a paid invoice.
+        """
+        if subscription.status != 'SUSPENDED':
+            raise ValidationError("Subscription is not suspended")
+        if not subscription.reactivation_window_end or timezone.now() > subscription.reactivation_window_end:
+            raise ValidationError("Reactivation window has expired")
+
+        # Store payment method if provided
+        if payment_method_ref:
+            subscription.payment_method_ref = payment_method_ref
+            subscription.payment_gateway = payment_gateway or subscription.payment_gateway
+            subscription.payment_method_added_at = timezone.now()
+            subscription.save(update_fields=['payment_method_ref', 'payment_gateway', 'payment_method_added_at', 'updated_at'])
+
+        # Create a billing period/invoice for the outstanding amount
+        period_start = timezone.now()
+        period_end = BillingCycleManager.calculate_next_billing_date(subscription)
+        billing_period = BillingPeriod.objects.create(
+            subscription=subscription,
+            period_start=period_start,
+            period_end=period_end,
+            status='current',
+            amount=subscription.plan_version.price_monthly if subscription.billing_cycle == 'monthly' else subscription.plan_version.price_annual,
+            currency='KES',
+        )
+        invoice = InvoiceGenerator.create_subscription_invoice(billing_period)
+
+        # Charge via gateway before marking paid
+        billing_period.payment_attempted_at = timezone.now()
+        billing_period.save(update_fields=['payment_attempted_at', 'updated_at'])
+        success, txn_id, error, _raw = PaymentProcessor.charge_subscription(
+            subscription,
+            amount=invoice.total_amount,
+            currency=invoice.currency or 'KES',
+            description=f'Reactivation charge {invoice.invoice_number}',
+        )
+        if not success:
+            billing_period.status = 'failed'
+            billing_period.payment_failed_at = timezone.now()
+            billing_period.save(update_fields=['status', 'payment_failed_at', 'updated_at'])
+            raise ValidationError(f'Payment failed: {error}')
+
+        billing_period.status = 'completed'
+        billing_period.payment_completed_at = timezone.now()
+        billing_period.save(update_fields=['status', 'payment_completed_at', 'updated_at'])
+        invoice.mark_as_paid()
+        InvoiceGenerator.send_invoice(invoice)
+
+        subscription.transition_to('ACTIVE', 'Reactivated by payment')
+        return {'subscription': subscription, 'invoice': invoice, 'billing_period': billing_period}

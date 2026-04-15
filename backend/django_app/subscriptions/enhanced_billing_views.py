@@ -272,6 +272,8 @@ def create_enhanced_subscription(request):
         plan_id = request.data.get('plan_id')
         billing_cycle = request.data.get('billing_cycle', 'monthly')
         promo_code = request.data.get('promo_code')
+        payment_method_ref = request.data.get('payment_method')
+        payment_gateway = request.data.get('gateway')
 
         if not plan_id:
             return Response(
@@ -298,7 +300,7 @@ def create_enhanced_subscription(request):
         with transaction.atomic():
             # Create enhanced trial subscription
             subscription = EnhancedTrialService.create_enhanced_trial(
-                request.user, plan_version, billing_cycle, promo_code
+                request.user, plan_version, billing_cycle, promo_code, payment_method_ref=payment_method_ref, payment_gateway=payment_gateway
             )
 
             # Calculate final pricing for response
@@ -327,6 +329,196 @@ def create_enhanced_subscription(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def update_trial_payment_method(request):
+    """
+    POST /api/enhanced-billing/subscription/payment-method/
+    Store payment method for an active trial and auto-convert to paid immediately.
+    Body: { "payment_method": "pm_...", "gateway": "stripe"|"paystack" }
+    """
+    from .billing_services import SubscriptionLifecycleManager
+
+    payment_method_ref = (request.data.get('payment_method') or '').strip()
+    payment_gateway = (request.data.get('gateway') or 'stripe').strip().lower()
+    if not payment_method_ref:
+        return Response({'error': 'payment_method is required'}, status=status.HTTP_400_BAD_REQUEST)
+    if payment_gateway not in ['stripe', 'paystack']:
+        return Response({'error': 'gateway must be stripe or paystack'}, status=status.HTTP_400_BAD_REQUEST)
+
+    subscription = EnhancedSubscription.objects.filter(user=request.user).first()
+    if not subscription or subscription.status != 'TRIAL':
+        return Response({'error': 'No active trial subscription found'}, status=status.HTTP_404_NOT_FOUND)
+    if not subscription.trial_end or timezone.now() > subscription.trial_end:
+        return Response({'error': 'Trial has already ended'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Save payment method and auto-convert
+    with transaction.atomic():
+        subscription.payment_method_ref = payment_method_ref
+        subscription.payment_gateway = payment_gateway
+        subscription.payment_method_added_at = timezone.now()
+        subscription.save(update_fields=['payment_method_ref', 'payment_gateway', 'payment_method_added_at', 'updated_at'])
+
+        SubscriptionLifecycleManager.convert_trial_to_active(subscription)
+
+    return Response({
+        'success': True,
+        'message': 'Payment method saved. Trial converted to active subscription.',
+        'subscription': {
+            'id': str(subscription.id),
+            'status': subscription.status,
+            'current_period_end': subscription.current_period_end.isoformat() if subscription.current_period_end else None,
+        }
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def cancel_enhanced_subscription(request):
+    """
+    POST /api/enhanced-billing/subscription/cancel/
+    Cancel an enhanced subscription.
+    Body: { "type": "end_of_period" | "immediate" } (default end_of_period)
+    """
+    cancel_type = (request.data.get('type') or request.data.get('cancellation_type') or 'end_of_period').strip().lower()
+    if cancel_type not in ['end_of_period', 'immediate']:
+        return Response({'error': 'type must be end_of_period or immediate'}, status=status.HTTP_400_BAD_REQUEST)
+
+    subscription = EnhancedSubscription.objects.filter(user=request.user).first()
+    if not subscription or subscription.status not in ['ACTIVE', 'TRIAL', 'PAST_DUE']:
+        return Response({'error': 'No cancellable subscription found'}, status=status.HTTP_404_NOT_FOUND)
+
+    with transaction.atomic():
+        if cancel_type == 'immediate':
+            subscription.cancellation_type = 'immediate'
+            subscription.cancel_at_period_end = False
+            subscription.current_period_end = timezone.now()
+            subscription.transition_to('CANCELED', 'User canceled immediately')
+        else:
+            # End-of-period cancellation should preserve access until current_period_end.
+            # Keep status ACTIVE and prevent renewal by setting cancel_at_period_end.
+            subscription.cancellation_type = 'end_of_period'
+            subscription.cancel_at_period_end = True
+            subscription.canceled_at = timezone.now()
+            subscription.save(update_fields=['cancellation_type', 'cancel_at_period_end', 'canceled_at', 'updated_at'])
+
+    return Response({
+        'success': True,
+        'message': 'Subscription canceled',
+        'cancellation': {
+            'type': subscription.cancellation_type,
+            'cancel_at_period_end': subscription.cancel_at_period_end,
+            'access_until': subscription.current_period_end.isoformat() if subscription.current_period_end else None,
+            'status': subscription.status,
+        }
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def reactivate_enhanced_subscription(request):
+    """
+    POST /api/enhanced-billing/subscription/reactivate/
+    Reactivate a suspended subscription by paying outstanding balance (within 30 days).
+    Body: { "payment_method": "pm_...", "gateway": "stripe"|"paystack" }
+    """
+    from .billing_services import ReactivationManager
+
+    payment_method_ref = (request.data.get('payment_method') or '').strip()
+    payment_gateway = (request.data.get('gateway') or 'stripe').strip().lower()
+
+    subscription = EnhancedSubscription.objects.filter(user=request.user).first()
+    if not subscription or subscription.status != 'SUSPENDED':
+        return Response({'error': 'No suspended subscription found'}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        result = ReactivationManager.reactivate(subscription, payment_method_ref=payment_method_ref or None, payment_gateway=payment_gateway)
+        inv = result['invoice']
+        sub = result['subscription']
+        return Response({
+            'success': True,
+            'message': 'Subscription reactivated',
+            'subscription': {
+                'id': str(sub.id),
+                'status': sub.status,
+                'current_period_end': sub.current_period_end.isoformat() if sub.current_period_end else None,
+                'reactivation_window_end': sub.reactivation_window_end.isoformat() if sub.reactivation_window_end else None,
+            },
+            'invoice': {
+                'id': str(inv.id),
+                'invoice_number': inv.invoice_number,
+                'total_amount': float(inv.total_amount),
+                'currency': inv.currency,
+                'status': inv.status,
+            }
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def schedule_enhanced_downgrade(request):
+    """
+    POST /api/enhanced-billing/subscription/downgrade/
+    Schedule a downgrade effective at current_period_end (no refunds).
+    Body: { "plan_id": "<stable plan_id>" }
+    """
+    plan_id = (request.data.get('plan_id') or '').strip()
+    if not plan_id:
+        return Response({'error': 'plan_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    subscription = EnhancedSubscription.objects.filter(user=request.user).first()
+    if not subscription or subscription.status not in ['ACTIVE', 'PAST_DUE', 'TRIAL']:
+        return Response({'error': 'No subscription found'}, status=status.HTTP_404_NOT_FOUND)
+
+    new_plan_version = SubscriptionPlanVersion.get_active_plan(plan_id)
+    if not new_plan_version:
+        return Response({'error': 'Plan not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if subscription.plan_version_id == new_plan_version.id:
+        return Response({'error': 'Already on that plan'}, status=status.HTTP_400_BAD_REQUEST)
+
+    subscription.pending_downgrade_plan_version = new_plan_version
+    subscription.pending_downgrade_effective_at = subscription.current_period_end
+    subscription.save(update_fields=['pending_downgrade_plan_version', 'pending_downgrade_effective_at', 'updated_at'])
+
+    try:
+        from .email_service import SubscriptionEmailService
+        SubscriptionEmailService.send_downgrade_scheduled_email(
+            user=request.user,
+            current_plan_name=subscription.plan_version.name,
+            new_plan_name=new_plan_version.name,
+            effective_date=subscription.current_period_end or timezone.now(),
+        )
+    except Exception:
+        pass
+
+    return Response({
+        'success': True,
+        'message': 'Downgrade scheduled',
+        'effective_date': subscription.current_period_end.isoformat() if subscription.current_period_end else None,
+        'pending_plan': {'plan_id': new_plan_version.plan_id, 'name': new_plan_version.name, 'version': new_plan_version.version},
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def cancel_enhanced_scheduled_downgrade(request):
+    """
+    POST /api/enhanced-billing/subscription/downgrade/cancel/
+    Cancel a scheduled downgrade.
+    """
+    subscription = EnhancedSubscription.objects.filter(user=request.user).first()
+    if not subscription:
+        return Response({'error': 'No subscription found'}, status=status.HTTP_404_NOT_FOUND)
+
+    subscription.pending_downgrade_plan_version = None
+    subscription.pending_downgrade_effective_at = None
+    subscription.save(update_fields=['pending_downgrade_plan_version', 'pending_downgrade_effective_at', 'updated_at'])
+
+    return Response({'success': True, 'message': 'Scheduled downgrade canceled'}, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
@@ -583,6 +775,27 @@ def admin_promo_code_analytics(request, code_id):
                 'usage_percentage': analytics['usage_percentage'],
                 'total_discount_given': float(analytics['total_discount_given']),
                 'average_discount': float(analytics['average_discount']),
+                'revenue_impact': {
+                    'total_original': float(analytics['revenue_impact']['total_original']),
+                    'total_discount': float(analytics['revenue_impact']['total_discount']),
+                    'discount_rate': float(analytics['revenue_impact']['discount_rate']),
+                    'net_revenue': float(analytics['revenue_impact']['net_revenue']),
+                    'redemption_count': analytics['revenue_impact']['redemption_count'],
+                },
+                'conversion': {
+                    'converted_count': analytics['conversion']['converted_count'],
+                    'conversion_rate': float(analytics['conversion']['conversion_rate']),
+                    'conversions_by_plan': analytics['conversion']['conversions_by_plan'],
+                },
+                'plan_breakdown': [
+                    {
+                        'plan_id': row['plan_id'],
+                        'plan_name': row['plan_name'],
+                        'redemptions': row['redemptions'],
+                        'total_discount': float(row['total_discount']),
+                    }
+                    for row in analytics.get('plan_breakdown', [])
+                ],
                 'redemption_timeline': analytics['redemption_timeline']
             }
         })

@@ -368,6 +368,43 @@ class InstitutionalContractViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+    @action(detail=True, methods=['post'])
+    def request_termination(self, request, pk=None):
+        """
+        POST /api/v1/institutional/contracts/{id}/request_termination/
+        Record a 60-day early termination notice.
+        Body: { "notice_date": "YYYY-MM-DD" (optional), "termination_date": "YYYY-MM-DD" (optional) }
+        """
+        try:
+            notice_date = request.data.get('notice_date')
+            termination_date = request.data.get('termination_date')
+            result = InstitutionalBillingService.request_early_termination(
+                contract_id=pk,
+                notice_date=notice_date,
+                requested_termination_date=termination_date,
+                requested_by=request.user,
+            )
+            return Response({'success': True, 'termination': result})
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'])
+    def terminate(self, request, pk=None):
+        """
+        POST /api/v1/institutional/contracts/{id}/terminate/
+        Terminate early (requires 60-day notice already elapsed) and generate final invoice.
+        Body: { "termination_date": "YYYY-MM-DD" (optional) }
+        """
+        try:
+            termination_date = request.data.get('termination_date')
+            result = InstitutionalBillingService.terminate_contract_early(
+                contract_id=pk,
+                termination_date=termination_date,
+            )
+            return Response({'success': True, 'result': result})
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class InstitutionalBillingViewSet(viewsets.ReadOnlyModelViewSet):
     """

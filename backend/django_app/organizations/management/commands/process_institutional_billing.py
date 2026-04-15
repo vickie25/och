@@ -25,6 +25,13 @@ def process_institutional_billing():
         'scheduled_billing_processed': 0,
         'overdue_invoices_processed': 0,
         'renewal_notices_sent': 0,
+        'cohort_start_forfeitures': 0,
+        'dashboard_metrics_updated': 0,
+        'employer_billing': {
+            'retainers_invoiced': 0,
+            'placements_confirmed': 0,
+            'placement_fee_invoices': 0,
+        },
         'errors': []
     }
 
@@ -46,6 +53,53 @@ def process_institutional_billing():
         renewal_results = process_contract_renewals()
         results['renewal_notices_sent'] = renewal_results['notices_sent']
         results['errors'].extend(renewal_results.get('errors', []))
+
+        # 4. Forfeit unused seats at cohort start (daily)
+        try:
+            from programs.models import Cohort
+            from organizations.institutional_management_service import InstitutionalManagementService
+
+            today = date.today()
+            starting = Cohort.objects.filter(start_date__lte=today, start_date__gt=today - timedelta(days=1))
+            forfeited_total = 0
+            for c in starting:
+                res = InstitutionalManagementService.forfeit_unused_seats_at_cohort_start(cohort_id=str(c.id), effective_date=today)
+                forfeited_total += int(res.get('forfeited_seats') or 0)
+            results['cohort_start_forfeitures'] = forfeited_total
+        except Exception as e:
+            results['errors'].append(f"Cohort-start forfeiture error: {str(e)}")
+
+        # 5. Recalculate enterprise dashboard metrics (daily)
+        try:
+            from organizations.institutional_management_service import InstitutionalManagementService
+
+            active_contracts = InstitutionalContract.objects.filter(status='active').only('id')
+            updated = 0
+            for c in active_contracts:
+                try:
+                    InstitutionalManagementService.calculate_dashboard_metrics(str(c.id))
+                    updated += 1
+                except Exception:
+                    continue
+            results['dashboard_metrics_updated'] = updated
+        except Exception as e:
+            results['errors'].append(f"Dashboard metrics update error: {str(e)}")
+
+        # 6. Process Stream C employer contract billing (daily)
+        try:
+            from marketplace.management.commands.process_employer_contract_billing import (
+                process_employer_contract_billing,
+            )
+
+            emp_res = process_employer_contract_billing()
+            results['employer_billing'] = {
+                'retainers_invoiced': emp_res.get('retainers_invoiced', 0),
+                'placements_confirmed': emp_res.get('placements_confirmed', 0),
+                'placement_fee_invoices': emp_res.get('placement_fee_invoices', 0),
+            }
+            results['errors'].extend(emp_res.get('errors', []))
+        except Exception as e:
+            results['errors'].append(f"Employer billing error: {str(e)}")
 
         logger.info(f"Institutional billing processing completed: {results}")
         return results
@@ -129,7 +183,7 @@ def process_contract_renewals():
 
     try:
         # Find contracts that need renewal notices (60 days before expiry)
-        renewal_date_threshold = date.today() + timedelta(days=60)
+        renewal_date_threshold = date.today() + timedelta(days=90)
 
         contracts_needing_renewal = InstitutionalContract.objects.filter(
             status='active',
@@ -194,6 +248,20 @@ Current Contract Details:
 - Monthly Rate: ${contract.per_student_rate}/student
 - Billing Cycle: {contract.billing_cycle}
 
+Renewal Quote (next 12 months):
+- Renewal term: {quote.get('renewal_start_date')} to {quote.get('renewal_end_date')}
+- Proposed seats: {quote.get('proposed_seats')}
+- Proposed billing cycle: {quote.get('proposed_cycle')}
+- Proposed rate: ${quote.get('proposed_rate')}/student/month
+- Market adjustment: {quote.get('market_adjustment_percent')}%
+- Estimated monthly: ${quote.get('proposed_monthly')}
+- Estimated annual: ${quote.get('proposed_annual')}
+
+Options:
+- Confirm renewal as quoted (auto-renew will proceed unless non-renewal notice is received)
+- Request seat/billing adjustments for renewal
+- Provide 60-day non-renewal notice if you do not wish to renew
+
 To ensure uninterrupted service for your students, please contact our institutional team at institutional@och.com
 
 Best regards,
@@ -207,6 +275,25 @@ The OCH Team
             recipient_list=[contract.billing_contact_email],
             fail_silently=False
         )
+
+        # Audit: renewal quote sent
+        try:
+            from organizations.institutional_models import InstitutionalContractAmendment
+
+            InstitutionalContractAmendment.objects.create(
+                contract=contract,
+                amendment_type='renewal_quote_sent',
+                requested_by=None,
+                previous_terms={
+                    'student_seat_count': contract.student_seat_count,
+                    'per_student_rate': float(contract.per_student_rate),
+                    'billing_cycle': contract.billing_cycle,
+                },
+                new_terms=quote or {},
+                notes='Automated 90-day renewal notice',
+            )
+        except Exception:
+            pass
 
         logger.info(f"Renewal notice sent to {contract.billing_contact_email}")
         return True

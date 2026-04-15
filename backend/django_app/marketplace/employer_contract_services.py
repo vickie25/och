@@ -14,6 +14,8 @@ from .employer_contracts import (
     CandidatePresentation,
     CandidateRequirement,
     ContractPerformanceMetrics,
+    EmployerCandidateWaitlist,
+    EmployerMatchingQueueItem,
     EmployerContract,
     EmployerContractTier,
     ReplacementGuarantee,
@@ -148,13 +150,14 @@ class CandidateMatchingService:
     def find_matching_candidates(requirement, limit=10):
         """Find candidates matching requirement criteria."""
         from marketplace.models import MarketplaceProfile
+        from student_dashboard.models import StudentDashboardCache
 
         # Base query for eligible candidates
         candidates = MarketplaceProfile.objects.filter(
             is_visible=True,
             employer_share_consent=True,
             profile_status__in=['emerging_talent', 'job_ready']
-        ).select_related('mentee')
+        ).select_related('mentee').select_related('mentee__dashboard_cache')
 
         # Filter by tier access (premium contracts get all tiers)
         if requirement.contract.tier.tier_name != 'enterprise':
@@ -162,10 +165,27 @@ class CandidateMatchingService:
                 tier__in=['starter', 'professional']  # Exclude free tier for paid contracts
             )
 
-        # Filter by minimum tier level
-        if requirement.minimum_tier_level:
-            # Add tier level filtering logic based on curriculum progress
-            pass
+        # Filter by SLA/quality guarantees using StudentDashboardCache (scales via join)
+        # Candidate Quality Score: readiness_score >= contract.minimum_quality_score
+        # Mission Score Baseline + tier completion proxy: curriculum_progress_pct >= thresholds
+        contract = requirement.contract
+
+        candidates = candidates.filter(
+            mentee__dashboard_cache__readiness_score__gte=contract.minimum_quality_score,
+            mentee__dashboard_cache__curriculum_progress_pct__gte=contract.minimum_mission_score,
+            mentee__dashboard_cache__portfolio_items_approved__gte=1,
+        )
+
+        # Track completion level proxy (tier_1..tier_9 mapped to curriculum_progress_pct)
+        tier_req = (requirement.minimum_tier_level or '').strip().lower()
+        if tier_req.startswith('tier_'):
+            try:
+                tier_num = int(tier_req.split('_', 1)[1])
+                tier_num = max(1, min(9, tier_num))
+                pct = (tier_num / 9.0) * 100.0
+                candidates = candidates.filter(mentee__dashboard_cache__curriculum_progress_pct__gte=pct)
+            except Exception:
+                pass
 
         # Filter by required tracks
         if requirement.required_tracks:
@@ -191,7 +211,34 @@ class CandidateMatchingService:
         presentations = []
 
         with transaction.atomic():
-            for candidate_profile in candidates:
+            # Shortlist should be 3–5 candidates where possible.
+            for candidate_profile in candidates[:5]:
+                # Global exclusivity window: if candidate is currently exclusive to another employer,
+                # skip presenting until exclusivity expires.
+                existing_exclusive_qs = CandidatePresentation.objects.filter(
+                    candidate=candidate_profile.mentee,
+                    is_exclusive=True,
+                    exclusivity_expires_at__isnull=False,
+                    exclusivity_expires_at__gt=timezone.now(),
+                ).exclude(contract=requirement.contract).filter(
+                    contract__exclusivity_scope=requirement.contract.exclusivity_scope
+                )
+                if existing_exclusive_qs.exists():
+                    # Record waitlist entry so employer can receive the candidate once exclusivity expires.
+                    exclusive_until = existing_exclusive_qs.order_by('-exclusivity_expires_at').values_list(
+                        'exclusivity_expires_at', flat=True
+                    ).first()
+                    try:
+                        EmployerCandidateWaitlist.objects.update_or_create(
+                            contract=requirement.contract,
+                            requirement=requirement,
+                            candidate=candidate_profile.mentee,
+                            defaults={'reason': 'exclusive', 'status': 'waiting', 'exclusive_until': exclusive_until},
+                        )
+                    except Exception:
+                        pass
+                    continue
+
                 # Check if candidate already presented for this requirement
                 if CandidatePresentation.objects.filter(
                     requirement=requirement,
@@ -204,14 +251,26 @@ class CandidateMatchingService:
                     requirement, candidate_profile
                 )
 
+                # Enforce quality guarantees at presentation time too (defense in depth)
+                cache = getattr(candidate_profile.mentee, 'dashboard_cache', None)
+                readiness = float(getattr(cache, 'readiness_score', 0) or 0)
+                curriculum_pct = float(getattr(cache, 'curriculum_progress_pct', 0) or 0)
+                portfolio_ok = int(getattr(cache, 'portfolio_items_approved', 0) or 0) >= 1
+                if readiness < float(requirement.contract.minimum_quality_score or 0):
+                    continue
+                if curriculum_pct < float(requirement.contract.minimum_mission_score or 0):
+                    continue
+                if not portfolio_ok:
+                    continue
+
                 # Create presentation record
                 presentation = CandidatePresentation.objects.create(
                     contract=requirement.contract,
                     requirement=requirement,
                     candidate=candidate_profile.mentee,
                     match_score=match_score,
-                    quality_score=candidate_profile.readiness_score or 75,
-                    mission_completion_score=70,  # Would come from missions data
+                    quality_score=readiness,
+                    mission_completion_score=curriculum_pct,
                     is_exclusive=requirement.contract.has_exclusivity,
                     exclusivity_expires_at=(
                         timezone.now() + timedelta(hours=requirement.contract.exclusivity_window_hours)
@@ -221,13 +280,81 @@ class CandidateMatchingService:
                 presentations.append(presentation)
 
             # Update requirement status and SLA tracking
-            if presentations and not requirement.first_shortlist_sent_at:
+            # Only count a "shortlist sent" when we deliver at least 3 qualified candidates.
+            if len(presentations) >= 3 and not requirement.first_shortlist_sent_at:
                 requirement.first_shortlist_sent_at = timezone.now()
                 requirement.sla_met = timezone.now() <= requirement.shortlist_due_at
                 requirement.status = 'shortlisted'
                 requirement.save()
 
         return presentations
+
+
+class EmployerMatchingQueueService:
+    """
+    Priority queue processing for employer matching.
+    """
+
+    @staticmethod
+    def _tier_priority(contract: EmployerContract) -> int:
+        # Higher number = higher priority
+        name = getattr(contract.tier, 'tier_name', None) or ''
+        if name == 'enterprise':
+            return 300
+        if name == 'growth':
+            return 200
+        if name == 'starter':
+            return 100
+        return 50
+
+    @staticmethod
+    def enqueue(requirement: CandidateRequirement) -> EmployerMatchingQueueItem:
+        contract = requirement.contract
+        prio = EmployerMatchingQueueService._tier_priority(contract)
+        # Urgent requirements get a bump.
+        prio += 30 if requirement.priority == 'urgent' else (10 if requirement.priority == 'high' else 0)
+        item, _ = EmployerMatchingQueueItem.objects.update_or_create(
+            requirement=requirement,
+            defaults={
+                'contract': contract,
+                'priority_score': prio,
+                'status': 'pending',
+                'last_error': '',
+            }
+        )
+        return item
+
+    @staticmethod
+    def process_next(batch_size: int = 10) -> dict:
+        processed = 0
+        errors = []
+
+        qs = EmployerMatchingQueueItem.objects.select_related('requirement', 'contract', 'contract__tier').filter(
+            status='pending'
+        ).order_by('-priority_score', 'created_at')[:batch_size]
+
+        for item in qs:
+            try:
+                item.status = 'processing'
+                item.attempts = (item.attempts or 0) + 1
+                item.save(update_fields=['status', 'attempts', 'updated_at'])
+
+                req = item.requirement
+                candidates = CandidateMatchingService.find_matching_candidates(req, limit=10)
+                CandidateMatchingService.present_candidates_to_employer(req, candidates, presented_by=None)
+
+                item.status = 'completed'
+                item.processed_at = timezone.now()
+                item.last_error = ''
+                item.save(update_fields=['status', 'processed_at', 'last_error', 'updated_at'])
+                processed += 1
+            except Exception as e:
+                item.status = 'failed'
+                item.last_error = str(e)
+                item.save(update_fields=['status', 'last_error', 'updated_at'])
+                errors.append(str(e))
+
+        return {'processed': processed, 'errors': errors}
 
     @staticmethod
     def _calculate_match_score(requirement, candidate_profile):
@@ -322,13 +449,17 @@ class PlacementFeeService:
 
         # Calculate guarantee end date
         guarantee_end = start_date + timedelta(days=contract.replacement_guarantee_days)
+        probation_days = 90
+        probation_end = start_date + timedelta(days=probation_days)
 
         placement = SuccessfulPlacement.objects.create(
             presentation=presentation,
             start_date=start_date,
             salary_offered=salary_offered,
             placement_fee=placement_fee,
-            guarantee_end_date=guarantee_end
+            guarantee_end_date=guarantee_end,
+            probation_days=probation_days,
+            probation_end_date=probation_end,
         )
 
         # Update presentation status
@@ -346,6 +477,25 @@ class PlacementFeeService:
         return placement
 
     @staticmethod
+    def confirm_probation_if_due(as_of=None):
+        """
+        Move placements from placed -> confirmed once probation is completed (default 90 days),
+        if the candidate has not left.
+        """
+        if as_of is None:
+            as_of = timezone.now()
+        today = as_of.date()
+
+        qs = SuccessfulPlacement.objects.select_related('presentation__contract').filter(
+            status='placed',
+            probation_end_date__isnull=False,
+            probation_end_date__lte=today,
+            candidate_left_date__isnull=True,
+        )
+        updated = qs.update(status='confirmed', confirmed_at=as_of)
+        return updated
+
+    @staticmethod
     def calculate_monthly_placement_fees(contract, month_start):
         """Calculate placement fees for a given month."""
         month_end = month_start + timedelta(days=32)
@@ -353,7 +503,7 @@ class PlacementFeeService:
 
         placements = SuccessfulPlacement.objects.filter(
             presentation__contract=contract,
-            start_date__range=[month_start, month_end],
+            confirmed_at__date__range=[month_start, month_end],
             status__in=['placed', 'confirmed', 'fee_billed', 'fee_paid']
         )
 
@@ -377,23 +527,29 @@ class PlacementFeeService:
         if fee_data['capped_fees'] == 0:
             return None
 
-        # Create invoice (would integrate with finance system)
-        invoice_data = {
-            'contract': contract,
-            'month': month_start,
-            'placements_count': fee_data['placements_count'],
-            'total_amount': fee_data['capped_fees'],
-            'line_items': [
-                {
-                    'description': f'Placement fees for {month_start.strftime("%B %Y")}',
-                    'quantity': fee_data['placements_count'],
-                    'unit_price': float(fee_data['capped_fees'] / fee_data['placements_count']),
-                    'total': float(fee_data['capped_fees'])
-                }
-            ]
-        }
+        # Create invoice inside platform finance system
+        from finance.models import Invoice
 
-        return invoice_data
+        org = contract.organization
+        due = timezone.now() + timedelta(days=14)
+        inv = Invoice.objects.create(
+            organization=org,
+            contract=None,
+            type='employer',
+            currency=getattr(contract, 'currency', 'KES') or 'KES',
+            amount=fee_data['capped_fees'],
+            tax=Decimal('0'),
+            total=fee_data['capped_fees'],
+            status='sent',
+            due_date=due,
+        )
+
+        # Mark placements as fee_billed
+        SuccessfulPlacement.objects.filter(id__in=[p.id for p in fee_data['placements']]).exclude(
+            status__in=['fee_billed', 'fee_paid']
+        ).update(status='fee_billed', fee_billed_at=timezone.now())
+
+        return inv
 
 
 class PerformanceTrackingService:
@@ -522,15 +678,42 @@ class ReplacementGuaranteeService:
     @staticmethod
     def claim_replacement_guarantee(placement, claim_reason, candidate_left_date):
         """Process replacement guarantee claim."""
+        # Exclusion: guarantee does not apply to employer-terminated (performance) departures.
+        departure_type = None
+        if isinstance(claim_reason, dict):
+            departure_type = claim_reason.get('departure_type')
+            claim_reason = claim_reason.get('text') or ''
+        if departure_type and departure_type != 'candidate_initiated':
+            raise ValidationError("Guarantee does not apply for employer-terminated departures")
+
         if not placement.is_guarantee_active():
             raise ValidationError("Replacement guarantee period has expired")
 
         days_employed = (candidate_left_date - placement.start_date).days
-        replacement_due = timezone.now().date() + timedelta(days=10)  # 10 business days
+        # Guarantee limits: after 3 replacements in a 12-month period, require partnership review.
+        contract = placement.presentation.contract
+        one_year_ago = timezone.now().date() - timedelta(days=365)
+        prior_claims = ReplacementGuarantee.objects.filter(
+            original_placement__presentation__contract=contract,
+            claimed_at__date__gte=one_year_ago,
+        ).count()
+        if prior_claims >= 3:
+            raise ValidationError("Replacement limit reached (3 in 12 months). Partnership review required.")
+
+        # 10 business days for replacement due date
+        today = timezone.now().date()
+        due = today
+        added = 0
+        while added < 10:
+            due = due + timedelta(days=1)
+            if due.weekday() < 5:
+                added += 1
+        replacement_due = due
 
         guarantee = ReplacementGuarantee.objects.create(
             original_placement=placement,
             claim_reason=claim_reason,
+            departure_type=departure_type or 'candidate_initiated',
             candidate_left_date=candidate_left_date,
             days_employed=days_employed,
             replacement_due_date=replacement_due
@@ -540,6 +723,7 @@ class ReplacementGuaranteeService:
         placement.candidate_left_date = candidate_left_date
         placement.left_within_guarantee = True
         placement.guarantee_used = True
+        placement.replacement_count = (placement.replacement_count or 0) + 1
         placement.save()
 
         return guarantee
@@ -547,6 +731,8 @@ class ReplacementGuaranteeService:
     @staticmethod
     def fulfill_replacement_guarantee(guarantee, replacement_candidates):
         """Fulfill replacement guarantee with new candidates."""
+        if not (3 <= len(replacement_candidates) <= 5):
+            raise ValidationError("Replacement offering must include 3-5 candidates")
         guarantee.replacement_candidates_provided = len(replacement_candidates)
         guarantee.status = 'presented'
         guarantee.save()

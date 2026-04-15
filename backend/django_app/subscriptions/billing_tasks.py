@@ -11,7 +11,11 @@ from .billing_services import (
     BillingCycleManager,
     DunningManager,
     InvoiceGenerator,
+    PaymentProcessor,
+    SubscriptionLifecycleManager,
 )
+from .email_service import SubscriptionEmailService
+from .pdf_service import InvoicePDFGenerator
 
 
 @shared_task
@@ -28,20 +32,47 @@ def process_subscription_renewals():
     results = []
     for subscription in expiring_subscriptions:
         try:
+            # Respect end-of-period cancellations: do not renew.
+            if subscription.cancel_at_period_end:
+                subscription.transition_to('CANCELED', 'Canceled at period end')
+                results.append({
+                    'subscription_id': str(subscription.id),
+                    'status': 'canceled_at_period_end'
+                })
+                continue
+
             # Attempt to charge for renewal
             billing_period = BillingCycleManager.process_renewal(subscription)
 
             # Generate invoice
             invoice = InvoiceGenerator.create_subscription_invoice(billing_period)
 
-            # Attempt payment (placeholder - integrate with actual payment gateway)
-            payment_success = _attempt_payment(subscription, invoice)
+            # Attempt payment via real gateway
+            billing_period.payment_attempted_at = timezone.now()
+            billing_period.save(update_fields=['payment_attempted_at', 'updated_at'])
+            payment_success, txn_id, error, _raw = PaymentProcessor.charge_subscription(
+                subscription,
+                amount=invoice.total_amount,
+                currency=invoice.currency or 'KES',
+                description=f'Renewal charge {invoice.invoice_number}',
+            )
 
             if payment_success:
                 invoice.mark_as_paid()
                 billing_period.status = 'completed'
                 billing_period.payment_completed_at = timezone.now()
                 billing_period.save()
+
+                # Send invoice (PDF + email)
+                try:
+                    # We don't persist the PDF binary; we rely on the frontend/pdf endpoint URL.
+                    # Generating the PDF here sanity-checks that invoice details are renderable.
+                    InvoicePDFGenerator.generate_invoice_pdf(invoice)
+                    InvoiceGenerator.send_invoice(invoice)  # marks sent
+                    SubscriptionEmailService.send_invoice_email(subscription, invoice)
+                except Exception:
+                    # Never block renewal success on email/PDF issues
+                    pass
 
                 results.append({
                     'subscription_id': str(subscription.id),
@@ -76,6 +107,53 @@ def process_subscription_renewals():
 
 
 @shared_task
+def check_enhanced_academic_discount_expiry():
+    """
+    Enhanced academic discount re-verification:
+      - Send reminders 30 days before expiry
+      - Mark expired discounts
+    Uses the enhanced academic discount model in `promotional_models.py`.
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from .enhanced_billing_services import AcademicDiscountService
+    from .promotional_models import AcademicDiscount
+
+    now = timezone.now()
+
+    # Reminders for discounts expiring in the next 30 days (once)
+    expiring_soon = AcademicDiscount.objects.filter(
+        status='verified',
+        expires_at__lte=now + timedelta(days=30),
+        expires_at__gt=now,
+        last_reverification_sent__isnull=True,
+    ).select_related('user')
+
+    for discount in expiring_soon:
+        try:
+            discount.send_reverification_reminder()
+            AcademicDiscountService._send_reverification_email(discount)
+        except Exception:
+            continue
+
+    # Mark expired
+    expired = AcademicDiscount.objects.filter(
+        status='verified',
+        expires_at__lte=now,
+    )
+    for discount in expired:
+        discount.status = 'expired'
+        discount.save(update_fields=['status', 'updated_at'])
+
+    return {
+        'reminded': expiring_soon.count(),
+        'expired': expired.count(),
+    }
+
+
+@shared_task
 def process_dunning_retries():
     """Process dunning retry attempts."""
     results = DunningManager.process_dunning_retries()
@@ -88,7 +166,7 @@ def process_dunning_retries():
 
 @shared_task
 def expire_trial_subscriptions():
-    """Convert expired trials to expired status."""
+    """Convert expired trials to active (if card-on-file) or expired."""
     expired_trials = EnhancedSubscription.objects.filter(
         status='TRIAL',
         trial_end__lt=timezone.now()
@@ -97,6 +175,15 @@ def expire_trial_subscriptions():
     results = []
     for subscription in expired_trials:
         try:
+            # If the trial has a payment method on file, auto-convert to paid.
+            if subscription.payment_method_ref:
+                SubscriptionLifecycleManager.convert_trial_to_active(subscription)
+                results.append({
+                    'subscription_id': str(subscription.id),
+                    'status': 'converted_to_active'
+                })
+                continue
+
             subscription.transition_to('EXPIRED', 'Trial period expired')
             results.append({
                 'subscription_id': str(subscription.id),
@@ -191,30 +278,39 @@ def send_dunning_notifications():
     for dunning in active_dunning:
         try:
             subscription = dunning.subscription
-            user = subscription.user
+            now = timezone.now()
+            days_elapsed = max(0, (now.date() - dunning.started_at.date()).days)
+            days_remaining = max(0, (dunning.grace_period_end.date() - now.date()).days)
 
-            # Determine notification type
-            if dunning.current_attempt == 1 and not dunning.last_notification_sent:
-                # First failure notification
-                _send_payment_failed_email(user, subscription, dunning)
-                notification_type = 'payment_failed'
+            # Only send once per day
+            if dunning.last_notification_sent and dunning.last_notification_sent.date() == now.date():
+                continue
 
-            elif dunning.current_attempt == 2:
-                # Second attempt notification
-                _send_retry_failed_email(user, subscription, dunning)
-                notification_type = 'retry_failed'
+            # Day 1 and Day 3 grace notifications
+            if days_elapsed in [1, 3]:
+                SubscriptionEmailService.send_grace_period_notification(
+                    subscription,
+                    day_number=days_elapsed,
+                    days_remaining=days_remaining,
+                    final_warning=False
+                )
+                notification_type = f'grace_day_{days_elapsed}'
 
-            elif dunning.current_attempt >= 3 and not dunning.suspension_warning_sent:
-                # Suspension warning
-                _send_suspension_warning_email(user, subscription, dunning)
-                dunning.suspension_warning_sent = True
-                notification_type = 'suspension_warning'
-
+            # Final warning on last day before suspension
+            elif days_remaining == 0 and not dunning.final_warning_sent:
+                SubscriptionEmailService.send_grace_period_notification(
+                    subscription,
+                    day_number=days_elapsed,
+                    days_remaining=days_remaining,
+                    final_warning=True
+                )
+                dunning.final_warning_sent = True
+                notification_type = 'final_warning'
             else:
                 continue
 
             dunning.last_notification_sent = timezone.now()
-            dunning.save()
+            dunning.save(update_fields=['last_notification_sent', 'final_warning_sent', 'updated_at'])
 
             results.append({
                 'subscription_id': str(subscription.id),
@@ -286,26 +382,23 @@ def generate_monthly_billing_report():
 
 
 def _attempt_payment(subscription, invoice):
-    """Placeholder for payment processing integration."""
-    # This would integrate with Stripe, Paystack, etc.
-    # For now, simulate payment success/failure
-    import random
-    return random.choice([True, False])  # 50% success rate for simulation
+    """Deprecated: use PaymentProcessor.charge_subscription()."""
+    success, _txn, _err, _raw = PaymentProcessor.charge_subscription(
+        subscription, amount=invoice.total_amount, currency=invoice.currency or 'usd'
+    )
+    return success
 
 
 def _send_payment_failed_email(user, subscription, dunning):
-    """Send payment failed notification email."""
-    # Implement email sending logic
-    pass
+    """Deprecated: kept for backward compatibility."""
+    return SubscriptionEmailService.send_grace_period_notification(subscription, day_number=1, days_remaining=dunning.grace_period_days)
 
 
 def _send_retry_failed_email(user, subscription, dunning):
-    """Send retry failed notification email."""
-    # Implement email sending logic
-    pass
+    """Deprecated: kept for backward compatibility."""
+    return SubscriptionEmailService.send_grace_period_notification(subscription, day_number=3, days_remaining=0)
 
 
 def _send_suspension_warning_email(user, subscription, dunning):
-    """Send suspension warning email."""
-    # Implement email sending logic
-    pass
+    """Deprecated: kept for backward compatibility."""
+    return SubscriptionEmailService.send_grace_period_notification(subscription, day_number=dunning.grace_period_days, days_remaining=0, final_warning=True)

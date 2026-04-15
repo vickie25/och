@@ -32,8 +32,9 @@ class EmployerContractTier(models.Model):
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(0)],
-        help_text='Monthly retainer fee in USD'
+        help_text='Monthly retainer fee in KES'
     )
+    currency = models.CharField(max_length=3, default='KES')
     candidates_per_quarter = models.IntegerField(
         null=True,
         blank=True,
@@ -44,7 +45,7 @@ class EmployerContractTier(models.Model):
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(0)],
-        help_text='Per-candidate successful placement fee'
+        help_text='Per-candidate successful placement fee (KES)'
     )
     placement_fee_cap_multiplier = models.DecimalField(
         max_digits=4,
@@ -107,13 +108,14 @@ class EmployerContract(models.Model):
     monthly_retainer = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        help_text='Locked-in monthly retainer (may differ from tier if custom)'
+        help_text='Locked-in monthly retainer in KES (may differ from tier if custom)'
     )
     placement_fee = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        help_text='Locked-in placement fee per successful candidate'
+        help_text='Locked-in placement fee per successful candidate (KES)'
     )
+    currency = models.CharField(max_length=3, default='KES')
     candidates_per_quarter = models.IntegerField(
         null=True,
         blank=True,
@@ -166,6 +168,13 @@ class EmployerContract(models.Model):
         blank=True,
         validators=[MinValueValidator(1)],
         help_text='Exclusivity duration in months'
+    )
+    exclusivity_started_at = models.DateField(null=True, blank=True)
+    exclusivity_ends_at = models.DateField(null=True, blank=True, db_index=True)
+    exclusivity_scope = models.CharField(
+        max_length=64,
+        default='global',
+        help_text='Exclusivity scope key (allows non-competing employers to have exclusivity in different scopes)'
     )
     exclusivity_window_hours = models.IntegerField(
         default=48,
@@ -244,6 +253,9 @@ class EmployerContract(models.Model):
         """Get effective monthly retainer including exclusivity premium."""
         base_retainer = self.monthly_retainer
         if self.has_exclusivity:
+            # If exclusivity duration is configured, only apply premium within the term.
+            if self.exclusivity_ends_at and timezone.now().date() > self.exclusivity_ends_at:
+                return base_retainer
             premium = base_retainer * (self.exclusivity_premium_rate / 100)
             return base_retainer + premium
         return base_retainer
@@ -392,10 +404,16 @@ class CandidateRequirement(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.shortlist_due_at:
-            # Set SLA due date based on contract terms
-            self.shortlist_due_at = timezone.now() + timedelta(
-                days=self.contract.time_to_shortlist_days
-            )
+            # Set SLA due date based on contract terms (business days; skips weekends)
+            now = timezone.now()
+            days = int(self.contract.time_to_shortlist_days or 5)
+            current = now
+            added = 0
+            while added < days:
+                current = current + timedelta(days=1)
+                if current.weekday() < 5:  # Mon-Fri
+                    added += 1
+            self.shortlist_due_at = current
         super().save(*args, **kwargs)
 
     def is_sla_overdue(self):
@@ -505,6 +523,106 @@ class CandidatePresentation(models.Model):
         )
 
 
+class EmployerMatchingQueueItem(models.Model):
+    """
+    Priority matching queue for employer requirements.
+    Ensures contract employers (by tier) are processed first.
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    contract = models.ForeignKey(
+        EmployerContract,
+        on_delete=models.CASCADE,
+        related_name='matching_queue',
+        db_index=True,
+    )
+    requirement = models.OneToOneField(
+        CandidateRequirement,
+        on_delete=models.CASCADE,
+        related_name='matching_queue_item',
+    )
+    # Higher = earlier
+    priority_score = models.IntegerField(default=0, db_index=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
+    attempts = models.IntegerField(default=0)
+    last_error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'employer_matching_queue'
+        indexes = [
+            models.Index(fields=['status', 'priority_score', 'created_at']),
+            models.Index(fields=['contract', 'status']),
+        ]
+
+    def __str__(self):
+        return f"Queue {self.status} - {self.contract.contract_number} - {self.requirement.title}"
+
+
+class EmployerCandidateWaitlist(models.Model):
+    """
+    Waitlist entry for a candidate that could not be presented due to exclusivity/unavailability.
+    Once exclusivity expires, entry becomes eligible for presentation.
+    """
+    STATUS_CHOICES = [
+        ('waiting', 'Waiting'),
+        ('ready', 'Ready'),
+        ('presented', 'Presented'),
+        ('expired', 'Expired'),
+        ('cancelled', 'Cancelled'),
+    ]
+    REASON_CHOICES = [
+        ('exclusive', 'Exclusive to another employer'),
+        ('other', 'Other'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    contract = models.ForeignKey(
+        EmployerContract,
+        on_delete=models.CASCADE,
+        related_name='candidate_waitlist',
+        db_index=True,
+    )
+    requirement = models.ForeignKey(
+        CandidateRequirement,
+        on_delete=models.CASCADE,
+        related_name='candidate_waitlist',
+        db_index=True,
+    )
+    candidate = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='employer_waitlist_entries',
+        db_index=True,
+    )
+    reason = models.CharField(max_length=20, choices=REASON_CHOICES, default='exclusive')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='waiting', db_index=True)
+    exclusive_until = models.DateTimeField(null=True, blank=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'employer_candidate_waitlist'
+        unique_together = [
+            ('contract', 'requirement', 'candidate'),
+        ]
+        indexes = [
+            models.Index(fields=['status', 'exclusive_until']),
+            models.Index(fields=['contract', 'status']),
+        ]
+
+    def __str__(self):
+        return f"Waitlist {self.status} - {self.contract.contract_number} - {self.candidate.email}"
+
 class SuccessfulPlacement(models.Model):
     """Tracks successful candidate placements and fee billing."""
 
@@ -527,6 +645,9 @@ class SuccessfulPlacement(models.Model):
     # Placement Details
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='placed', db_index=True)
     start_date = models.DateField(help_text='Candidate employment start date')
+    probation_days = models.IntegerField(default=90, validators=[MinValueValidator(1)])
+    probation_end_date = models.DateField(null=True, blank=True, db_index=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True, db_index=True)
     salary_offered = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -730,6 +851,16 @@ class ReplacementGuarantee(models.Model):
     # Guarantee Details
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='claimed', db_index=True)
     claim_reason = models.TextField(help_text='Reason for replacement request')
+    departure_type = models.CharField(
+        max_length=30,
+        choices=[
+            ('candidate_initiated', 'Candidate-initiated departure'),
+            ('employer_performance', 'Employer terminated for performance'),
+            ('other', 'Other'),
+        ],
+        default='candidate_initiated',
+        help_text='Used to enforce guarantee exclusions'
+    )
     candidate_left_date = models.DateField()
     days_employed = models.IntegerField(help_text='Days original candidate was employed')
 

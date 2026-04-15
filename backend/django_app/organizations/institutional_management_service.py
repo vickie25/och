@@ -11,6 +11,7 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.db import transaction
 from django.utils import timezone
+from django.db.models import Prefetch
 from programs.models import Cohort, Enrollment, Track
 
 from users.models import User
@@ -406,12 +407,31 @@ The OCH Team
 
             # Calculate progress metrics
             active_allocations = allocations.filter(status='active')
-            if active_allocations.exists():
-                # This would need integration with actual progress tracking
-                metrics.avg_completion_rate = 75.0  # Placeholder
-                metrics.avg_progress_percentage = 65.0  # Placeholder
-                metrics.students_on_track = int(active_allocations.count() * 0.7)
-                metrics.students_behind = active_allocations.count() - metrics.students_on_track
+            mandatory_assignments = InstitutionalTrackAssignment.objects.filter(
+                contract=contract,
+                assignment_type='mandatory',
+                student_allocation__in=active_allocations,
+            ).select_related('track')
+
+            total_mandatory = mandatory_assignments.count()
+            completed_mandatory = mandatory_assignments.filter(status='completed').count()
+
+            if total_mandatory > 0:
+                # Average progress across all mandatory assignments (0-100)
+                total_progress = sum(float(a.progress_percentage or 0) for a in mandatory_assignments)
+                metrics.avg_progress_percentage = total_progress / total_mandatory
+                metrics.avg_completion_rate = (completed_mandatory / total_mandatory) * 100
+            else:
+                metrics.avg_progress_percentage = 0
+                metrics.avg_completion_rate = 0
+
+            # On-track vs behind: behind means at least one overdue mandatory assignment.
+            behind_allocation_ids = set(
+                mandatory_assignments.filter(status='overdue').values_list('student_allocation_id', flat=True)
+            )
+            active_count = active_allocations.count()
+            metrics.students_behind = len(behind_allocation_ids)
+            metrics.students_on_track = max(0, active_count - metrics.students_behind)
 
             # Calculate track assignment metrics
             track_assignments = InstitutionalTrackAssignment.objects.filter(
@@ -424,13 +444,34 @@ The OCH Team
             # Calculate ROI metrics
             if metrics.total_students > 0:
                 metrics.cost_per_student = contract.annual_amount / metrics.total_students
-            metrics.avg_completion_time_days = 90  # Placeholder
-            metrics.certification_rate = 85.0  # Placeholder
+            # Certification rate: percent of active students who completed at least one cert-offered track.
+            if active_allocations.exists():
+                certified_allocation_ids = set(
+                    mandatory_assignments.filter(status='completed', track__certification_offered=True)
+                    .values_list('student_allocation_id', flat=True)
+                )
+                metrics.certification_rate = (len(certified_allocation_ids) / max(active_count, 1)) * 100
+            else:
+                metrics.certification_rate = 0
+            # Completion time requires completion timestamps in core learning progress; keep 0 until integrated.
+            metrics.avg_completion_time_days = 0
 
-            # Calculate engagement metrics (placeholders - would need actual tracking)
-            metrics.avg_login_frequency = 4.2
-            metrics.avg_session_duration_minutes = 45
-            metrics.last_30_days_activity = int(metrics.active_students * 0.8)
+            # Engagement metrics from session activity (last 30 days)
+            try:
+                from datetime import timedelta
+                from users.auth_models import UserSession
+
+                since = timezone.now() - timedelta(days=30)
+                user_ids = list(active_allocations.values_list('user_id', flat=True))
+                sessions = UserSession.objects.filter(user_id__in=user_ids, last_activity__gte=since)
+                metrics.last_30_days_activity = sessions.values('user_id').distinct().count()
+                metrics.avg_login_frequency = (sessions.count() / max(len(user_ids), 1))
+                # Session duration is not recorded; keep 0 until integrated.
+                metrics.avg_session_duration_minutes = 0
+            except Exception:
+                metrics.last_30_days_activity = 0
+                metrics.avg_login_frequency = 0
+                metrics.avg_session_duration_minutes = 0
 
             # Save metrics
             end_time = timezone.now()
@@ -497,6 +538,92 @@ The OCH Team
 
         except InstitutionalContract.DoesNotExist:
             raise ValueError(f"Contract {contract_id} not found")
+
+    @staticmethod
+    def forfeit_unused_seats_at_cohort_start(cohort_id, effective_date=None):
+        """
+        Forfeit unused seats when a cohort starts.
+
+        Policy:
+          - Unused seats at cohort start are forfeited (institution must repurchase for next cohort period).
+          - Unused seats = available_seats + reserved_seats (invited but not accepted).
+          - Applies to pools that are cohort-specific OR explicitly allow this cohort.
+
+        Idempotent per (seat_pool, cohort): only one forfeiture record created.
+        """
+        from datetime import date as date_cls
+
+        from django.db.models import Q
+
+        from .institutional_management_models import InstitutionalInvitation, InstitutionalSeatForfeiture
+
+        if effective_date is None:
+            effective_date = date_cls.today()
+        if isinstance(effective_date, str):
+            effective_date = date_cls.fromisoformat(effective_date)
+
+        cohort = Cohort.objects.get(id=cohort_id)
+        if cohort.start_date and cohort.start_date > effective_date:
+            return {'processed_pools': 0, 'forfeited_seats': 0, 'details': []}
+
+        pools = InstitutionalSeatPool.objects.filter(
+            Q(pool_type='cohort') | Q(allowed_cohorts__contains=[str(cohort_id)])
+        ).select_related('contract')
+
+        total_forfeited = 0
+        details = []
+        processed = 0
+
+        for pool in pools:
+            contract = pool.contract
+            if contract.status != 'active':
+                continue
+
+            if InstitutionalSeatForfeiture.objects.filter(seat_pool=pool, cohort_id=cohort_id).exists():
+                continue
+
+            unused = int(pool.available_seats + pool.reserved_seats)
+            if unused <= 0:
+                continue
+
+            with transaction.atomic():
+                # Expire pending invitations for this cohort in this pool (releases reserved seats)
+                invites = InstitutionalInvitation.objects.filter(
+                    seat_pool=pool,
+                    assigned_cohort_id=cohort_id,
+                    status='pending',
+                )
+                for inv in invites:
+                    try:
+                        inv.expire()
+                    except Exception:
+                        continue
+
+                pool.refresh_from_db()
+                unused_final = int(pool.available_seats + pool.reserved_seats)
+                if unused_final <= 0:
+                    continue
+
+                pool.allocated_seats = max(0, pool.allocated_seats - unused_final)
+                pool.reserved_seats = 0
+                pool.save(update_fields=['allocated_seats', 'reserved_seats', 'updated_at'])
+
+                InstitutionalSeatForfeiture.objects.create(
+                    contract=contract,
+                    seat_pool=pool,
+                    cohort=cohort,
+                    forfeited_seats=unused_final,
+                )
+
+            processed += 1
+            total_forfeited += unused_final
+            details.append({
+                'seat_pool_id': str(pool.id),
+                'contract_id': str(contract.id),
+                'forfeited_seats': unused_final,
+            })
+
+        return {'processed_pools': processed, 'forfeited_seats': total_forfeited, 'details': details}
 
     @staticmethod
     def _send_invitation_email(invitation, base_url):
@@ -648,14 +775,15 @@ The {organization_name} Team
                     'cost_per_student': float(metrics.cost_per_student),
                     'avg_completion_time_days': metrics.avg_completion_time_days,
                     'certification_rate': float(metrics.certification_rate),
-                    'roi_percentage': 150.0  # Placeholder calculation
+                    'roi_percentage': 0.0
                 },
                 'engagement': {
                     'avg_login_frequency': float(metrics.avg_login_frequency),
                     'avg_session_duration': metrics.avg_session_duration_minutes,
                     'active_last_30_days': metrics.last_30_days_activity,
-                    'engagement_score': 78.5  # Placeholder
-                }
+                    'engagement_score': 0.0
+                },
+                'cohort_performance': [],
             }
 
             # Add seat pool details
@@ -668,6 +796,85 @@ The {organization_name} Team
                     'available': pool.available_seats,
                     'utilization': float(pool.utilization_rate)
                 })
+
+            # Cohort performance summary (prefetch mandatory assignments to avoid N+1)
+            mandatory_qs = InstitutionalTrackAssignment.objects.filter(assignment_type='mandatory').select_related('track')
+            allocations = InstitutionalStudentAllocation.objects.filter(
+                seat_pool__contract=contract,
+                status__in=['active', 'completed']
+            ).select_related('enrollment__cohort').prefetch_related(
+                Prefetch('track_assignments', queryset=mandatory_qs, to_attr='prefetched_mandatory_assignments')
+            )
+
+            cohort_map = {}
+            for a in allocations:
+                cohort = a.enrollment.cohort if a.enrollment else None
+                cohort_key = str(cohort.id) if cohort else 'unassigned'
+                if cohort_key not in cohort_map:
+                    cohort_map[cohort_key] = {
+                        'cohort_id': str(cohort.id) if cohort else None,
+                        'cohort_name': cohort.name if cohort else 'Unassigned',
+                        'students': 0,
+                        'avg_progress': 0.0,
+                        'completion_rate': 0.0,
+                        'completed_students': 0,
+                    }
+                cohort_map[cohort_key]['students'] += 1
+
+            # Compute per-allocation progress and completion from prefetched mandatory assignments
+            for a in allocations:
+                cohort = a.enrollment.cohort if a.enrollment else None
+                cohort_key = str(cohort.id) if cohort else 'unassigned'
+                assignments = getattr(a, 'prefetched_mandatory_assignments', []) or []
+                total = len(assignments)
+                completed = len([x for x in assignments if x.status == 'completed'])
+                progress = (sum(float(x.progress_percentage or 0) for x in assignments) / total) if total > 0 else 0.0
+                completion = ((completed / total) * 100) if total > 0 else 0.0
+                cohort_map[cohort_key]['avg_progress'] += progress
+                cohort_map[cohort_key]['completion_rate'] += completion
+                if a.status == 'completed':
+                    cohort_map[cohort_key]['completed_students'] += 1
+
+            for k, v in cohort_map.items():
+                students = v['students'] or 1
+                analytics['cohort_performance'].append({
+                    **v,
+                    'avg_progress': round(v['avg_progress'] / students, 2),
+                    'completion_rate': round(v['completion_rate'] / students, 2),
+                })
+
+            # --- ROI % + engagement score (real computed numbers; configurable defaults) ---
+            annual_cost = float(contract.annual_amount or 0)
+            active_students = float(metrics.active_students or 0)
+            avg_progress = float(metrics.avg_progress_percentage or 0)  # 0-100
+            active_rate_30d = (float(metrics.last_30_days_activity or 0) / active_students * 100) if active_students > 0 else 0.0
+
+            # Engagement score: weighted blend of activity, progress, and login frequency (0-100)
+            cfg = getattr(settings, 'INSTITUTIONAL_REPORTING', {}) or {}
+            weights = cfg.get('ENGAGEMENT_WEIGHTS') or {'activity': 0.4, 'progress': 0.4, 'login': 0.2}
+            login_target = float(cfg.get('LOGIN_FREQUENCY_TARGET_30D') or 8)
+            login_score = min(100.0, (float(metrics.avg_login_frequency or 0) / max(login_target, 0.0001)) * 100.0)
+            w_act = float(weights.get('activity', 0.4))
+            w_prog = float(weights.get('progress', 0.4))
+            w_login = float(weights.get('login', 0.2))
+            denom = max((w_act + w_prog + w_login), 0.0001)
+            engagement_score = (
+                (w_act * active_rate_30d) +
+                (w_prog * avg_progress) +
+                (w_login * login_score)
+            ) / denom
+            analytics['engagement']['engagement_score'] = round(float(max(0.0, min(100.0, engagement_score))), 2)
+
+            # ROI% proxy: value delivered (certified students) vs annual cost.
+            # Certified students estimated from certification_rate (% of active students with cert track completed).
+            value_per = float(cfg.get('VALUE_PER_CERTIFIED_STUDENT_KES') or 50000)
+            certified_students = (float(metrics.certification_rate or 0) / 100.0) * active_students
+            delivered_value = certified_students * value_per
+            if annual_cost > 0:
+                roi_pct = ((delivered_value - annual_cost) / annual_cost) * 100.0
+            else:
+                roi_pct = 0.0
+            analytics['roi_metrics']['roi_percentage'] = round(float(roi_pct), 2)
 
             return analytics
 

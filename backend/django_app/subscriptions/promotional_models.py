@@ -14,6 +14,22 @@ import re
 
 User = get_user_model()
 
+def _academic_domain_allowed(domain: str) -> bool:
+    """
+    Optional allowlist for institution domains.
+    If settings.ACADEMIC_ALLOWED_DOMAINS is set (list/tuple/set), domain must be in it.
+    Otherwise, allow all .edu domains.
+    """
+    try:
+        from django.conf import settings
+        allowed = getattr(settings, 'ACADEMIC_ALLOWED_DOMAINS', None)
+        if allowed:
+            allowed_set = {str(d).strip().lower() for d in allowed if str(d).strip()}
+            return domain.strip().lower() in allowed_set
+    except Exception:
+        pass
+    return True
+
 
 class AcademicDiscount(models.Model):
     """Academic discount verification and management."""
@@ -109,7 +125,9 @@ class AcademicDiscount(models.Model):
         if self.verification_method == 'edu_email':
             if not self.student_email.endswith('.edu'):
                 raise ValidationError('Educational email must end with .edu domain')
-            self.institution_domain = self.student_email.split('@')[1]
+            self.institution_domain = self.student_email.split('@')[1].strip().lower()
+            if not _academic_domain_allowed(self.institution_domain):
+                raise ValidationError('Educational institution domain is not recognized. Please upload verification documents.')
         
         if self.verification_method == 'manual_upload' and not self.uploaded_document:
             raise ValidationError('Document upload required for manual verification')
@@ -155,9 +173,11 @@ class AcademicDiscount(models.Model):
     def auto_verify_edu_email(cls, user, edu_email):
         """Auto-verify educational email addresses."""
         # Check against known educational domains
-        domain = edu_email.split('@')[1]
+        domain = edu_email.split('@')[1].strip().lower()
         
         if domain.endswith('.edu'):
+            if not _academic_domain_allowed(domain):
+                return None
             discount, created = cls.objects.get_or_create(
                 user=user,
                 defaults={

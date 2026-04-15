@@ -6,7 +6,6 @@ import Link from 'next/link'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { apiGateway } from '@/services/apiGateway'
 import {
   FileSignature,
   ArrowRight,
@@ -16,64 +15,23 @@ import {
   GraduationCap,
   X,
 } from 'lucide-react'
-import {
-  INSTITUTION_TIER_LABEL,
-  type InstitutionTierKey,
-} from '@/lib/institutionContractCatalog'
-
-type ContractRow = {
-  id: string
-  organization: number
-  organization_name: string
-  type: string
-  start_date: string
-  end_date: string
-  status: string
-  total_value: string | number
-  payment_terms: string
-  auto_renew: boolean
-  renewal_notice_days: number
-  seat_cap?: number
-  seats_used?: number
-  institution_pricing_tier?: InstitutionTierKey | null
-  billing_cycle?: string | null
-}
-
-function parseContractList(data: unknown): ContractRow[] {
-  if (Array.isArray(data)) return data as ContractRow[]
-  if (data && typeof data === 'object' && 'results' in data && Array.isArray((data as { results: unknown }).results)) {
-    return (data as { results: ContractRow[] }).results
-  }
-  return []
-}
+import { BILLING_CYCLE_LABEL } from '@/lib/institutionContractCatalog'
+import { institutionalService, type InstitutionalContractListItem } from '@/services/institutionalService'
 
 const STATUS_LABEL: Record<string, string> = {
-  proposal: 'Proposal',
-  negotiation: 'Negotiation',
-  signed: 'Signed',
-  pending_payments: 'Pending payments',
   active: 'Active',
-  renewal: 'Renewal',
+  draft: 'Draft',
+  pending_renewal: 'Pending renewal',
+  expired: 'Expired',
   terminated: 'Terminated',
 }
 
 function needsAcceptance(status: string) {
-  return status === 'proposal' || status === 'negotiation'
+  return status === 'draft'
 }
 
-function formatMoney(v: string | number) {
-  const n = typeof v === 'string' ? parseFloat(v) : v
-  if (Number.isNaN(n)) return '—'
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(n)
-}
-
-function licensingIncomplete(c: ContractRow) {
-  const cap = c.seat_cap ?? 0
-  return !c.institution_pricing_tier || !c.billing_cycle || cap < 1
+function formatMoneyUsd(n: number) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
 }
 
 export default function InstitutionClient() {
@@ -81,7 +39,7 @@ export default function InstitutionClient() {
   const searchParams = useSearchParams()
   const urlCleaned = useRef(false)
 
-  const [contracts, setContracts] = useState<ContractRow[]>([])
+  const [contracts, setContracts] = useState<InstitutionalContractListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [welcomeBanner, setWelcomeBanner] = useState(false)
@@ -92,13 +50,8 @@ export default function InstitutionClient() {
     setLoading(true)
     setError(null)
     try {
-      const data = await apiGateway.get<unknown>('/finance/contracts/')
-      const list = parseContractList(data).map((c) => ({
-        ...c,
-        seat_cap: typeof c.seat_cap === 'number' ? c.seat_cap : 0,
-        seats_used: typeof c.seats_used === 'number' ? c.seats_used : 0,
-      }))
-      setContracts(list.filter((c) => c.type === 'institution'))
+      const data = await institutionalService.listContracts()
+      setContracts(Array.isArray(data?.contracts) ? data.contracts : [])
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Failed to load contracts'
       setError(msg)
@@ -138,22 +91,19 @@ export default function InstitutionClient() {
       if (hit) return hit
     }
     const needSign = contracts.find((c) => needsAcceptance(c.status))
-    const needLicense = contracts.find(
-      (c) => !needsAcceptance(c.status) && c.status !== 'terminated' && licensingIncomplete(c)
-    )
-    return needSign ?? needLicense ?? contracts[0] ?? null
+    const firstLive = contracts.find((c) => c.status !== 'terminated')
+    return needSign ?? firstLive ?? contracts[0] ?? null
   })()
 
   const showAcceptGate = primaryContract && needsAcceptance(primaryContract.status)
-  const showLicensingGate =
-    primaryContract && !needsAcceptance(primaryContract.status) && licensingIncomplete(primaryContract)
+  const showLicensingGate = false
 
   const handleAcceptContract = async (id: string) => {
     if (!termsChecked) return
     setAcceptingId(id)
     setError(null)
     try {
-      await apiGateway.patch(`/finance/contracts/${id}/`, { status: 'signed' })
+      await institutionalService.activateContract(id)
       try {
         sessionStorage.removeItem('och_institution_focus_contract')
       } catch {
@@ -216,13 +166,13 @@ export default function InstitutionClient() {
                     <span className="font-semibold text-lg text-white">Accept your contract</span>
                   </div>
                   <p className="text-sm text-och-steel max-w-xl">
-                    Review the institutional proposal. When you accept, status moves to <strong className="text-white">Signed</strong>{' '}
-                    so you can choose licensing tier, billing cycle, seats, and curriculum blueprint.
+                    Review the institutional agreement. When you accept, your contract becomes <strong className="text-white">Active</strong>{' '}
+                    and invoicing starts on the configured billing cycle (net 30).
                   </p>
                   <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm mt-4">
                     <div>
                       <dt className="text-och-steel">Organization</dt>
-                      <dd className="text-white font-medium">{primaryContract.organization_name}</dd>
+                      <dd className="text-white font-medium">{primaryContract.organization?.name}</dd>
                     </div>
                     <div>
                       <dt className="text-och-steel">Status</dt>
@@ -237,8 +187,8 @@ export default function InstitutionClient() {
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-och-steel">Seat cap (allocated)</dt>
-                      <dd className="text-white">{primaryContract.seat_cap ?? 0}</dd>
+                      <dt className="text-och-steel">Licensed seats</dt>
+                      <dd className="text-white">{primaryContract.student_seat_count ?? 0}</dd>
                     </div>
                   </dl>
                   <label className="flex items-start gap-3 text-sm text-och-steel mt-4 cursor-pointer">
@@ -310,16 +260,16 @@ export default function InstitutionClient() {
                 <div>
                   <p className="font-medium text-white">Licensing configured</p>
                   <p className="text-sm text-och-steel">
-                    {primaryContract.organization_name} —{' '}
+                    {primaryContract.organization?.name} —{' '}
                     <Badge variant="mint">{STATUS_LABEL[primaryContract.status] ?? primaryContract.status}</Badge>
-                    {primaryContract.institution_pricing_tier && (
-                      <span className="text-och-steel">
-                        {' '}
-                        · {INSTITUTION_TIER_LABEL[primaryContract.institution_pricing_tier]}
-                      </span>
-                    )}
+                    {' · '}
+                    {typeof primaryContract.per_student_rate === 'number'
+                      ? `${formatMoneyUsd(primaryContract.per_student_rate)}/student/mo`
+                      : 'Rate —'}
                     {' · Seats '}
-                    {primaryContract.seats_used ?? 0}/{primaryContract.seat_cap ?? 0}
+                    {primaryContract.active_students ?? 0}/{primaryContract.student_seat_count ?? 0}
+                    {' · '}
+                    {primaryContract.billing_cycle ? BILLING_CYCLE_LABEL[primaryContract.billing_cycle as any] : 'Billing —'}
                   </p>
                 </div>
               </div>
@@ -357,7 +307,7 @@ export default function InstitutionClient() {
                 <Users className="h-4 w-4 text-och-gold" />
               </div>
               <p className="text-2xl font-bold text-white">
-                {primaryContract ? `${primaryContract.seats_used ?? 0} / ${primaryContract.seat_cap ?? 0}` : '—'}
+                {primaryContract ? `${primaryContract.active_students ?? 0} / ${primaryContract.student_seat_count ?? 0}` : '—'}
               </p>
               <p className="text-xs text-och-steel mt-1">Active vs allocated seats</p>
               <Link
@@ -391,17 +341,15 @@ export default function InstitutionClient() {
                 {contracts.map((c) => (
                   <li key={c.id} className="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div>
-                      <p className="text-white font-medium">{c.organization_name}</p>
+                      <p className="text-white font-medium">{c.organization?.name}</p>
                       <p className="text-xs text-och-steel">
-                        {c.start_date} — {c.end_date} · {formatMoney(c.total_value)} · Seats {c.seats_used ?? 0}/
-                        {c.seat_cap ?? 0}
-                        {c.institution_pricing_tier
-                          ? ` · ${INSTITUTION_TIER_LABEL[c.institution_pricing_tier]}`
-                          : ''}
+                        {c.start_date} — {c.end_date} · {formatMoneyUsd(c.annual_amount)} · Seats {c.active_students ?? 0}/
+                        {c.student_seat_count ?? 0}
+                        {c.billing_cycle ? ` · ${BILLING_CYCLE_LABEL[c.billing_cycle as any]}` : ''}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant={needsAcceptance(c.status) || licensingIncomplete(c) ? 'gold' : 'mint'}>
+                      <Badge variant={needsAcceptance(c.status) ? 'gold' : 'mint'}>
                         {STATUS_LABEL[c.status] ?? c.status}
                       </Badge>
                       <Link

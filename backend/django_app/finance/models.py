@@ -542,6 +542,7 @@ class Invoice(models.Model):
         blank=True
     )
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    currency = models.CharField(max_length=3, default='KES')
     amount = models.DecimalField(
         max_digits=15,
         decimal_places=2,

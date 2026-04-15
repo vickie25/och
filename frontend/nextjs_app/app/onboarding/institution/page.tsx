@@ -34,7 +34,7 @@ function InstitutionOnboardingPageContent() {
       try {
         setLoading(true)
         const data = await apiGateway.get(
-          `/finance/contracts/institution-onboarding-preview/?organization=${encodeURIComponent(organization)}&contract=${encodeURIComponent(contract)}`
+          `/institutional/institution-onboarding-preview/?organization=${encodeURIComponent(organization)}&contract=${encodeURIComponent(contract)}`
         )
         setPreview(data)
         if (data?.contract?.type === 'employer') {
@@ -80,7 +80,7 @@ function InstitutionOnboardingPageContent() {
     }
     setSubmitting(true)
     try {
-      const result = await apiGateway.post('/finance/contracts/institution-onboarding-complete/', {
+      const result = await apiGateway.post('/institutional/institution-onboarding-complete/', {
         organization,
         contract,
         email: form.email,

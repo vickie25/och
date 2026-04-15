@@ -10,6 +10,7 @@ import json
 import logging
 from collections.abc import Callable
 from functools import wraps
+from typing import Optional
 
 from django.core.cache import cache
 
@@ -151,7 +152,7 @@ class FeedCacheManager:
         logger.debug(f"Invalidated post cache: {post_id}")
 
     @staticmethod
-    def invalidate_leaderboard(scope: str, university_id: str | None = None) -> None:
+    def invalidate_leaderboard(scope: str, university_id: Optional[str] = None) -> None:
         """Invalidate leaderboard cache."""
         if university_id:
             pattern = f"{LEADERBOARD_CACHE_PREFIX}*{scope}*{university_id}*"

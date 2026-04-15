@@ -16,18 +16,47 @@ from .promotional_models import (
     EnhancedTrialConfiguration,
     GracePeriodTracking,
     PromotionalCode,
+    PromotionalCodeRedemption,
 )
+from django.db.models import Avg, Count, Sum
 
 
 class AcademicDiscountService:
     """Service for managing academic discounts."""
 
     @staticmethod
+    def _academic_domain_allowed(domain: str) -> bool:
+        try:
+            allowed = getattr(settings, 'ACADEMIC_ALLOWED_DOMAINS', None)
+            if allowed:
+                allowed_set = {str(d).strip().lower() for d in allowed if str(d).strip()}
+                return domain.strip().lower() in allowed_set
+        except Exception:
+            pass
+        return True
+
+    @staticmethod
+    def _is_plan_eligible_for_academic_discount(plan_id: str | None, billing_cycle: str) -> bool:
+        """
+        Academic discount applies only to:
+          - Pro (plan_id == "pro") monthly + annual
+          - Premium (plan_id == "premium") monthly only
+        """
+        pid = (plan_id or '').strip().lower()
+        cycle = (billing_cycle or 'monthly').strip().lower()
+        if pid == 'pro' and cycle in ['monthly', 'annual']:
+            return True
+        if pid == 'premium' and cycle == 'monthly':
+            return True
+        return False
+
+    @staticmethod
     def verify_edu_email(user, edu_email):
         """Verify educational email and create discount."""
         try:
             # Auto-verify .edu domains
-            if edu_email.endswith('.edu'):
+            domain = (edu_email.split('@')[1] if '@' in (edu_email or '') else '').strip().lower()
+            if edu_email.endswith('.edu') and domain and AcademicDiscountService._academic_domain_allowed(domain):
                 discount = AcademicDiscount.auto_verify_edu_email(user, edu_email)
                 if discount:
                     AcademicDiscountService._send_verification_email(discount)
@@ -94,8 +123,16 @@ class AcademicDiscountService:
             raise ValidationError("Academic discount application not found.")
 
     @staticmethod
-    def calculate_academic_price(original_price, user):
+    def calculate_academic_price(original_price, user, plan_id: str | None = None, billing_cycle: str = 'monthly'):
         """Calculate price with academic discount applied."""
+        if not AcademicDiscountService._is_plan_eligible_for_academic_discount(plan_id, billing_cycle):
+            return {
+                'original_price': original_price,
+                'discount_rate': Decimal('0.00'),
+                'discount_amount': Decimal('0.00'),
+                'final_price': original_price,
+                'has_discount': False
+            }
         try:
             discount = AcademicDiscount.objects.get(user=user)
             if discount.is_valid:
@@ -190,6 +227,8 @@ class AcademicDiscountService:
 
         Reason: {discount.review_notes}
 
+        If you are currently receiving an academic discount, your subscription will revert to standard pricing when your academic discount expires.
+
         You can reapply with additional documentation or contact support for assistance.
         """
 
@@ -213,7 +252,9 @@ class AcademicDiscountService:
         Current Discount: {discount.discount_rate}%
         Expires: {discount.expires_at.strftime('%B %d, %Y')}
 
-        Renew your academic discount today to avoid losing your savings.
+        Important: if you don't re-verify, your subscription will revert to standard pricing on the expiry date.
+
+        Renew your academic discount today to avoid a rate increase.
         """
 
         send_mail(
@@ -295,6 +336,10 @@ class PromotionalCodeService:
                 if not can_use:
                     raise ValidationError(message)
 
+                # Prevent stacking: only one promo code per subscription
+                if subscription and PromotionalCodeRedemption.objects.filter(subscription=subscription).exists():
+                    raise ValidationError("A promotional code has already been applied to this subscription")
+
                 # Calculate discount amount
                 original_amount = Decimal('0.00')
                 if subscription:
@@ -351,7 +396,12 @@ class PromotionalCodeService:
         }
 
         # Apply academic discount
-        academic_pricing = AcademicDiscountService.calculate_academic_price(original_price, user)
+        academic_pricing = AcademicDiscountService.calculate_academic_price(
+            original_price,
+            user,
+            plan_id=getattr(plan_version, 'plan_id', None),
+            billing_cycle=billing_cycle,
+        )
         if academic_pricing['has_discount']:
             result['academic_discount'] = academic_pricing['discount_amount']
             result['has_academic'] = True
@@ -400,13 +450,71 @@ class PromotionalCodeService:
             code = PromotionalCode.objects.get(id=code_id)
             redemptions = code.redemptions.all()
 
+            totals = redemptions.aggregate(
+                total_discount=Sum('discount_amount'),
+                total_original=Sum('original_amount'),
+                avg_discount=Avg('discount_amount'),
+                redemptions=Count('id'),
+            )
+            total_discount = totals['total_discount'] or Decimal('0.00')
+            total_original = totals['total_original'] or Decimal('0.00')
+            avg_discount = totals['avg_discount'] or Decimal('0.00')
+            redemption_count = totals['redemptions'] or 0
+
+            by_plan = (
+                redemptions
+                .exclude(subscription__isnull=True)
+                .values('subscription__plan_version__plan_id', 'subscription__plan_version__name')
+                .annotate(redemptions=Count('id'), total_discount=Sum('discount_amount'))
+                .order_by('-redemptions')
+            )
+
+            converted = redemptions.exclude(subscription__isnull=True).filter(subscription__status='ACTIVE')
+            converted_count = converted.count()
+            conversion_rate = (Decimal(converted_count) / Decimal(redemption_count) * 100) if redemption_count > 0 else Decimal('0.00')
+
+            conversions_by_plan = (
+                converted
+                .values('subscription__plan_version__plan_id', 'subscription__plan_version__name')
+                .annotate(conversions=Count('id'))
+                .order_by('-conversions')
+            )
+
             return {
                 'code': code,
                 'total_redemptions': code.current_redemptions,
                 'redemptions_remaining': code.redemptions_remaining,
                 'usage_percentage': code.usage_percentage,
-                'total_discount_given': sum(r.discount_amount for r in redemptions),
-                'average_discount': redemptions.aggregate(avg=models.Avg('discount_amount'))['avg'] or 0,
+                'total_discount_given': total_discount,
+                'average_discount': avg_discount,
+                'revenue_impact': {
+                    'total_original': total_original,
+                    'total_discount': total_discount,
+                    'discount_rate': (total_discount / total_original * 100) if total_original > 0 else Decimal('0.00'),
+                    'net_revenue': (total_original - total_discount),
+                    'redemption_count': redemption_count,
+                },
+                'conversion': {
+                    'converted_count': converted_count,
+                    'conversion_rate': conversion_rate,
+                    'conversions_by_plan': [
+                        {
+                            'plan_id': row['subscription__plan_version__plan_id'],
+                            'plan_name': row['subscription__plan_version__name'],
+                            'conversions': row['conversions'],
+                        }
+                        for row in conversions_by_plan
+                    ]
+                },
+                'plan_breakdown': [
+                    {
+                        'plan_id': row['subscription__plan_version__plan_id'],
+                        'plan_name': row['subscription__plan_version__name'],
+                        'redemptions': row['redemptions'],
+                        'total_discount': row['total_discount'] or Decimal('0.00'),
+                    }
+                    for row in by_plan
+                ],
                 'redemption_timeline': [
                     {
                         'date': r.redeemed_at.date(),
@@ -438,12 +546,16 @@ class EnhancedTrialService:
             )
 
     @staticmethod
-    def create_enhanced_trial(user, plan_version, billing_cycle='monthly', promo_code=None):
+    def create_enhanced_trial(user, plan_version, billing_cycle='monthly', promo_code=None, payment_method_ref=None, payment_gateway=None):
         """Create trial with enhanced configuration."""
         trial_config = EnhancedTrialService.get_trial_configuration(plan_version)
 
         # Calculate trial period
         trial_days = trial_config.trial_days
+
+        # Enforce card-on-file requirement for trials (e.g., Premium)
+        if trial_config.requires_payment_method and not payment_method_ref:
+            raise ValidationError("Payment method is required to start a trial for this plan")
 
         # Apply promotional extension if applicable
         if promo_code:
@@ -466,7 +578,10 @@ class EnhancedTrialService:
             current_period_start=trial_start,
             current_period_end=trial_end,
             trial_start=trial_start,
-            trial_end=trial_end
+            trial_end=trial_end,
+            payment_method_ref=payment_method_ref,
+            payment_gateway=payment_gateway,
+            payment_method_added_at=timezone.now() if payment_method_ref else None,
         )
 
         # Apply promotional code if provided

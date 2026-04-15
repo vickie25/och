@@ -3,6 +3,7 @@ Community module services.
 Business logic for auto-posting achievements, TalentScope integration, etc.
 """
 import logging
+from typing import Optional
 
 from django.db import transaction
 from django.utils import timezone
@@ -65,7 +66,7 @@ class AchievementPostService:
         visibility: str = 'university',
         custom_message: str = '',
         auto_post: bool = True
-    ) -> Post | None:
+    ) -> Optional[Post]:
         """
         Create an achievement post for a user.
 
@@ -141,7 +142,7 @@ class AchievementPostService:
         circle_level: int,
         phase: int,
         custom_message: str = ''
-    ) -> Post | None:
+    ) -> Optional[Post]:
         """Convenience method for Circle advancement posts."""
         return cls.create_achievement_post(
             user=user,
@@ -163,7 +164,7 @@ class AchievementPostService:
         score: int,
         mission_type: str = '',
         custom_message: str = ''
-    ) -> Post | None:
+    ) -> Optional[Post]:
         """Convenience method for mission completion posts."""
         return cls.create_achievement_post(
             user=user,
@@ -188,7 +189,7 @@ class AchievementPostService:
         badge_icon_url: str = '',
         badge_rarity: str = 'common',
         custom_message: str = ''
-    ) -> Post | None:
+    ) -> Optional[Post]:
         """Convenience method for badge earned posts."""
         return cls.create_achievement_post(
             user=user,
@@ -330,7 +331,7 @@ class UniversityAutoMapper:
     """
 
     @classmethod
-    def map_user(cls, user) -> UniversityMembership | None:
+    def map_user(cls, user) -> Optional[UniversityMembership]:
         """
         Auto-map a user to their university based on email domain.
         This is also available as a signal in signals.py.
@@ -339,7 +340,7 @@ class UniversityAutoMapper:
         return auto_map_user_to_university(user)
 
     @classmethod
-    def check_domain(cls, email: str) -> dict | None:
+    def check_domain(cls, email: str) -> Optional[dict]:
         """
         Check if an email domain matches any university.
 

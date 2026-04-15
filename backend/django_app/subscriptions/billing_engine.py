@@ -193,6 +193,17 @@ class EnhancedSubscription(models.Model):
     )
     cancel_at_period_end = models.BooleanField(default=False)
 
+    # Scheduled Downgrade (applies at period boundary)
+    pending_downgrade_plan_version = models.ForeignKey(
+        SubscriptionPlanVersion,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='pending_downgrade_subscriptions',
+        help_text='If set, downgrade will apply at period boundary'
+    )
+    pending_downgrade_effective_at = models.DateTimeField(null=True, blank=True)
+
     # Suspension and Reactivation
     suspended_at = models.DateTimeField(null=True, blank=True)
     reactivation_window_end = models.DateTimeField(
@@ -204,6 +215,24 @@ class EnhancedSubscription(models.Model):
     # Payment Gateway Integration
     stripe_subscription_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
     paystack_subscription_code = models.CharField(max_length=255, unique=True, null=True, blank=True)
+
+    # Payment Method (for trials that require card-on-file)
+    payment_gateway = models.CharField(
+        max_length=20,
+        choices=[('stripe', 'Stripe'), ('paystack', 'Paystack')],
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='Gateway holding the default payment method'
+    )
+    payment_method_ref = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='Gateway payment method reference (e.g. Stripe pm_...)'
+    )
+    payment_method_added_at = models.DateTimeField(null=True, blank=True)
 
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
@@ -489,11 +518,42 @@ class DunningSequence(models.Model):
         return success
 
     def _process_payment_retry(self):
-        """Process payment retry (placeholder for actual payment processing)."""
-        # This would integrate with actual payment gateway
-        # For now, return a simulated result
-        import random
-        return random.choice([True, False])  # 50% success rate for simulation
+        """Process payment retry via gateway charge."""
+        from .billing_services import PaymentProcessor, InvoiceGenerator
+
+        # Create an invoice for the retry attempt (so funds are reflected if paid)
+        period_start = timezone.now()
+        period_end = self.subscription.calculate_next_billing_date()
+        billing_period = BillingPeriod.objects.create(
+            subscription=self.subscription,
+            period_start=period_start,
+            period_end=period_end,
+            status='current',
+            amount=self.subscription.plan_version.price_monthly if self.subscription.billing_cycle == 'monthly' else self.subscription.plan_version.price_annual,
+            currency='USD',
+        )
+        invoice = InvoiceGenerator.create_subscription_invoice(billing_period)
+
+        billing_period.payment_attempted_at = timezone.now()
+        billing_period.save(update_fields=['payment_attempted_at', 'updated_at'])
+        success, txn_id, error, _raw = PaymentProcessor.charge_subscription(
+            self.subscription,
+            amount=invoice.total_amount,
+            currency=invoice.currency or 'usd',
+            description=f'Dunning retry charge {invoice.invoice_number}',
+        )
+        if not success:
+            billing_period.status = 'failed'
+            billing_period.payment_failed_at = timezone.now()
+            billing_period.save(update_fields=['status', 'payment_failed_at', 'updated_at'])
+            return False
+
+        billing_period.status = 'completed'
+        billing_period.payment_completed_at = timezone.now()
+        billing_period.save(update_fields=['status', 'payment_completed_at', 'updated_at'])
+        invoice.mark_as_paid()
+        InvoiceGenerator.send_invoice(invoice)
+        return True
 
 
 class SubscriptionChange(models.Model):

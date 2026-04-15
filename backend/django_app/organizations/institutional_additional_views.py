@@ -6,21 +6,163 @@ import io
 import logging
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
+from django.core.validators import validate_email
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from programs.permissions import IsProgramDirector
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from users.models import User
 
+from organizations.models import OrganizationMember
+from users.models import Role, UserRole
+
 from .institutional_models import InstitutionalContract, InstitutionalStudent
 from .institutional_service import InstitutionalBillingService
+from .institutional_management_service import InstitutionalManagementService
+from .institutional_management_models import InstitutionalAcademicCalendar, InstitutionalSSO
+from .institutional_management_models import InstitutionalStudentAllocation, InstitutionalTrackAssignment
+from programs.models import Track
+from .scim_models import InstitutionalSCIMToken
 
 logger = logging.getLogger(__name__)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def institution_onboarding_preview(request):
+    """
+    GET /api/v1/institutional/institution-onboarding-preview/?organization=<id>&contract=<uuid>
+    Public preview for institution onboarding links.
+    """
+    org_id = request.query_params.get('organization')
+    contract_id = request.query_params.get('contract')
+    if not org_id or not contract_id:
+        return Response(
+            {'detail': 'organization and contract are required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        contract = InstitutionalContract.objects.select_related('organization').get(
+            id=contract_id,
+            organization_id=org_id,
+        )
+    except InstitutionalContract.DoesNotExist:
+        return Response({'detail': 'Contract not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    org = contract.organization
+    return Response(
+        {
+            'organization': {
+                'id': org.id,
+                'name': org.name,
+                'contact_email': org.contact_email,
+                'contact_person_name': org.contact_person_name,
+            },
+            'contract': {
+                'id': str(contract.id),
+                'type': 'institution',
+                'status': contract.status,
+                'start_date': contract.start_date,
+                'end_date': contract.end_date,
+            },
+        }
+    )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def institution_onboarding_complete(request):
+    """
+    POST /api/v1/institutional/institution-onboarding-complete/
+    Creates/updates the institution admin user, assigns org membership + role.
+    """
+    org_id = request.data.get('organization')
+    contract_id = request.data.get('contract')
+    email = (request.data.get('email') or '').strip().lower()
+    first_name = (request.data.get('first_name') or '').strip()
+    last_name = (request.data.get('last_name') or '').strip()
+    password = request.data.get('password') or ''
+    terms_accepted = bool(request.data.get('terms_accepted'))
+
+    if not org_id or not contract_id:
+        return Response({'detail': 'organization and contract are required'}, status=status.HTTP_400_BAD_REQUEST)
+    if len(password) < 8:
+        return Response({'detail': 'Password must be at least 8 characters.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not email:
+        return Response({'detail': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not terms_accepted:
+        return Response({'detail': 'You must accept the Terms and Conditions.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        contract = InstitutionalContract.objects.select_related('organization').get(
+            id=contract_id,
+            organization_id=org_id,
+        )
+    except InstitutionalContract.DoesNotExist:
+        return Response({'detail': 'Contract not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    org = contract.organization
+    with transaction.atomic():
+        user, created = User.objects.get_or_create(
+            email=email,
+            defaults={
+                'username': email,
+                'first_name': first_name or (org.contact_person_name or org.name),
+                'last_name': last_name,
+                'email_verified': True,
+                'account_status': 'active',
+                'org_id': org,
+            },
+        )
+        if not created:
+            if first_name:
+                user.first_name = first_name
+            if last_name:
+                user.last_name = last_name
+            if getattr(user, 'org_id_id', None) is None:
+                user.org_id = org
+            if getattr(user, 'account_status', None) != 'active':
+                user.account_status = 'active'
+            user.email_verified = True
+        user.set_password(password)
+        user.save()
+
+        OrganizationMember.objects.get_or_create(
+            organization=org,
+            user=user,
+            defaults={'role': 'admin'},
+        )
+
+        role = (
+            Role.objects.filter(name='institution_admin').first()
+            or Role.objects.filter(name='organization_admin').first()
+        )
+        if role is None:
+            role = Role.objects.create(
+                name='institution_admin',
+                display_name='Institution Admin',
+                description='Admin access for institution/organization portal users',
+                is_system_role=True,
+            )
+
+        UserRole.objects.get_or_create(
+            user=user,
+            role=role,
+            scope='org',
+            scope_ref=None,
+            org_id=org,
+            defaults={'assigned_by': None, 'is_active': True},
+        )
+
+    next_path = f"/dashboard/institution?organization={org.id}&contract={contract.id}"
+    return Response({'success': True, 'email': email, 'organization': org.id, 'contract': str(contract.id), 'next': next_path})
 
 
 @api_view(['POST'])
@@ -105,6 +247,13 @@ def bulk_import_students(request):
                         results['errors'].append(f'Row {row_num}: Missing required fields')
                         continue
 
+                    # Validate email formatting (deliverability checks require external verification)
+                    try:
+                        validate_email(email)
+                    except ValidationError:
+                        results['errors'].append(f'Row {row_num}: Invalid email address')
+                        continue
+
                     # Check for existing user
                     user, created = User.objects.get_or_create(
                         email=email,
@@ -173,32 +322,64 @@ def setup_sso_integration(request):
     """
     try:
         contract_id = request.data.get('contract_id')
-        sso_config = request.data.get('sso_config', {})
+        sso_config = request.data.get('sso_config', {}) or {}
 
         contract = get_object_or_404(InstitutionalContract, id=contract_id)
 
-        # Validate SSO configuration
-        required_sso_fields = ['provider_type', 'entity_id', 'sso_url', 'certificate']
-        if not all(field in sso_config for field in required_sso_fields):
+        # Accept either the newer InstitutionalSSO schema or legacy keys.
+        protocol = (sso_config.get('protocol') or sso_config.get('provider_type') or '').strip().lower()
+        if protocol in ('saml', 'saml2', 'saml_2_0'):
+            protocol = 'saml2'
+        if protocol in ('oidc', 'openid', 'open_id_connect'):
+            protocol = 'oidc'
+
+        provider_name = (sso_config.get('provider_name') or sso_config.get('provider') or 'Institution SSO').strip()
+        entity_id = (sso_config.get('entity_id') or '').strip()
+        sso_url = (sso_config.get('sso_url') or '').strip()
+        x509_cert = (sso_config.get('x509_cert') or sso_config.get('certificate') or '').strip()
+        slo_url = (sso_config.get('slo_url') or '').strip()
+
+        if not protocol or not sso_url:
             return Response(
-                {'error': f'SSO config must contain: {", ".join(required_sso_fields)}'},
+                {'error': 'sso_config.protocol/provider_type and sso_config.sso_url are required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Store SSO configuration (extend contract model to include SSO fields)
-        contract.sso_enabled = True
-        contract.sso_provider_type = sso_config['provider_type']
-        contract.sso_entity_id = sso_config['entity_id']
-        contract.sso_url = sso_config['sso_url']
-        contract.sso_certificate = sso_config['certificate']
-        contract.domain_auto_enrollment = sso_config.get('domain_auto_enrollment', False)
-        contract.allowed_domains = sso_config.get('allowed_domains', [])
-        contract.save()
+        auto_domains = sso_config.get('auto_enrollment_domains') or sso_config.get('allowed_domains') or []
+        auto_enabled = bool(sso_config.get('auto_enrollment_enabled') or sso_config.get('domain_auto_enrollment'))
+
+        provisioning = bool(sso_config.get('user_provisioning_enabled', False))
+        deprovisioning = bool(sso_config.get('deprovisioning_enabled', False))
+        attribute_mapping = sso_config.get('attribute_mapping') or {}
+        status_value = (sso_config.get('status') or 'testing').strip().lower()
+        if status_value not in {'draft', 'testing', 'active', 'disabled'}:
+            status_value = 'testing'
+
+        with transaction.atomic():
+            cfg, _created = InstitutionalSSO.objects.update_or_create(
+                contract=contract,
+                defaults={
+                    'protocol': protocol,
+                    'provider_name': provider_name,
+                    'entity_id': entity_id,
+                    'sso_url': sso_url,
+                    'slo_url': slo_url,
+                    'x509_cert': x509_cert,
+                    'auto_enrollment_domains': auto_domains or [],
+                    'auto_enrollment_enabled': auto_enabled,
+                    'user_provisioning_enabled': provisioning,
+                    'deprovisioning_enabled': deprovisioning,
+                    'attribute_mapping': attribute_mapping,
+                    'status': status_value,
+                    'created_by': request.user,
+                }
+            )
 
         return Response({
             'message': 'SSO integration configured successfully',
-            'sso_login_url': f"{settings.FRONTEND_URL}/sso/login/{contract.id}",
-            'metadata_url': f"{settings.FRONTEND_URL}/sso/metadata/{contract.id}"
+            'sso_config_id': str(cfg.id),
+            'status': cfg.status,
+            'auto_enrollment_enabled': cfg.auto_enrollment_enabled,
         })
 
     except Exception as e:
@@ -207,6 +388,37 @@ def setup_sso_integration(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated, IsProgramDirector])
+def scim_token_admin(request, contract_id):
+    """
+    GET  /api/v1/institutional/contracts/{id}/scim-token/
+      - returns token metadata (no raw token, since it's hashed)
+    POST /api/v1/institutional/contracts/{id}/scim-token/
+      - rotates token and returns the NEW raw token exactly once so it can be copied into Okta/Azure
+    """
+    contract = get_object_or_404(InstitutionalContract, id=contract_id)
+
+    token_obj = InstitutionalSCIMToken.objects.filter(contract=contract).first()
+    if request.method == 'GET':
+        return Response({
+            'contract_id': str(contract.id),
+            'has_token': bool(token_obj),
+            'is_active': bool(token_obj.is_active) if token_obj else False,
+            'created_at': token_obj.created_at.isoformat() if token_obj else None,
+            'last_used_at': token_obj.last_used_at.isoformat() if token_obj and token_obj.last_used_at else None,
+        })
+
+    # Rotate/reveal new token
+    token_obj, raw = InstitutionalSCIMToken.rotate_token(contract)
+    return Response({
+        'contract_id': str(contract.id),
+        'rotated': True,
+        'token': raw,
+        'created_at': token_obj.created_at.isoformat(),
+    })
 
 
 @api_view(['POST'])
@@ -223,16 +435,14 @@ def assign_mandatory_tracks(request):
 
         contract = get_object_or_404(InstitutionalContract, id=contract_id)
 
-        # Get students to assign tracks to
-        students_query = contract.enrolled_students.filter(is_active=True)
+        # Assign tracks to institutional allocations (this is the source of dept + progress).
+        allocations = InstitutionalStudentAllocation.objects.filter(
+            seat_pool__contract=contract,
+            status__in=['allocated', 'active', 'completed'],
+        ).select_related('user')
 
         if department_filter:
-            # Filter by department if specified
-            students_query = students_query.filter(
-                user__profile__department=department_filter
-            )
-
-        students = students_query.all()
+            allocations = allocations.filter(department=department_filter)
 
         results = {
             'students_processed': 0,
@@ -241,22 +451,52 @@ def assign_mandatory_tracks(request):
         }
 
         with transaction.atomic():
-            for student in students:
+            for allocation in allocations:
                 try:
                     for track_assignment in track_assignments:
-                        track_assignment.get('track_id')
-                        track_assignment.get('is_mandatory', True)
-                        track_assignment.get('completion_deadline')
+                        track_id = track_assignment.get('track_id')
+                        assignment_type = track_assignment.get('assignment_type') or (
+                            'mandatory' if track_assignment.get('is_mandatory', True) else 'optional'
+                        )
+                        due_date = track_assignment.get('completion_deadline') or track_assignment.get('due_date')
+                        custom_requirements = track_assignment.get('custom_requirements') or {}
 
-                        # Create track assignment (implement based on your track model)
-                        # This would integrate with your existing track/curriculum system
+                        if not track_id:
+                            continue
+
+                        track = get_object_or_404(Track, id=track_id)
+                        obj, created = InstitutionalTrackAssignment.objects.get_or_create(
+                            contract=contract,
+                            student_allocation=allocation,
+                            track=track,
+                            defaults={
+                                'assignment_type': assignment_type,
+                                'due_date': due_date,
+                                'department': allocation.department,
+                                'custom_requirements': custom_requirements,
+                                'assigned_by': request.user,
+                            }
+                        )
+                        if not created:
+                            # Update existing assignment type/deadline if provided.
+                            updates = {}
+                            if assignment_type and obj.assignment_type != assignment_type:
+                                updates['assignment_type'] = assignment_type
+                            if due_date:
+                                updates['due_date'] = due_date
+                            if custom_requirements:
+                                updates['custom_requirements'] = custom_requirements
+                            if updates:
+                                for k, v in updates.items():
+                                    setattr(obj, k, v)
+                                obj.save(update_fields=list(updates.keys()) + ['updated_at'])
 
                         results['tracks_assigned'] += 1
 
                     results['students_processed'] += 1
 
                 except Exception as e:
-                    results['errors'].append(f'Student {student.user.email}: {str(e)}')
+                    results['errors'].append(f'Student {allocation.user.email}: {str(e)}')
 
         return Response(results)
 
@@ -311,6 +551,73 @@ def academic_calendar_options(request):
         )
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsProgramDirector])
+def set_academic_calendar(request, contract_id):
+    """
+    POST /api/v1/institutional/contracts/{id}/academic-calendar/
+    Upsert academic calendar settings for a contract and (optionally) realign billing schedules.
+    """
+    try:
+        contract = get_object_or_404(InstitutionalContract, id=contract_id)
+
+        payload = request.data or {}
+        calendar_type = payload.get('calendar_type')
+        academic_year_start = payload.get('academic_year_start')
+        academic_year_end = payload.get('academic_year_end')
+        periods = payload.get('periods', [])
+        break_periods = payload.get('break_periods', [])
+        summer_program_enabled = bool(payload.get('summer_program_enabled', False))
+        summer_billing_mode = payload.get('summer_billing_mode', 'full_rate')
+        summer_discount_rate = payload.get('summer_discount_rate', 0)
+        billing_aligned_to_calendar = bool(payload.get('billing_aligned_to_calendar', False))
+        billing_period_mapping = payload.get('billing_period_mapping', {})
+
+        if not calendar_type or not academic_year_start or not academic_year_end:
+            return Response(
+                {'error': 'calendar_type, academic_year_start, academic_year_end are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        with transaction.atomic():
+            cal, _created = InstitutionalAcademicCalendar.objects.update_or_create(
+                contract=contract,
+                defaults={
+                    'calendar_type': calendar_type,
+                    'academic_year_start': academic_year_start,
+                    'academic_year_end': academic_year_end,
+                    'periods': periods or [],
+                    'break_periods': break_periods or [],
+                    'summer_program_enabled': summer_program_enabled,
+                    'summer_billing_mode': summer_billing_mode,
+                    'summer_discount_rate': summer_discount_rate,
+                    'billing_aligned_to_calendar': billing_aligned_to_calendar,
+                    'billing_period_mapping': billing_period_mapping or {},
+                }
+            )
+
+        realign = bool(payload.get('realign', True))
+        alignment_result = None
+        if realign:
+            try:
+                alignment_result = InstitutionalBillingService.realign_contract_to_academic_calendar(contract.id)
+            except Exception as e:
+                alignment_result = {'aligned': False, 'error': str(e)}
+
+        return Response({
+            'message': 'Academic calendar saved',
+            'calendar_id': str(cal.id),
+            'realignment': alignment_result,
+        })
+
+    except Exception as e:
+        logger.error(f'Academic calendar save error: {str(e)}')
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def institutional_dashboard_analytics(request, contract_id):
@@ -319,65 +626,10 @@ def institutional_dashboard_analytics(request, contract_id):
     Get comprehensive dashboard analytics for institutional portal.
     """
     try:
-        contract = get_object_or_404(InstitutionalContract, id=contract_id)
-
-        # Get basic contract analytics
-        base_analytics = InstitutionalBillingService.get_contract_analytics(contract_id)
-
-        # Add institutional-specific metrics
-        students = contract.enrolled_students.filter(is_active=True)
-
-        # Seat utilization by department/pool
-        seat_pools = []
-        departments = students.values_list('user__profile__department', flat=True).distinct()
-
-        for dept in departments:
-            if dept:
-                dept_students = students.filter(user__profile__department=dept)
-                seat_pools.append({
-                    'name': dept,
-                    'type': 'department',
-                    'allocated': dept_students.count(),  # Could be configured per department
-                    'active': dept_students.count(),
-                    'available': 0,  # Calculate based on department allocation
-                    'utilization': 100.0  # Placeholder calculation
-                })
-
-        # Track assignments and completion
-        track_assignments = {
-            'mandatory_assignments': 0,  # Integrate with track system
-            'completed_assignments': 0,
-            'overdue_assignments': 0,
-            'completion_rate': 0.0
-        }
-
-        # ROI metrics
-        roi_metrics = {
-            'cost_per_student': float(base_analytics['financial']['monthly_recurring_revenue'] / max(base_analytics['students']['active_students'], 1)),
-            'roi_percentage': 150.0,  # Placeholder - calculate based on outcomes
-            'certification_rate': 75.0  # Placeholder - integrate with certification system
-        }
-
-        # Enhanced analytics
-        enhanced_analytics = {
-            **base_analytics,
-            'seat_utilization': {
-                'total_allocated': base_analytics['students']['licensed_seats'],
-                'total_active': base_analytics['students']['active_students'],
-                'utilization_rate': base_analytics['students']['seat_utilization'],
-                'pools': seat_pools
-            },
-            'student_metrics': {
-                'active_students': base_analytics['students']['active_students'],
-                'completed_students': 0,  # Integrate with completion tracking
-                'withdrawn_students': 0,  # Track withdrawals
-                'completion_rate': 0.0
-            },
-            'track_assignments': track_assignments,
-            'roi_metrics': roi_metrics
-        }
-
-        return Response(enhanced_analytics)
+        # This endpoint is legacy; return the canonical enterprise dashboard analytics
+        # used by the platform (no placeholders).
+        analytics = InstitutionalManagementService.get_institutional_analytics(str(contract_id))
+        return Response(analytics)
 
     except Exception as e:
         logger.error(f'Dashboard analytics error: {str(e)}')

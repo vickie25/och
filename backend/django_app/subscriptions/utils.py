@@ -24,7 +24,12 @@ def get_user_tier(user_or_uuid):
             # Otherwise try to get the user by uuid_id
             user = User.objects.get(uuid_id=user_or_uuid)
 
-        subscription = UserSubscription.objects.filter(user=user, status='active').first()
+        # Treat past_due as active during grace window (full access until grace_period_end).
+        now = timezone.now()
+        subscription = (
+            UserSubscription.objects.filter(user=user, status='active').first()
+            or UserSubscription.objects.filter(user=user, status='past_due', grace_period_end__gt=now).first()
+        )
         if subscription and subscription.plan:
             return subscription.plan.name
         return 'free'
@@ -77,6 +82,7 @@ import os
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.utils import timezone
 
@@ -234,6 +240,8 @@ Your academic discount verification will expire on {expiry_date.strftime('%Y-%m-
 
 To continue receiving your 30% student discount, please re-verify your academic status.
 
+Important: if you do not re-verify, your subscription will revert to standard pricing on the expiry date.
+
 Log in to your account and upload current proof of enrollment.
 
 Best regards,
@@ -334,6 +342,9 @@ def apply_promo_code(code_str, user, plan):
 def record_promo_redemption(code, user, subscription, original_amount, discount_amount):
     """Record promotional code redemption."""
     from subscriptions.models import PromoCodeRedemption
+
+    if subscription and PromoCodeRedemption.objects.filter(subscription=subscription).exists():
+        raise ValidationError("A promo code has already been applied to this subscription")
 
     final_amount = original_amount - discount_amount
 

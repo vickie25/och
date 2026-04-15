@@ -55,6 +55,13 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(hour=6, minute=0, day_of_month=1),
         'options': {'queue': 'reports'}
     },
+
+    # Academic discount expiry check (enhanced model): daily at 03:30 UTC
+    'check-enhanced-academic-discount-expiry': {
+        'task': 'subscriptions.billing_tasks.check_enhanced_academic_discount_expiry',
+        'schedule': crontab(hour=3, minute=30),
+        'options': {'queue': 'notifications'}
+    },
 }
 
 # Celery Queue Configuration

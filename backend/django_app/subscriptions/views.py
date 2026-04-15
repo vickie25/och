@@ -218,8 +218,10 @@ def upgrade_subscription(request):
             # Apply academic discount if active
             try:
                 if hasattr(user, 'academic_discount') and user.academic_discount.is_active():
-                    base_amount = user.academic_discount.calculate_discounted_price(base_amount)
-                    logger.info(f'Academic discount applied: {base_amount} KES')
+                    # Academic discount applies only to Pro (starter) and Premium tiers.
+                    if plan.tier in ['starter', 'premium']:
+                        base_amount = user.academic_discount.calculate_discounted_price(base_amount)
+                        logger.info(f'Academic discount applied: {base_amount} KES')
             except Exception:
                 pass
 
@@ -227,6 +229,14 @@ def upgrade_subscription(request):
             promo_discount = Decimal('0')
             promo_code_obj = None
             if promo_code:
+                # Prevent stacking: only one promo code per subscription
+                # (A subscription that already has any promo redemption cannot apply another code.)
+                from .models import PromoCodeRedemption
+                if current_subscription and PromoCodeRedemption.objects.filter(subscription=current_subscription).exists():
+                    return Response(
+                        {'error': 'A promo code has already been applied to this subscription'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
                 success, discount_amount, error = apply_promo_code(promo_code, user, plan)
                 if success:
                     promo_discount = discount_amount
@@ -428,7 +438,7 @@ def billing_history(request):
                     'id': f'sub_{subscription.id}',
                     'date': subscription.current_period_start.isoformat() if subscription.current_period_start else timezone.now().isoformat(),
                     'amount': float(subscription.plan.price_monthly or 0),
-                    'currency': 'USD',
+                    'currency': 'KES',
                     'status': subscription.status,
                     'plan_name': subscription.plan.name.replace('_', ' ').title(),
                     'description': f'{subscription.plan.name.replace("_", " ").title()} - {subscription.current_period_start.strftime("%B %Y") if subscription.current_period_start else timezone.now().strftime("%B %Y")}',
@@ -575,6 +585,14 @@ def simulate_payment(request):
     trial_days = int(catalog.get('trial_days') or 0)
     if plan.tier == TIER_FREE or plan.billing_interval == SubscriptionPlan.BILLING_NONE:
         trial_days = 0
+    requires_pm = bool(catalog.get('trial_requires_payment_method'))
+    payment_method_ref = (request.data.get('payment_method') or '').strip()
+    payment_gateway = (request.data.get('gateway') or 'stripe').strip().lower()
+    if requires_pm and trial_days > 0 and not payment_method_ref:
+        return Response(
+            {'error': 'Payment method is required to start a trial for this plan'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
     sub_status = 'trial' if trial_days > 0 else 'active'
     trial_end = (now + timezone.timedelta(days=trial_days)) if trial_days > 0 else None
 
@@ -600,6 +618,9 @@ def simulate_payment(request):
                     'current_period_start': now,
                     'current_period_end': now + timezone.timedelta(days=period_days),
                     'enhanced_access_expires_at': enhanced_until,
+                    'payment_method_ref': payment_method_ref or None,
+                    'payment_gateway': payment_gateway if payment_method_ref else None,
+                    'payment_method_added_at': now if payment_method_ref else None,
                 }
             )
 
@@ -675,16 +696,170 @@ def cancel_subscription(request):
     if subscription.status == 'canceled':
         return Response({'error': 'Subscription is already canceled'}, status=status.HTTP_400_BAD_REQUEST)
 
-    subscription.status = 'canceled'
-    subscription.save(update_fields=['status', 'updated_at'])
+    cancel_type = (request.data.get('type') or request.data.get('cancellation_type') or 'end_of_period').strip().lower()
+    if cancel_type not in ['end_of_period', 'immediate']:
+        return Response({'error': 'type must be end_of_period or immediate'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if cancel_type == 'immediate':
+        # Immediate cancellation: revoke access immediately by ending the period now.
+        subscription.status = 'canceled'
+        subscription.cancel_at_period_end = False
+        subscription.current_period_end = timezone.now()
+        subscription.save(update_fields=['status', 'cancel_at_period_end', 'current_period_end', 'updated_at'])
+        access_until = subscription.current_period_end
+        message = 'Subscription canceled immediately. Access has ended.'
+    else:
+        # Default: end-of-period cancellation.
+        subscription.status = 'canceled'
+        subscription.cancel_at_period_end = True
+        subscription.save(update_fields=['status', 'cancel_at_period_end', 'updated_at'])
+        access_until = subscription.current_period_end
+        message = 'Subscription canceled. You retain access until the end of your billing period.'
 
     logger.info(f'[cancel_subscription] {user.email} canceled. Access until {subscription.current_period_end}')
 
     return Response({
         'success': True,
-        'message': 'Subscription canceled. You retain access until the end of your billing period.',
-        'access_until': subscription.current_period_end,
+        'message': message,
+        'access_until': access_until,
     }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def update_legacy_trial_payment_method(request):
+    """
+    POST /api/v1/subscription/payment-method
+    Save a payment method for a legacy trial and auto-convert to active immediately.
+    Body: { "payment_method": "pm_...", "gateway": "stripe"|"paystack" }
+    """
+    from datetime import timedelta
+    import calendar
+
+    payment_method_ref = (request.data.get('payment_method') or '').strip()
+    payment_gateway = (request.data.get('gateway') or 'stripe').strip().lower()
+    if not payment_method_ref:
+        return Response({'error': 'payment_method is required'}, status=status.HTTP_400_BAD_REQUEST)
+    if payment_gateway not in ['stripe', 'paystack']:
+        return Response({'error': 'gateway must be stripe or paystack'}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = request.user
+    try:
+        sub = user.subscription
+    except UserSubscription.DoesNotExist:
+        return Response({'error': 'No subscription found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if sub.status != 'trial':
+        return Response({'error': 'No active trial subscription found'}, status=status.HTTP_400_BAD_REQUEST)
+    if sub.trial_end and timezone.now() > sub.trial_end:
+        return Response({'error': 'Trial has already ended'}, status=status.HTTP_400_BAD_REQUEST)
+
+    now = timezone.now()
+
+    def add_month_anchored(dt):
+        # dt + 1 calendar month, clamp day
+        year = dt.year + (dt.month // 12)
+        month = dt.month % 12 + 1
+        last_day = calendar.monthrange(year, month)[1]
+        day = min(dt.day, last_day)
+        return dt.replace(year=year, month=month, day=day)
+
+    # Convert to active immediately (billing starts now)
+    sub.payment_method_ref = payment_method_ref
+    sub.payment_gateway = payment_gateway
+    sub.payment_method_added_at = now
+    sub.status = 'active'
+    sub.cancel_at_period_end = False
+    sub.current_period_start = now
+    if sub.billing_interval == SubscriptionPlan.BILLING_ANNUAL:
+        try:
+            sub.current_period_end = now.replace(year=now.year + 1)
+        except ValueError:
+            sub.current_period_end = now.replace(year=now.year + 1, month=2, day=28)
+    else:
+        sub.current_period_end = add_month_anchored(now)
+    sub.save(update_fields=[
+        'payment_method_ref', 'payment_gateway', 'payment_method_added_at',
+        'status', 'cancel_at_period_end', 'current_period_start', 'current_period_end',
+        'updated_at'
+    ])
+
+    return Response({
+        'success': True,
+        'message': 'Payment method saved. Trial converted to active subscription.',
+        'subscription': {
+            'id': str(sub.id),
+            'status': sub.status,
+            'current_period_end': sub.current_period_end.isoformat() if sub.current_period_end else None,
+        }
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def schedule_downgrade(request):
+    """
+    POST /api/v1/subscription/downgrade
+    Schedule a downgrade effective at current_period_end (no refunds).
+    Body: { "plan": "<plan_name>" }
+    """
+    plan_identifier = (request.data.get('plan') or '').strip()
+    if not plan_identifier:
+        return Response({'error': 'plan is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        new_plan = SubscriptionPlan.objects.get(name=plan_identifier)
+    except SubscriptionPlan.DoesNotExist:
+        return Response({'error': 'Invalid plan'}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = request.user
+    try:
+        sub = user.subscription
+    except UserSubscription.DoesNotExist:
+        return Response({'error': 'No active subscription found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if sub.plan_id == new_plan.id:
+        return Response({'error': 'Already on that plan'}, status=status.HTTP_400_BAD_REQUEST)
+
+    sub.pending_downgrade_plan = new_plan
+    sub.save(update_fields=['pending_downgrade_plan', 'updated_at'])
+
+    try:
+        from .email_service import SubscriptionEmailService
+        SubscriptionEmailService.send_downgrade_scheduled_email(
+            user=user,
+            current_plan_name=sub.plan.name,
+            new_plan_name=new_plan.name,
+            effective_date=sub.current_period_end or timezone.now(),
+        )
+    except Exception:
+        pass
+
+    return Response({
+        'success': True,
+        'message': 'Downgrade scheduled',
+        'effective_date': sub.current_period_end,
+        'pending_plan': new_plan.name,
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def cancel_scheduled_downgrade(request):
+    """
+    POST /api/v1/subscription/downgrade/cancel
+    Remove any scheduled downgrade before period end.
+    """
+    user = request.user
+    try:
+        sub = user.subscription
+    except UserSubscription.DoesNotExist:
+        return Response({'error': 'No active subscription found'}, status=status.HTTP_404_NOT_FOUND)
+
+    sub.pending_downgrade_plan = None
+    sub.save(update_fields=['pending_downgrade_plan', 'updated_at'])
+
+    return Response({'success': True, 'message': 'Scheduled downgrade canceled'}, status=status.HTTP_200_OK)
 
 
 # ── Paystack ─────────────────────────────────────────────────────────────────
@@ -953,6 +1128,8 @@ def _apply_paystack_payment(user, plan, payload, reference, is_yearly=False):
     """Apply a successful Paystack payment: create/update subscription and transaction. Idempotent by reference."""
     amount = float(payload.get('amount', 0)) / 100.0  # amount in KES from Paystack
     currency = payload.get('currency', 'KES')
+    auth = payload.get('authorization') or {}
+    authorization_code = (auth.get('authorization_code') or '').strip() or None
     period_days = 365 if is_yearly else 30
     # For Kenya we store the actual KSh amount that was charged.
     stored_amount = amount
@@ -974,8 +1151,27 @@ def _apply_paystack_payment(user, plan, payload, reference, is_yearly=False):
                 'current_period_start': timezone.now(),
                 'current_period_end': timezone.now() + timezone.timedelta(days=period_days),
                 'enhanced_access_expires_at': enhanced_until,
+                # Store Paystack authorization for future off-session charges
+                'payment_gateway': 'paystack' if authorization_code else None,
+                'payment_method_ref': authorization_code,
+                'payment_method_added_at': timezone.now() if authorization_code else None,
             }
         )
+
+        # If the enhanced billing engine subscription exists for this user, store the same Paystack
+        # authorization_code so renewals/dunning/reactivation can charge via Paystack consistently.
+        if authorization_code:
+            try:
+                from .billing_engine import EnhancedSubscription as EngineSubscription
+                EngineSubscription.objects.filter(user=user).update(
+                    payment_gateway='paystack',
+                    payment_method_ref=authorization_code,
+                    payment_method_added_at=timezone.now(),
+                    updated_at=timezone.now(),
+                )
+            except Exception:
+                # Don't block payment application on enhanced-engine sync.
+                pass
 
         gateway = PaymentGateway.objects.filter(name='paystack').first()
         PaymentTransaction.objects.create(
@@ -1306,7 +1502,7 @@ def subscription_analytics(request):
     """
     from datetime import timedelta
 
-    from django.db.models import Count, Q, Sum
+    from django.db.models import Avg, Count, Q, Sum
     from django.db.models.functions import TruncMonth
 
     # Check if user has finance role
@@ -1376,7 +1572,9 @@ def subscription_analytics(request):
         redeemed_at__gte=last_month
     ).aggregate(
         total_redemptions=Count('id'),
-        total_discount=Sum('discount_applied')
+        total_discount=Sum('discount_applied'),
+        avg_discount=Avg('discount_applied'),
+        total_original=Sum('original_amount'),
     )
 
     # Academic discounts
@@ -1417,6 +1615,13 @@ def subscription_analytics(request):
         'promotions': {
             'redemptions_last_month': promo_usage['total_redemptions'] or 0,
             'discount_given_last_month': float(promo_usage['total_discount'] or 0),
+            'average_discount_last_month': float(promo_usage['avg_discount'] or 0),
+            'gross_revenue_covered_last_month': float(promo_usage['total_original'] or 0),
+            'discount_rate_last_month': (
+                float((promo_usage['total_discount'] or 0) / (promo_usage['total_original'] or 1) * 100)
+                if (promo_usage['total_original'] or 0) > 0
+                else 0.0
+            ),
         },
         'academic_discounts': {
             'total_applications': academic_stats['total_applications'],

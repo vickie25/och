@@ -117,3 +117,61 @@ class SubscriptionEmailService:
         except Exception as e:
             logger.error(f"Failed to send cancellation notification to {subscription.user.email}: {str(e)}")
             return False
+
+    @staticmethod
+    def send_grace_period_notification(subscription, day_number, days_remaining, final_warning=False):
+        """
+        Send grace period status notifications.
+        Requirements:
+          - day 1 + day 3 notifications
+          - final warning on last day before suspension
+        """
+        try:
+            user = subscription.user
+            subject = "Payment Failed — Grace Period Active"
+            if final_warning:
+                subject = "FINAL WARNING — Subscription Suspension Imminent"
+            message = (
+                f"Hi {user.first_name or user.email},\n\n"
+                f"Your recent subscription payment failed, but your access remains active during the grace period.\n\n"
+                f"Grace day: {day_number}\n"
+                f"Days remaining: {days_remaining}\n\n"
+                f"Please update your payment method to avoid suspension.\n"
+                f"{getattr(settings, 'FRONTEND_URL', '').rstrip('/')}/billing/payment-methods\n"
+            )
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send grace notification to {subscription.user.email}: {str(e)}")
+            return False
+
+    @staticmethod
+    def send_downgrade_scheduled_email(user, current_plan_name, new_plan_name, effective_date):
+        """Notify user that a downgrade is scheduled for period end."""
+        try:
+            subject = "Downgrade scheduled"
+            message = (
+                f"Hi {user.first_name or user.email},\n\n"
+                f"Your subscription downgrade is scheduled.\n\n"
+                f"Current plan: {current_plan_name}\n"
+                f"New plan: {new_plan_name}\n"
+                f"Effective date: {effective_date.strftime('%Y-%m-%d')}\n\n"
+                f"You can change your mind any time before then in your billing settings.\n"
+            )
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send downgrade email to {user.email}: {str(e)}")
+            return False

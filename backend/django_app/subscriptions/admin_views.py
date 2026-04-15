@@ -338,12 +338,21 @@ class UserSubscriptionAdminViewSet(viewsets.ModelViewSet):
         old_plan_name = subscription.plan.name
         old_enhanced_access = subscription.enhanced_access_expires_at
 
-        # Downgrades take effect at end of billing cycle
-        # Store pending downgrade in metadata or separate field
-        # For now, apply immediately (can be enhanced later)
-        subscription.plan = new_plan
-        subscription.enhanced_access_expires_at = None  # Clear enhanced access
-        subscription.save()
+        # Downgrades take effect at end of billing cycle (no refunds).
+        with transaction.atomic():
+            subscription.pending_downgrade_plan = new_plan
+            subscription.save(update_fields=['pending_downgrade_plan', 'updated_at'])
+
+        try:
+            from .email_service import SubscriptionEmailService
+            SubscriptionEmailService.send_downgrade_scheduled_email(
+                user=subscription.user,
+                current_plan_name=old_plan_name,
+                new_plan_name=new_plan.name,
+                effective_date=subscription.current_period_end or timezone.now(),
+            )
+        except Exception:
+            pass
 
         # Log audit event
         log_audit_event(
@@ -354,13 +363,13 @@ class UserSubscriptionAdminViewSet(viewsets.ModelViewSet):
             resource_id=str(subscription.id),
             result='success',
             changes={
-                'plan': {
-                    'old': {'id': old_plan_id, 'name': old_plan_name},
+                'pending_downgrade_plan': {
+                    'old': None,
                     'new': {'id': str(new_plan.id), 'name': new_plan.name}
                 },
                 'enhanced_access_expires_at': {
                     'old': str(old_enhanced_access) if old_enhanced_access else None,
-                    'new': None
+                    'new': str(subscription.enhanced_access_expires_at) if subscription.enhanced_access_expires_at else None
                 }
             },
             metadata={

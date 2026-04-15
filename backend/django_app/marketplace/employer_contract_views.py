@@ -24,9 +24,11 @@ from .employer_contract_serializers import (
     RetainerTierSerializer,
     SuccessfulPlacementSerializer,
 )
+from .serializers import MarketplaceProfileDetailSerializer
 from .employer_contract_services import (
     CandidateMatchingService,
     ContractLifecycleService,
+    EmployerMatchingQueueService,
     PerformanceTrackingService,
     PlacementFeeService,
     ReplacementGuaranteeService,
@@ -41,6 +43,7 @@ from .employer_contracts import (
     ReplacementGuarantee,
     SuccessfulPlacement,
 )
+from .models import MarketplaceProfile
 
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -154,6 +157,19 @@ def get_contract_details(request, contract_id):
         contract=contract
     ).order_by('-period_end').first()
 
+    # Partnership review flag: >=3 replacement claims in last 12 months
+    one_year_ago = timezone.now().date() - timedelta(days=365)
+    replacement_claims_12m = ReplacementGuarantee.objects.filter(
+        original_placement__presentation__contract=contract,
+        claimed_at__date__gte=one_year_ago,
+    ).count()
+
+    exclusivity_active = bool(
+        contract.has_exclusivity and (
+            (contract.exclusivity_ends_at is None) or (timezone.now().date() <= contract.exclusivity_ends_at)
+        )
+    )
+
     response_data = {
         'contract': EmployerContractSerializer(contract).data,
         'recent_requirements': CandidateRequirementSerializer(recent_requirements, many=True).data,
@@ -163,10 +179,55 @@ def get_contract_details(request, contract_id):
             'candidates_used': contract.get_quarterly_candidate_usage(),
             'candidates_limit': contract.candidates_per_quarter,
             'can_access_more': contract.can_access_more_candidates()
-        }
+        },
+        'exclusivity': {
+            'has_exclusivity': bool(contract.has_exclusivity),
+            'active': exclusivity_active,
+            'scope': getattr(contract, 'exclusivity_scope', 'global'),
+            'premium_rate_percent': float(contract.exclusivity_premium_rate or 0),
+            'window_hours': int(contract.exclusivity_window_hours or 0),
+            'started_at': contract.exclusivity_started_at.isoformat() if contract.exclusivity_started_at else None,
+            'ends_at': contract.exclusivity_ends_at.isoformat() if contract.exclusivity_ends_at else None,
+        },
+        'guarantee': {
+            'replacement_claims_last_12_months': replacement_claims_12m,
+            'partnership_review_required': replacement_claims_12m >= 3,
+        },
     }
 
     return Response(response_data)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAdminUser])
+def update_contract_exclusivity(request, contract_id):
+    """
+    POST /marketplace/employer/contracts/<id>/exclusivity/
+    Admin-only: set exclusivity terms (duration window, scope, premium).
+    """
+    contract = get_object_or_404(EmployerContract, id=contract_id)
+    data = request.data or {}
+
+    # Toggle
+    if 'has_exclusivity' in data:
+        contract.has_exclusivity = bool(data.get('has_exclusivity'))
+
+    # Term dates
+    if data.get('exclusivity_started_at'):
+        contract.exclusivity_started_at = datetime.strptime(data['exclusivity_started_at'], '%Y-%m-%d').date()
+    if data.get('exclusivity_ends_at'):
+        contract.exclusivity_ends_at = datetime.strptime(data['exclusivity_ends_at'], '%Y-%m-%d').date()
+
+    # Commercial terms
+    if data.get('exclusivity_premium_rate') is not None:
+        contract.exclusivity_premium_rate = Decimal(str(data.get('exclusivity_premium_rate')))
+    if data.get('exclusivity_window_hours') is not None:
+        contract.exclusivity_window_hours = int(data.get('exclusivity_window_hours'))
+    if data.get('exclusivity_scope'):
+        contract.exclusivity_scope = str(data.get('exclusivity_scope'))
+
+    contract.save()
+    return Response({'success': True, 'contract': EmployerContractSerializer(contract).data})
 
 
 @api_view(['POST'])
@@ -224,19 +285,20 @@ def submit_candidate_requirement(request):
         if serializer.is_valid():
             requirement = serializer.save()
 
-            # Auto-match candidates if requested
+            # Enqueue for priority matching (tier-based priority queue).
+            EmployerMatchingQueueService.enqueue(requirement)
+
+            # Optionally process synchronously for immediate UX, but still uses the same matching rules.
             if request.data.get('auto_match', True):
                 candidates = CandidateMatchingService.find_matching_candidates(requirement)
-                if candidates:
-                    presentations = CandidateMatchingService.present_candidates_to_employer(
-                        requirement, candidates, request.user
-                    )
-
-                    return Response({
-                        'requirement': CandidateRequirementSerializer(requirement).data,
-                        'candidates_presented': len(presentations),
-                        'message': f'Requirement submitted and {len(presentations)} candidates presented'
-                    }, status=status.HTTP_201_CREATED)
+                presentations = CandidateMatchingService.present_candidates_to_employer(
+                    requirement, candidates, request.user
+                )
+                return Response({
+                    'requirement': CandidateRequirementSerializer(requirement).data,
+                    'candidates_presented': len(presentations),
+                    'message': f'Requirement submitted and {len(presentations)} candidates presented'
+                }, status=status.HTTP_201_CREATED)
 
             return Response(CandidateRequirementSerializer(requirement).data, status=status.HTTP_201_CREATED)
 
@@ -288,6 +350,91 @@ def get_requirement_candidates(request, requirement_id):
         'requirement': CandidateRequirementSerializer(requirement).data,
         'presentations': serializer.data
     })
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def get_requirement_recommendations(request, requirement_id):
+    """
+    GET /marketplace/employer/requirements/<id>/recommendations/
+    Return algorithm recommendations (ordered) and availability metadata.
+    """
+    requirement = get_object_or_404(CandidateRequirement, id=requirement_id)
+    contract = requirement.contract
+    if not contract.is_active():
+        return Response({'error': 'Contract must be active'}, status=status.HTTP_400_BAD_REQUEST)
+
+    limit = int(request.GET.get('limit', 10))
+    candidates = CandidateMatchingService.find_matching_candidates(requirement, limit=limit)
+
+    # Build availability info (avoid N+1 with bulk queries)
+    candidate_ids = [c.mentee_id for c in candidates]
+    now = timezone.now()
+    exclusive_to_other = set(
+        CandidatePresentation.objects.filter(
+            candidate_id__in=candidate_ids,
+            is_exclusive=True,
+            exclusivity_expires_at__isnull=False,
+            exclusivity_expires_at__gt=now,
+        ).exclude(contract=contract).values_list('candidate_id', flat=True)
+    )
+    already_presented = set(
+        CandidatePresentation.objects.filter(
+            contract=contract,
+            candidate_id__in=candidate_ids,
+        ).values_list('candidate_id', flat=True)
+    )
+
+    recs = []
+    for prof in candidates:
+        uid = prof.mentee_id
+        is_blocked = uid in exclusive_to_other
+        recs.append({
+            'candidate': MarketplaceProfileDetailSerializer(prof).data,
+            'availability': {
+                'available_now': (not is_blocked),
+                'exclusive_to_other_employer': is_blocked,
+                'already_presented_to_this_employer': (uid in already_presented),
+            }
+        })
+
+    return Response({
+        'requirement': CandidateRequirementSerializer(requirement).data,
+        'recommendations': recs,
+        'meta': {
+            'count': len(recs),
+            'limit': limit,
+        }
+    })
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def list_waitlisted_candidates(request):
+    """
+    GET /marketplace/employer/waitlist/?contract_id=<uuid>&status=waiting|ready
+    List waitlisted candidates for a contract.
+    """
+    from .employer_contracts import EmployerCandidateWaitlist
+
+    contract_id = request.GET.get('contract_id')
+    if not contract_id:
+        return Response({'error': 'contract_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+    status_filter = request.GET.get('status', 'waiting')
+    qs = EmployerCandidateWaitlist.objects.filter(contract_id=contract_id)
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+    data = [{
+        'id': str(w.id),
+        'candidate_id': str(w.candidate_id),
+        'candidate_email': w.candidate.email,
+        'requirement_id': str(w.requirement_id),
+        'status': w.status,
+        'reason': w.reason,
+        'exclusive_until': w.exclusive_until.isoformat() if w.exclusive_until else None,
+        'created_at': w.created_at.isoformat(),
+    } for w in qs.select_related('candidate')[:200]]
+    return Response({'waitlist': data})
 
 
 # Candidate Presentation Management
@@ -437,13 +584,14 @@ def claim_replacement_guarantee(request):
     try:
         placement_id = request.data.get('placement_id')
         claim_reason = request.data.get('claim_reason')
+        departure_type = request.data.get('departure_type', 'candidate_initiated')
         candidate_left_date = datetime.strptime(request.data.get('candidate_left_date'), '%Y-%m-%d').date()
 
         placement = get_object_or_404(SuccessfulPlacement, id=placement_id)
 
         guarantee = ReplacementGuaranteeService.claim_replacement_guarantee(
             placement=placement,
-            claim_reason=claim_reason,
+            claim_reason={'text': claim_reason, 'departure_type': departure_type},
             candidate_left_date=candidate_left_date
         )
 
@@ -542,6 +690,20 @@ def get_employer_analytics_dashboard(request):
         'contract_distribution': list(contract_stats),
         'active_contracts_count': active_contracts.count(),
         'total_annual_contract_value': float(total_active_value),
+        'matching_visibility': {
+            'candidate_pool_size': int(MarketplaceProfile.objects.filter(
+                is_visible=True,
+                employer_share_consent=True,
+                profile_status__in=['emerging_talent', 'job_ready'],
+            ).count()),
+            'exclusive_candidates_now': int(
+                CandidatePresentation.objects.filter(
+                    is_exclusive=True,
+                    exclusivity_expires_at__isnull=False,
+                    exclusivity_expires_at__gt=timezone.now(),
+                ).values('candidate_id').distinct().count()
+            ),
+        },
         'performance_summary': {
             'avg_placement_success_rate': float(avg_success_rate),
             'avg_sla_compliance_rate': float(avg_sla_compliance),

@@ -77,6 +77,26 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-change-me-in-p
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
+# Institutional reporting defaults (used for ROI/engagement calculations)
+# These values are intentionally configurable so institutions can match their internal valuation model.
+INSTITUTIONAL_REPORTING = {
+    # Assumed value delivered per certified student (used for ROI% proxy)
+    # ROI% = ((certified_students * value_per_certified_student) - annual_cost) / annual_cost * 100
+    'VALUE_PER_CERTIFIED_STUDENT_KES': int(os.environ.get('VALUE_PER_CERTIFIED_STUDENT_KES', '50000')),
+    # Engagement score weights (0-100)
+    # engagement_score = w_activity*active_rate + w_progress*avg_progress + w_login*login_score
+    'ENGAGEMENT_WEIGHTS': {
+        'activity': float(os.environ.get('ENGAGEMENT_WEIGHT_ACTIVITY', '0.4')),
+        'progress': float(os.environ.get('ENGAGEMENT_WEIGHT_PROGRESS', '0.4')),
+        'login': float(os.environ.get('ENGAGEMENT_WEIGHT_LOGIN', '0.2')),
+    },
+    # Normalize avg_login_frequency against this ceiling (sessions per student per 30d)
+    'LOGIN_FREQUENCY_TARGET_30D': float(os.environ.get('LOGIN_FREQUENCY_TARGET_30D', '8')),
+}
+
+# Employer Stream C pricing: convert USD catalog → KES for storage/display.
+EMPLOYER_PRICING_USD_TO_KES = float(os.environ.get('EMPLOYER_PRICING_USD_TO_KES', '160.0'))
+
 
 def merge_docker_internal_hosts(hosts):
     """Extend ALLOWED_HOSTS for Docker internal Host headers and local dev."""

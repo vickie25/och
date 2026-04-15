@@ -650,7 +650,18 @@ class InstitutionalAcademicCalendar(models.Model):
     )
 
     # Summer program settings
+    SUMMER_BILLING_MODE_CHOICES = [
+        ('full_rate', 'Full Rate'),
+        ('reduced_rate', 'Reduced Rate'),
+        ('pause', 'Pause Billing'),
+    ]
     summer_program_enabled = models.BooleanField(default=False)
+    summer_billing_mode = models.CharField(
+        max_length=20,
+        choices=SUMMER_BILLING_MODE_CHOICES,
+        default='full_rate',
+        help_text='How to handle billing during summer break months'
+    )
     summer_discount_rate = models.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -825,3 +836,39 @@ class InstitutionalInvitation(models.Model):
 
             # Release reserved seat
             self.seat_pool.release_seats(1, from_reserved=True)
+
+
+class InstitutionalSeatForfeiture(models.Model):
+    """
+    Record seat forfeitures at cohort start when unused capacity is not assigned by deadline.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    contract = models.ForeignKey(
+        InstitutionalContract,
+        on_delete=models.CASCADE,
+        related_name='seat_forfeitures'
+    )
+    seat_pool = models.ForeignKey(
+        InstitutionalSeatPool,
+        on_delete=models.CASCADE,
+        related_name='seat_forfeitures'
+    )
+    cohort = models.ForeignKey(
+        Cohort,
+        on_delete=models.CASCADE,
+        related_name='institutional_seat_forfeitures'
+    )
+    forfeited_seats = models.IntegerField(validators=[MinValueValidator(1)])
+    forfeited_at = models.DateTimeField(auto_now_add=True)
+    reason = models.CharField(max_length=255, default='Unused seats forfeited at cohort start')
+
+    class Meta:
+        db_table = 'institutional_seat_forfeitures'
+        unique_together = ['seat_pool', 'cohort']
+        indexes = [
+            models.Index(fields=['contract', 'forfeited_at']),
+            models.Index(fields=['cohort', 'forfeited_at']),
+        ]
+
+    def __str__(self):
+        return f"Forfeit {self.forfeited_seats} seats - {self.contract.contract_number} - {self.cohort.name}"

@@ -4,66 +4,24 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { apiGateway } from '@/services/apiGateway'
-import {
-  INSTITUTION_TIER_LABEL,
-  BILLING_CYCLE_LABEL,
-  type InstitutionTierKey,
-  type BillingCycleKey,
-} from '@/lib/institutionContractCatalog'
+import { BILLING_CYCLE_LABEL, type BillingCycleKey } from '@/lib/institutionContractCatalog'
 import { FileText, ChevronRight } from 'lucide-react'
-
-type ContractRow = {
-  id: string
-  organization_name: string
-  type: string
-  start_date: string
-  end_date: string
-  status: string
-  total_value: string | number
-  payment_terms: string
-  seat_cap?: number
-  seats_used?: number
-  institution_pricing_tier?: InstitutionTierKey | null
-  billing_cycle?: BillingCycleKey | null
-}
-
-function parseContractList(data: unknown): ContractRow[] {
-  if (Array.isArray(data)) return data as ContractRow[]
-  if (
-    data &&
-    typeof data === 'object' &&
-    'results' in data &&
-    Array.isArray((data as { results: unknown }).results)
-  ) {
-    return (data as { results: ContractRow[] }).results
-  }
-  return []
-}
+import { institutionalService, type InstitutionalContractListItem } from '@/services/institutionalService'
 
 const STATUS_LABEL: Record<string, string> = {
-  proposal: 'Proposal',
-  negotiation: 'Negotiation',
-  signed: 'Signed',
-  pending_payments: 'Pending',
+  draft: 'Draft',
   active: 'Active',
-  renewal: 'Renewal',
+  pending_renewal: 'Pending renewal',
+  expired: 'Expired',
   terminated: 'Terminated',
 }
 
-function formatMoney(v: string | number) {
-  const n = typeof v === 'string' ? parseFloat(v) : v
-  if (Number.isNaN(n)) return '—'
+function formatMoneyUsd(n: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
 }
 
-function needsSetup(c: ContractRow) {
-  const cap = c.seat_cap ?? 0
-  return !c.institution_pricing_tier || !c.billing_cycle || cap < 1
-}
-
 export default function InstitutionContractsOverviewPage() {
-  const [contracts, setContracts] = useState<ContractRow[]>([])
+  const [contracts, setContracts] = useState<InstitutionalContractListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -71,9 +29,8 @@ export default function InstitutionContractsOverviewPage() {
     setLoading(true)
     setError(null)
     try {
-      const data = await apiGateway.get<unknown>('/finance/contracts/')
-      const list = parseContractList(data).filter((c) => c.type === 'institution')
-      setContracts(list)
+      const data = await institutionalService.listContracts()
+      setContracts(Array.isArray(data?.contracts) ? data.contracts : [])
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to load')
       setContracts([])
@@ -154,7 +111,7 @@ export default function InstitutionContractsOverviewPage() {
                 ) : (
                   contracts.map((c) => (
                     <tr key={c.id} className="hover:bg-och-steel/10">
-                      <td className="py-3 px-4 text-white font-medium">{c.organization_name}</td>
+                      <td className="py-3 px-4 text-white font-medium">{c.organization?.name}</td>
                       <td className="py-3 px-4 text-och-steel whitespace-nowrap">
                         {c.start_date} → {c.end_date}
                       </td>
@@ -164,25 +121,25 @@ export default function InstitutionContractsOverviewPage() {
                         </Badge>
                       </td>
                       <td className="py-3 px-4 text-och-steel text-xs max-w-[200px]">
-                        {c.institution_pricing_tier ? INSTITUTION_TIER_LABEL[c.institution_pricing_tier] : '—'}
+                        {typeof c.per_student_rate === 'number' ? `${formatMoneyUsd(c.per_student_rate)}/student/mo` : '—'}
                         {c.billing_cycle ? (
                           <span className="block text-och-steel/80">
                             {BILLING_CYCLE_LABEL[c.billing_cycle]}
                           </span>
                         ) : null}
                       </td>
-                      <td className="py-3 px-4 text-right text-white tabular-nums">{formatMoney(c.total_value)}</td>
+                      <td className="py-3 px-4 text-right text-white tabular-nums">{formatMoneyUsd(c.annual_amount)}</td>
                       <td className="py-3 px-4 text-right text-och-steel tabular-nums">
-                        {c.seats_used ?? 0}/{c.seat_cap ?? 0}
+                        {c.active_students ?? 0}/{c.student_seat_count ?? 0}
                       </td>
                       <td className="py-3 px-4 text-right">
                         <Link
                           href={`/dashboard/institution/contracts/${c.id}/complete`}
                           className={`inline-flex text-xs font-semibold ${
-                            needsSetup(c) ? 'text-och-gold hover:underline' : 'text-och-mint hover:underline'
+                            c.status === 'draft' ? 'text-och-gold hover:underline' : 'text-och-mint hover:underline'
                           }`}
                         >
-                          {needsSetup(c) ? 'Complete licensing' : 'View / edit'}
+                          {c.status === 'draft' ? 'Review & activate' : 'View / edit'}
                         </Link>
                       </td>
                     </tr>

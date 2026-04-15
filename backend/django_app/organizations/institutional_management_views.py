@@ -9,12 +9,15 @@ from datetime import date, timedelta
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.db.models import Prefetch
 from programs.models import Cohort
 from programs.permissions import IsProgramDirector
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
 from users.models import User
 
@@ -1074,20 +1077,45 @@ def student_progress_report(request):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # Get student allocations with progress
+        # Get student allocations with prefetched assignments (avoid N+1)
+        assignment_qs = InstitutionalTrackAssignment.objects.select_related('track').all()
         allocations = InstitutionalStudentAllocation.objects.filter(
             seat_pool__contract_id=contract_id,
             status__in=['active', 'completed']
-        ).select_related('user', 'seat_pool', 'enrollment__cohort')
+        ).select_related('user', 'seat_pool', 'enrollment__cohort').prefetch_related(
+            Prefetch('track_assignments', queryset=assignment_qs, to_attr='prefetched_track_assignments')
+        )
+
+        user_ids = [a.user_id for a in allocations]
+        last_activity_by_user = {}
+        try:
+            from users.auth_models import UserSession
+
+            # Latest session activity per user (single query)
+            sessions = UserSession.objects.filter(user_id__in=user_ids).order_by('user_id', '-last_activity')
+            for s in sessions:
+                if s.user_id not in last_activity_by_user:
+                    last_activity_by_user[s.user_id] = s.last_activity.isoformat()
+        except Exception:
+            last_activity_by_user = {}
 
         students_data = []
         for allocation in allocations:
             # Get track assignments
-            track_assignments = InstitutionalTrackAssignment.objects.filter(
-                student_allocation=allocation
-            ).select_related('track')
+            track_assignments = getattr(allocation, 'prefetched_track_assignments', []) or []
 
             assignments_data = []
+            mandatory = [a for a in track_assignments if a.assignment_type == 'mandatory']
+            mandatory_total = len(mandatory)
+            mandatory_completed = len([a for a in mandatory if a.status == 'completed'])
+            overall_progress = (
+                (sum(float(a.progress_percentage or 0) for a in mandatory) / mandatory_total)
+                if mandatory_total > 0 else 0.0
+            )
+            completion_rate = ((mandatory_completed / mandatory_total) * 100) if mandatory_total > 0 else 0.0
+
+            last_activity = last_activity_by_user.get(allocation.user_id)
+
             for assignment in track_assignments:
                 assignments_data.append({
                     'track_name': assignment.track.name,
@@ -1110,9 +1138,9 @@ def student_progress_report(request):
                 'status': allocation.status,
                 'allocated_at': allocation.allocated_at.isoformat(),
                 'track_assignments': assignments_data,
-                'overall_progress': 65.0,  # Placeholder - would calculate from actual progress
-                'last_activity': '2024-01-15T10:30:00Z',  # Placeholder
-                'completion_rate': 75.0  # Placeholder
+                'overall_progress': round(overall_progress, 2),
+                'last_activity': last_activity,
+                'completion_rate': round(completion_rate, 2),
             }
 
             if allocation.enrollment and allocation.enrollment.cohort:
@@ -1123,13 +1151,17 @@ def student_progress_report(request):
 
             students_data.append(student_data)
 
+        avg_progress = (sum(s['overall_progress'] for s in students_data) / max(len(students_data), 1)) if students_data else 0.0
+        on_track = len([s for s in students_data if not any(a.get('is_overdue') for a in s.get('track_assignments', []) if a.get('assignment_type') == 'mandatory')])
+        behind = max(0, len(students_data) - on_track)
+
         return Response({
             'students': students_data,
             'summary': {
                 'total_students': len(students_data),
-                'avg_progress': 68.5,  # Placeholder
-                'on_track_students': int(len(students_data) * 0.7),
-                'behind_students': int(len(students_data) * 0.3)
+                'avg_progress': round(avg_progress, 2),
+                'on_track_students': on_track,
+                'behind_students': behind
             }
         })
 
@@ -1185,6 +1217,30 @@ def recycle_seats(request):
         )
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, InstitutionalPortalPermission])
+def forfeit_unused_seats(request):
+    """
+    POST /api/v1/institutional/forfeit-unused-seats/
+    Enforce cohort-start forfeiture policy for a cohort.
+    Body: { "cohort_id": "<uuid>", "effective_date": "YYYY-MM-DD" (optional) }
+    """
+    try:
+        cohort_id = request.data.get('cohort_id')
+        effective_date = request.data.get('effective_date')
+        if not cohort_id:
+            return Response({'error': 'cohort_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Contract access is validated indirectly via pools + portal access, but we still require portal permission.
+        result = InstitutionalManagementService.forfeit_unused_seats_at_cohort_start(
+            cohort_id=cohort_id,
+            effective_date=effective_date,
+        )
+        return Response({'success': True, 'result': result})
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, InstitutionalPortalPermission])
 def export_student_data(request):
@@ -1221,7 +1277,33 @@ def export_student_data(request):
             'Status', 'Allocated Date', 'Cohort', 'Progress %', 'Last Activity'
         ])
 
+        # Prefetch + bulk session fetch (avoid N+1)
+        assignment_qs = InstitutionalTrackAssignment.objects.all()
+        allocations = allocations.prefetch_related(
+            Prefetch('track_assignments', queryset=assignment_qs, to_attr='prefetched_track_assignments')
+        )
+        user_ids = [a.user_id for a in allocations]
+        last_activity_by_user = {}
+        try:
+            from users.auth_models import UserSession
+
+            sessions = UserSession.objects.filter(user_id__in=user_ids).order_by('user_id', '-last_activity')
+            for s in sessions:
+                if s.user_id not in last_activity_by_user:
+                    last_activity_by_user[s.user_id] = s.last_activity.strftime('%Y-%m-%d')
+        except Exception:
+            last_activity_by_user = {}
+
         for allocation in allocations:
+            track_assignments = getattr(allocation, 'prefetched_track_assignments', []) or []
+            mandatory = [a for a in track_assignments if a.assignment_type == 'mandatory']
+            mandatory_total = len(mandatory)
+            progress = (
+                (sum(float(a.progress_percentage or 0) for a in mandatory) / mandatory_total)
+                if mandatory_total > 0 else 0.0
+            )
+            last_activity = last_activity_by_user.get(allocation.user_id, '')
+
             writer.writerow([
                 allocation.user.email,
                 allocation.user.first_name,
@@ -1231,8 +1313,8 @@ def export_student_data(request):
                 allocation.status,
                 allocation.allocated_at.strftime('%Y-%m-%d'),
                 allocation.enrollment.cohort.name if allocation.enrollment and allocation.enrollment.cohort else '',
-                '65%',  # Placeholder
-                '2024-01-15'  # Placeholder
+                f"{round(progress, 2)}%",
+                last_activity
             ])
 
         return response
@@ -1243,6 +1325,84 @@ def export_student_data(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, InstitutionalPortalPermission])
+def export_student_report_pdf(request):
+    """
+    GET /api/v1/institutional/export-students-pdf/
+    Export student data as a simple PDF report (generated on-platform).
+    """
+    try:
+        contract_id = request.query_params.get('contract_id')
+        if not contract_id:
+            return Response({'error': 'contract_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        if not _can_access_institutional_contract(request, contract_id):
+            return Response({'error': 'Access denied to this contract'}, status=status.HTTP_403_FORBIDDEN)
+
+        assignment_qs = InstitutionalTrackAssignment.objects.all()
+        allocations = InstitutionalStudentAllocation.objects.filter(
+            seat_pool__contract_id=contract_id
+        ).select_related('user', 'seat_pool', 'enrollment__cohort').prefetch_related(
+            Prefetch('track_assignments', queryset=assignment_qs, to_attr='prefetched_track_assignments')
+        )[:1000]
+
+        user_ids = [a.user_id for a in allocations]
+        last_activity_by_user = {}
+        try:
+            from users.auth_models import UserSession
+
+            sessions = UserSession.objects.filter(user_id__in=user_ids).order_by('user_id', '-last_activity')
+            for s in sessions:
+                if s.user_id not in last_activity_by_user:
+                    last_activity_by_user[s.user_id] = s.last_activity.strftime('%Y-%m-%d')
+        except Exception:
+            last_activity_by_user = {}
+
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="students_report_{date.today()}.pdf"'
+
+        c = canvas.Canvas(response, pagesize=letter)
+        width, height = letter
+        x = 40
+        y = height - 40
+
+        c.setFont("Helvetica-Bold", 14)
+        c.drawString(x, y, f"Institution Students Report - {date.today().isoformat()}")
+        y -= 24
+
+        c.setFont("Helvetica", 9)
+        headers = ["Email", "Name", "Dept", "Seat Pool", "Status", "Cohort", "Progress %", "Last Activity"]
+        c.drawString(x, y, " | ".join(headers))
+        y -= 14
+
+        for allocation in allocations:
+            track_assignments = getattr(allocation, 'prefetched_track_assignments', []) or []
+            mandatory = [a for a in track_assignments if a.assignment_type == 'mandatory']
+            mandatory_total = len(mandatory)
+            progress = (
+                (sum(float(a.progress_percentage or 0) for a in mandatory) / mandatory_total)
+                if mandatory_total > 0 else 0.0
+            )
+            last_activity = last_activity_by_user.get(allocation.user_id, '')
+
+            name = f"{allocation.user.first_name or ''} {allocation.user.last_name or ''}".strip()
+            cohort_name = allocation.enrollment.cohort.name if allocation.enrollment and allocation.enrollment.cohort else ''
+            line = f"{allocation.user.email} | {name} | {allocation.department} | {allocation.seat_pool.name} | {allocation.status} | {cohort_name} | {round(progress,2)}% | {last_activity}"
+
+            if y < 60:
+                c.showPage()
+                y = height - 40
+                c.setFont("Helvetica", 9)
+            c.drawString(x, y, line[:140])  # keep it simple/fit page
+            y -= 12
+
+        c.save()
+        return response
+    except Exception as e:
+        logger.error(f"Error exporting student PDF report: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])

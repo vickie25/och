@@ -68,8 +68,21 @@ class InstitutionalContract(models.Model):
         help_text='Auto-renew for additional 12-month terms'
     )
     renewal_notice_days = models.IntegerField(
-        default=60,
+        default=90,
         help_text='Days notice required for non-renewal'
+    )
+    pending_renewal_seat_count = models.IntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text='If set, seat reductions apply at next renewal (no mid-contract refunds).'
+    )
+    pending_renewal_billing_cycle = models.CharField(
+        max_length=20,
+        choices=BILLING_CYCLE_CHOICES,
+        null=True,
+        blank=True,
+        help_text='If set, billing cycle changes apply at next renewal.'
     )
     early_termination_notice_date = models.DateField(
         null=True,
@@ -223,12 +236,16 @@ class InstitutionalContract(models.Model):
         if not self.is_renewable:
             raise ValueError("Contract is not eligible for renewal")
 
+        # Apply any pending renewal changes (e.g., seat reductions).
+        effective_seats = self.pending_renewal_seat_count or (new_seat_count or self.student_seat_count)
+        effective_cycle = self.pending_renewal_billing_cycle or (new_billing_cycle or self.billing_cycle)
+
         new_contract = InstitutionalContract.objects.create(
             organization=self.organization,
             start_date=self.end_date + timedelta(days=1),
             end_date=self.end_date + relativedelta(years=1),
-            student_seat_count=new_seat_count or self.student_seat_count,
-            billing_cycle=new_billing_cycle or self.billing_cycle,
+            student_seat_count=effective_seats,
+            billing_cycle=effective_cycle,
             billing_contact_name=self.billing_contact_name,
             billing_contact_email=self.billing_contact_email,
             billing_contact_phone=self.billing_contact_phone,
@@ -239,6 +256,49 @@ class InstitutionalContract(models.Model):
         )
 
         return new_contract
+
+
+class InstitutionalContractAmendment(models.Model):
+    """
+    Audit log for contract modifications (seat changes, billing cycle changes, termination notices, etc.).
+    """
+    AMENDMENT_TYPE_CHOICES = [
+        ('seat_increase', 'Seat increase'),
+        ('seat_reduction_scheduled', 'Seat reduction scheduled'),
+        ('billing_cycle_scheduled', 'Billing cycle scheduled'),
+        ('termination_notice', 'Termination notice'),
+        ('termination', 'Termination executed'),
+        ('renewal_quote_sent', 'Renewal quote sent'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    contract = models.ForeignKey(
+        InstitutionalContract,
+        on_delete=models.CASCADE,
+        related_name='amendments'
+    )
+    amendment_type = models.CharField(max_length=50, choices=AMENDMENT_TYPE_CHOICES)
+    requested_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='institutional_contract_amendments'
+    )
+    previous_terms = models.JSONField(default=dict)
+    new_terms = models.JSONField(default=dict)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'institutional_contract_amendments'
+        indexes = [
+            models.Index(fields=['contract', 'created_at']),
+            models.Index(fields=['amendment_type', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.contract.contract_number} - {self.amendment_type} - {self.created_at.date()}"
 
 
 class InstitutionalSeatAdjustment(models.Model):
@@ -426,8 +486,11 @@ class InstitutionalBilling(models.Model):
 
         # Base subscription
         items.append({
-            'description': f'Student Licenses ({self.billing_period_start} - {self.billing_period_end})',
-            'quantity': self.base_seat_count,
+            'description': (
+                f'Student Licenses ({self.billing_period_start} - {self.billing_period_end}) '
+                f'[licensed: {self.base_seat_count}, active billed: {self.active_seat_count}]'
+            ),
+            'quantity': self.active_seat_count,
             'unit_price': float(self.contract.per_student_rate),
             'amount': float(self.base_amount),
             'type': 'subscription'
@@ -623,6 +686,35 @@ class InstitutionalBillingSchedule(models.Model):
     @classmethod
     def generate_schedule_for_contract(cls, contract):
         """Generate billing schedule for a contract"""
+        # If academic calendar alignment is enabled, generate schedules from calendar periods.
+        try:
+            from .institutional_management_models import InstitutionalAcademicCalendar
+
+            cal = InstitutionalAcademicCalendar.objects.filter(contract=contract).first()
+        except Exception:
+            cal = None
+
+        if cal and getattr(cal, 'billing_aligned_to_calendar', False) and (cal.periods or []):
+            schedules = []
+            # Periods are inclusive date ranges. Only create those overlapping the contract term.
+            for p in cal.periods:
+                try:
+                    ps = date.fromisoformat(p['start'])
+                    pe = date.fromisoformat(p['end'])
+                except Exception:
+                    continue
+                if pe < contract.start_date or ps > contract.end_date:
+                    continue
+                start = max(ps, contract.start_date)
+                end = min(pe, contract.end_date)
+                schedules.append(cls.objects.create(
+                    contract=contract,
+                    next_billing_date=start,
+                    billing_period_start=start,
+                    billing_period_end=end,
+                ))
+            return schedules
+
         schedules = []
         current_date = contract.start_date
 

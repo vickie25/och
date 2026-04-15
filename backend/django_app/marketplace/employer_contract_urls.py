@@ -15,6 +15,7 @@ urlpatterns = [
     path('contracts/', employer_contract_views.list_contracts, name='list-contracts'),
     path('contracts/create/', employer_contract_views.create_contract_proposal, name='create-contract'),
     path('contracts/<uuid:contract_id>/', employer_contract_views.get_contract_details, name='contract-details'),
+    path('contracts/<uuid:contract_id>/exclusivity/', employer_contract_views.update_contract_exclusivity, name='contract-exclusivity'),
     path('contracts/<uuid:contract_id>/transition/', employer_contract_views.transition_contract_status, name='transition-contract'),
     path('contracts/<uuid:contract_id>/performance/', employer_contract_views.get_contract_performance, name='contract-performance'),
 
@@ -22,6 +23,8 @@ urlpatterns = [
     path('requirements/', employer_contract_views.list_candidate_requirements, name='list-requirements'),
     path('requirements/submit/', employer_contract_views.submit_candidate_requirement, name='submit-requirement'),
     path('requirements/<uuid:requirement_id>/candidates/', employer_contract_views.get_requirement_candidates, name='requirement-candidates'),
+    path('requirements/<uuid:requirement_id>/recommendations/', employer_contract_views.get_requirement_recommendations, name='requirement-recommendations'),
+    path('waitlist/', employer_contract_views.list_waitlisted_candidates, name='waitlist'),
 
     # Candidate Presentations
     path('presentations/<uuid:presentation_id>/status/', employer_contract_views.update_candidate_status, name='update-candidate-status'),

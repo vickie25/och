@@ -282,6 +282,23 @@ class EnrollmentService:
         if not is_allowed:
             return None, False, error
 
+        # Institutional licensing rule:
+        # Students covered by an institutional seat allocation may not self-enroll; they must be assigned
+        # by an institution admin via the institutional portal, which creates the enrollment + allocation.
+        if enrollment_type == 'self':
+            try:
+                from organizations.institutional_management_models import InstitutionalStudentAllocation
+
+                has_institutional_allocation = InstitutionalStudentAllocation.objects.filter(
+                    user=user,
+                    status__in=['allocated', 'active'],
+                ).exists()
+                if has_institutional_allocation:
+                    return None, False, "Institution-managed students cannot self-enroll. Please contact your institution administrator."
+            except Exception:
+                # If institutional module isn't available, don't block enrollment.
+                pass
+
         # Check entitlements
         has_entitlement, error = EnrollmentService.check_entitlements(user, cohort)
         if not has_entitlement:
