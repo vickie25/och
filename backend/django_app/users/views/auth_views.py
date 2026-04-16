@@ -494,9 +494,10 @@ class LoginView(APIView):
         _requires_mfa = (requires_mfa(risk_score, primary_role, user) or user.mfa_enabled)
         mfa_required = _requires_mfa and has_mfa_method
 
-        # Special handling for Admins: If MFA is required but no method enrolled,
-        # auto-enroll them in 'email' MFA so they can receive a code immediately.
-        if _requires_mfa and not has_mfa_method and primary_role == 'admin':
+        # Special handling for Internal Staff (Admin, Finance, Support, Director):
+        # If MFA is required but no method enrolled, auto-enroll them in 'email' MFA.
+        STAFF_ROLES = ['admin', 'finance', 'finance_admin', 'support', 'program_director']
+        if _requires_mfa and not has_mfa_method and primary_role in STAFF_ROLES:
             MFAMethod.objects.get_or_create(
                 user=user,
                 method_type='email',
