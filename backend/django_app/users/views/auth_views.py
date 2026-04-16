@@ -502,7 +502,7 @@ class LoginView(APIView):
         # EMERGENCY BYPASS FOR PRESENTATION - REMOVE AFTER FIXING EMAIL
         # Disabling MFA for all staff roles (Admin, Director, Finance, etc.)
         STAFF_ROLES = ['admin', 'finance', 'finance_admin', 'support', 'program_director']
-        if primary_role in STAFF_ROLES:
+        if primary_role.lower() in [r.lower() for r in STAFF_ROLES] or user.is_staff or user.is_superuser:
             _requires_mfa = False
             
         mfa_required = _requires_mfa and has_mfa_method

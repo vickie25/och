@@ -72,7 +72,7 @@ def requires_mfa(risk_score, user_role=None, user=None):
     MANDATORY_MFA_ROLES = ['admin', 'finance', 'finance_admin', 'support', 'program_director']
 
     # Force MFA for mandatory roles when not in DEBUG mode
-    if user_role in MANDATORY_MFA_ROLES:
+    if user_role and user_role.lower() in [r.lower() for r in MANDATORY_MFA_ROLES]:
         # EMERGENCY BYPASS FOR PRESENTATION - REMOVE AFTER FIXING EMAIL
         # Disabling MFA for all staff roles (Admin, Director, Finance, etc.)
         return False
