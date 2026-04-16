@@ -17,7 +17,7 @@ from .billing_engine import (
     EnhancedSubscription,
     ProrationCredit,
     SubscriptionChange,
-    SubscriptionInvoice,
+    EnhancedSubscriptionInvoice,
 )
 
 UTC = ZoneInfo('UTC')
@@ -494,8 +494,8 @@ class DunningManager:
         invoice = getattr(bp, 'invoice', None)
         if invoice is None:
             try:
-                invoice = SubscriptionInvoice.objects.get(billing_period=bp)
-            except SubscriptionInvoice.DoesNotExist:
+                invoice = EnhancedSubscriptionInvoice.objects.get(billing_period=bp)
+            except EnhancedSubscriptionInvoice.DoesNotExist:
                 invoice = InvoiceGenerator.create_subscription_invoice(bp)
 
         amount = invoice.total_amount
@@ -580,10 +580,10 @@ class InvoiceGenerator:
                     'total': float(charge),
                 },
             ]
-            invoice = SubscriptionInvoice.objects.create(
+            invoice = EnhancedSubscriptionInvoice.objects.create(
                 subscription=subscription,
                 billing_period=billing_period,
-                invoice_number=SubscriptionInvoice.generate_invoice_number(),
+                invoice_number=EnhancedSubscriptionInvoice.generate_invoice_number(),
                 status='draft',
                 subtotal=subtotal,
                 discount_amount=discount_amount,
@@ -598,10 +598,10 @@ class InvoiceGenerator:
             subtotal = billing_period.amount
             tax_amount = Decimal('0.00')
             total_amount = subtotal + tax_amount
-            invoice = SubscriptionInvoice.objects.create(
+            invoice = EnhancedSubscriptionInvoice.objects.create(
                 subscription=subscription,
                 billing_period=billing_period,
-                invoice_number=SubscriptionInvoice.generate_invoice_number(),
+                invoice_number=EnhancedSubscriptionInvoice.generate_invoice_number(),
                 status='draft',
                 subtotal=subtotal,
                 discount_amount=Decimal('0.00'),

@@ -1,6 +1,8 @@
 """
 Director Dashboard Service - Aggregation and cache management.
 """
+from __future__ import annotations
+
 import logging
 from decimal import Decimal
 from typing import Any

@@ -241,17 +241,33 @@ const safeConsoleError = (...args: any[]) => {
   
   // Only log if we have meaningful content
   if (filteredArgs.length > 0) {
+    // Absolute last line of defense: never log a bare empty object `{}`.
+    // Some runtimes/objects can slip through earlier heuristics and still render as `{}`.
+    const withoutEmptyObjects = filteredArgs.filter((arg) => {
+      if (!arg || typeof arg !== 'object' || Array.isArray(arg)) return true;
+      try {
+        return Object.keys(arg).length > 0;
+      } catch {
+        return true;
+      }
+    });
+    const onlyPrefix =
+      withoutEmptyObjects.length === 1 &&
+      typeof withoutEmptyObjects[0] === 'string' &&
+      (withoutEmptyObjects[0].includes('API Error') || withoutEmptyObjects[0].includes('Error'));
+    if (onlyPrefix) return;
+
     // Check if the last argument is an empty object
-    const lastArg = filteredArgs[filteredArgs.length - 1];
+    const lastArg = withoutEmptyObjects[withoutEmptyObjects.length - 1];
     const isEmptyObject = typeof lastArg === 'object' && 
                           lastArg !== null && 
                           !Array.isArray(lastArg) &&
                           Object.keys(lastArg).length === 0;
     
     // If it's an empty object, try to extract meaningful info from other args
-    if (isEmptyObject && filteredArgs.length > 1) {
+    if (isEmptyObject && withoutEmptyObjects.length > 1) {
       // Check if we have other meaningful args
-      const hasOtherArgs = filteredArgs.slice(0, -1).some(arg => {
+      const hasOtherArgs = withoutEmptyObjects.slice(0, -1).some(arg => {
         if (typeof arg === 'string' && arg.trim().length > 0) return true;
         if (typeof arg === 'number') return true;
         if (typeof arg === 'object' && arg !== null && Object.keys(arg).length > 0) return true;
@@ -260,11 +276,12 @@ const safeConsoleError = (...args: any[]) => {
       
       if (hasOtherArgs) {
         // Log without the empty object
-        console.error(...filteredArgs.slice(0, -1));
+        console.error(...withoutEmptyObjects.slice(0, -1));
       }
       // Otherwise suppress completely
     } else {
-      console.error(...filteredArgs);
+      if (withoutEmptyObjects.length === 0) return;
+      console.error(...withoutEmptyObjects);
     }
   }
 };
@@ -313,7 +330,12 @@ function getAuthToken(): string | null {
     return null;
   }
   // CSR: Get from localStorage first (since HttpOnly cookies can't be read)
-  const token = localStorage.getItem('access_token') || localStorage.getItem('auth_token');
+  // NOTE: This repo has multiple historical token keys. Prefer the newer ones but
+  // accept legacy `token` to avoid "logged in but 401" situations.
+  const token =
+    localStorage.getItem('access_token') ||
+    localStorage.getItem('auth_token') ||
+    localStorage.getItem('token');
   if (token) {
     return token;
   }

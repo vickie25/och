@@ -2,6 +2,8 @@
 Extended service layer for Student Dashboard.
 Integrates with Profiler, Coaching OS, Curriculum, Missions, Portfolio, TalentScope, and Subscriptions.
 """
+from __future__ import annotations
+
 from datetime import timedelta
 from decimal import Decimal
 from typing import Any

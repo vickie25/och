@@ -2,6 +2,8 @@
 Missions Engine services for difficulty mapping, mission assignment, and
 secure artifact upload handling.
 """
+from __future__ import annotations
+
 import logging
 
 from django.core.files.storage import default_storage

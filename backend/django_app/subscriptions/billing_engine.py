@@ -411,7 +411,7 @@ class BillingPeriod(models.Model):
 
     # Invoice Reference (DB column invoice_id — spec §3.1.3)
     invoice = models.ForeignKey(
-        'SubscriptionInvoice',
+        'EnhancedSubscriptionInvoice',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -716,7 +716,7 @@ class ProrationCredit(models.Model):
 
     # Application Details
     applied_to_invoice = models.ForeignKey(
-        'SubscriptionInvoice',
+        'EnhancedSubscriptionInvoice',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -743,7 +743,7 @@ class ProrationCredit(models.Model):
         return f"Credit ${self.amount} for {self.subscription.user.email} ({self.status})"
 
 
-class SubscriptionInvoice(models.Model):
+class EnhancedSubscriptionInvoice(models.Model):
     """Enhanced invoice model for subscription billing."""
 
     STATUS_CHOICES = [
@@ -763,7 +763,7 @@ class SubscriptionInvoice(models.Model):
     billing_period = models.OneToOneField(
         BillingPeriod,
         on_delete=models.CASCADE,
-        related_name='invoice'
+        related_name='enhanced_invoice'
     )
 
     # Invoice Details
@@ -869,7 +869,7 @@ class SubscriptionInvoice(models.Model):
         year = datetime.now().year
 
         # Get last invoice number for this year
-        last_invoice = SubscriptionInvoice.objects.filter(
+        last_invoice = EnhancedSubscriptionInvoice.objects.filter(
             invoice_number__startswith=f'SUB-{year}-'
         ).order_by('-invoice_number').first()
 

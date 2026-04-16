@@ -2,6 +2,8 @@
 Redis session management for profiling autosave functionality.
 Autosaves responses every 10 seconds to allow students to resume sessions.
 """
+from __future__ import annotations
+
 import json
 import secrets
 from typing import Any

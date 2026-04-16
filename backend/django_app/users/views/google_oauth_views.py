@@ -2,6 +2,8 @@
 Google OAuth 2.0 / OpenID Connect views for account activation and signup.
 Implements full OAuth flow: initiation → callback → account creation/activation.
 """
+from __future__ import annotations
+
 import base64
 import hashlib
 import hmac
@@ -52,7 +54,7 @@ def _b64url_decode(s: str) -> bytes:
     return base64.urlsafe_b64decode(s + pad)
 
 
-def _build_google_oauth_state(oauth_mode: str, intended_role: str) -> str:
+def _build_google_oauth_state(oauth_mode: str, intended_role: str, frontend_origin: str | None = None) -> str:
     """HMAC-signed state: CSRF protection without relying on Django session."""
     mode = oauth_mode if oauth_mode in ('login', 'register') else 'login'
     role = (intended_role or 'student')[:64]
@@ -63,6 +65,9 @@ def _build_google_oauth_state(oauth_mode: str, intended_role: str) -> str:
         'r': role,
         't': int(time.time()),
     }
+    if frontend_origin and isinstance(frontend_origin, str):
+        # Keep small & predictable: only origin (scheme://host[:port])
+        payload['o'] = frontend_origin[:200]
     body = json.dumps(payload, separators=(',', ':'), sort_keys=True).encode('utf-8')
     body_b64 = _b64url_encode(body)
     key = settings.SECRET_KEY.encode('utf-8')
@@ -95,7 +100,53 @@ def _parse_and_verify_google_oauth_state(state: str) -> dict[str, Any] | None:
     r = payload.get('r') or 'student'
     if not isinstance(r, str):
         r = 'student'
-    return {'m': m, 'r': r, 'n': payload.get('n')}
+    o = payload.get('o')
+    if not isinstance(o, str):
+        o = None
+    return {'m': m, 'r': r, 'n': payload.get('n'), 'o': o}
+
+
+def _derive_frontend_origin(request) -> str | None:
+    """
+    Best-effort frontend origin detection for OAuth redirect_uri consistency.
+    Prefers Origin header (XHR/fetch), falls back to Referer.
+    """
+    try:
+        origin = request.headers.get('Origin') or request.META.get('HTTP_ORIGIN')
+        if not origin:
+            ref = request.headers.get('Referer') or request.META.get('HTTP_REFERER')
+            if ref:
+                from urllib.parse import urlparse
+
+                u = urlparse(ref)
+                if u.scheme in ('http', 'https') and u.netloc:
+                    origin = f"{u.scheme}://{u.netloc}"
+        if not origin or not isinstance(origin, str):
+            return None
+
+        origin = origin.strip()
+        if not origin.startswith(('http://', 'https://')):
+            return None
+
+        # Default allowlist: localhost dev + ngrok free domains
+        from urllib.parse import urlparse
+
+        u = urlparse(origin)
+        host = (u.hostname or '').lower()
+        if host in {'localhost', '127.0.0.1'}:
+            return origin
+        if host.endswith('.ngrok-free.dev'):
+            return origin
+
+        # Optional explicit allowlist override
+        allowed = getattr(settings, 'FRONTEND_ALLOWED_ORIGINS', None)
+        if allowed:
+            allowed_set = {str(x).strip() for x in allowed if str(x).strip()}
+            if origin in allowed_set:
+                return origin
+        return None
+    except Exception:
+        return None
 
 
 # Pre-authorized Google accounts: JIT first-time Google login + optional RBAC / Django flags.
@@ -210,16 +261,17 @@ class GoogleOAuthInitiateView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
 
-        # Get frontend URL for callback
-        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
-        # Ensure frontend URL doesn't have trailing slash for redirect_uri
-        frontend_url = frontend_url.rstrip('/')
-        redirect_uri = f"{frontend_url}/auth/google/callback"
+        # Get frontend origin for callback (keep localhost vs ngrok consistent)
+        frontend_origin = _derive_frontend_origin(request) or getattr(
+            settings, 'FRONTEND_URL', 'http://localhost:3000'
+        )
+        frontend_origin = str(frontend_origin).rstrip('/')
+        redirect_uri = f"{frontend_origin}/auth/google/callback"
 
         # Signed state: CSRF + carries mode/role without relying on session (Next.js BFF often drops session).
         intended_role = request.GET.get('role') or 'student'
         oauth_mode = request.GET.get('mode', 'login')
-        oauth_state = _build_google_oauth_state(oauth_mode, intended_role)
+        oauth_state = _build_google_oauth_state(oauth_mode, intended_role, frontend_origin=frontend_origin)
         # Keep session keys for cleanup on success and optional PKCE
         request.session['oauth_state'] = oauth_state
         request.session['oauth_intended_role'] = intended_role
@@ -302,8 +354,12 @@ class GoogleOAuthCallbackView(APIView):
             if use_pkce and not code_verifier:
                 return Response({'detail': 'Session expired. Please try again.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
-            redirect_uri = f"{frontend_url.rstrip('/')}/auth/google/callback"
+            frontend_origin = (
+                state_payload.get('o')
+                or _derive_frontend_origin(request)
+                or getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+            )
+            redirect_uri = f"{str(frontend_origin).rstrip('/')}/auth/google/callback"
 
             token_data = {
                 'grant_type': 'authorization_code',
@@ -317,7 +373,7 @@ class GoogleOAuthCallbackView(APIView):
 
             print(f"[OAuth] Exchanging code for token. redirect_uri={redirect_uri}")
             try:
-                response = requests.post('https://oauth2.googleapis.com/token', data=token_data)
+                response = requests.post('https://oauth2.googleapis.com/token', data=token_data, timeout=15)
                 response.raise_for_status()
                 tokens = response.json()
             except requests.RequestException as e:

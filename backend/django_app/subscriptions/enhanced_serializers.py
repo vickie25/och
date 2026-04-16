@@ -9,7 +9,7 @@ from .billing_engine import (
     EnhancedSubscription,
     ProrationCredit,
     SubscriptionChange,
-    SubscriptionInvoice,
+    EnhancedSubscriptionInvoice,
     SubscriptionPlanVersion,
 )
 
@@ -124,7 +124,7 @@ class SubscriptionInvoiceSerializer(serializers.ModelSerializer):
     """Serializer for subscription invoices."""
 
     class Meta:
-        model = SubscriptionInvoice
+        model = EnhancedSubscriptionInvoice
         fields = [
             'id', 'invoice_number', 'status', 'subtotal', 'discount_amount',
             'tax_amount', 'credit_applied', 'total_amount', 'currency',

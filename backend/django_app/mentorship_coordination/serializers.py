@@ -1,7 +1,7 @@
 """
 Serializers for Mentorship Coordination Engine.
 """
-from datetime import UTC
+from datetime import timezone as dt_timezone
 
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
@@ -205,7 +205,7 @@ class CreateGroupSessionSerializer(serializers.Serializer):
                 dt = datetime.strptime(val, fmt)
                 # Make timezone-aware (assume UTC if no timezone info)
                 if django_timezone.is_naive(dt):
-                    dt = django_timezone.make_aware(dt, UTC)
+                    dt = django_timezone.make_aware(dt, dt_timezone.utc)
                 return dt
             except ValueError:
                 continue

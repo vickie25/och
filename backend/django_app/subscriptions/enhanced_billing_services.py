@@ -1,6 +1,8 @@
 """
 Enhanced Billing Services - Academic Discounts and Promotional Pricing
 """
+from __future__ import annotations
+
 import calendar
 from datetime import timedelta
 from decimal import Decimal
@@ -12,13 +14,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from .billing_engine import EnhancedSubscription
-from .promotional_models import (
-    AcademicDiscount,
-    EnhancedTrialConfiguration,
-    GracePeriodTracking,
-    PromotionalCode,
-    PromotionalCodeRedemption,
-)
+from .models import AcademicDiscount, PromotionalCode
+from .promotional_models import EnhancedTrialConfiguration, GracePeriodTracking, PromotionalCodeRedemption
 from django.db.models import Avg, Count, Sum
 
 

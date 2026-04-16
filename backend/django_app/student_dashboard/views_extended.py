@@ -4,6 +4,7 @@ Implements the complete student dashboard specification.
 """
 from django.utils import timezone
 from programs.models import Enrollment
+from django.db.utils import ProgrammingError
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -73,26 +74,41 @@ def get_student_profile(request):
         pass
 
     # Get enrollment info
-    enrollment = Enrollment.objects.filter(user=user, status='active').first()
+    enrollment = None
+    try:
+        enrollment = Enrollment.objects.filter(user=user, status='active').first()
+    except ProgrammingError:
+        enrollment = None
     track_name = None
     track_key = None
     cohort_name = None
     mentor_name = None
 
     if enrollment:
-        track_name = enrollment.track.name if enrollment.track else None
-        track_key = enrollment.track_key if enrollment.track_key else (enrollment.track.key if enrollment.track and hasattr(enrollment.track, 'key') else None)
-        cohort_name = enrollment.cohort.name if enrollment.cohort else None
-        # Get mentor assignment (mentor is assigned to cohort, not directly to user)
-        if enrollment.cohort:
-            from programs.models import MentorAssignment
-            mentor_assignment = MentorAssignment.objects.filter(
-                cohort=enrollment.cohort,
-                active=True,
-                role='primary'
-            ).first()
-            mentor_name = mentor_assignment.mentor.get_full_name() if mentor_assignment and mentor_assignment.mentor else None
-        else:
+        try:
+            track_name = enrollment.track.name if enrollment.track else None
+            track_key = enrollment.track_key if enrollment.track_key else (
+                enrollment.track.key if enrollment.track and hasattr(enrollment.track, 'key') else None
+            )
+            cohort_name = enrollment.cohort.name if enrollment.cohort else None
+
+            # Get mentor assignment (mentor is assigned to cohort, not directly to user)
+            if enrollment.cohort:
+                from programs.models import MentorAssignment
+
+                mentor_assignment = MentorAssignment.objects.filter(
+                    cohort=enrollment.cohort,
+                    active=True,
+                    role='primary'
+                ).first()
+                mentor_name = mentor_assignment.mentor.get_full_name() if mentor_assignment and mentor_assignment.mentor else None
+            else:
+                mentor_name = None
+        except ProgrammingError:
+            # If programs/cohorts/enrollments schema isn't aligned yet, don't crash the student dashboard.
+            track_name = None
+            track_key = None
+            cohort_name = None
             mentor_name = None
 
     # Get consents (mock for now - should come from user profile)

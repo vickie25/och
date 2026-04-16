@@ -32,6 +32,10 @@ export async function GET(request: NextRequest) {
         request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || '',
       'X-Forwarded-Proto': request.headers.get('x-forwarded-proto') || 'http',
     };
+    const origin = request.headers.get('origin');
+    if (origin) forwardHeaders.Origin = origin;
+    const referer = request.headers.get('referer');
+    if (referer) forwardHeaders.Referer = referer;
     const cookie = request.headers.get('cookie');
     if (cookie) {
       forwardHeaders.Cookie = cookie;

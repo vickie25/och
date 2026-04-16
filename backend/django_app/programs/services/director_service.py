@@ -3,7 +3,7 @@ Program Director Service - Comprehensive director operations.
 Handles all director-specific business logic for programs, tracks, cohorts, and analytics.
 """
 import logging
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from django.db import transaction
 from django.db.models import Count, Q
@@ -19,14 +19,14 @@ class DirectorService:
     """Service for Program Director operations."""
 
     @staticmethod
-    def get_director_programs(user: User) -> list[Program]:
+    def get_director_programs(user: User) -> List[Program]:
         """Get all programs where user is a director."""
         return Program.objects.filter(
             tracks__director=user
         ).distinct()
 
     @staticmethod
-    def get_director_tracks(user: User, program_id: str | None = None) -> 'QuerySet[Track]':
+    def get_director_tracks(user: User, program_id: Optional[str] = None) -> 'QuerySet[Track]':
         """Get all tracks where user is a director."""
         # For admin users, return all tracks (they can see everything)
         if user.is_staff:
@@ -43,7 +43,7 @@ class DirectorService:
         return queryset
 
     @staticmethod
-    def get_director_cohorts(user: User, status: str | None = None) -> list[Cohort]:
+    def get_director_cohorts(user: User, status: Optional[str] = None) -> List[Cohort]:
         """Get all cohorts where user is a director."""
         queryset = Cohort.objects.filter(track__director=user)
         if status:
@@ -184,8 +184,8 @@ class DirectorService:
         mode: str,
         seat_cap: int,
         mentor_ratio: float,
-        seat_pool: dict[str, int] | None = None,
-        calendar_template_id: str | None = None,
+        seat_pool: Optional[dict[str, int]] = None,
+        calendar_template_id: Optional[str] = None,
         **kwargs
     ) -> Cohort:
         """Create a new cohort."""

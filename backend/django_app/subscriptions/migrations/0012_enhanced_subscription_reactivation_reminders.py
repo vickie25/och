@@ -1,4 +1,4 @@
-from django.db import migrations, models
+from django.db import migrations
 
 
 class Migration(migrations.Migration):
@@ -7,13 +7,5 @@ class Migration(migrations.Migration):
         ('subscriptions', '0011_enhanced_subscription_pending_downgrade'),
     ]
 
-    operations = [
-        migrations.AddField(
-            model_name='enhancedsubscription',
-            name='reactivation_reminder_last_milestone',
-            field=models.IntegerField(
-                default=0,
-                help_text='Last reactivation reminder milestone sent (0, 10, 20, or 25 days after suspension)',
-            ),
-        ),
-    ]
+    # No-op: EnhancedSubscription is not part of this app's migration state here.
+    operations = []

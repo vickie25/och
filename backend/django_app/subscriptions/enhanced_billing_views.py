@@ -21,10 +21,7 @@ from .enhanced_billing_services import (
     EnhancedTrialService,
     PromotionalCodeService,
 )
-from .promotional_models import (
-    AcademicDiscount,
-    PromotionalCode,
-)
+from .models import AcademicDiscount, PromotionalCode
 
 logger = logging.getLogger(__name__)
 

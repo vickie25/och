@@ -191,14 +191,14 @@ def check_enhanced_academic_discount_expiry():
     Enhanced academic discount re-verification:
       - Send reminders 30 days before expiry
       - Mark expired discounts
-    Uses the enhanced academic discount model in `promotional_models.py`.
+    Uses the academic discount model in `subscriptions.models`.
     """
     from datetime import timedelta
 
     from django.utils import timezone
 
     from .enhanced_billing_services import AcademicDiscountService
-    from .promotional_models import AcademicDiscount
+    from .models import AcademicDiscount
 
     now = timezone.now()
 

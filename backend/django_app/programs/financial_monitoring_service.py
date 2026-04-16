@@ -421,11 +421,16 @@ def daily_financial_metrics_summary():
     
     # Generate summary report
     subject = f"Daily Financial Metrics Summary - {yesterday.strftime('%B %d, %Y')}"
+    success_rate_str = (
+        f"{payment_tracking.success_rate_percentage:.1f}%"
+        if payment_tracking
+        else "No data"
+    )
     message = f"""
     Daily Financial Metrics Summary
     
     Payment Success Rate:
-    - Success Rate: {payment_tracking.success_rate_percentage:.1f}% if payment_tracking else 'No data'}
+    - Success Rate: {success_rate_str}
     - Total Attempts: {payment_tracking.total_attempts if payment_tracking else 0}
     - Target Met: {'Yes' if payment_tracking and payment_tracking.success_rate_percentage >= 95 else 'No'}
     

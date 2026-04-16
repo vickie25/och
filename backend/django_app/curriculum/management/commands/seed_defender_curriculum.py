@@ -311,7 +311,6 @@ class Command(BaseCommand):
                     }
                 }
             ]
-        }
         },
         {
             'track': {

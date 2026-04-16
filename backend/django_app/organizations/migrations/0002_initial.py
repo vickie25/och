@@ -18,7 +18,13 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='organization',
             name='owner',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='owned_organizations', to=settings.AUTH_USER_MODEL),
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name='owned_organizations',
+                to=settings.AUTH_USER_MODEL,
+                null=True,
+                blank=True,
+            ),
         ),
         migrations.AddField(
             model_name='organizationmember',

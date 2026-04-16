@@ -148,6 +148,13 @@ module.exports = (phase) => {
     },
   };
 
+  // Allow Next.js dev HMR/websocket when accessed via ngrok/custom dev domains.
+  if (phase === PHASE_DEVELOPMENT_SERVER) {
+    nextConfig.allowedDevOrigins = [
+      'insensately-throatier-stacee.ngrok-free.dev',
+    ];
+  }
+
   // Must match outputFileTracingRoot (Next 16). Use webpack dev (`npm run dev`) if Turbopack is slow here.
   if (phase === PHASE_DEVELOPMENT_SERVER) {
     nextConfig.turbopack = { root: path.join(__dirname, '../..') };

@@ -117,7 +117,7 @@ class DunningSequence(models.Model):
     notes = models.TextField(blank=True)
 
     class Meta:
-        db_table = 'dunning_sequences'
+        db_table = 'finance_dunning_sequences'
         indexes = [
             models.Index(fields=['status', 'next_attempt_at']),
             models.Index(fields=['user', 'status']),

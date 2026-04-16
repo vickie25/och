@@ -8,6 +8,7 @@ import uuid
 
 import requests
 from django.db import transaction
+from django.db.utils import ProgrammingError
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -811,11 +812,21 @@ def get_profiling_results(request):
 
     if not session:
         # Fallback to most recent completed session
-        session = ProfilerSession.objects.filter(
-            user=user,
-            status='finished',
-            is_locked=True
-        ).order_by('-completed_at').first()
+        try:
+            session = ProfilerSession.objects.filter(
+                user=user,
+                status='finished',
+                is_locked=True
+            ).order_by('-completed_at').first()
+        except ProgrammingError as e:
+            logger.error("Profiler results unavailable (DB schema missing): %s", e, exc_info=True)
+            return Response(
+                {
+                    "completed": False,
+                    "message": "Profiling temporarily unavailable",
+                },
+                status=status.HTTP_200_OK,
+            )
 
     if not session:
         return Response({

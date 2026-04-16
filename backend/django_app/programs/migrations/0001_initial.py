@@ -22,12 +22,42 @@ class Migration(migrations.Migration):
             ],
             state_operations=[
                 migrations.CreateModel(
+                    name='Program',
+                    fields=[
+                        ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                    ],
+                    options={
+                        'db_table': 'programs',
+                        'managed': False,
+                    },
+                ),
+                migrations.CreateModel(
+                    name='Track',
+                    fields=[
+                        ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                    ],
+                    options={
+                        'db_table': 'tracks',
+                        'managed': False,
+                    },
+                ),
+                migrations.CreateModel(
                     name='Cohort',
                     fields=[
                         ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                     ],
                     options={
                         'db_table': 'cohorts',
+                        'managed': False,
+                    },
+                ),
+                migrations.CreateModel(
+                    name='Enrollment',
+                    fields=[
+                        ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                    ],
+                    options={
+                        'db_table': 'enrollments',
                         'managed': False,
                     },
                 ),

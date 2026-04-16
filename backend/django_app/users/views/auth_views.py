@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Case, IntegerField, Value, When
+from django.db.utils import ProgrammingError
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -1399,10 +1400,16 @@ class ProfileView(APIView):
         )
         if student_roles.exists():
             from programs.models import Enrollment
-            enrollment = Enrollment.objects.filter(
-                user=user,
-                status='active'
-            ).select_related('cohort', 'cohort__track').first()
+            enrollment = None
+            try:
+                enrollment = Enrollment.objects.filter(
+                    user=user,
+                    status='active'
+                ).select_related('cohort', 'cohort__track').first()
+            except ProgrammingError:
+                # Some environments have programs tables created outside migrations.
+                # If the DB schema isn't present yet, don't fail the whole profile payload.
+                enrollment = None
 
             role_specific_data['student'] = {
                 'track_name': enrollment.cohort.track.name if enrollment and enrollment.cohort and enrollment.cohort.track else None,

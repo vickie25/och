@@ -1,6 +1,8 @@
 """
 Finance Data Service - Aggregates financial data for sponsor dashboards.
 """
+from __future__ import annotations
+
 import logging
 from datetime import date, datetime
 from decimal import Decimal

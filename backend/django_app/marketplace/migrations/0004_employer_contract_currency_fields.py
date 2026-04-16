@@ -1,4 +1,4 @@
-from django.db import migrations, models
+from django.db import migrations
 
 
 class Migration(migrations.Migration):
@@ -6,16 +6,7 @@ class Migration(migrations.Migration):
         ('marketplace', '0003_successfulplacement_probation_fields'),
     ]
 
-    operations = [
-        migrations.AddField(
-            model_name='employercontracttier',
-            name='currency',
-            field=models.CharField(default='KES', max_length=3),
-        ),
-        migrations.AddField(
-            model_name='employercontract',
-            name='currency',
-            field=models.CharField(default='KES', max_length=3),
-        ),
-    ]
+    # See note in 0003_successfulplacement_probation_fields: these contract models
+    # are not part of the marketplace app's registered models in this codebase.
+    operations = []
 

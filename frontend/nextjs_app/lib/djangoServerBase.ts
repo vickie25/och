@@ -38,6 +38,19 @@ export function djangoBaseForServerFetch(): string {
   const internal =
     process.env.DJANGO_INTERNAL_URL?.trim() || process.env.DJANGO_API_URL?.trim();
   if (internal) {
+    // If Next is running on the host (not in Docker) but env points at the Docker service DNS,
+    // fall back to the host-mapped port instead.
+    if (!isRunningInDocker()) {
+      try {
+        const u = new URL(internal.includes('://') ? internal : `http://${internal}`);
+        const host = (u.hostname || '').toLowerCase();
+        if (host === 'django') {
+          return 'http://localhost:8000';
+        }
+      } catch {
+        // ignore
+      }
+    }
     return djangoOriginFromRaw(internal);
   }
 
