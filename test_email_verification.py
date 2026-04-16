@@ -6,7 +6,7 @@ import os
 import sys
 
 # Add the backend directory to Python path
-sys.path.append('/Users/airm1/Projects/och/backend/django_app')
+sys.path.append(os.path.join(os.getcwd(), 'backend', 'django_app'))
 
 # Set Django settings
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
@@ -24,11 +24,12 @@ def test_email_flow():
     # Test 1: Basic email sending
     print("1. Testing basic email sending...")
     try:
+        recipient = 'info@cresdynamics.com'
         result = send_mail(
             subject='OCH Email Verification Test',
             message='This is a test email from OCH platform. If you receive this, email sending is working correctly.',
-            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'test@example.com'),
-            recipient_list=['test@lomtechnology.com'],
+            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'info@cresdynamics.com'),
+            recipient_list=[recipient],
             fail_silently=False,
         )
         print(f"✅ Basic email send result: {result}")

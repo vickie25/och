@@ -10,15 +10,18 @@ from typing import Any
 
 from openai import OpenAI
 
+from config import settings
+
 logger = logging.getLogger(__name__)
 
 class GPTProfilerService:
     def __init__(self):
-        self.api_key = os.getenv('CHAT_GPT_API_KEY') or os.getenv('OPENAI_API_KEY')
+        self.api_key = settings.CHAT_GPT_API_KEY or settings.OPENAI_API_KEY
+        self.model = settings.AI_COACH_MODEL
         self.client = None
         if self.api_key:
             self.client = OpenAI(api_key=self.api_key)
-            logger.info("GPT Profiler Service initialized with OpenAI")
+            logger.info(f"GPT Profiler Service initialized with OpenAI using model {self.model}")
 
     def analyze_and_recommend(
         self,
@@ -57,7 +60,7 @@ class GPTProfilerService:
 
             # Call GPT using modern client
             response = self.client.chat.completions.create(
-                model=os.getenv("AI_COACH_MODEL", "gpt-4o-mini"),
+                model=self.model,
                 messages=[
                     {"role": "system", "content": "You are an expert cybersecurity career advisor analyzing profiling responses to recommend the best career track."},
                     {"role": "user", "content": prompt}
@@ -204,7 +207,7 @@ Format as JSON:
 }}"""
 
             response = self.client.chat.completions.create(
-                model=os.getenv("AI_COACH_MODEL", "gpt-4o-mini"),
+                model=self.model,
                 messages=[
                     {"role": "system", "content": "You are a cybersecurity career advisor. Write personalized, encouraging track descriptions."},
                     {"role": "user", "content": prompt}
@@ -285,7 +288,7 @@ Format as JSON:
 }}"""
 
             response = self.client.chat.completions.create(
-                model=os.getenv("AI_COACH_MODEL", "gpt-4o-mini"),
+                model=self.model,
                 messages=[
                     {"role": "system", "content": "You are an inspiring cybersecurity career coach. Create motivational, realistic Future-You personas."},
                     {"role": "user", "content": prompt}

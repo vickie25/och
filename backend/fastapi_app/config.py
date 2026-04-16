@@ -87,6 +87,11 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = os.getenv('JWT_SECRET_KEY', '')  # Primary JWT secret key
     JWT_ALGORITHM: str = os.getenv('JWT_ALGORITHM', 'HS256')
 
+    # AI Integration
+    OPENAI_API_KEY: str = os.getenv('OPENAI_API_KEY', '')
+    CHAT_GPT_API_KEY: str = os.getenv('CHAT_GPT_API_KEY', '')
+    AI_COACH_MODEL: str = os.getenv('AI_COACH_MODEL', 'gpt-4o-mini')
+
     class Config:
         # Pydantic will use this path as fallback, but we've already loaded via load_dotenv above
         # Point to root .env if it exists, otherwise use default
