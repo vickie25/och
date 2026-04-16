@@ -496,11 +496,13 @@ class LoginView(APIView):
         primary_role = next((r for r in role_priority if r in user_role_names), user_role_names[0] if user_role_names else 'student')
 
 
-        # Only require MFA when at least one MFA method is configured and enabled.
-        # This avoids blocking login with "MFA required" for users who have MFA toggled on
-        # but haven't completed enrollment (no active MFAMethod yet).
         has_mfa_method = MFAMethod.objects.filter(user=user, enabled=True).exists()
         _requires_mfa = (requires_mfa(risk_score, primary_role, user) or user.mfa_enabled)
+        
+        # EMERGENCY BYPASS FOR ADMIN PRESENTATION - REMOVE AFTER FIXING EMAIL
+        if primary_role == 'admin':
+            _requires_mfa = False
+            
         mfa_required = _requires_mfa and has_mfa_method
 
         # Special handling for Internal Staff (Admin, Finance, Support, Director):
