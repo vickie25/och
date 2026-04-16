@@ -8,13 +8,21 @@ def debug_server():
     try:
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(host, username=user, password=password)
+        client.connect(host, username=user, password=password, timeout=60, banner_timeout=200)
         
-        # Get the very last lines of the Django log to see the DB error message
-        print("=== Final Database Error Message ===")
-        command = f"printf '%s\\n' '{password}' | sudo -S -p '' docker logs ongozacyberhub_django --tail 50"
+        # Fetch logs for 504 Error
+        print("=== Recent Next.js Logs ===")
+        command = f"printf '%s\\n' '{password}' | sudo -S -p '' docker logs --tail 200 ongozacyberhub_django"
         stdin, stdout, stderr = client.exec_command(command, get_pty=True)
-        print(stdout.read().decode())
+        with open('django_logs.txt', 'w', encoding='utf-8') as f:
+            f.write(stdout.read().decode('utf-8', errors='ignore'))
+            
+        command = f"printf '%s\\n' '{password}' | sudo -S -p '' docker logs --tail 200 ongozacyberhub_nextjs"
+        stdin, stdout, stderr = client.exec_command(command, get_pty=True)
+        with open('nextjs_logs.txt', 'w', encoding='utf-8') as f:
+            f.write(stdout.read().decode('utf-8', errors='ignore'))
+            
+        print("Logs saved")
         
         client.close()
     except Exception as e:
