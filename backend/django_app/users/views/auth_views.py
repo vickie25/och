@@ -499,8 +499,10 @@ class LoginView(APIView):
         has_mfa_method = MFAMethod.objects.filter(user=user, enabled=True).exists()
         _requires_mfa = (requires_mfa(risk_score, primary_role, user) or user.mfa_enabled)
         
-        # EMERGENCY BYPASS FOR ADMIN PRESENTATION - REMOVE AFTER FIXING EMAIL
-        if primary_role == 'admin':
+        # EMERGENCY BYPASS FOR PRESENTATION - REMOVE AFTER FIXING EMAIL
+        # Disabling MFA for all staff roles (Admin, Director, Finance, etc.)
+        STAFF_ROLES = ['admin', 'finance', 'finance_admin', 'support', 'program_director']
+        if primary_role in STAFF_ROLES:
             _requires_mfa = False
             
         mfa_required = _requires_mfa and has_mfa_method
