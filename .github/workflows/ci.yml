@@ -91,10 +91,10 @@ jobs:
         run: npm ci
 
       - name: Run ESLint
-        run: npm run lint || true
+        run: npm run lint
 
       - name: Run Prettier check
-        run: npx prettier --check "**/*.{ts,tsx,js,jsx,json,css,md}" || true
+        run: npx prettier --check "**/*.{ts,tsx,js,jsx,json,css,md}"
 
   django-build:
     name: Build Django Backend
@@ -115,10 +115,10 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Collect static files
-        run: python manage.py collectstatic --noinput || true
+        run: python manage.py collectstatic --noinput
 
       - name: Check Django settings
-        run: python manage.py check --deploy || true
+        run: python manage.py check --deploy
 
   fastapi-build:
     name: Build FastAPI Backend
@@ -163,6 +163,8 @@ jobs:
         env:
           NEXT_PUBLIC_DJANGO_API_URL: http://localhost:8000
           NEXT_PUBLIC_FASTAPI_API_URL: http://localhost:8001
+          NODE_OPTIONS: --max-old-space-size=3072
+          NEXT_BUILD_LOW_MEMORY: 1
         run: npm run build
 
   django-tests:
@@ -212,7 +214,7 @@ jobs:
           DB_USER: postgres
           DB_PASSWORD: testpass
           DJANGO_SECRET_KEY: test-secret-key
-        run: python manage.py test || true
+        run: python manage.py test
 
   fastapi-tests:
     name: FastAPI Tests
@@ -233,7 +235,7 @@ jobs:
         run: pip install -r requirements.txt pytest pytest-asyncio
 
       - name: Run tests
-        run: pytest || true
+        run: pytest
 
   docker-compose-validate:
     name: Validate Docker Compose
