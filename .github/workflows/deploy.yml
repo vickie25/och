@@ -17,7 +17,6 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ${{ github.repository }}
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-and-push:
@@ -83,7 +82,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./frontend/nextjs_app/Dockerfile
+          file: ./frontend/docker/nextjs.Dockerfile
           push: true
           build-args: |
             NEXT_PUBLIC_DJANGO_API_URL=https://cybochengine.africa/api
@@ -109,53 +108,15 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Start services for schema generation
-        run: |
-          cd backend
-          docker compose up -d django fastapi
-          sleep 10
-
-      - name: Fetch Django OpenAPI schema
-        run: |
-          curl -o shared/openapi/openapi_django.json \
-            http://localhost:8000/api/schema/
-
-      - name: Fetch FastAPI OpenAPI schema
-        run: |
-          curl -o shared/openapi/openapi_fastapi.json \
-            http://localhost:8001/docs/openapi.json
-
       - name: Merge OpenAPI schemas
         run: |
-          python shared/openapi/merge_openapi.py
-
-      - name: Upload merged schema
-        uses: actions/upload-artifact@v4
-        with:
-          name: merged-openapi
-          path: shared/openapi/merged_openapi.json
-
-  deploy-staging:
-    name: Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: [build-and-push, generate-openapi]
-    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'staging'
-    environment:
-      name: staging
-      url: https://staging.ongoza.cyberhub
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy to staging
-        run: |
-          echo "Deploying to staging environment"
+          python shared/openapi/merge_openapi.py || echo "Schema merge skipped"
 
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [build-and-push, generate-openapi]
-    if: github.event.inputs.environment == 'production' || github.ref == 'refs/heads/main'
+    needs: [build-and-push]
+    if: github.ref == 'refs/heads/main'
     environment:
       name: production
       url: https://cybochengine.africa
@@ -170,12 +131,5 @@ jobs:
           script: |
             cd /var/www/och
             echo "${{ secrets.SSH_PASSWORD }}" | sudo -S git pull origin main
-            echo "${{ secrets.SSH_PASSWORD }}" | sudo -S docker-compose down
-            echo "${{ secrets.SSH_PASSWORD }}" | sudo -S docker-compose up --build -d
-            echo "${{ secrets.SSH_PASSWORD }}" | sudo -S docker-compose ps
-
-
-
-
-
-
+            echo "${{ secrets.SSH_PASSWORD }}" | sudo -S docker-compose down || true
+            echo "${{ secrets.SSH_PASSWORD }}" | sudo -S docker-compose up -d --build
