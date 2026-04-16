@@ -43,7 +43,7 @@ def health_check(request):
         "status": "healthy",
         "service": "django",
         "timestamp": str(datetime.datetime.now()),
-        "version": "1.1-rescue"
+        "version": "1.2-extreme"
     }, status=200)
 
 
