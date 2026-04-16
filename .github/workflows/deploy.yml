@@ -89,6 +89,8 @@ jobs:
             NEXT_PUBLIC_DJANGO_API_URL=https://cybochengine.africa/api
             NEXT_PUBLIC_FRONTEND_URL=https://cybochengine.africa
             NEXT_PUBLIC_FASTAPI_API_URL=https://cybochengine.africa/ai
+            NODE_OPTIONS=--max-old-space-size=3072
+            NEXT_BUILD_LOW_MEMORY=1
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -116,12 +118,12 @@ jobs:
       - name: Fetch Django OpenAPI schema
         run: |
           curl -o shared/openapi/openapi_django.json \
-            http://localhost:8000/api/schema/ || echo "Django schema fetch failed"
+            http://localhost:8000/api/schema/
 
       - name: Fetch FastAPI OpenAPI schema
         run: |
           curl -o shared/openapi/openapi_fastapi.json \
-            http://localhost:8001/docs/openapi.json || echo "FastAPI schema fetch failed"
+            http://localhost:8001/docs/openapi.json
 
       - name: Merge OpenAPI schemas
         run: |
@@ -148,45 +150,29 @@ jobs:
       - name: Deploy to staging
         run: |
           echo "Deploying to staging environment"
-          # Add your deployment commands here
-          # Example: kubectl apply -f k8s/staging/
-          # Or: docker compose -f docker-compose.prod.yml up -d
-
-      - name: Run Django migrations
-        run: |
-          echo "Running Django migrations on staging"
-          # docker compose exec django python manage.py migrate
-
-      - name: Clear Next.js cache
-        run: |
-          echo "Clearing Next.js build cache"
 
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
     needs: [build-and-push, generate-openapi]
-    if: github.event.inputs.environment == 'production'
+    if: github.event.inputs.environment == 'production' || github.ref == 'refs/heads/main'
     environment:
       name: production
-      url: https://ongoza.cyberhub
+      url: https://cybochengine.africa
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy to production
-        run: |
-          echo "Deploying to production environment"
-          # Add your deployment commands here
-          # Example: kubectl apply -f k8s/production/
-
-      - name: Run Django migrations
-        run: |
-          echo "Running Django migrations on production"
-          # docker compose exec django python manage.py migrate
-
-      - name: Clear Next.js cache
-        run: |
-          echo "Clearing Next.js build cache"
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 69.30.235.220
+          username: administrator
+          password: ${{ secrets.SSH_PASSWORD }}
+          script: |
+            cd /var/www/och
+            echo "${{ secrets.SSH_PASSWORD }}" | sudo -S git pull origin main
+            echo "${{ secrets.SSH_PASSWORD }}" | sudo -S docker-compose down
+            echo "${{ secrets.SSH_PASSWORD }}" | sudo -S docker-compose up --build -d
+            echo "${{ secrets.SSH_PASSWORD }}" | sudo -S docker-compose ps
 
 
 

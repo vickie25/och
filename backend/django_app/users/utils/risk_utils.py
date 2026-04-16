@@ -68,11 +68,17 @@ def requires_mfa(risk_score, user_role=None, user=None):
     if settings.DEBUG and user and not user.mfa_enabled:
         return False
 
-    # Role-based MFA requirement: mandatory for Finance/Finance Admin/Admin (when MFA enabled)
-    if user_role in ['finance', 'finance_admin', 'admin'] and user and user.mfa_enabled:
-        return True
+    # Mandatory roles for MFA (Staff/Internal) when not in DEBUG mode (live)
+    MANDATORY_MFA_ROLES = ['admin', 'finance', 'finance_admin', 'support', 'program_director']
 
-    # Risk-based MFA requirement
+    # Force MFA for mandatory roles when not in DEBUG mode
+    if user_role in MANDATORY_MFA_ROLES:
+        if not settings.DEBUG:
+            return True
+        # In DEBUG, only if they explicitly enabled it
+        return user is not None and user.mfa_enabled
+
+    # Risk-based MFA requirement for other roles (Student, Mentor, etc.)
     # Only enforce if user has MFA enabled; if MFA is disabled (e.g. by admin override),
     # do NOT force MFA even for higher risk scores.
     if risk_score >= 0.5 and user and user.mfa_enabled:

@@ -26,8 +26,8 @@ SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True') == 'True'
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = SECURE_SSL_REDIRECT
+CSRF_COOKIE_SECURE = SECURE_SSL_REDIRECT
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
@@ -106,9 +106,9 @@ EMAIL_PORT = int(os.environ.get('MAIL_PORT') or os.environ.get('EMAIL_PORT', '46
 EMAIL_HOST_USER = os.environ.get('MAIL_USERNAME') or os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('MAIL_PASSWORD') or os.environ.get('EMAIL_HOST_PASSWORD')
 
-MAIL_FROM_ADDRESS = os.environ.get('MAIL_FROM_ADDRESS') or os.environ.get('DEFAULT_FROM_EMAIL')
+MAIL_FROM_ADDRESS = os.environ.get('MAIL_FROM_ADDRESS') or os.environ.get('DEFAULT_FROM_EMAIL', 'info@cresdynamics.com')
 MAIL_FROM_NAME = os.environ.get('MAIL_FROM_NAME') or 'OCH'
-DEFAULT_FROM_EMAIL = f"{MAIL_FROM_NAME} <{MAIL_FROM_ADDRESS}>" if MAIL_FROM_ADDRESS else 'noreply@ongozacyberhub.com'
+DEFAULT_FROM_EMAIL = f"{MAIL_FROM_NAME} <{MAIL_FROM_ADDRESS}>" if MAIL_FROM_ADDRESS else 'info@cresdynamics.com'
 
 # MAIL_ENCRYPTION=tls usually means STARTTLS (port 587); port 465 typically uses SSL
 _use_tls = (os.environ.get('MAIL_ENCRYPTION', '').lower() == 'tls') or (os.environ.get('EMAIL_USE_TLS', 'False') == 'True')

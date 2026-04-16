@@ -497,10 +497,22 @@ class LoginView(APIView):
 
 
         # Only require MFA when at least one MFA method is configured and enabled.
-        # This avoids blocking login with \"MFA required\" for users who have MFA toggled on
+        # This avoids blocking login with "MFA required" for users who have MFA toggled on
         # but haven't completed enrollment (no active MFAMethod yet).
         has_mfa_method = MFAMethod.objects.filter(user=user, enabled=True).exists()
-        mfa_required = (requires_mfa(risk_score, primary_role, user) or user.mfa_enabled) and has_mfa_method
+        _requires_mfa = (requires_mfa(risk_score, primary_role, user) or user.mfa_enabled)
+        mfa_required = _requires_mfa and has_mfa_method
+
+        # Special handling for Internal Staff (Admin, Finance, Support, Director):
+        # If MFA is required but no method enrolled, auto-enroll them in 'email' MFA.
+        STAFF_ROLES = ['admin', 'finance', 'finance_admin', 'support', 'program_director']
+        if _requires_mfa and not has_mfa_method and primary_role in STAFF_ROLES:
+            MFAMethod.objects.get_or_create(
+                user=user,
+                method_type='email',
+                defaults={'enabled': True, 'is_primary': True}
+            )
+            mfa_required = True
 
         # If MFA required and not verified, return MFA challenge
         if mfa_required and not device_trusted:
