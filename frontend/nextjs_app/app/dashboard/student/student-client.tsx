@@ -71,7 +71,8 @@ export default function StudentClient() {
         // CRITICAL: Fetch fresh user data directly from Django API
         // This ensures admin resets are immediately respected
         const { djangoClient } = await import('@/services/djangoClient');
-        let currentProfilingComplete = user.profiling_complete;
+        
+        let currentProfilingComplete: boolean | null = null; // null = unknown (error)
         let universitySet = true;
         
         try {
@@ -81,18 +82,21 @@ export default function StudentClient() {
           console.log('StudentClient: Fresh profiling_complete =', currentProfilingComplete);
 
           // University mapping is required for community features.
-          // Treat it as missing if both id and name are empty.
           const uniId = (freshUser as any)?.university_id;
           const uniName = (freshUser as any)?.university_name;
           universitySet = Boolean(uniId) || (typeof uniName === 'string' && uniName.trim().length > 0);
-
-          // Don't call reloadUser here - it causes infinite loops
-        } catch (err) {
-          console.log('StudentClient: Failed to fetch fresh user, using cached data');
+        } catch (err: any) {
+          // API error (503, network, timeout) — do NOT redirect to profiler.
+          const httpStatus = err?.status || err?.response?.status || 0;
+          console.warn('StudentClient: Failed to fetch fresh user, status:', httpStatus, '— allowing dashboard access');
+          // For all errors: show dashboard, do not redirect to profiler
+          setCheckingProfiling(false);
+          setCheckingFoundations(false);
+          return;
         }
         
-        // Check Django's profiling_complete as SOURCE OF TRUTH
-        if (!currentProfilingComplete) {
+        // ONLY redirect to profiler when Django EXPLICITLY says profiling_complete=false
+        if (currentProfilingComplete === false) {
           console.log('✅ Django profiling_complete=false - redirecting to profiler');
           router.push('/onboarding/ai-profiler');
           return;
@@ -111,8 +115,7 @@ export default function StudentClient() {
           }
         }
         
-        // Django says profiling is complete - TRUST IT, don't check FastAPI
-        // FastAPI may have stale session data that conflicts with Django
+        // Django says profiling is complete - TRUST IT
         console.log('✅ Django profiling_complete=true - profiling verified complete');
         
         setCheckingProfiling(false);
@@ -121,18 +124,10 @@ export default function StudentClient() {
         // Now check Foundations
         await checkFoundations();
       } catch (error: any) {
-        console.error('❌ Failed to check profiling status:', error);
-        
-        // On any error, redirect to profiler if profiling not complete
-        if (!user.profiling_complete) {
-          router.push('/onboarding/ai-profiler');
-          return;
-        }
-        
-        // Allow access if Django says complete
+        console.error('❌ Unexpected error in checkProfiling:', error);
+        // On any unexpected error, allow access to dashboard — never redirect to profiler
         setCheckingProfiling(false);
-        setCheckingFoundations(true);
-        await checkFoundations();
+        setCheckingFoundations(false);
       }
     };
 

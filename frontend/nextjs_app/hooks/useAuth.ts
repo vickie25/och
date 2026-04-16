@@ -58,22 +58,20 @@ function useProvideAuth(): AuthContextValue {
       const user = await djangoClient.auth.getCurrentUser();
       setState({ user, isLoading: false, isAuthenticated: true });
     } catch (error: any) {
-      // Don't log connection errors (backend not running) as errors - this is expected
-      const isConnectionError = 
-        error?.status === 0 ||
-        error?.message?.includes('Cannot connect') ||
-        error?.message?.includes('Network Error') ||
-        error?.message?.includes('fetch failed') ||
-        error?.message?.includes('ECONNREFUSED');
-      
-      // Token invalid or expired - only clear if it's an auth error
-      if (error?.status === 401 || error?.response?.status === 401) {
+      const httpStatus = error?.status || error?.response?.status || 0;
+      const isGenuine401 = httpStatus === 401;
+
+      // Only clear tokens when Django explicitly rejects the token (401).
+      // For 503 (Django down / network error / timeout), keep existing tokens
+      // so the user is not logged out on a transient backend failure.
+      if (isGenuine401) {
         clearAuthTokens();
         setState({ user: null, isLoading: false, isAuthenticated: false });
       } else {
-        // For other errors (including connection errors), keep tokens but show logged-out UI.
-        // This avoids hard-locking guarded routes on transient backend errors.
-        setState({ user: null, isLoading: false, isAuthenticated: false });
+        // Transient error (503, network, timeout) — do NOT clear tokens.
+        // Keep isAuthenticated: false so protected routes still block rendering,
+        // but the tokens remain so the next request can succeed.
+        setState((prev) => ({ ...prev, user: null, isLoading: false, isAuthenticated: false }));
       }
     }
   }, []);

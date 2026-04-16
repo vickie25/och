@@ -75,7 +75,8 @@ export function MFARequiredGuard({ children }: MFARequiredGuardProps) {
       .then((res) => {
         if (cancelled) return;
         const count = (res.methods || []).length;
-        const enough = count >= 2;
+        // 1 enrolled MFA method is sufficient — admin/director should not need 2
+        const enough = count >= 1;
         setHasEnoughMFA(enough);
         if (enough && typeof window !== 'undefined') {
           window.sessionStorage.setItem(MFA_COMPLIANT_KEY, '1');
@@ -90,14 +91,13 @@ export function MFARequiredGuard({ children }: MFARequiredGuardProps) {
         }
       })
       .catch(() => {
+        // API error / timeout — fail open: do NOT block the user.
+        // If the backend is temporarily unavailable we should not lock everyone out.
+        // The next page load will retry the check.
         if (!cancelled) {
-          setHasEnoughMFA(false);
-          if (typeof window !== 'undefined') {
-            window.sessionStorage.removeItem(MFA_COMPLIANT_KEY);
-            window.location.replace('/dashboard/mfa-required');
-          } else {
-            router.replace('/dashboard/mfa-required');
-          }
+          console.warn('[MFARequiredGuard] getMFAMethods failed — allowing access (fail-open)');
+          setHasEnoughMFA(true);
+          setMfaCheckDone(true);
         }
       })
       .finally(() => {
