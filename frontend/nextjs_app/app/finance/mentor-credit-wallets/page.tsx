@@ -10,13 +10,20 @@ import { RouteGuard } from '@/components/auth/RouteGuard'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { financeService, type MentorCreditWallet } from '@/services/financeService'
-import { Search, Star, Wallet } from 'lucide-react'
+import {
+  financeService,
+  type MentorCreditWallet,
+  type MentorCreditWalletTransactions,
+} from '@/services/financeService'
+import { ChevronDown, ChevronRight, Search, Star, Wallet } from 'lucide-react'
 
 export default function MentorCreditWalletsPage() {
   const [wallets, setWallets] = useState<MentorCreditWallet[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [expandedSlug, setExpandedSlug] = useState<string | null>(null)
+  const [txBySlug, setTxBySlug] = useState<Record<string, MentorCreditWalletTransactions['transactions']>>({})
+  const [txLoadingSlug, setTxLoadingSlug] = useState<string | null>(null)
 
   useEffect(() => {
     void load()
@@ -54,6 +61,25 @@ export default function MentorCreditWalletsPage() {
     }
   }, [wallets])
 
+  const toggleTransactions = async (slug: string) => {
+    if (expandedSlug === slug) {
+      setExpandedSlug(null)
+      return
+    }
+    setExpandedSlug(slug)
+    if (txBySlug[slug]) return
+    try {
+      setTxLoadingSlug(slug)
+      const res = await financeService.getMentorCreditWalletTransactions(slug)
+      setTxBySlug((prev) => ({ ...prev, [slug]: res.transactions }))
+    } catch (e) {
+      console.error('Failed to load credit transactions:', e)
+      setTxBySlug((prev) => ({ ...prev, [slug]: [] }))
+    } finally {
+      setTxLoadingSlug(null)
+    }
+  }
+
   if (loading) {
     return (
       <RouteGuard requiredRoles={['finance', 'admin']}>
@@ -75,7 +101,8 @@ export default function MentorCreditWalletsPage() {
             <div>
               <h1 className="text-h1 font-bold text-white">Mentor Credit Wallets</h1>
               <p className="mt-1 body-m text-och-steel">
-                Mentors earn credits from mentee ratings (5★=10, 4★=8, 3★=6, 2★=4, 1★=2).
+                Mentors are compensated in <span className="text-white font-medium">platform credits</span> from
+                mentee reviews (not cash payouts). Typical mapping: 5★=10, 4★=8, 3★=6, 2★=4, 1★=2 credits.
               </p>
             </div>
             <div className="flex gap-2">
@@ -134,22 +161,76 @@ export default function MentorCreditWalletsPage() {
                     <p className="text-sm text-och-steel">{w.mentor_email}</p>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <p className="text-xs text-och-steel uppercase tracking-widest font-bold">Current credits</p>
-                      <p className="text-2xl font-bold text-white">{w.credits.current_balance.toLocaleString()}</p>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className="text-xs text-och-steel uppercase tracking-widest font-bold">Current credits</p>
+                        <p className="text-2xl font-bold text-white">{w.credits.current_balance.toLocaleString()}</p>
+                      </div>
+                      <div className="hidden sm:block w-px h-10 bg-och-steel/20" />
+                      <div className="text-right">
+                        <p className="text-xs text-och-steel uppercase tracking-widest font-bold">Total earned</p>
+                        <p className="text-lg font-bold text-och-mint">{w.credits.total_earned.toLocaleString()}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-och-steel uppercase tracking-widest font-bold">Redeemed</p>
+                        <p className="text-lg font-bold text-och-steel">{w.credits.total_redeemed.toLocaleString()}</p>
+                      </div>
                     </div>
-                    <div className="hidden sm:block w-px h-10 bg-och-steel/20" />
-                    <div className="text-right">
-                      <p className="text-xs text-och-steel uppercase tracking-widest font-bold">Total earned</p>
-                      <p className="text-lg font-bold text-och-mint">{w.credits.total_earned.toLocaleString()}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-och-steel uppercase tracking-widest font-bold">Redeemed</p>
-                      <p className="text-lg font-bold text-och-steel">{w.credits.total_redeemed.toLocaleString()}</p>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0 self-start sm:self-center"
+                      onClick={() => void toggleTransactions(w.mentor_slug)}
+                      aria-expanded={expandedSlug === w.mentor_slug}
+                    >
+                      {expandedSlug === w.mentor_slug ? (
+                        <ChevronDown className="h-4 w-4 mr-1" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 mr-1" />
+                      )}
+                      Review credit history
+                    </Button>
                   </div>
                 </div>
+
+                {expandedSlug === w.mentor_slug && (
+                  <div className="mt-5 pt-5 border-t border-och-steel/20">
+                    {txLoadingSlug === w.mentor_slug ? (
+                      <p className="text-sm text-och-steel">Loading transactions…</p>
+                    ) : (txBySlug[w.mentor_slug] ?? []).length === 0 ? (
+                      <p className="text-sm text-och-steel">No recent credit transactions.</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                          <thead>
+                            <tr className="text-och-steel border-b border-och-steel/20">
+                              <th className="py-2 pr-4 font-medium">When</th>
+                              <th className="py-2 pr-4 font-medium">Type</th>
+                              <th className="py-2 pr-4 font-medium">Credits</th>
+                              <th className="py-2 pr-4 font-medium">Balance after</th>
+                              <th className="py-2 font-medium">Description</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(txBySlug[w.mentor_slug] ?? []).map((t) => (
+                              <tr key={t.id} className="border-b border-och-steel/10 text-och-steel">
+                                <td className="py-2 pr-4 whitespace-nowrap">
+                                  {new Date(t.created_at).toLocaleString()}
+                                </td>
+                                <td className="py-2 pr-4 capitalize text-white">{t.type}</td>
+                                <td className="py-2 pr-4 text-white">{t.amount}</td>
+                                <td className="py-2 pr-4">{t.balance_after}</td>
+                                <td className="py-2 max-w-md">{t.description}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
               </Card>
             ))}
             {filtered.length === 0 && (

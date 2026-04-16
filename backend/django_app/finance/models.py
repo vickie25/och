@@ -1,6 +1,17 @@
 """
 Finance models for the Ongoza CyberHub platform.
-Implements wallet, credits, contracts, and tax management.
+
+Entity map (spec §10.1 “Core Financial Entities” — implementation notes):
+- User: `users.User` (integer PK + `uuid_id`; roles via RBAC, not a single enum field).
+- Wallet / wallet Transaction / Credit: `Wallet`, `Transaction`, `Credit` in this module.
+- Plan / Subscription: `subscriptions` app (`SubscriptionPlanVersion`, `EnhancedSubscription`, etc.).
+- Invoice / Payment: `Invoice`, `Payment` here (`finance_invoices`, `finance_payments`).
+- Contract / TaxRate: `Contract`, `TaxRate` here.
+- Mentor compensation (canonical): **non-cash credits** from mentee activity — see `mentors.MentorCredit`
+  and `mentors.CreditTransaction` (earnings tied to ratings). Finance list endpoints:
+  `GET /finance/mentor-credit-wallets/`.
+- `MentorPayout` below is an **optional legacy / administrative money-transfer record** only; it does
+  not represent the primary mentor reward model on this platform.
 """
 import uuid
 from decimal import Decimal
@@ -383,7 +394,14 @@ class TaxRate(models.Model):
 
 
 class MentorPayout(models.Model):
-    """MentorPayout entity for tracking mentor payments."""
+    """
+    Optional record for **discretionary cash or stipend lines** (e.g. special cohort budgets).
+
+    **Not** the primary mentor compensation path: mentors earn **platform credits** from mentee
+    reviews (`mentors.MentorCredit`, `mentors.CreditTransaction`). Use `MentorCreditWalletsView` and
+    mentor credit UIs for operational truth. Fields like `amount`, `payout_method`, and
+    `paystack_transfer_id` apply only when this legacy row is explicitly used for a cash transfer.
+    """
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('approved', 'Approved'),

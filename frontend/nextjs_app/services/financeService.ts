@@ -91,6 +91,11 @@ export interface Invoice {
   updated_at: string
 }
 
+/**
+ * Legacy optional cash/stipend admin rows (`finance.MentorPayout`).
+ * Primary mentor compensation on the platform is **credits** from mentee ratings — use
+ * `MentorCreditWallet` + `getMentorCreditWalletTransactions` instead.
+ */
 export interface MentorPayout {
   id: string
   mentor_id?: number

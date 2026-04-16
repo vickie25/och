@@ -23,6 +23,7 @@ from organizations.models import OrganizationMember
 from users.utils.permission_utils import has_admin_role
 from users.utils.sms_utils import send_sms_message
 
+from .audit import log_financial_action
 from .models import (
     Contract,
     Credit,
@@ -52,9 +53,89 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
-class WalletViewSet(viewsets.ModelViewSet):
+class FinanceAuditMixin:
+    """Add immutable audit logging for finance endpoints."""
+
+    audit_entity_type = "finance"
+
+    def dispatch(self, request, *args, **kwargs):
+        try:
+            log_financial_action(
+                user=request.user if getattr(request, "user", None) and request.user.is_authenticated else None,
+                action="read",
+                entity_type=getattr(self, "audit_entity_type", "finance"),
+                entity_id=str(kwargs.get("pk") or "00000000-0000-0000-0000-000000000000"),
+                description=f"Accessed {self.__class__.__name__}",
+                request=request,
+                risk_level="low",
+            )
+        except Exception:
+            # Never block the request on audit logging failures
+            pass
+        return super().dispatch(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        try:
+            log_financial_action(
+                user=self.request.user,
+                action="create",
+                entity_type=getattr(self, "audit_entity_type", "finance"),
+                entity_id=str(getattr(instance, "id", "")) or "00000000-0000-0000-0000-000000000000",
+                description=f"Created {instance}",
+                new_values=getattr(serializer, "validated_data", {}) or {},
+                request=self.request,
+                risk_level="medium",
+            )
+        except Exception:
+            pass
+
+    def perform_update(self, serializer):
+        old_instance = None
+        old_values = {}
+        try:
+            old_instance = self.get_object()
+            old_values = {f.name: getattr(old_instance, f.name) for f in old_instance._meta.fields}
+        except Exception:
+            old_values = {}
+
+        instance = serializer.save()
+        try:
+            log_financial_action(
+                user=self.request.user,
+                action="update",
+                entity_type=getattr(self, "audit_entity_type", "finance"),
+                entity_id=str(getattr(instance, "id", "")) or "00000000-0000-0000-0000-000000000000",
+                description=f"Updated {instance}",
+                old_values=old_values,
+                new_values=getattr(serializer, "validated_data", {}) or {},
+                request=self.request,
+                risk_level="medium",
+            )
+        except Exception:
+            pass
+
+    def perform_destroy(self, instance):
+        try:
+            log_financial_action(
+                user=self.request.user,
+                action="delete",
+                entity_type=getattr(self, "audit_entity_type", "finance"),
+                entity_id=str(getattr(instance, "id", "")) or "00000000-0000-0000-0000-000000000000",
+                description=f"Deleted {instance}",
+                old_values={"id": str(getattr(instance, "id", ""))},
+                request=self.request,
+                risk_level="high",
+            )
+        except Exception:
+            pass
+        instance.delete()
+
+
+class WalletViewSet(FinanceAuditMixin, viewsets.ModelViewSet):
     serializer_class = WalletSerializer
     permission_classes = [permissions.IsAuthenticated]
+    audit_entity_type = "wallet"
 
     def get_queryset(self):
         if has_admin_role(self.request.user, ['admin', 'finance']):
@@ -106,9 +187,10 @@ class WalletViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class TransactionViewSet(viewsets.ReadOnlyModelViewSet):
+class TransactionViewSet(FinanceAuditMixin, viewsets.ReadOnlyModelViewSet):
     serializer_class = TransactionSerializer
     permission_classes = [permissions.IsAuthenticated]
+    audit_entity_type = "transaction"
 
     def get_queryset(self):
         if has_admin_role(self.request.user, ['admin', 'finance']):
@@ -116,9 +198,10 @@ class TransactionViewSet(viewsets.ReadOnlyModelViewSet):
         return Transaction.objects.filter(wallet__user=self.request.user)
 
 
-class CreditViewSet(viewsets.ModelViewSet):
+class CreditViewSet(FinanceAuditMixin, viewsets.ModelViewSet):
     serializer_class = CreditSerializer
     permission_classes = [permissions.IsAuthenticated]
+    audit_entity_type = "credit"
 
     def get_queryset(self):
         if has_admin_role(self.request.user, ['admin', 'finance']):
@@ -178,9 +261,10 @@ class CreditViewSet(viewsets.ModelViewSet):
         return Response(summary)
 
 
-class ContractViewSet(viewsets.ModelViewSet):
+class ContractViewSet(FinanceAuditMixin, viewsets.ModelViewSet):
     serializer_class = ContractSerializer
     permission_classes = [permissions.IsAuthenticated]
+    audit_entity_type = "contract"
 
     def get_queryset(self):
         user = self.request.user
@@ -678,11 +762,12 @@ class ContractViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class TaxRateViewSet(viewsets.ModelViewSet):
+class TaxRateViewSet(FinanceAuditMixin, viewsets.ModelViewSet):
     queryset = TaxRate.objects.all()
     serializer_class = TaxRateSerializer
     # Default to admin-only; see get_permissions for read override
     permission_classes = [permissions.IsAdminUser]
+    audit_entity_type = "tax_rate"
 
     def get_permissions(self):
         """
@@ -710,9 +795,15 @@ class TaxRateViewSet(viewsets.ModelViewSet):
         return Response({'rate': rate, 'country': country, 'region': region})
 
 
-class MentorPayoutViewSet(viewsets.ModelViewSet):
+class MentorPayoutViewSet(FinanceAuditMixin, viewsets.ModelViewSet):
+    """
+    CRUD for optional cash/stipend `MentorPayout` rows. Mentor rewards on OCH are **credits**
+    (ratings → `MentorCredit`); finance admins should use `mentor-credit-wallets` endpoints for
+    balances and audit history.
+    """
     serializer_class = MentorPayoutSerializer
     permission_classes = [permissions.IsAuthenticated]
+    audit_entity_type = "mentor_payout"
 
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
@@ -764,9 +855,10 @@ class MentorPayoutViewSet(viewsets.ModelViewSet):
         return Response({'message': 'Payout marked as paid'})
 
 
-class InvoiceViewSet(viewsets.ModelViewSet):
+class InvoiceViewSet(FinanceAuditMixin, viewsets.ModelViewSet):
     serializer_class = InvoiceSerializer
     permission_classes = [permissions.IsAuthenticated]
+    audit_entity_type = "invoice"
 
     def get_queryset(self):
         user = self.request.user
@@ -790,9 +882,10 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         return Response({'message': 'Invoice marked as paid'})
 
 
-class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
+class PaymentViewSet(FinanceAuditMixin, viewsets.ReadOnlyModelViewSet):
     serializer_class = PaymentSerializer
     permission_classes = [permissions.IsAuthenticated]
+    audit_entity_type = "payment"
 
     def get_queryset(self):
         user = self.request.user
@@ -896,10 +989,11 @@ class FinancialDashboardView(APIView):
         })
 
 
-class PricingTierViewSet(viewsets.ModelViewSet):
+class PricingTierViewSet(FinanceAuditMixin, viewsets.ModelViewSet):
     """API endpoint for managing dynamic pricing tiers"""
     serializer_class = PricingTierSerializer
     permission_classes = [permissions.IsAuthenticated]
+    audit_entity_type = "pricing_tier"
 
     def get_queryset(self):
         tier_type = self.request.query_params.get('tier_type')
@@ -1043,10 +1137,11 @@ class PricingTierViewSet(viewsets.ModelViewSet):
         })
 
 
-class PricingHistoryViewSet(viewsets.ReadOnlyModelViewSet):
+class PricingHistoryViewSet(FinanceAuditMixin, viewsets.ReadOnlyModelViewSet):
     """API endpoint for viewing pricing history (read-only)"""
     serializer_class = PricingHistorySerializer
     permission_classes = [permissions.IsAuthenticated]
+    audit_entity_type = "pricing_history"
 
     def get_queryset(self):
         tier_id = self.request.query_params.get('tier_id')

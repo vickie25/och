@@ -49,6 +49,8 @@ from .enhanced_billing_views import (
     update_trial_payment_method as enhanced_update_trial_payment_method,
     cancel_enhanced_subscription as enhanced_cancel_enhanced_subscription,
     reactivate_enhanced_subscription as enhanced_reactivate_enhanced_subscription,
+    reverse_enhanced_cancellation as enhanced_reverse_enhanced_cancellation,
+    admin_plan_change_audit_report as enhanced_admin_plan_change_audit_report,
 )
 
 app_name = 'subscriptions'
@@ -127,8 +129,10 @@ urlpatterns = [
     path('enhanced-billing/subscription/create-enhanced/', enhanced_create_enhanced_subscription, name='enhanced-subscription-create'),
     path('enhanced-billing/subscription/payment-method/', enhanced_update_trial_payment_method, name='enhanced-subscription-payment-method'),
     path('enhanced-billing/subscription/cancel/', enhanced_cancel_enhanced_subscription, name='enhanced-subscription-cancel'),
+    path('enhanced-billing/subscription/cancel/reverse/', enhanced_reverse_enhanced_cancellation, name='enhanced-subscription-cancel-reverse'),
     path('enhanced-billing/subscription/reactivate/', enhanced_reactivate_enhanced_subscription, name='enhanced-subscription-reactivate'),
     path('enhanced-billing/subscription/downgrade/', enhanced_schedule_enhanced_downgrade, name='enhanced-subscription-downgrade'),
     path('enhanced-billing/subscription/downgrade/cancel/', enhanced_cancel_enhanced_scheduled_downgrade, name='enhanced-subscription-downgrade-cancel'),
+    path('enhanced-billing/admin/plan-change-audit/', enhanced_admin_plan_change_audit_report, name='enhanced-admin-plan-change-audit'),
 ]
 

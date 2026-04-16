@@ -213,6 +213,7 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   { path: '/finance/account', roles: ['finance'] },
   { path: '/finance/reconciliation', roles: ['finance', 'admin'] },
   { path: '/finance/mentor-payouts', roles: ['finance', 'admin'] },
+  { path: '/finance/mentor-credit-wallets', roles: ['finance', 'admin'] },
 
   // Support routes (internal role; added by director)
   { path: '/support', roles: ['support'] },

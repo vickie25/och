@@ -2,16 +2,20 @@
 Enhanced Billing API Views - Academic Discounts and Promotional Codes
 """
 import logging
+from datetime import datetime, time
 from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from programs.permissions import IsProgramDirector
 from rest_framework import permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
-from .billing_engine import EnhancedSubscription, SubscriptionPlanVersion
+from .billing_engine import EnhancedSubscription, SubscriptionChange, SubscriptionPlanVersion
+from .billing_services import CancellationPolicy
+from .email_service import SubscriptionEmailService
 from .enhanced_billing_services import (
     AcademicDiscountService,
     EnhancedTrialService,
@@ -335,10 +339,11 @@ def create_enhanced_subscription(request):
 def update_trial_payment_method(request):
     """
     POST /api/enhanced-billing/subscription/payment-method/
-    Store payment method for an active trial and auto-convert to paid immediately.
+    TRIAL: store payment method and convert to paid immediately.
+    PAST_DUE (dunning): store payment method and immediately retry collection (§3.1.5).
     Body: { "payment_method": "pm_...", "gateway": "stripe"|"paystack" }
     """
-    from .billing_services import SubscriptionLifecycleManager
+    from .billing_services import DunningManager, SubscriptionLifecycleManager
 
     payment_method_ref = (request.data.get('payment_method') or '').strip()
     payment_gateway = (request.data.get('gateway') or 'stripe').strip().lower()
@@ -348,29 +353,58 @@ def update_trial_payment_method(request):
         return Response({'error': 'gateway must be stripe or paystack'}, status=status.HTTP_400_BAD_REQUEST)
 
     subscription = EnhancedSubscription.objects.filter(user=request.user).first()
-    if not subscription or subscription.status != 'TRIAL':
-        return Response({'error': 'No active trial subscription found'}, status=status.HTTP_404_NOT_FOUND)
-    if not subscription.trial_end or timezone.now() > subscription.trial_end:
-        return Response({'error': 'Trial has already ended'}, status=status.HTTP_400_BAD_REQUEST)
+    if not subscription:
+        return Response({'error': 'No subscription found'}, status=status.HTTP_404_NOT_FOUND)
 
-    # Save payment method and auto-convert
-    with transaction.atomic():
-        subscription.payment_method_ref = payment_method_ref
-        subscription.payment_gateway = payment_gateway
-        subscription.payment_method_added_at = timezone.now()
-        subscription.save(update_fields=['payment_method_ref', 'payment_gateway', 'payment_method_added_at', 'updated_at'])
+    if subscription.status == 'TRIAL':
+        if not subscription.trial_end or timezone.now() > subscription.trial_end:
+            return Response({'error': 'Trial has already ended'}, status=status.HTTP_400_BAD_REQUEST)
 
-        SubscriptionLifecycleManager.convert_trial_to_active(subscription)
+        with transaction.atomic():
+            subscription.payment_method_ref = payment_method_ref
+            subscription.payment_gateway = payment_gateway
+            subscription.payment_method_added_at = timezone.now()
+            subscription.save(update_fields=['payment_method_ref', 'payment_gateway', 'payment_method_added_at', 'updated_at'])
 
-    return Response({
-        'success': True,
-        'message': 'Payment method saved. Trial converted to active subscription.',
-        'subscription': {
-            'id': str(subscription.id),
-            'status': subscription.status,
-            'current_period_end': subscription.current_period_end.isoformat() if subscription.current_period_end else None,
-        }
-    }, status=status.HTTP_200_OK)
+            SubscriptionLifecycleManager.convert_trial_to_active(subscription, converted_by=request.user)
+
+        return Response({
+            'success': True,
+            'message': 'Payment method saved. Trial converted to active subscription.',
+            'subscription': {
+                'id': str(subscription.id),
+                'status': subscription.status,
+                'current_period_end': subscription.current_period_end.isoformat() if subscription.current_period_end else None,
+            }
+        }, status=status.HTTP_200_OK)
+
+    if subscription.status == 'PAST_DUE':
+        with transaction.atomic():
+            subscription.payment_method_ref = payment_method_ref
+            subscription.payment_gateway = payment_gateway
+            subscription.payment_method_added_at = timezone.now()
+            subscription.save(update_fields=['payment_method_ref', 'payment_gateway', 'payment_method_added_at', 'updated_at'])
+
+            try:
+                DunningManager.retry_after_payment_method_update(subscription)
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        subscription.refresh_from_db()
+        return Response({
+            'success': True,
+            'message': 'Payment method updated and charge attempted successfully.',
+            'subscription': {
+                'id': str(subscription.id),
+                'status': subscription.status,
+                'current_period_end': subscription.current_period_end.isoformat() if subscription.current_period_end else None,
+            }
+        }, status=status.HTTP_200_OK)
+
+    return Response(
+        {'error': 'Payment method update for dunning is only available for TRIAL or PAST_DUE subscriptions.'},
+        status=status.HTTP_400_BAD_REQUEST,
+    )
 
 
 @api_view(['POST'])
@@ -389,12 +423,14 @@ def cancel_enhanced_subscription(request):
     if not subscription or subscription.status not in ['ACTIVE', 'TRIAL', 'PAST_DUE']:
         return Response({'error': 'No cancellable subscription found'}, status=status.HTTP_404_NOT_FOUND)
 
+    refund_info = None
     with transaction.atomic():
         if cancel_type == 'immediate':
             subscription.cancellation_type = 'immediate'
             subscription.cancel_at_period_end = False
             subscription.current_period_end = timezone.now()
             subscription.transition_to('CANCELED', 'User canceled immediately')
+            refund_info = CancellationPolicy.process_immediate_refund_if_applicable(subscription)
         else:
             # End-of-period cancellation should preserve access until current_period_end.
             # Keep status ACTIVE and prevent renewal by setting cancel_at_period_end.
@@ -403,15 +439,68 @@ def cancel_enhanced_subscription(request):
             subscription.canceled_at = timezone.now()
             subscription.save(update_fields=['cancellation_type', 'cancel_at_period_end', 'canceled_at', 'updated_at'])
 
-    return Response({
+    access_until = subscription.current_period_end.isoformat() if subscription.current_period_end else None
+    try:
+        SubscriptionEmailService.send_subscription_cancellation_confirmation(
+            subscription,
+            cancel_type=cancel_type,
+            access_until=access_until,
+        )
+    except Exception:
+        pass
+
+    payload = {
         'success': True,
         'message': 'Subscription canceled',
         'cancellation': {
             'type': subscription.cancellation_type,
             'cancel_at_period_end': subscription.cancel_at_period_end,
-            'access_until': subscription.current_period_end.isoformat() if subscription.current_period_end else None,
+            'access_until': access_until,
             'status': subscription.status,
-        }
+        },
+    }
+    if refund_info is not None:
+        payload['refund'] = refund_info
+    return Response(payload, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def reverse_enhanced_cancellation(request):
+    """
+    POST /api/enhanced-billing/subscription/cancel/reverse/
+    Undo an end-of-period cancellation before current_period_end (user keeps paid access).
+    """
+    subscription = EnhancedSubscription.objects.filter(user=request.user).first()
+    if not subscription or subscription.status != 'ACTIVE':
+        return Response(
+            {'error': 'No active subscription with a reversible cancellation found'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    if not subscription.cancel_at_period_end or subscription.cancellation_type != 'end_of_period':
+        return Response(
+            {'error': 'Only end-of-period cancellations can be reversed here'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if not subscription.current_period_end or timezone.now() >= subscription.current_period_end:
+        return Response(
+            {'error': 'Cancellation can no longer be reversed after the billing period has ended'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    subscription.cancel_at_period_end = False
+    subscription.cancellation_type = None
+    subscription.canceled_at = None
+    subscription.save(update_fields=['cancel_at_period_end', 'cancellation_type', 'canceled_at', 'updated_at'])
+
+    return Response({
+        'success': True,
+        'message': 'Cancellation reversed; subscription will renew as normal.',
+        'subscription': {
+            'status': subscription.status,
+            'cancel_at_period_end': subscription.cancel_at_period_end,
+            'current_period_end': subscription.current_period_end.isoformat() if subscription.current_period_end else None,
+        },
     }, status=status.HTTP_200_OK)
 
 
@@ -806,3 +895,94 @@ def admin_promo_code_analytics(request, code_id):
             {'error': str(e)},
             status=status.HTTP_400_BAD_REQUEST
         )
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated, IsProgramDirector])
+def admin_plan_change_audit_report(request):
+    """
+    GET /api/enhanced-billing/admin/plan-change-audit/
+
+    Compliance / support report: subscription plan changes (and optional trial conversions).
+
+    Query: start, end (YYYY-MM-DD, inclusive), user_id, user_email, organization_id (User.org_id),
+    change_types (comma-separated; default plan_change), limit (default 200, max 2000).
+    """
+    try:
+        raw_types = (request.GET.get('change_types') or 'plan_change').strip()
+        allowed = {c[0] for c in SubscriptionChange.CHANGE_TYPE_CHOICES}
+        change_types = [t.strip() for t in raw_types.split(',') if t.strip() and t.strip() in allowed]
+        if not change_types:
+            change_types = ['plan_change']
+
+        qs = (
+            SubscriptionChange.objects.filter(change_type__in=change_types)
+            .select_related('subscription__user', 'subscription__plan_version', 'created_by')
+            .order_by('-created_at')
+        )
+
+        start_d = parse_date(request.GET.get('start', '') or '')
+        end_d = parse_date(request.GET.get('end', '') or '')
+        if start_d:
+            qs = qs.filter(created_at__gte=timezone.make_aware(datetime.combine(start_d, time.min)))
+        if end_d:
+            qs = qs.filter(created_at__lte=timezone.make_aware(datetime.combine(end_d, time.max)))
+
+        user_id = request.GET.get('user_id', '').strip()
+        if user_id:
+            qs = qs.filter(subscription__user_id=user_id)
+
+        user_email = (request.GET.get('user_email') or '').strip()
+        if user_email:
+            qs = qs.filter(subscription__user__email__iexact=user_email)
+
+        org_id = request.GET.get('organization_id', '').strip()
+        if org_id:
+            qs = qs.filter(subscription__user__org_id=org_id)
+
+        try:
+            limit = int(request.GET.get('limit', '200'))
+        except ValueError:
+            limit = 200
+        limit = max(1, min(limit, 2000))
+        total = qs.count()
+        rows = qs[:limit]
+
+        def _dec(v):
+            return float(v) if v is not None else None
+
+        out = []
+        for ch in rows:
+            u = ch.subscription.user
+            org_pk = getattr(getattr(u, 'org_id', None), 'pk', None)
+            out.append(
+                {
+                    'id': str(ch.id),
+                    'created_at': ch.created_at.isoformat(),
+                    'change_type': ch.change_type,
+                    'old_plan': ch.old_value,
+                    'new_plan': ch.new_value,
+                    'proration_credit': _dec(ch.proration_credit),
+                    'proration_charge': _dec(ch.proration_charge),
+                    'net_proration': _dec(ch.net_proration),
+                    'reason': ch.reason,
+                    'description': ch.description,
+                    'created_by': ch.created_by_id and ch.created_by.email,
+                    'subscription_id': str(ch.subscription_id),
+                    'user': {'id': str(u.id), 'email': u.email},
+                    'organization_id': str(org_pk) if org_pk else None,
+                }
+            )
+
+        return Response(
+            {
+                'changes': out,
+                'returned_count': len(out),
+                'total_matching': total,
+                'change_types': change_types,
+            }
+        )
+
+    except Exception as e:
+        logger.error(f'Admin plan change audit report error: {str(e)}')
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

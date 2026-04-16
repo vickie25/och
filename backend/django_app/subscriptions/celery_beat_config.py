@@ -7,7 +7,13 @@ from celery.schedules import crontab
 
 # Enhanced Billing Engine Celery Beat Schedule
 CELERY_BEAT_SCHEDULE = {
-    # Process subscription renewals daily at 2 AM UTC
+    # §3.1.3: Midnight UTC boundary — reconcile ended cycles (then renewals run later same day)
+    'enforce-subscription-cycle-boundary-utc': {
+        'task': 'subscriptions.billing_tasks.enforce_subscription_cycle_boundary_utc',
+        'schedule': crontab(hour=0, minute=5),
+        'options': {'queue': 'billing'}
+    },
+    # §3.1.3: Renewal charge attempt 1 calendar day before cycle end (UTC date match)
     'process-subscription-renewals': {
         'task': 'subscriptions.billing_tasks.process_subscription_renewals',
         'schedule': crontab(hour=2, minute=0),
@@ -42,6 +48,13 @@ CELERY_BEAT_SCHEDULE = {
         'options': {'queue': 'billing'}
     },
 
+    # Suspended account reactivation reminders (days 10, 20, 25 of window)
+    'send-suspended-reactivation-reminders': {
+        'task': 'subscriptions.billing_tasks.send_suspended_reactivation_reminder_emails',
+        'schedule': crontab(hour=11, minute=0),
+        'options': {'queue': 'notifications'}
+    },
+
     # Send dunning notifications every 2 hours during business hours
     'send-dunning-notifications': {
         'task': 'subscriptions.billing_tasks.send_dunning_notifications',
@@ -68,6 +81,7 @@ CELERY_BEAT_SCHEDULE = {
 CELERY_TASK_ROUTES = {
     'subscriptions.billing_tasks.*': {'queue': 'billing'},
     'subscriptions.billing_tasks.send_dunning_notifications': {'queue': 'notifications'},
+    'subscriptions.billing_tasks.send_suspended_reactivation_reminder_emails': {'queue': 'notifications'},
     'subscriptions.billing_tasks.generate_monthly_billing_report': {'queue': 'reports'},
 }
 

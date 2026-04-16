@@ -131,7 +131,12 @@ class SubscriptionPlanVersion(models.Model):
 
 
 class EnhancedSubscription(models.Model):
-    """Enhanced subscription with complete lifecycle state machine."""
+    """
+    Enhanced subscription with complete lifecycle state machine.
+
+    Accounting / compliance: subscription and billing history are retained for a minimum of
+    seven (7) years after cancellation or expiry (do not hard-delete rows; archive exports only).
+    """
 
     # Complete State Machine as per requirements
     STATUS_CHOICES = [
@@ -174,7 +179,7 @@ class EnhancedSubscription(models.Model):
     # Billing Cycle Management
     cycle_anchor_day = models.IntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(31)],
-        help_text='Day of month for monthly billing (1-31) or day of year for annual'
+        help_text='Monthly: calendar day of month (UTC) from signup for renewals; annual: anchor day within month of anniversary'
     )
     current_period_start = models.DateTimeField()
     current_period_end = models.DateTimeField()
@@ -210,6 +215,10 @@ class EnhancedSubscription(models.Model):
         null=True,
         blank=True,
         help_text='30-day reactivation window from suspension'
+    )
+    reactivation_reminder_last_milestone = models.IntegerField(
+        default=0,
+        help_text='Last reactivation reminder milestone sent (0, 10, 20, or 25 days after suspension)',
     )
 
     # Payment Gateway Integration
@@ -251,28 +260,25 @@ class EnhancedSubscription(models.Model):
         return f"{self.user.email} - {self.plan_version.name} ({self.status})"
 
     def calculate_next_billing_date(self):
-        """Calculate next billing date based on cycle anchor."""
+        """
+        Next cycle end from current_period_end (monthly: same anchor calendar day;
+        annual: anniversary of current period end).
+        """
+        import calendar
+
+        end = self.current_period_end
         if self.billing_cycle == 'monthly':
-            # Monthly cycle - same day each month
-            next_month = self.current_period_end.replace(day=1) + timedelta(days=32)
-            try:
-                return next_month.replace(day=self.cycle_anchor_day)
-            except ValueError:
-                # Handle months with fewer days (e.g., Feb 30 -> Feb 28)
-                import calendar
-                last_day = calendar.monthrange(next_month.year, next_month.month)[1]
-                return next_month.replace(day=min(self.cycle_anchor_day, last_day))
-        else:
-            # Annual cycle - same date next year
-            try:
-                return self.current_period_end.replace(year=self.current_period_end.year + 1)
-            except ValueError:
-                # Handle leap year edge case (Feb 29)
-                return self.current_period_end.replace(
-                    year=self.current_period_end.year + 1,
-                    month=2,
-                    day=28
-                )
+            y, m = end.year, end.month
+            if m == 12:
+                y, m = y + 1, 1
+            else:
+                m += 1
+            last_day = calendar.monthrange(y, m)[1]
+            return end.replace(year=y, month=m, day=min(self.cycle_anchor_day, last_day))
+        try:
+            return end.replace(year=end.year + 1)
+        except ValueError:
+            return end.replace(year=end.year + 1, month=2, day=28)
 
     def can_transition_to(self, new_status):
         """Check if transition to new status is valid."""
@@ -298,19 +304,26 @@ class EnhancedSubscription(models.Model):
         if new_status == 'SUSPENDED':
             self.suspended_at = timezone.now()
             self.reactivation_window_end = timezone.now() + timedelta(days=30)
+            self.reactivation_reminder_last_milestone = 0
+        elif new_status == 'ACTIVE' and old_status == 'SUSPENDED':
+            self.reactivation_window_end = None
+            self.suspended_at = None
+            self.reactivation_reminder_last_milestone = 0
         elif new_status == 'CANCELED':
             self.canceled_at = timezone.now()
 
         self.save()
 
-        # Create audit record
+        # Audit record (reason must be a REASON_CHOICES value; narrative goes in description)
+        detail = reason or f'Status changed from {old_status} to {new_status}'
         SubscriptionChange.objects.create(
             subscription=self,
             change_type='status_change',
             old_value=old_status,
             new_value=new_status,
-            reason=reason or f'Status changed from {old_status} to {new_status}',
-            created_by=None  # System change
+            reason='system_initiated',
+            description=detail[:2000] if detail else '',
+            created_by=None,
         )
 
     def calculate_proration_credit(self, new_plan_version):
@@ -364,7 +377,9 @@ class EnhancedSubscription(models.Model):
 
 
 class BillingPeriod(models.Model):
-    """Track billing periods for audit and reconciliation."""
+    """
+    Audit record per billing cycle: period_start, period_end, status, invoice (FK exposes invoice_id).
+    """
 
     STATUS_CHOICES = [
         ('upcoming', 'Upcoming'),
@@ -394,7 +409,7 @@ class BillingPeriod(models.Model):
     payment_completed_at = models.DateTimeField(null=True, blank=True)
     payment_failed_at = models.DateTimeField(null=True, blank=True)
 
-    # Invoice Reference
+    # Invoice Reference (DB column invoice_id — spec §3.1.3)
     invoice = models.ForeignKey(
         'SubscriptionInvoice',
         on_delete=models.SET_NULL,
@@ -446,7 +461,7 @@ class DunningSequence(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
     retry_schedule = models.JSONField(
         default=list,
-        help_text='Retry schedule in days: [1, 3, 7] for Day 1, 3, 7 retries'
+        help_text='Offsets from first failure (documentation): [0, 3, 7] — immediate, day 3, day 7; next_retry_at is computed in code'
     )
     current_attempt = models.IntegerField(default=0)
     max_attempts = models.IntegerField(default=3)
@@ -480,27 +495,38 @@ class DunningSequence(models.Model):
         return f"Dunning {self.subscription.user.email} - Attempt {self.current_attempt}/{self.max_attempts}"
 
     def schedule_next_retry(self):
-        """Schedule the next retry attempt."""
+        """
+        §3.1.5: After initial failure, retries at Day 0 (immediate), Day 3, Day 7 from dunning start.
+        `current_attempt` is count of completed failed attempts when scheduling the next run.
+        """
         if self.current_attempt >= self.max_attempts:
             self.status = 'exhausted'
-            self.save()
+            self.save(update_fields=['status', 'updated_at'])
             return False
 
-        if self.current_attempt < len(self.retry_schedule):
-            days_to_wait = self.retry_schedule[self.current_attempt]
+        start = self.started_at
+        if self.current_attempt == 1:
+            target = start + timedelta(days=3)
+        elif self.current_attempt == 2:
+            target = start + timedelta(days=7)
         else:
-            # Fallback to exponential backoff
-            days_to_wait = 2 ** self.current_attempt
+            self.status = 'exhausted'
+            self.save(update_fields=['status', 'updated_at'])
+            return False
 
-        self.next_retry_at = timezone.now() + timedelta(days=days_to_wait)
-        self.save()
+        now = timezone.now()
+        if target < now:
+            target = now
+        self.next_retry_at = target
+        self.save(update_fields=['next_retry_at', 'updated_at'])
         return True
 
     def execute_retry(self):
-        """Execute a retry attempt."""
+        """Execute a scheduled retry attempt (§3.1.5). Suspension is enforced day 14 via Celery, not here."""
+        from .email_service import SubscriptionEmailService
+
         self.current_attempt += 1
 
-        # Attempt payment processing
         success = self._process_payment_retry()
 
         if success:
@@ -508,9 +534,23 @@ class DunningSequence(models.Model):
             self.completed_at = timezone.now()
             self.subscription.transition_to('ACTIVE', 'Payment retry successful')
         else:
+            try:
+                next_days = None
+                if self.current_attempt < self.max_attempts:
+                    if self.current_attempt == 1:
+                        next_days = 3
+                    elif self.current_attempt == 2:
+                        next_days = 7
+                SubscriptionEmailService.send_payment_failed_notification(
+                    self.subscription,
+                    retry_attempt=self.current_attempt,
+                    next_retry_days=next_days,
+                )
+            except Exception:
+                pass
+
             if self.current_attempt >= self.max_attempts:
                 self.status = 'exhausted'
-                self.subscription.transition_to('SUSPENDED', 'All payment retries failed')
             else:
                 self.schedule_next_retry()
 
@@ -557,7 +597,11 @@ class DunningSequence(models.Model):
 
 
 class SubscriptionChange(models.Model):
-    """Audit trail for all subscription changes."""
+    """
+    Audit trail for subscription and plan changes.
+
+    Retention: keep records for at least seven (7) years for financial / compliance review (no hard-delete).
+    """
 
     CHANGE_TYPE_CHOICES = [
         ('plan_change', 'Plan Change'),
@@ -576,6 +620,7 @@ class SubscriptionChange(models.Model):
         ('payment_failure', 'Payment Failure'),
         ('trial_expiration', 'Trial Expiration'),
         ('dunning_exhausted', 'Dunning Exhausted'),
+        ('trial_conversion', 'Trial Conversion'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -806,6 +851,17 @@ class SubscriptionInvoice(models.Model):
         self.save()
 
         return total_credit_applied
+
+    def mark_as_paid(self):
+        self.status = 'paid'
+        self.paid_at = timezone.now()
+        self.save(update_fields=['status', 'paid_at', 'updated_at'])
+
+    def mark_as_sent(self):
+        if self.status == 'draft':
+            self.status = 'sent'
+            self.sent_at = timezone.now()
+            self.save(update_fields=['status', 'sent_at', 'updated_at'])
 
     @staticmethod
     def generate_invoice_number():

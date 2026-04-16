@@ -43,6 +43,7 @@ class EnhancedSubscriptionSerializer(serializers.ModelSerializer):
             'cycle_anchor_day', 'current_period_start', 'current_period_end',
             'trial_start', 'trial_end', 'canceled_at', 'cancellation_type',
             'cancel_at_period_end', 'suspended_at', 'reactivation_window_end',
+            'reactivation_reminder_last_milestone',
             'days_until_period_end', 'can_reactivate', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']

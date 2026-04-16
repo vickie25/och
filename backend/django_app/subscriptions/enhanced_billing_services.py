@@ -1,6 +1,7 @@
 """
 Enhanced Billing Services - Academic Discounts and Promotional Pricing
 """
+import calendar
 from datetime import timedelta
 from decimal import Decimal
 
@@ -569,12 +570,15 @@ class EnhancedTrialService:
         trial_start = timezone.now()
         trial_end = trial_start + timedelta(days=trial_days)
 
+        last = calendar.monthrange(trial_start.year, trial_start.month)[1]
+        cycle_anchor_day = min(trial_start.day, last)
+
         subscription = EnhancedSubscription.objects.create(
             user=user,
             plan_version=plan_version,
             status='TRIAL',
             billing_cycle=billing_cycle,
-            cycle_anchor_day=trial_end.day,
+            cycle_anchor_day=cycle_anchor_day,
             current_period_start=trial_start,
             current_period_end=trial_end,
             trial_start=trial_start,

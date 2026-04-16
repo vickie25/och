@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { useAuth } from '@/hooks/useAuth'
 import { apiGateway } from '@/services/apiGateway'
+import { financeService, type FinancialDashboard } from '@/services/financeService'
 import { CheckCircle2, CreditCard, AlertCircle, Info } from 'lucide-react'
 import {
   formatFromKES,
@@ -61,6 +62,8 @@ interface SubscriptionStatus {
   trial_end?: string | null
   cancel_at_period_end?: boolean
   grace_period_end?: string | null
+  pending_downgrade_plan?: string | null
+  pending_downgrade_effective_at?: string | null
   policy?: StreamPolicy
 }
 
@@ -101,6 +104,7 @@ export default function SubscriptionClient() {
   const [plans, setPlans] = useState<Plan[]>([])
   const [policy, setPolicy] = useState<StreamPolicy>({})
   const [billing, setBilling] = useState<any[]>([])
+  const [financeDash, setFinanceDash] = useState<FinancialDashboard | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -120,10 +124,11 @@ export default function SubscriptionClient() {
     setIsLoading(true)
     setError(null)
     try {
-      const [statusRes, plansRes, billingRes] = await Promise.all([
+      const [statusRes, plansRes, billingRes, financeRes] = await Promise.all([
         apiGateway.get('/subscription/status') as Promise<SubscriptionStatus>,
         apiGateway.get('/subscription/plans'),
         apiGateway.get('/subscription/billing-history').catch(() => ({ billing_history: [] })),
+        financeService.getFinancialDashboard().catch(() => null),
       ])
       setSubStatus(statusRes)
       const { plans: p, policy: pol } = normalizePlansResponse(plansRes)
@@ -131,6 +136,7 @@ export default function SubscriptionClient() {
       setPolicy(pol || (statusRes as SubscriptionStatus).policy || {})
       const billingList = Array.isArray(billingRes) ? billingRes : (billingRes as { billing_history?: unknown[] })?.billing_history ?? []
       setBilling(billingList)
+      setFinanceDash(financeRes)
     } catch (err: any) {
       setError(err?.message || 'Failed to load subscription data')
     } finally {
@@ -227,6 +233,33 @@ export default function SubscriptionClient() {
       await loadAll()
     } catch (err: any) {
       setError(err?.message || 'Failed to cancel')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleDowngrade = async (planName: string) => {
+    if (!confirm('Schedule this downgrade for the end of your current billing period? No refunds.')) return
+    try {
+      setActionLoading(true)
+      setError(null)
+      await apiGateway.post('/subscription/downgrade', { plan: planName })
+      await loadAll()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to schedule downgrade')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleCancelDowngrade = async () => {
+    try {
+      setActionLoading(true)
+      setError(null)
+      await apiGateway.post('/subscription/downgrade/cancel', {})
+      await loadAll()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to cancel scheduled downgrade')
     } finally {
       setActionLoading(false)
     }
@@ -396,6 +429,11 @@ export default function SubscriptionClient() {
                   <Badge variant="orange">Grace until {new Date(subStatus.grace_period_end).toLocaleString()}</Badge>
                 )}
                 {subStatus.cancel_at_period_end && <Badge variant="steel">Cancels at period end</Badge>}
+                {subStatus.pending_downgrade_plan && (
+                  <Badge variant="orange">
+                    Downgrade scheduled → {subStatus.pending_downgrade_plan}
+                  </Badge>
+                )}
               </div>
             </div>
             {subStatus.next_payment && (
@@ -407,12 +445,52 @@ export default function SubscriptionClient() {
           </div>
           {subStatus.status === 'active' && subStatus.tier !== 'free' && (
             <div className="mt-4 pt-4 border-t border-och-steel/10">
-              <Button variant="outline" size="sm" disabled={actionLoading} onClick={handleCancel}>
-                Cancel subscription
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" disabled={actionLoading} onClick={handleCancel}>
+                  Cancel subscription
+                </Button>
+                {subStatus.pending_downgrade_plan && (
+                  <Button variant="outline" size="sm" disabled={actionLoading} onClick={handleCancelDowngrade}>
+                    Cancel scheduled downgrade
+                  </Button>
+                )}
+              </div>
             </div>
           )}
         </Card>
+      )}
+
+      {financeDash && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="p-6 border border-och-steel/20">
+            <p className="text-sm text-och-steel mb-1">Wallet balance</p>
+            <p className="text-2xl font-bold text-white tabular-nums">
+              {Number(financeDash.wallet.balance).toLocaleString()} {financeDash.wallet.currency}
+            </p>
+            <p className="text-xs text-och-steel mt-2">
+              Last activity:{' '}
+              {financeDash.wallet.last_transaction_at
+                ? new Date(financeDash.wallet.last_transaction_at).toLocaleString()
+                : '—'}
+            </p>
+          </Card>
+          <Card className="p-6 border border-och-steel/20">
+            <p className="text-sm text-och-steel mb-1">Credits</p>
+            <p className="text-2xl font-bold text-white tabular-nums">
+              {Number(financeDash.credits.active_balance).toLocaleString()}
+            </p>
+            <p className="text-xs text-och-steel mt-2">
+              Credit records: {financeDash.credits.total_credits}
+            </p>
+          </Card>
+          <Card className="p-6 border border-och-steel/20">
+            <p className="text-sm text-och-steel mb-1">Invoices</p>
+            <p className="text-2xl font-bold text-white tabular-nums">{financeDash.invoices.total}</p>
+            <p className="text-xs text-och-steel mt-2">
+              Pending: {financeDash.invoices.pending} · Overdue: {financeDash.invoices.overdue}
+            </p>
+          </Card>
+        </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
@@ -422,6 +500,7 @@ export default function SubscriptionClient() {
           const pr = cat.tier_rank ?? 0
           const isCurrent = plan.name === subStatus?.plan_name
           const isUpgrade = pr > rank
+          const isDowngrade = pr < rank
           const isPremiumSku = plan.name === 'och_premium'
 
           return (
@@ -536,10 +615,12 @@ export default function SubscriptionClient() {
                     className="w-full"
                     disabled={isCurrent || actionLoading}
                     onClick={() =>
-                      handleUpgrade(
-                        plan.name,
-                      plan.billing_interval === 'annual' ? 'annual' : 'monthly'
-                      )
+                      isDowngrade
+                        ? handleDowngrade(plan.name)
+                        : handleUpgrade(
+                            plan.name,
+                            plan.billing_interval === 'annual' ? 'annual' : 'monthly'
+                          )
                     }
                   >
                     {isCurrent ? 'Current plan' : isUpgrade ? 'Choose plan' : 'Downgrade at period end'}

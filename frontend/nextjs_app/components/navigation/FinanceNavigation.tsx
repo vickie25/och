@@ -51,6 +51,9 @@ export function FinanceNavigation() {
     if (href === '/finance/dashboard') {
       return pathname === '/finance/dashboard'
     }
+    if (href === '/finance/mentor-credit-wallets' && pathname === '/finance/mentor-payouts') {
+      return true
+    }
     return pathname.startsWith(href)
   }
 

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/Badge'
 import { apiGateway } from '@/services/apiGateway'
 import { 
   Users, DollarSign, AlertTriangle, TrendingUp, 
-  Settings, Plus, Edit, Eye, Download, RefreshCw 
+  Settings, Plus, Edit, Eye, Download, RefreshCw, History
 } from 'lucide-react'
 
 interface BillingMetrics {
@@ -52,12 +52,45 @@ interface Subscription {
   created_at: string
 }
 
+interface PlanChangeAuditRow {
+  id: string
+  created_at: string
+  change_type: string
+  old_plan: string
+  new_plan: string
+  proration_credit: number | null
+  proration_charge: number | null
+  net_proration: number | null
+  reason: string
+  description: string
+  created_by: string | null
+  subscription_id: string
+  user: { id: string; email: string }
+  organization_id: string | null
+}
+
+interface PlanChangeAuditResponse {
+  changes: PlanChangeAuditRow[]
+  returned_count: number
+  total_matching: number
+  change_types: string[]
+}
+
 export default function AdminBillingClient() {
   const [metrics, setMetrics] = useState<BillingMetrics | null>(null)
   const [planVersions, setPlanVersions] = useState<PlanVersion[]>([])
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const [auditStart, setAuditStart] = useState('')
+  const [auditEnd, setAuditEnd] = useState('')
+  const [auditUserEmail, setAuditUserEmail] = useState('')
+  const [auditOrgId, setAuditOrgId] = useState('')
+  const [auditIncludeTrial, setAuditIncludeTrial] = useState(false)
+  const [auditResult, setAuditResult] = useState<PlanChangeAuditResponse | null>(null)
+  const [auditLoading, setAuditLoading] = useState(false)
+  const [auditError, setAuditError] = useState<string | null>(null)
 
   useEffect(() => {
     loadDashboardData()
@@ -92,6 +125,31 @@ export default function AdminBillingClient() {
       setError(err?.message || 'Failed to load dashboard data')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const loadPlanChangeAudit = async () => {
+    setAuditLoading(true)
+    setAuditError(null)
+    try {
+      const params = new URLSearchParams()
+      if (auditStart) params.set('start', auditStart)
+      if (auditEnd) params.set('end', auditEnd)
+      if (auditUserEmail.trim()) params.set('user_email', auditUserEmail.trim())
+      if (auditOrgId.trim()) params.set('organization_id', auditOrgId.trim())
+      params.set(
+        'change_types',
+        auditIncludeTrial ? 'plan_change,trial_conversion' : 'plan_change'
+      )
+      const path = `/enhanced-billing/admin/plan-change-audit/?${params.toString()}`
+      const data = await apiGateway.get<PlanChangeAuditResponse>(path)
+      setAuditResult(data)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to load plan change audit'
+      setAuditError(msg)
+      setAuditResult(null)
+    } finally {
+      setAuditLoading(false)
     }
   }
 
@@ -316,6 +374,129 @@ export default function AdminBillingClient() {
             </tbody>
           </table>
         </div>
+      </Card>
+
+      <Card className="p-6">
+        <div className="flex items-center gap-2 mb-2">
+          <History className="w-5 h-5 text-och-mint" />
+          <h2 className="text-xl font-bold text-white">Plan change audit</h2>
+        </div>
+        <p className="text-sm text-och-steel mb-4">
+          Subscription plan changes (and optional trial-to-paid conversions). Records are retained for compliance reporting.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+          <label className="flex flex-col gap-1 text-xs text-och-steel">
+            Start date
+            <input
+              type="date"
+              value={auditStart}
+              onChange={(e) => setAuditStart(e.target.value)}
+              className="rounded border border-och-steel/30 bg-och-navy/40 px-2 py-2 text-sm text-white"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-och-steel">
+            End date
+            <input
+              type="date"
+              value={auditEnd}
+              onChange={(e) => setAuditEnd(e.target.value)}
+              className="rounded border border-och-steel/30 bg-och-navy/40 px-2 py-2 text-sm text-white"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-och-steel">
+            User email
+            <input
+              type="email"
+              placeholder="user@example.com"
+              value={auditUserEmail}
+              onChange={(e) => setAuditUserEmail(e.target.value)}
+              className="rounded border border-och-steel/30 bg-och-navy/40 px-2 py-2 text-sm text-white placeholder:text-och-steel/60"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-och-steel">
+            Organization ID
+            <input
+              type="text"
+              placeholder="Institution (User.org) pk"
+              value={auditOrgId}
+              onChange={(e) => setAuditOrgId(e.target.value)}
+              className="rounded border border-och-steel/30 bg-och-navy/40 px-2 py-2 text-sm text-white placeholder:text-och-steel/60"
+            />
+          </label>
+        </div>
+
+        <label className="flex items-center gap-2 text-sm text-och-steel mb-4 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={auditIncludeTrial}
+            onChange={(e) => setAuditIncludeTrial(e.target.checked)}
+            className="rounded border-och-steel/40"
+          />
+          Include trial-to-paid conversions
+        </label>
+
+        <div className="flex items-center gap-3 mb-4">
+          <Button variant="mint" type="button" onClick={loadPlanChangeAudit} disabled={auditLoading}>
+            {auditLoading ? 'Loading…' : 'Run report'}
+          </Button>
+          {auditResult != null && (
+            <span className="text-sm text-och-steel">
+              Showing {auditResult.returned_count} of {auditResult.total_matching} matches
+            </span>
+          )}
+        </div>
+
+        {auditError && (
+          <div className="mb-4 rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            {auditError}
+          </div>
+        )}
+
+        {auditResult && auditResult.changes.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-och-steel/20">
+                  <th className="text-left py-2 px-2 text-och-steel">When</th>
+                  <th className="text-left py-2 px-2 text-och-steel">User</th>
+                  <th className="text-left py-2 px-2 text-och-steel">Org</th>
+                  <th className="text-left py-2 px-2 text-och-steel">Type</th>
+                  <th className="text-left py-2 px-2 text-och-steel">Old → New</th>
+                  <th className="text-left py-2 px-2 text-och-steel">Net proration</th>
+                  <th className="text-left py-2 px-2 text-och-steel">Reason</th>
+                  <th className="text-left py-2 px-2 text-och-steel">By</th>
+                </tr>
+              </thead>
+              <tbody>
+                {auditResult.changes.map((row) => (
+                  <tr key={row.id} className="border-b border-och-steel/10 align-top">
+                    <td className="py-2 px-2 text-och-steel whitespace-nowrap">
+                      {new Date(row.created_at).toLocaleString()}
+                    </td>
+                    <td className="py-2 px-2 text-white">{row.user.email}</td>
+                    <td className="py-2 px-2 text-och-steel">{row.organization_id ?? '—'}</td>
+                    <td className="py-2 px-2 text-och-steel">{row.change_type}</td>
+                    <td className="py-2 px-2 text-och-steel max-w-[220px]">
+                      <span className="text-white">{row.old_plan}</span>
+                      <span className="mx-1">→</span>
+                      <span className="text-white">{row.new_plan}</span>
+                    </td>
+                    <td className="py-2 px-2 text-och-steel whitespace-nowrap">
+                      {row.net_proration != null ? row.net_proration.toFixed(2) : '—'}
+                    </td>
+                    <td className="py-2 px-2 text-och-steel">{row.reason}</td>
+                    <td className="py-2 px-2 text-och-steel">{row.created_by ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {auditResult && auditResult.changes.length === 0 && (
+          <p className="text-sm text-och-steel">No rows match the current filters.</p>
+        )}
       </Card>
     </div>
   )

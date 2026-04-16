@@ -450,13 +450,19 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
 
 # Celery Beat Schedule (periodic tasks)
+CELERY_BEAT_SCHEDULE = {}
 try:
     from director_dashboard.celery_config import DIRECTOR_DASHBOARD_BEAT_SCHEDULE
-    CELERY_BEAT_SCHEDULE = {
-        **DIRECTOR_DASHBOARD_BEAT_SCHEDULE,
-    }
+
+    CELERY_BEAT_SCHEDULE.update(DIRECTOR_DASHBOARD_BEAT_SCHEDULE)
 except ImportError:
-    CELERY_BEAT_SCHEDULE = {}
+    pass
+try:
+    from subscriptions.celery_beat_config import CELERY_BEAT_SCHEDULE as SUBSCRIPTIONS_BEAT_SCHEDULE
+
+    CELERY_BEAT_SCHEDULE.update(SUBSCRIPTIONS_BEAT_SCHEDULE)
+except ImportError:
+    pass
 
 # Monitoring & Metrics
 ENABLE_METRICS = os.environ.get('ENABLE_METRICS', 'False').lower() == 'true'

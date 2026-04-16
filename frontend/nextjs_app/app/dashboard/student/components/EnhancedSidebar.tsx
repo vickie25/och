@@ -192,6 +192,7 @@ export function EnhancedSidebar({ isCollapsed = false, onCollapsedChange }: Side
     { label: 'Coaching', icon: MessageSquare, href: '/dashboard/student/coaching' },
     { label: 'Portfolio', icon: Briefcase, href: '/dashboard/student/portfolio' },
     { label: 'Mentorship', icon: Users, href: '/dashboard/student/mentorship' },
+    { label: 'Community', icon: Users, href: '/dashboard/student/community' },
     { label: 'Marketplace', icon: Store, href: '/dashboard/student/marketplace' },
     { label: 'Support', icon: LifeBuoy, href: '/dashboard/student/support' },
   ];

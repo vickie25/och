@@ -150,6 +150,8 @@ def subscription_status(request):
         'status': subscription.status,
         'current_period_start': subscription.current_period_start,
         'current_period_end': subscription.current_period_end,
+        'pending_downgrade_plan': getattr(getattr(subscription, 'pending_downgrade_plan', None), 'name', None),
+        'pending_downgrade_effective_at': subscription.current_period_end if getattr(subscription, 'pending_downgrade_plan', None) else None,
         'ai_coach_daily_limit': plan.ai_coach_daily_limit,
         'policy': get_stream_policy(),
     }, status=status.HTTP_200_OK)
