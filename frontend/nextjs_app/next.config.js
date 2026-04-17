@@ -57,7 +57,8 @@ module.exports = (phase) => {
     process.env.DJANGO_INTERNAL_URL ||
     process.env.DJANGO_API_URL ||
     process.env.NEXT_PUBLIC_DJANGO_API_URL ||
-    'http://localhost:8000';
+    // In Docker, Django is reachable by service name; localhost would point at the Next container.
+    'http://django:8000';
   const normalizedDjangoBase = djangoBase
     .replace(/\/$/, '')
     .replace(/\/api\/v1$/, '')

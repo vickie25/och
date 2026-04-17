@@ -1164,13 +1164,16 @@ def _apply_paystack_payment(user, plan, payload, reference, is_yearly=False):
         # authorization_code so renewals/dunning/reactivation can charge via Paystack consistently.
         if authorization_code:
             try:
-                from .billing_engine import EnhancedSubscription as EngineSubscription
-                EngineSubscription.objects.filter(user=user).update(
-                    payment_gateway='paystack',
-                    payment_method_ref=authorization_code,
-                    payment_method_added_at=timezone.now(),
-                    updated_at=timezone.now(),
-                )
+                # Use a savepoint so missing-table errors (or other DB issues) don't poison the
+                # surrounding atomic() transaction.
+                with transaction.atomic():
+                    from .billing_engine import EnhancedSubscription as EngineSubscription
+                    EngineSubscription.objects.filter(user=user).update(
+                        payment_gateway='paystack',
+                        payment_method_ref=authorization_code,
+                        payment_method_added_at=timezone.now(),
+                        updated_at=timezone.now(),
+                    )
             except Exception:
                 # Don't block payment application on enhanced-engine sync.
                 pass
@@ -1253,6 +1256,20 @@ def paystack_webhook(request):
     payload = data.get('data') or {}
     reference = (payload.get('reference') or '').strip()
     if not reference:
+        return JsonResponse({'received': True}, status=200)
+
+    # Cohort payments use references like "OCH-...". Route these to cohorts payment verification.
+    # This allows a single whitelisted webhook URL (/paystack/webhook/) to cover both subscriptions and cohorts.
+    if reference.startswith('OCH-'):
+        try:
+            from cohorts.services.payment_service import paystack_service as cohort_paystack_service
+
+            cohort_paystack_service.verify_payment(reference)
+            logger.info('[paystack_webhook] cohort charge.success ref=%s', reference)
+        except Exception as e:
+            logger.exception('Paystack webhook cohort apply failed: %s', e)
+            return JsonResponse({'received': False, 'error': 'cohort_apply_failed'}, status=500)
+
         return JsonResponse({'received': True}, status=200)
 
     if PaymentTransaction.objects.filter(gateway_transaction_id=reference, status='completed').exists():

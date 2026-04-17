@@ -1,7 +1,11 @@
 """
 Payment Views - Handle cohort enrollment payments.
 """
+import hashlib
+import hmac
+import json
 import logging
+import os
 
 from programs.models import Enrollment
 from rest_framework import status
@@ -13,6 +17,21 @@ from cohorts.models import CohortPayment
 from cohorts.services.payment_service import paystack_service
 
 logger = logging.getLogger(__name__)
+
+def _paystack_signature_valid(raw_body: bytes, signature: str, secret: str) -> bool:
+    """
+    Paystack webhook signature validation.
+    HMAC SHA512 hex of the raw body must match X-Paystack-Signature.
+    """
+    if not secret:
+        return False
+    sig = (signature or '').strip()
+    if not sig:
+        return False
+    computed = hmac.new(secret.encode('utf-8'), raw_body or b'', hashlib.sha512).hexdigest()
+    if len(sig) != len(computed):
+        return False
+    return hmac.compare_digest(computed, sig)
 
 
 @api_view(['POST'])
@@ -165,24 +184,25 @@ def paystack_webhook(request):
     Handle Paystack webhook events.
     """
     try:
-        # Verify webhook signature
-        signature = request.headers.get('x-paystack-signature')
+        raw_body = request.body or b''
+        signature = request.META.get('HTTP_X_PAYSTACK_SIGNATURE', '') or ''
+        secret = os.environ.get('PAYSTACK_SECRET_KEY') or os.environ.get('PAYSTACK_SECRET') or ''
 
-        if not signature:
-            return Response(
-                {'error': 'No signature'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        if not _paystack_signature_valid(raw_body, signature, secret):
+            logger.warning("Cohorts Paystack webhook: invalid signature")
+            # Return 200 so Paystack doesn't keep retrying invalid signatures.
+            return Response({'received': True, 'ignored': 'invalid_signature'}, status=status.HTTP_200_OK)
 
-        # Verify signature (implement proper verification)
-        # For now, we'll process the event
+        try:
+            event = json.loads(raw_body.decode('utf-8'))
+        except Exception:
+            return Response({'error': 'Invalid JSON'}, status=status.HTTP_400_BAD_REQUEST)
 
-        event = request.data
-        event_type = event.get('event')
+        event_type = (event or {}).get('event')
 
         if event_type == 'charge.success':
             # Payment successful
-            data = event.get('data', {})
+            data = (event or {}).get('data', {}) or {}
             reference = data.get('reference')
 
             if reference:
@@ -192,7 +212,7 @@ def paystack_webhook(request):
                 except Exception as e:
                     logger.error(f"Webhook: Payment verification failed: {str(e)}")
 
-        return Response({'status': 'success'})
+        return Response({'received': True}, status=status.HTTP_200_OK)
 
     except Exception as e:
         logger.error(f"Webhook error: {str(e)}")

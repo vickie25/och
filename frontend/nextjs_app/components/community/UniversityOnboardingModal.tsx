@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/Select'
 import { apiGateway } from '@/services/apiGateway'
+import { useRouter } from 'next/navigation'
 
 interface University {
   id: string
@@ -44,6 +45,7 @@ export function UniversityOnboardingModal({
   onClose,
   onCompleted,
 }: UniversityOnboardingModalProps) {
+  const router = useRouter()
   const [universities, setUniversities] = useState<University[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -95,7 +97,15 @@ export function UniversityOnboardingModal({
           : 'KE'
 
         const raw = await apiGateway.get<any>(`/community/universities/?country=${selectedCountry}&page_size=300`)
-        const list = Array.isArray(raw) ? raw : (raw?.results ?? [])
+        let list = Array.isArray(raw) ? raw : (raw?.results ?? [])
+
+        // Data currently may only be seeded for some countries (e.g. KE).
+        // If the selected country has no universities, fall back to showing all.
+        if (Array.isArray(list) && list.length === 0) {
+          const fallbackRaw = await apiGateway.get<any>(`/community/universities/?page_size=300`)
+          list = Array.isArray(fallbackRaw) ? fallbackRaw : (fallbackRaw?.results ?? [])
+        }
+
         setUniversities(list)
       } catch (e: any) {
         setError(e?.message || 'Failed to load universities')
@@ -115,7 +125,14 @@ export function UniversityOnboardingModal({
       setError(null)
       try {
         const raw = await apiGateway.get<any>(`/community/universities/?country=${country}&page_size=300`)
-        const list = Array.isArray(raw) ? raw : (raw?.results ?? [])
+        let list = Array.isArray(raw) ? raw : (raw?.results ?? [])
+
+        // If nothing is available for this country yet, show all universities so search still works.
+        if (Array.isArray(list) && list.length === 0) {
+          const fallbackRaw = await apiGateway.get<any>(`/community/universities/?page_size=300`)
+          list = Array.isArray(fallbackRaw) ? fallbackRaw : (fallbackRaw?.results ?? [])
+        }
+
         setUniversities(list)
         setSelectedUniversity(null)
         setSearch('')
@@ -158,7 +175,9 @@ export function UniversityOnboardingModal({
       })
 
       await onCompleted()
-      onClose()
+      // Parent controls visibility via `onCompleted` (Option 1 modal is not dismissible).
+      // After completing, take the user to the community page.
+      router.push('/dashboard/student/community')
     } catch (e: any) {
       const msg = e?.data?.detail || e?.message || 'Failed to complete university setup'
       setError(msg)
@@ -256,6 +275,32 @@ export function UniversityOnboardingModal({
                 disabled={loading || saving}
               />
 
+              {selectedUniversity && (
+                <div className="mt-3 p-3 rounded-lg border border-och-defender/40 bg-och-defender/10">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-white font-semibold text-sm">Selected</div>
+                      <div className="text-white font-medium text-sm mt-1">{selectedUniversity.name}</div>
+                      {(selectedUniversity.short_name || selectedUniversity.code || selectedUniversity.slug) ? (
+                        <div className="text-och-steel text-xs mt-1">
+                          {selectedUniversity.short_name || selectedUniversity.code || selectedUniversity.slug}
+                        </div>
+                      ) : null}
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedUniversity(null)
+                        setSearch('')
+                      }}
+                      disabled={saving}
+                    >
+                      Change
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <div className="mt-3 max-h-72 overflow-y-auto space-y-2">
                 {loading ? (
                   <div className="text-och-steel text-sm">Loading universities...</div>
@@ -265,7 +310,10 @@ export function UniversityOnboardingModal({
                     return (
                       <button
                         key={u.id}
-                        onClick={() => setSelectedUniversity(u)}
+                        onClick={() => {
+                          setSelectedUniversity(u)
+                          setSearch(u.name)
+                        }}
                         className={`w-full text-left p-3 rounded-lg border transition-colors ${
                           selected
                             ? 'border-och-defender bg-och-defender/10'

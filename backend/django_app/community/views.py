@@ -11,6 +11,7 @@ from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -121,6 +122,13 @@ class IsFacultyOrAdmin(permissions.BasePermission):
         ).exists()
 
 
+class UniversityListPagination(PageNumberPagination):
+    # Allow the frontend to request large lists for local search (e.g. onboarding modal).
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 500
+
+
 class UniversityViewSet(viewsets.ModelViewSet):
     """
     University management and listing.
@@ -128,6 +136,7 @@ class UniversityViewSet(viewsets.ModelViewSet):
     queryset = University.objects.filter(is_active=True)
     permission_classes = [IsAuthenticatedOrReadOnly]
     lookup_field = 'slug'
+    pagination_class = UniversityListPagination
 
     def get_serializer_class(self):
         if self.action == 'list':

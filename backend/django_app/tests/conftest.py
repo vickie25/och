@@ -22,6 +22,7 @@ def api_client():
 def test_user(db):
     """Create a test user."""
     user = User.objects.create_user(
+        username='test@example.com',
         email='test@example.com',
         password='testpass123',
         first_name='Test',
@@ -66,6 +67,7 @@ def admin_client(api_client, admin_user):
 def student_user(db):
     """Create a student user."""
     user = User.objects.create_user(
+        username='student@test.com',
         email='student@test.com',
         password='testpass123',
         first_name='Student',
@@ -87,6 +89,7 @@ def student_client(api_client, student_user):
 def mentor_user(db):
     """Create a mentor user."""
     user = User.objects.create_user(
+        username='mentor@test.com',
         email='mentor@test.com',
         password='testpass123',
         first_name='Mentor',

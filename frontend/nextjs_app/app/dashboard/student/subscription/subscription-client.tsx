@@ -171,7 +171,7 @@ export default function SubscriptionClient() {
           plan: planName,
           callback_url:
             typeof window !== 'undefined'
-              ? `${window.location.origin}/dashboard/student/subscription/return`
+              ? `${window.location.origin}/payment/success`
               : '',
         }
         if (billingInterval === 'annual' || plan?.billing_interval === 'annual') {
@@ -213,6 +213,11 @@ export default function SubscriptionClient() {
           }
         }, 500)
       } else {
+        if (isPaidPlan) {
+          setError('Payments are required for this plan. Paystack is not configured for checkout.')
+          return
+        }
+        // Free plans can be applied without Paystack.
         const body: { plan: string; billing_interval?: string } = { plan: planName }
         if (billingInterval) body.billing_interval = billingInterval
         await apiGateway.post('/subscription/simulate-payment', body)
