@@ -233,7 +233,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 
 # Database
-USE_SQLITE = os.environ.get('USE_SQLITE', 'True').lower() == 'true'
+USE_SQLITE = os.environ.get('USE_SQLITE', 'False').lower() == 'true'
 
 if USE_SQLITE:
     DATABASES = {
