@@ -34,19 +34,30 @@ def run_asd():
         with transaction.atomic():
             # 1. Audit Table Schema
             with connection.cursor() as cursor:
-                cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'curriculum_tracks' AND column_name = 'slug';")
-                has_slug = cursor.fetchone()
+                if connection.vendor == 'postgresql':
+                    cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'curriculum_tracks' AND column_name = 'slug';")
+                else:
+                    # SQLite fallback
+                    cursor.execute("PRAGMA table_info(curriculum_tracks);")
+                    columns = [row[1] for row in cursor.fetchall()]
+                    has_slug = 'slug' in columns
                 
-                if has_slug:
+                if (connection.vendor == 'postgresql' and cursor.fetchone()) or (connection.vendor != 'postgresql' and has_slug):
                     results["audit"].append("Found 'slug' column in curriculum_tracks.")
                     # Fake curriculum 0005 because slug already exists
-                    # We check if it's already applied first
-                    cursor.execute("SELECT name FROM django_migrations WHERE app = 'curriculum' AND name = '0005_curriculumtrack_slug_title_order_thumbnail';")
-                    if not cursor.fetchone():
+                    # Check migration history
+                    if connection.vendor == 'postgresql':
+                        cursor.execute("SELECT name FROM django_migrations WHERE app = 'curriculum' AND name = '0005_curriculumtrack_slug_title_order_thumbnail';")
+                        migration_found = cursor.fetchone()
+                    else:
+                        cursor.execute("SELECT name FROM django_migrations WHERE app = 'curriculum' AND name = '0005_curriculumtrack_slug_title_order_thumbnail';")
+                        migration_found = cursor.fetchone()
+
+                    if not migration_found:
                         results["heals"].append("Faking migration 0005_curriculumtrack_slug_title_order_thumbnail")
                         call_command('migrate', 'curriculum', '0005_curriculumtrack_slug_title_order_thumbnail', '--fake', interactive=False)
                 
-                # Check for Users migration drift (0013 merge)
+                # Check for Users migration drift
                 cursor.execute("SELECT name FROM django_migrations WHERE app = 'users' AND name = '0013_merge_0010_0012';")
                 if not cursor.fetchone():
                     results["heals"].append("Attempting to run/fake user migrations to heal auth drift")
