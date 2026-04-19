@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('curriculum', '0005_curriculumtrack_slug_title_order_thumbnail'),
+        ('curriculum', '0005_curriculumtrack_tier2_completion_config'),
     ]
 
     operations = [
