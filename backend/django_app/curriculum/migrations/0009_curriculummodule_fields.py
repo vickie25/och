@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('curriculum', '0005_curriculumtrack_slug_title_order_thumbnail'),
+        ('curriculum', '0008_curriculumtrack_slug_backfill'),
     ]
 
     operations = [
