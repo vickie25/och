@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('director_dashboard', '0001_initial'),
-        ('programs', '0001_initial'),
+        ('programs', '0002_initial'),
         ('users', '0001_initial'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
