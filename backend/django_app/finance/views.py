@@ -662,6 +662,10 @@ class ContractViewSet(FinanceAuditMixin, viewsets.ModelViewSet):
 
         org = contract.organization
         with transaction.atomic():
+            # Update contract status to signed upon onboarding completion
+            if contract.status == 'proposal':
+                contract.status = 'signed'
+                contract.save(update_fields=['status'])
             user, created = User.objects.get_or_create(
                 email=email,
                 defaults={

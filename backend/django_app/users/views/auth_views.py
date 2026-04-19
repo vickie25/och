@@ -476,8 +476,12 @@ class LoginView(APIView):
         user_agent = request.META.get('HTTP_USER_AGENT', '')
         risk_score = calculate_risk_score(user, ip_address, device_fingerprint, user_agent)
 
-        # Check if device is trusted
-        device_trusted = check_device_trust(user, device_fingerprint)
+        # Check if device is trusted (Wrapped in try-except for BigInt/UUID migration safety)
+        try:
+            device_trusted = check_device_trust(user, device_fingerprint)
+        except Exception as e:
+            logger.warning(f"Device trust check failed during migration: {e}")
+            device_trusted = False
 
         # In development, auto-trust device for test users
         from django.conf import settings
@@ -498,34 +502,34 @@ class LoginView(APIView):
 
         has_mfa_method = MFAMethod.objects.filter(user=user, enabled=True).exists()
         _requires_mfa = (requires_mfa(risk_score, primary_role, user) or user.mfa_enabled)
-        
-        # EMERGENCY BYPASS FOR PRESENTATION - REMOVE AFTER FIXING EMAIL
-        # Disabling MFA for all staff roles (Admin, Director, Finance, etc.)
-        STAFF_ROLES = ['admin', 'finance', 'finance_admin', 'support', 'program_director']
-        if primary_role.lower() in [r.lower() for r in STAFF_ROLES] or user.is_staff or user.is_superuser:
+
+        # 1. MFA WHITELIST BYPASS (for testing/emergency)
+        exempt_emails = getattr(settings, 'MFA_EXEMPT_EMAILS', [])
+        is_exempt = user.email.lower() in exempt_emails
+
+        if is_exempt:
             _requires_mfa = False
-            # NUCLEAR BYPASS: Force mfa_enabled = True and create a dummy method in DB
-            # to satisfy all frontend guards and redirection logic.
+            # Ensure exempt accounts have a verified record to avoid redirection loops
             if not user.mfa_enabled or not has_mfa_method:
                 user.mfa_enabled = True
-                user.save()
+                user.save(update_fields=['mfa_enabled'])
                 MFAMethod.objects.get_or_create(
                     user=user,
                     method_type='email',
                     defaults={'enabled': True, 'is_primary': True, 'is_verified': True}
                 )
                 has_mfa_method = True
-            
+        
         mfa_required = _requires_mfa and has_mfa_method
 
-        # Special handling for Internal Staff (Admin, Finance, Support, Director):
-        # If MFA is required but no method enrolled, auto-enroll them in 'email' MFA.
+        # 2. INTERNAL STAFF AUTO-ENROLLMENT (Safety Net)
+        # If MFA is required for staff but no method is enrolled, auto-enroll them in 'email' MFA
         STAFF_ROLES = ['admin', 'finance', 'finance_admin', 'support', 'program_director']
-        if _requires_mfa and not has_mfa_method and primary_role in STAFF_ROLES:
+        if _requires_mfa and not has_mfa_method and (primary_role in STAFF_ROLES or user.is_staff):
             MFAMethod.objects.get_or_create(
                 user=user,
                 method_type='email',
-                defaults={'enabled': True, 'is_primary': True}
+                defaults={'enabled': True, 'is_primary': True, 'is_verified': True}
             )
             mfa_required = True
 

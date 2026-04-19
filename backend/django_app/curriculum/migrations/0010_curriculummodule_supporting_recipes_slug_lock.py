@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("curriculum", "0009_curriculumtrack_thumbnail_order"),
+        ('curriculum', '0007_tier3_completion_config'),
     ]
 
     operations = [

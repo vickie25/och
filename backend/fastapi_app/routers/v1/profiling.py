@@ -15,8 +15,76 @@ from schemas.profiling import (
 from schemas.profiling_tracks import OCH_TRACKS
 from services.profiling_service_enhanced import enhanced_profiling_service
 from utils.auth import verify_token
+try:
+    import redis as _redis_lib
+    _REDIS_AVAILABLE = True
+except ImportError:
+    _redis_lib = None
+    _REDIS_AVAILABLE = False
+
+import json
+from config import settings
 
 logger = logging.getLogger(__name__)
+
+# Lazy Redis client — initialized on first use to avoid startup failures
+_redis_client = None
+
+def _get_redis():
+    """Get or create the Redis client lazily."""
+    global _redis_client, _REDIS_AVAILABLE
+    if _redis_client is not None:
+        return _redis_client
+    if not _REDIS_AVAILABLE or not _redis_lib:
+        return None
+    try:
+        _redis_client = _redis_lib.from_url(
+            getattr(settings, 'REDIS_URL', 'redis://redis:6379/1'),
+            decode_responses=True
+        )
+        _redis_client.ping()  # verify connection
+        return _redis_client
+    except Exception as e:
+        logger.warning(f"Redis unavailable, sessions will use in-memory fallback: {e}")
+        return None
+
+# In-memory fallback when Redis isn't available
+_in_memory_sessions: dict = {}
+
+
+def _get_session(session_id: str) -> ProfilingSession | None:
+    """Retrieve session from Redis or in-memory fallback."""
+    rc = _get_redis()
+    if rc:
+        try:
+            data = rc.get(f"session:{session_id}")
+            if data:
+                return ProfilingSession.model_validate_json(data)
+        except Exception as e:
+            logger.error(f"Redis get error: {e}")
+    # In-memory fallback
+    data = _in_memory_sessions.get(session_id)
+    if data:
+        try:
+            return ProfilingSession.model_validate_json(data)
+        except Exception:
+            pass
+    return None
+
+def _save_session(session: ProfilingSession):
+    """Save session to Redis with 24h expiry, with in-memory fallback."""
+    session_json = session.model_dump_json()
+    rc = _get_redis()
+    if rc:
+        try:
+            rc.set(f"session:{session.id}", session_json, ex=86400)
+            rc.sadd(f"user_sessions:{session.user_id}", session.id)
+            rc.expire(f"user_sessions:{session.user_id}", 86400)
+            return
+        except Exception as e:
+            logger.error(f"Redis set error: {e}")
+    # In-memory fallback
+    _in_memory_sessions[session.id] = session_json
 
 async def get_current_user_id(user_id: int = Depends(verify_token)) -> int:
     """Extract user ID from JWT token."""
@@ -84,8 +152,7 @@ def _calculate_anti_cheat_score(session: ProfilingSession) -> float:
     return min(100.0, score)
 
 
-# In-memory session storage (in production, use Redis or database)
-_active_sessions = {}
+# Replaced in-memory storage with Redis helpers
 
 
 @router.post("/session/start", response_model=dict)
@@ -98,10 +165,12 @@ async def start_profiling_session(
 
     Returns session ID and initial progress information.
     """
-    # Check if user already has an active session
+    # Check if user already has an active session in Redis
+    session_ids = redis_client.smembers(f"user_sessions:{user_id}")
     existing_session = None
-    for session in _active_sessions.values():
-        if session.user_id == user_id and session.completed_at is None:
+    for sid in session_ids:
+        session = _get_session(sid)
+        if session and session.user_id == user_id and session.completed_at is None:
             existing_session = session
             break
 
@@ -134,7 +203,7 @@ async def start_profiling_session(
     session.suspicious_patterns = []
     session.anti_cheat_score = 0.0
 
-    _active_sessions[session.id] = session
+    _save_session(session)
 
     progress = enhanced_profiling_service.get_progress(session)
 
@@ -154,7 +223,7 @@ async def get_session_progress(
     """
     Get current progress for a profiling session.
     """
-    session = _active_sessions.get(session_id)
+    session = _get_session(session_id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -218,7 +287,7 @@ async def submit_question_response(
     # Normalize option: strip whitespace and accept single-letter A–E case-insensitively to fix option E errors
     raw = (request.selected_option or "").strip()
     selected_option = raw.upper() if len(raw) == 1 and raw.upper() in "ABCDE" else raw
-    session = _active_sessions.get(session_id)
+    session = _get_session(session_id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -303,6 +372,8 @@ async def submit_question_response(
     # Calculate anti-cheat score
     session.anti_cheat_score = _calculate_anti_cheat_score(session)
 
+    _save_session(session)
+
     progress = enhanced_profiling_service.get_progress(session)
 
     return {
@@ -322,7 +393,7 @@ async def complete_profiling_session(
 
     This now uses the enhanced Tier-0 profiling engine under the hood.
     """
-    session = _active_sessions.get(session_id)
+    session = _get_session(session_id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -352,6 +423,7 @@ async def complete_profiling_session(
 
         # Mark session as completed
         session.completed_at = result.completed_at
+        _save_session(session)
 
         # Note: Django sync will be handled by the frontend after completion
         # This ensures proper authentication token is passed
@@ -390,7 +462,7 @@ async def get_profiling_results(
     """
     Get profiling results for a completed session.
     """
-    session = _active_sessions.get(session_id)
+    session = _get_session(session_id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -446,9 +518,11 @@ async def check_profiling_status(user_id: int = Depends(get_current_user_id)):
     completed_session = None
     active_session = None
 
-    # Check for completed or active sessions for this user
-    for session in _active_sessions.values():
-        if session.user_id == user_id:
+    # Check Redis index for completed or active sessions for this user
+    session_ids = redis_client.smembers(f"user_sessions:{user_id}")
+    for sid in session_ids:
+        session = _get_session(sid)
+        if session and session.user_id == user_id:
             if session.completed_at is not None:
                 completed_session = session
             elif session.completed_at is None:
@@ -494,7 +568,7 @@ async def get_session_module_progress(
     Useful for UI flows where users complete one category at a time
     and resume later from the next module.
     """
-    session = _active_sessions.get(session_id)
+    session = _get_session(session_id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -518,21 +592,16 @@ async def delete_profiling_session(
     """
     Delete a profiling session (for testing/admin purposes).
     """
-    session = _active_sessions.get(session_id)
-    if not session:
+    # Remove session from Redis
+    try:
+        redis_client.delete(f"session:{session_id}")
+        redis_client.srem(f"user_sessions:{user_id}", session_id)
+    except Exception as e:
+        logger.error(f"Failed to delete session {session_id} from Redis: {e}")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profiling session not found"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete session"
         )
-
-    if session.user_id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this profiling session"
-        )
-
-    # Remove session
-    del _active_sessions[session_id]
 
     return {
         "success": True,
@@ -595,7 +664,7 @@ async def submit_reflection(
     Submit reflection responses (Module 7: Role Fit Reflection).
     These responses are used for value statement extraction.
     """
-    session = _active_sessions.get(session_id)
+    session = _get_session(session_id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -618,6 +687,7 @@ async def submit_reflection(
             detail="Failed to submit reflection"
         )
 
+    _save_session(session)
     return {
         "success": True,
         "message": "Reflection submitted successfully"
@@ -634,7 +704,7 @@ async def verify_difficulty_selection(
     Verify if user's difficulty self-selection is realistic (Module 6).
     AI engine verifies based on technical exposure responses.
     """
-    session = _active_sessions.get(session_id)
+    session = _get_session(session_id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -666,7 +736,7 @@ async def complete_enhanced_profiling_session(
     Complete an enhanced profiling session and generate comprehensive results.
     Uses the enhanced 7-module profiling system + GPT analysis.
     """
-    session = _active_sessions.get(session_id)
+    session = _get_session(session_id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -771,7 +841,7 @@ async def get_och_blueprint(
     Generate Personalized OCH Blueprint document.
     Includes track recommendation, difficulty level, starting point, and learning strategy.
     """
-    session = _active_sessions.get(session_id)
+    session = _get_session(session_id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -793,6 +863,7 @@ async def get_och_blueprint(
     # Reconstruct result from session
     recommendations = enhanced_profiling_service.generate_recommendations(session.scores)
     primary_track = OCH_TRACKS[session.recommended_track]
+    _save_session(session)
 
     # Generate deep insights
     deep_insights = enhanced_profiling_service._generate_deep_insights(
@@ -829,7 +900,7 @@ async def get_value_statement(
     Extract and return value statement from profiling session.
     This becomes the first portfolio entry.
     """
-    session = _active_sessions.get(session_id)
+    session = _get_session(session_id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

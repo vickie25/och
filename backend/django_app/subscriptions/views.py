@@ -514,7 +514,11 @@ def list_plans(request):
     if not qs.exists():
         qs = SubscriptionPlan.objects.all().order_by('sort_order', 'name', 'price_monthly')
     data = [_serialize_plan_for_api(p, include_counts=True) for p in qs]
-    return Response({'plans': data, 'policy': get_stream_policy()}, status=status.HTTP_200_OK)
+    return Response({
+        'plans': data, 
+        'policy': get_stream_policy(),
+        'paystack_public_key': os.environ.get('PAYSTACK_PUBLIC_KEY', os.environ.get('NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY', ''))
+    }, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
@@ -531,7 +535,11 @@ def list_plans_public(request):
     if not qs.exists():
         qs = SubscriptionPlan.objects.all().order_by('sort_order', 'name', 'price_monthly')
     data = [_serialize_plan_for_api(p, include_counts=False) for p in qs]
-    return Response({'plans': data, 'policy': get_stream_policy()}, status=status.HTTP_200_OK)
+    return Response({
+        'plans': data, 
+        'policy': get_stream_policy(),
+        'paystack_public_key': os.environ.get('PAYSTACK_PUBLIC_KEY', os.environ.get('NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY', ''))
+    }, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
@@ -901,6 +909,7 @@ def paystack_config(request):
             'default_currency': default_currency,
             'supported_channels': ['card', 'bank', 'mobile_money', 'ussd', 'bank_transfer'],
             'billing_intervals': ['monthly', 'yearly'],
+            'paystack_public_key': os.environ.get('PAYSTACK_PUBLIC_KEY', os.environ.get('NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY', '')),
         }, status=status.HTTP_200_OK)
 
     # KES: amount in cents (smallest unit; 100 KES = 10000 cents). Merchant uses KES.
@@ -917,6 +926,7 @@ def paystack_config(request):
         'default_currency': default_currency,
         'supported_channels': ['card', 'bank', 'mobile_money', 'ussd', 'bank_transfer'],
         'billing_intervals': ['monthly', 'yearly'],
+        'paystack_public_key': os.environ.get('PAYSTACK_PUBLIC_KEY', os.environ.get('NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY', '')),
     }, status=status.HTTP_200_OK)
 
 

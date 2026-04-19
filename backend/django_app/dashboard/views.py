@@ -83,6 +83,12 @@ def dashboard_overview(request):
             pass
 
     return Response({
+        'user': {
+            'display_name': user.display_name,
+            'email': user.email,
+            'timezone': user.timezone,
+            'university': user.org_id.name if user.org_id else 'Ongoza CyberHub',
+        },
         'readiness': {
             'score': readiness.score,
             'max_score': readiness.max_score,
@@ -360,7 +366,7 @@ def leaderboard(request):
         leaderboard_list.append({
             'rank': idx,
             'user_id': str(score.user.id),
-            'user_name': score.user.first_name or score.user.email.split('@')[0],
+            'user_name': score.user.display_name,
             'points': score.points,
             'avatar': None,
             'is_current_user': is_current_user,
@@ -372,7 +378,7 @@ def leaderboard(request):
             leaderboard_list.append({
                 'rank': len(leaderboard_list) + 1,
                 'user_id': str(user.id),
-                'user_name': user.first_name or user.email.split('@')[0],
+                'user_name': user.display_name,
                 'points': user_gamification.points,
                 'avatar': None,
                 'is_current_user': True,

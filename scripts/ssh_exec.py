@@ -20,12 +20,20 @@ def execute_stream(command):
         
         while not channel.exit_status_ready():
             if channel.recv_ready():
-                print(channel.recv(1024).decode(errors='replace'), end="")
+                sys.stdout.write(channel.recv(1024).decode(errors='replace'))
+                sys.stdout.flush()
+            if channel.recv_stderr_ready():
+                sys.stderr.write(channel.recv_stderr(1024).decode(errors='replace'))
+                sys.stderr.flush()
             time.sleep(0.1)
         
         # Print remaining output
         while channel.recv_ready():
-            print(channel.recv(1024).decode(errors='replace'), end="")
+            sys.stdout.write(channel.recv(1024).decode(errors='replace'))
+            sys.stdout.flush()
+        while channel.recv_stderr_ready():
+            sys.stderr.write(channel.recv_stderr(1024).decode(errors='replace'))
+            sys.stderr.flush()
             
         print(f"\nCommand exited with status: {channel.recv_exit_status()}")
         client.close()

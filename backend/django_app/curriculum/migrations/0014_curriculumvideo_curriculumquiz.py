@@ -8,7 +8,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('curriculum', '0013_merge_20260211_1949'),
+        ('curriculum', '0012_tier5_completion_config'),
     ]
 
     operations = [

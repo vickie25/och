@@ -1,41 +1,42 @@
-#!/usr/bin/env python
-import os
-import sys
+from rest_framework.test import APIClient
+from django.contrib.auth import get_user_model
+from programs.models import Program
 
-import django
+User = get_user_model()
 
-# Add the project directory to the Python path
-sys.path.append('/path/to/your/project')
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.development')
-
-django.setup()
-
-from programs.serializers import ProgramSerializer
-
-# Test data
-test_data = {
-    "name": "Test Program",
-    "category": "technical",
-    "description": "Test description",
-    "duration_months": 6,
-    "default_price": 1000.00,
-    "currency": "USD",
-    "outcomes": ["Test outcome"],
-    "status": "active"
-}
-
-print("Testing program creation...")
-print("Test data:", test_data)
-
-try:
-    serializer = ProgramSerializer(data=test_data)
-    if serializer.is_valid():
-        program = serializer.save()
-        print("✅ Program created successfully:", program.id)
-        print("Program data:", ProgramSerializer(program).data)
+def run():
+    client = APIClient()
+    
+    # Get or create a superuser/director to run the test
+    user = User.objects.filter(is_superuser=True).first()
+    if not user:
+        user = User.objects.first()
+        
+    client.force_authenticate(user=user)
+    
+    print(f"Testing program creation as user: {user.email}")
+    
+    payload = {
+        "name": "Test Cyber Program",
+        "category": "technical",
+        "categories": ["technical", "security"],
+        "description": "Test description",
+        "duration_months": 6,
+        "default_price": 5000,
+        "currency": "KSh",
+        "outcomes": ["Understand testing"],
+        "missions_registry_link": "https://example.com"
+    }
+    
+    response = client.post('/api/v1/director/programs/', payload, format='json')
+    print("Response Status Code:", response.status_code)
+    print("Response Data:", response.data)
+    
+    if response.status_code == 201:
+        print("SUCCESS! Program creation endpoint works.")
+        # Cleanup
+        Program.objects.filter(id=response.data['id']).delete()
     else:
-        print("❌ Validation errors:", serializer.errors)
-except Exception as e:
-    print("❌ Exception:", str(e))
-    import traceback
-    traceback.print_exc()
+        print("FAILED!")
+
+run()

@@ -1,4 +1,4 @@
-FROM python:3.12-slim-bookworm AS base
+FROM python:3.11-slim-bookworm AS base
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ ENV PIP_DEFAULT_TIMEOUT=600 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-# Install minimal system dependencies (avoid gcc/python3-dev to keep apt small)
+# Install minimal system dependencies
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -16,34 +16,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Upgrade pip
-RUN pip install --upgrade pip setuptools wheel
-
-# Copy requirements
+# Upgrade pip and install all requirements in consolidated layers
 COPY backend/fastapi_app/requirements.txt /tmp/requirements.txt
 
-# Install core dependencies
-RUN pip install --timeout=300 \
-    "fastapi>=0.104.0" \
-    "uvicorn[standard]>=0.24.0" \
-    "pydantic>=2.5.0" \
-    "pydantic-settings>=2.1.0" \
-    "asyncpg>=0.29.0" \
-    "psycopg2-binary>=2.9.9" \
-    "httpx>=0.25.0" \
-    "python-jose[cryptography]>=3.3.0" \
-    "python-dotenv>=1.0.0" \
-    "prometheus-client>=0.19.0" \
-    "alembic>=1.13.0"
-
-# Install numpy
-RUN pip install --timeout=600 "numpy>=1.24.0"
-
-# Install sentence-transformers (heaviest)
-RUN pip install --timeout=1800 "sentence-transformers>=2.2.0"
-
-# Install remaining requirements
-RUN pip install --timeout=600 -r /tmp/requirements.txt
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install --timeout=1800 \
+    "sentence-transformers>=2.2.0" \
+    "numpy>=1.24.0" && \
+    pip install --timeout=600 -r /tmp/requirements.txt
 
 # Copy application code
 COPY backend/fastapi_app/ .

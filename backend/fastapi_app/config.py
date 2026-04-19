@@ -64,9 +64,10 @@ class Settings(BaseSettings):
     PINECONE_ENVIRONMENT: str = ""
     PINECONE_INDEX_NAME: str = "ongozacyberhub"
 
+    # Redis Configuration
+    REDIS_URL: str = "redis://redis:6379/1"
+
     # Django API Communication
-    DJANGO_API_URL: str = "http://localhost:8000"
-    DJANGO_API_TIMEOUT: int = 30
 
     # Embedding Model
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"

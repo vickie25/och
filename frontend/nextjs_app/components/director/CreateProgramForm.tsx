@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { useAuth } from '@/hooks/useAuth'
 import { curriculumClient } from '@/services/curriculumClient'
+import { apiGateway } from '@/services/apiGateway'
 
 interface ProgramFormData {
   name: string
@@ -82,27 +83,15 @@ export default function CreateProgramClient() {
         }
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_API_URL}/api/v1/programs/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        },
-        body: JSON.stringify(payload)
-      })
-
-      if (response.ok) {
-        const program = await response.json()
-        setSuccess(true)
-        setTimeout(() => {
-          router.push(`/dashboard/director/programs/${program.id}`)
-        }, 2000)
-      } else {
-        const errorData = await response.json()
-        setError(errorData.message || 'Failed to create program')
-      }
-    } catch (error) {
-      setError('Network error. Please try again.')
+      const program = await apiGateway.post<any>('/director/programs/', payload)
+      
+      setSuccess(true)
+      setTimeout(() => {
+        router.push(`/dashboard/director/programs/${program.id}`)
+      }, 2000)
+    } catch (err: any) {
+      console.error('Failed to create program:', err)
+      setError(err?.data?.message || err?.data?.error || err.message || 'Network error. Please try again.')
     } finally {
       setLoading(false)
     }

@@ -14,7 +14,7 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from subscriptions.views import paystack_webhook
+from core.paystack_webhooks import unified_paystack_webhook
 
 from core.settings.metrics import metrics_view
 from users.views.oidc_views import (
@@ -78,8 +78,8 @@ urlpatterns = [
     # API Versioning
     path('api/v1/', include('api.urls')),
 
-    # Paystack webhook (alternate path; also available at api/v1/subscription/webhooks/paystack)
-    path('paystack/webhook/', paystack_webhook, name='paystack-webhook-root'),
+    # Unified Paystack webhook (handles both Subscriptions and Cohorts)
+    path('paystack/webhook/', unified_paystack_webhook, name='paystack-webhook-root'),
     # Frontend compatibility - API without version prefix
     path('api/', include('api.urls')),
 ]

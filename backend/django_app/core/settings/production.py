@@ -21,17 +21,17 @@ ALLOWED_HOSTS = merge_docker_internal_hosts(ALLOWED_HOSTS)
 # Frontend URL for production
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://cybochengine.africa')
 
-# Security settings for production
-SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True') == 'True'
-SECURE_HSTS_SECONDS = 31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
-SESSION_COOKIE_SECURE = SECURE_SSL_REDIRECT
-CSRF_COOKIE_SECURE = SECURE_SSL_REDIRECT
+# Security settings for production (DISABLED for Port 80 Emergency)
+SECURE_SSL_REDIRECT = False
+SECURE_HSTS_SECONDS = 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Session security
 SESSION_COOKIE_SAMESITE = 'Lax'
@@ -41,10 +41,12 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 # CSRF trusted origins for production
-CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'https://cybochengine.africa,https://www.cybochengine.africa').split(',')
+_csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', 'https://cybochengine.africa,https://www.cybochengine.africa').split(',')
+CSRF_TRUSTED_ORIGINS = _csrf_origins + ['http://cybochengine.africa', 'http://www.cybochengine.africa']
 
 # CORS settings for production
-CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'https://cybochengine.africa,https://www.cybochengine.africa').split(',')
+_cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', 'https://cybochengine.africa,https://www.cybochengine.africa').split(',')
+CORS_ALLOWED_ORIGINS = _cors_origins + ['http://cybochengine.africa', 'http://www.cybochengine.africa']
 
 CORS_ALLOW_CREDENTIALS = True
 

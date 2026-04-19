@@ -138,6 +138,15 @@ else:
 
 ALLOWED_HOSTS = merge_docker_internal_hosts(ALLOWED_HOSTS)
 
+# MFA Exemption (Emergency/Local)
+MFA_EXEMPT_EMAILS = [
+    'admin@ongoza.com',
+    'kelvin.reallife8@gmail.com',
+    'cresdynamics@gmail.com',
+    'nelsonochieng516@gmail.com',
+    'wilsonndambuki47@gmail.com',
+]
+
 # Enable APPEND_SLASH to support both with and without trailing slashes
 APPEND_SLASH = True
 
@@ -224,19 +233,29 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 
 # Database
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'ongozacyberhub'),
-        'USER': os.environ.get('DB_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
-        'OPTIONS': {
-            'options': '-c search_path=public'
-        },
+USE_SQLITE = os.environ.get('USE_SQLITE', 'True').lower() == 'true'
+
+if USE_SQLITE:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('DB_NAME', 'ongozacyberhub'),
+            'USER': os.environ.get('DB_USER', 'postgres'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'HOST': os.environ.get('DB_HOST', 'localhost'),
+            'PORT': os.environ.get('DB_PORT', '5432'),
+            'OPTIONS': {
+                'options': '-c search_path=public'
+            },
+        }
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -501,6 +520,22 @@ PASSWORD_RESET_TOKEN_EXPIRY = int(os.environ.get('PASSWORD_RESET_TOKEN_EXPIRY', 
 
 # MFA: TOTP secret encryption at rest (use MFA_TOTP_ENCRYPTION_KEY or fallback to SECRET_KEY)
 MFA_TOTP_ENCRYPTION_KEY = os.environ.get('MFA_TOTP_ENCRYPTION_KEY') or SECRET_KEY
+
+# MFA Exemptions (Emergency/Local)
+EMERGENCY_MFA_EXEMPT = [
+    'admin@ongoza.com',
+    'kelvin.reallife8@gmail.com',
+    'cresdynamics@gmail.com',
+    'nelsonochieng516@gmail.com',
+    'wilsonndambuki47@gmail.com',
+]
+
+_mfa_exempt = os.environ.get('MFA_EXEMPT_EMAILS', '')
+MFA_EXEMPT_EMAILS = [email.strip().lower() for email in _mfa_exempt.split(',') if email.strip()]
+# Merge with emergency list for local setup
+for email in EMERGENCY_MFA_EXEMPT:
+    if email.lower() not in MFA_EXEMPT_EMAILS:
+        MFA_EXEMPT_EMAILS.append(email.lower())
 
 # SMS: provider (textsms = sms.textsms.co.ke, textbelt = testing, twilio = production)
 SMS_PROVIDER = (os.environ.get('SMS_PROVIDER') or 'textsms').lower()

@@ -62,7 +62,7 @@ class PaystackService:
             'amount': amount_in_kobo,
             'currency': currency,
             'reference': reference,
-            'callback_url': callback_url or f"{settings.FRONTEND_URL}/dashboard/student/cohorts/payment/verify",
+            'callback_url': callback_url or f"{settings.FRONTEND_URL}/cohorts/payment/verify",
             'metadata': {
                 'enrollment_id': str(enrollment.id),
                 'cohort_id': str(enrollment.cohort.id),

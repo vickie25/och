@@ -2,6 +2,7 @@
 URL configuration for API v1 endpoints.
 """
 from django.urls import include, path, re_path
+from core.paystack_webhooks import unified_paystack_webhook
 from programs.views.director_management_views import director_mentor_analytics_view
 from programs.views.public_registration_views import list_public_applications
 from rest_framework.routers import DefaultRouter
@@ -148,5 +149,8 @@ urlpatterns = [
 
     # Recipe Engine
     path('', include('recipes.urls')),
+
+    # Unified Paystack Webhook Router
+    path('paystack/webhook/', unified_paystack_webhook, name='unified-paystack-webhook'),
 ]
 

@@ -150,36 +150,31 @@ def auto_map_user_to_university(user: User) -> Optional[UniversityMembership]:
 
 
 @receiver(post_save, sender=User)
-def auto_map_user_on_create(sender, instance, created, **kwargs):
+def sync_user_to_community(sender, instance, created, **kwargs):
     """
-    Auto-map user to university when account is created.
-    Also triggers for updates in case email was changed.
+    Ensure user profile data (name, timezone, university) is synced to community.
     """
     if not instance.email:
         return
 
     try:
-        # Check if user already has a primary university
+        # Sync to UserCommunityStats
+        stats, _ = UserCommunityStats.objects.get_or_create(user=instance)
+        # stats.user_display_name = instance.display_name  # Field does not exist in model
+        # stats.save(update_fields=['user_display_name'])
+
+        # Try to auto-map university if missing
         has_primary = UniversityMembership.objects.filter(
             user=instance,
             is_primary=True
         ).exists()
 
-        if has_primary:
-            return
-
-        # Try to auto-map
-        auto_map_user_to_university(instance)
+        if not has_primary:
+            auto_map_user_to_university(instance)
     except Exception as e:
-        # Handle case where community_university_memberships table doesn't exist yet
-        # This can happen if migrations haven't been run
-        # Import ProgrammingError to catch database errors specifically
         from django.db.utils import OperationalError, ProgrammingError
-        if isinstance(e, (ProgrammingError, OperationalError)):
-            logger.debug(f"UniversityMembership table not available yet (migrations pending): {e}")
-        else:
-            logger.warning(f"Could not auto-map user to university: {e}")
-        return
+        if not isinstance(e, (ProgrammingError, OperationalError)):
+            logger.warning(f"Could not sync user to community: {e}")
 
 
 # ============================================================

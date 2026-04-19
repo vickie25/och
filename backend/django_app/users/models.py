@@ -206,6 +206,15 @@ class User(AbstractUser):
     def __str__(self):
         return self.email
 
+    @property
+    def display_name(self):
+        """Unified display name for the platform."""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        if self.first_name:
+            return self.first_name
+        return self.username or self.email.split('@')[0]
+
     def get_profiling_session_id_safe(self):
         """Safely get profiling_session_id, handling invalid UUID values."""
         try:

@@ -108,13 +108,14 @@ export default function SubscriptionClient() {
   const [isLoading, setIsLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [dynamicPaystackKey, setDynamicPaystackKey] = useState<string>('')
   const selectedCountry = user?.country?.toUpperCase() || 'KE'
   const kesRate =
     policy.usd_to_kes_rate ?? subStatus?.policy?.usd_to_kes_rate ?? 130
   const countryLabel = getCountryDisplayName(selectedCountry)
   const currencyCode = getCurrencyCode(selectedCountry)
 
-  const paystackPublicKey = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '') : ''
+  const paystackPublicKey = dynamicPaystackKey || (typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '') : '')
 
   useEffect(() => {
     if (user?.id) loadAll()
@@ -133,6 +134,12 @@ export default function SubscriptionClient() {
       setSubStatus(statusRes)
       const { plans: p, policy: pol } = normalizePlansResponse(plansRes)
       setPlans(p)
+      
+      // Dynamic config from backend
+      if ((plansRes as any).paystack_public_key) {
+        setDynamicPaystackKey((plansRes as any).paystack_public_key)
+      }
+
       setPolicy(pol || (statusRes as SubscriptionStatus).policy || {})
       const billingList = Array.isArray(billingRes) ? billingRes : (billingRes as { billing_history?: unknown[] })?.billing_history ?? []
       setBilling(billingList)

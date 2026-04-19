@@ -192,11 +192,9 @@ class DeviceTrust(models.Model):
     """
     Trusted devices for users (skip MFA on trusted devices).
     """
-    # Some environments store device_trust.user_id as a UUID FK to users.uuid_id (not users.id).
-    # Align the ORM with that schema to avoid uuid/int mismatches during auth flows.
+    # Reverted: The database column 'user_id' is a bigint, matching the 'id' field, NOT a UUID.
     user = models.ForeignKey(
         User,
-        to_field='uuid_id',
         db_column='user_id',
         on_delete=models.CASCADE,
         related_name='trusted_devices',

