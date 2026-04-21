@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { normalizeRoleName } from './lib/rbacFromAuthPayload';
 
 // Routes that always require authentication
 const protectedRoutes = [
@@ -144,7 +145,11 @@ export function middleware(request: NextRequest) {
   const rolesCookie = request.cookies.get('och_roles')?.value;
   const primaryRoleCookie = request.cookies.get('och_primary_role')?.value || null;
   const dashboardCookie = request.cookies.get('och_dashboard')?.value || null;
-  const roles = parseRolesCookie(rolesCookie);
+  let roles = parseRolesCookie(rolesCookie);
+  // If `och_roles` was empty but primary role cookie survived (cookie size / legacy writers), recover RBAC.
+  if (!roles.length && primaryRoleCookie) {
+    roles = [normalizeRoleName(primaryRoleCookie)];
+  }
   let home = dashboardCookie || dashboardForRole(primaryRoleCookie);
   
   if (roles.includes('mentor') && (!home || home === '/dashboard/student')) {

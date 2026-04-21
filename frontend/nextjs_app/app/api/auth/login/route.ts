@@ -1,120 +1,16 @@
 /**
  * Next.js API Route: Login
- * Handles login and sets HttpOnly cookies for tokens
+ * Proxies credentials to Django and mirrors the same RBAC cookies as `/api/auth/set-tokens`
+ * (shared resolver) so middleware and client fallbacks stay aligned.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import type { LoginRequest, LoginResponse } from '@/services/types';
-import { logger } from '@/lib/logger';
-
-function normalizeRoleName(roleName: string): string {
-  const normalized = (roleName || '').toLowerCase().trim()
-  logger('[Role Normalization] Input:', roleName, 'Normalized:', normalized)
-
-  if (normalized === 'program_director' || normalized === 'program director' || normalized === 'programdirector' || normalized === 'director') return 'program_director'
-  if (normalized === 'mentee') return 'mentee'
-  if (normalized === 'student') return 'student'
-  if (normalized === 'mentor') return 'mentor'
-  if (normalized === 'admin') return 'admin'
-  if (
-    normalized === 'sponsor_admin' ||
-    normalized === 'sponsor' ||
-    normalized === 'sponsor/employer admin' ||
-    normalized === 'sponsoremployer admin'
-  ) {
-    return 'sponsor_admin'
-  }
-  if (
-    normalized === 'institution_admin' ||
-    normalized === 'institution admin' ||
-    normalized === 'institutional_admin' ||
-    normalized === 'institutional admin'
-  ) {
-    return 'institution_admin'
-  }
-  if (normalized === 'organization_admin' || normalized === 'organization admin') return 'organization_admin'
-  if (normalized === 'analyst') return 'analyst'
-  if (normalized === 'employer') return 'employer'
-  if (normalized === 'finance' || normalized === 'finance_admin') return 'finance'
-  return normalized
-}
-
-function extractNormalizedRoles(user: any): string[] {
-  console.log('[Role Extraction] Full user object:', JSON.stringify(user, null, 2))
-  const rolesRaw = user?.roles || []
-  console.log('[Role Extraction] Raw roles from user.roles:', rolesRaw, 'Type:', typeof rolesRaw, 'Is Array:', Array.isArray(rolesRaw))
-
-  if (!Array.isArray(rolesRaw)) {
-    console.log('[Role Extraction] rolesRaw is not an array, trying user.role:', user?.role)
-    // Fallback: if roles is not an array, try to use the single role field
-    const singleRole = user?.role
-    if (singleRole) {
-      const normalized = normalizeRoleName(String(singleRole))
-      console.log('[Role Extraction] Using single role:', singleRole, '->', normalized)
-      return [normalized]
-    }
-    return []
-  }
-
-  const roles = rolesRaw
-    .map((ur: any) => {
-      let roleValue: string
-      if (typeof ur === 'string') roleValue = ur
-      else if (ur && typeof ur === 'object') {
-        const r = ur.role
-        roleValue = typeof r === 'string' ? r : (r?.name != null ? String(r.name) : (ur?.name != null ? String(ur.name) : ''))
-      } else roleValue = String(ur ?? '')
-      const normalized = normalizeRoleName(roleValue)
-      console.log('[Role Extraction] Processing:', roleValue, '->', normalized)
-      return normalized
-    })
-    .filter(Boolean)
-  // de-dupe
-  const uniqueRoles = Array.from(new Set(roles))
-  console.log('[Role Extraction] Final unique roles:', uniqueRoles)
-  return uniqueRoles
-}
-
-function getPrimaryRole(roles: string[]): string | null {
-  console.log('[Primary Role] Available roles:', roles)
-  if (roles.includes('admin')) {
-    console.log('[Primary Role] Selected: admin')
-    return 'admin'
-  }
-  const priority = ['program_director', 'finance', 'support', 'mentor', 'analyst', 'institution_admin', 'organization_admin', 'sponsor_admin', 'employer', 'mentee', 'student']
-  for (const r of priority) {
-    if (roles.includes(r)) {
-      console.log('[Primary Role] Selected:', r)
-      return r
-    }
-  }
-  const fallback = roles[0] || null
-  console.log('[Primary Role] Fallback to:', fallback)
-  return fallback
-}
-
-function getDashboardForRole(role: string | null): string {
-  console.log('[Dashboard Routing] Input role:', role)
-  let dashboard: string
-  switch (role) {
-    case 'admin': dashboard = '/dashboard/admin'; break
-    case 'program_director': dashboard = '/dashboard/director'; break
-    case 'mentor': dashboard = '/dashboard/mentor'; break
-    case 'analyst': dashboard = '/dashboard/analyst'; break
-    case 'institution_admin': dashboard = '/dashboard/institution'; break
-    case 'organization_admin': dashboard = '/dashboard/institution'; break
-    case 'sponsor_admin': dashboard = '/dashboard/sponsor'; break
-    case 'employer': dashboard = '/dashboard/employer'; break
-    case 'finance': dashboard = '/dashboard/finance'; break
-    case 'support': dashboard = '/support/dashboard'; break
-    case 'mentee':
-    case 'student': dashboard = '/dashboard/student'; break
-    default:
-      dashboard = '/dashboard/student'
-  }
-  console.log('[Dashboard Routing] Selected dashboard:', dashboard)
-  return dashboard
-}
+import type { LoginRequest } from '@/services/types';
+import {
+  resolveNormalizedRoles,
+  getPrimaryRole,
+  getDashboardForRole,
+} from '@/lib/rbacFromAuthPayload';
 
 export async function POST(request: NextRequest) {
   try {
@@ -123,11 +19,20 @@ export async function POST(request: NextRequest) {
 
     console.log('[Login API] Received login attempt:', { email, passwordLength: password?.length });
 
-    // Forward authentication to Django backend through Nginx proxy
-    const djangoUrl = process.env.DJANGO_API_URL || process.env.NEXT_PUBLIC_DJANGO_API_URL || 'http://localhost/api';
-    const apiUrl = `${djangoUrl}/v1/auth/login/simple`;
+    // Forward authentication to Django backend.
+    //
+    // IMPORTANT: Use the full auth endpoint so the response includes RBAC roles.
+    // The legacy `/v1/auth/login/simple` returns a minimal user object without roles,
+    // which causes the frontend to default every user to the student dashboard.
+    const djangoUrl =
+      process.env.NEXT_PUBLIC_DJANGO_API_URL ||
+      process.env.DJANGO_INTERNAL_URL ||
+      process.env.DJANGO_API_URL ||
+      'http://django:8000'
+    const apiUrl = `${djangoUrl}/api/v1/auth/login`;
     console.log('[Login API] Forwarding to API URL:', apiUrl);
     console.log('[Login API] DJANGO_API_URL env:', process.env.DJANGO_API_URL);
+    console.log('[Login API] DJANGO_INTERNAL_URL env:', process.env.DJANGO_INTERNAL_URL);
     console.log('[Login API] NEXT_PUBLIC_DJANGO_API_URL env:', process.env.NEXT_PUBLIC_DJANGO_API_URL);
 
     const apiResponse = await fetch(apiUrl, {
@@ -231,31 +136,40 @@ export async function POST(request: NextRequest) {
     const isSecure = proto === 'https';
     console.log('[Login API] Setting cookies with secure:', isSecure, 'proto:', proto);
 
-    // Set RBAC cookies for middleware enforcement (HttpOnly so client can't tamper)
-    const normalizedRoles = extractNormalizedRoles(loginResponse.user)
-    const primaryRole = getPrimaryRole(normalizedRoles)
-    console.log('[Login API] Final results - Normalized roles:', normalizedRoles, 'Primary role:', primaryRole);
+    // RBAC cookies: same resolver as set-tokens. Non-HttpOnly so login UI can read `och_dashboard`
+    // from document.cookie when `/auth/me` is slow; API access is still gated by the JWT.
+    const lr = loginResponse as {
+      user?: Record<string, unknown>;
+      primary_role?: string;
+    };
+    const normalizedRoles = resolveNormalizedRoles(lr.user ?? null, {
+      primary_role:
+        typeof lr.primary_role === 'string' && lr.primary_role.trim() ? lr.primary_role : null,
+      user: lr.user ?? null,
+    });
+    const primaryRole = getPrimaryRole(normalizedRoles);
+    console.log('[Login API] RBAC cookies — roles:', normalizedRoles, 'primary:', primaryRole);
     nextResponse.cookies.set('och_roles', JSON.stringify(normalizedRoles), {
-      httpOnly: true,
+      httpOnly: false,
       secure: isSecure,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
       path: '/',
-    })
+    });
     nextResponse.cookies.set('och_primary_role', primaryRole || '', {
-      httpOnly: true,
+      httpOnly: false,
       secure: isSecure,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
       path: '/',
-    })
+    });
     nextResponse.cookies.set('och_dashboard', getDashboardForRole(primaryRole), {
-      httpOnly: true,
+      httpOnly: false,
       secure: isSecure,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
       path: '/',
-    })
+    });
     // Try to get track info from user data
     const trackKey = loginResponse.user?.track_key || '';
 

@@ -131,7 +131,7 @@ function useProvideAuth(): AuthContextValue {
         };
       }
       
-      const { user, access_token, refresh_token } = responseData;
+      const { user, access_token, refresh_token, primary_role, profiling_required } = responseData;
 
       if (!access_token) {
         throw new Error('No access token received from login response');
@@ -167,6 +167,10 @@ function useProvideAuth(): AuthContextValue {
             access_token,
             refresh_token: refresh_token ?? '',
             user: fullUser ?? user,
+            primary_role:
+              typeof primary_role === 'string' && primary_role.trim()
+                ? primary_role
+                : undefined,
           }),
         });
       } catch {
@@ -180,7 +184,12 @@ function useProvideAuth(): AuthContextValue {
         isAuthenticated: true,
       });
 
-      return { user: fullUser, access_token: access_token };
+      return {
+        user: fullUser,
+        access_token: access_token,
+        primary_role: primary_role as string | undefined,
+        profiling_required: profiling_required as boolean | undefined,
+      };
     } catch (error) {
       setState(prev => ({ ...prev, isLoading: false }));
       throw error;
@@ -198,7 +207,7 @@ function useProvideAuth(): AuthContextValue {
   }) => {
     try {
       const response: any = await apiGateway.post<any>('/auth/mfa/complete', params, { skipAuth: true });
-      const { access_token, refresh_token: newRefreshToken, user: userData } = response as any;
+      const { access_token, refresh_token: newRefreshToken, user: userData, primary_role } = response as any;
       // Set tokens in localStorage and in cookies (client-side) so middleware sees them on next request
       setAuthTokens(access_token, newRefreshToken ?? '');
       // Also set via API so och_roles and other cookies are set; middleware relies on access_token cookie
@@ -207,7 +216,15 @@ function useProvideAuth(): AuthContextValue {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ access_token, refresh_token: newRefreshToken, user: userData }),
+          body: JSON.stringify({
+            access_token,
+            refresh_token: newRefreshToken,
+            user: userData,
+            primary_role:
+              typeof primary_role === 'string' && primary_role.trim()
+                ? primary_role
+                : undefined,
+          }),
         });
       } catch {
         // Non-fatal; tokens may still be in localStorage
@@ -219,7 +236,11 @@ function useProvideAuth(): AuthContextValue {
         fullUser = userData;
       }
       setState({ user: fullUser, isLoading: false, isAuthenticated: true });
-      return { user: fullUser, access_token };
+      return {
+        user: fullUser,
+        access_token,
+        primary_role: typeof primary_role === 'string' ? primary_role : undefined,
+      };
     } catch (error: any) {
       throw error;
     }
