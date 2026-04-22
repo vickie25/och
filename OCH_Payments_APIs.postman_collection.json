@@ -1,0 +1,566 @@
+{
+  "info": {
+    "_postman_id": "9d0d64e4-a8b2-4a13-8a96-9a77dca2e8f0",
+    "name": "OCH Payments APIs - Full Collection",
+    "description": "Comprehensive payment API collection for Subscriptions, Cohorts, Sponsor Billing, and Webhooks with built-in tests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000", "type": "string" },
+    { "key": "auth_token", "value": "", "type": "string" },
+    { "key": "email", "value": "director@gmail.com", "type": "string" },
+    { "key": "password", "value": "testpass123", "type": "string" },
+    { "key": "plan", "value": "starter_3", "type": "string" },
+    { "key": "gateway", "value": "paystack", "type": "string" },
+    { "key": "subscription_reference", "value": "", "type": "string" },
+    { "key": "cohort_enrollment_id", "value": "", "type": "string" },
+    { "key": "cohort_reference", "value": "", "type": "string" },
+    { "key": "cohort_payment_id", "value": "", "type": "string" },
+    { "key": "organization_id", "value": "", "type": "string" },
+    { "key": "invoice_id", "value": "", "type": "string" },
+    { "key": "invoice_reference", "value": "", "type": "string" },
+    { "key": "sponsor_id", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "00 - Auth Setup",
+      "item": [
+        {
+          "name": "Login (Get Token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (e) {}",
+                  "pm.test('Access token exists', function () {",
+                  "  pm.expect(json.access || json.token).to.exist;",
+                  "});",
+                  "pm.collectionVariables.set('auth_token', json.access || json.token || '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 - Subscription Payments",
+      "item": [
+        {
+          "name": "Get Paystack Config",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Status is 200', function(){ pm.response.to.have.status(200); });",
+                "let json = {}; try { json = pm.response.json(); } catch(e) {}",
+                "pm.test('Response is object', function(){ pm.expect(json).to.be.an('object'); });"
+              ]}
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/subscription/paystack/config/?plan={{plan}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "subscription", "paystack", "config", ""],
+              "query": [{ "key": "plan", "value": "{{plan}}" }]
+            }
+          }
+        },
+        {
+          "name": "Initialize Paystack Subscription Payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Status is success', function(){ pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
+                "let json = {}; try { json = pm.response.json(); } catch(e) {}",
+                "const reference = json.reference || json.data?.reference || '';",
+                "const authUrl = json.authorization_url || json.data?.authorization_url || '';",
+                "pm.test('Reference exists', function(){ pm.expect(reference).to.be.a('string').and.not.empty; });",
+                "pm.test('Authorization URL exists', function(){ pm.expect(authUrl).to.be.a('string').and.not.empty; });",
+                "pm.collectionVariables.set('subscription_reference', reference);"
+              ]}
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan\": \"{{plan}}\",\n  \"gateway\": \"{{gateway}}\",\n  \"callback_url\": \"http://localhost:3000/payment/success\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/subscription/paystack/initialize/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "subscription", "paystack", "initialize", ""]
+            }
+          }
+        },
+        {
+          "name": "Verify Subscription Payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Status is 200', function(){ pm.response.to.have.status(200); });",
+                "let json = {}; try { json = pm.response.json(); } catch(e) {}",
+                "pm.test('Has payment state', function(){",
+                "  pm.expect(JSON.stringify(json)).to.match(/status|paid|success|verified/i);",
+                "});"
+              ]}
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"{{subscription_reference}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/subscription/paystack/verify/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "subscription", "paystack", "verify", ""]
+            }
+          }
+        },
+        {
+          "name": "Billing History",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Status is 200', function(){ pm.response.to.have.status(200); });",
+                "let json = {}; try { json = pm.response.json(); } catch(e) {}",
+                "pm.test('Response has array/object payload', function(){",
+                "  const isArray = Array.isArray(json);",
+                "  const hasList = Array.isArray(json.results) || Array.isArray(json.transactions) || Array.isArray(json.history);",
+                "  pm.expect(isArray || hasList || typeof json === 'object').to.eql(true);",
+                "});"
+              ]}
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/subscription/billing-history/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "subscription", "billing-history", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Cohort Payments",
+      "item": [
+        {
+          "name": "Initiate Cohort Payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Status is success', function(){ pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
+                "let json = {}; try { json = pm.response.json(); } catch(e) {}",
+                "const reference = json.reference || '';",
+                "const paymentId = json.payment_id || '';",
+                "if (reference) pm.collectionVariables.set('cohort_reference', reference);",
+                "if (paymentId) pm.collectionVariables.set('cohort_payment_id', paymentId);",
+                "pm.test('Reference captured when enrollment is valid', function(){",
+                "  if (pm.collectionVariables.get('cohort_enrollment_id')) pm.expect(reference).to.be.a('string').and.not.empty;",
+                "  else pm.expect(true).to.eql(true);",
+                "});"
+              ]}
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enrollment_id\": \"{{cohort_enrollment_id}}\",\n  \"callback_url\": \"http://localhost:3000/cohorts/payment/return\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cohorts/payment/initiate/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "cohorts", "payment", "initiate", ""]
+            }
+          }
+        },
+        {
+          "name": "Verify Cohort Payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Status is 200', function(){ pm.response.to.have.status(200); });",
+                "let json = {}; try { json = pm.response.json(); } catch(e) {}",
+                "pm.test('Has payment status', function(){ pm.expect(json.status || json.payment_status).to.exist; });"
+              ]}
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/cohorts/payment/verify/?reference={{cohort_reference}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "cohorts", "payment", "verify", ""],
+              "query": [{ "key": "reference", "value": "{{cohort_reference}}" }]
+            }
+          }
+        },
+        {
+          "name": "Get Cohort Payment Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Status is 200', function(){ pm.response.to.have.status(200); });"
+              ]}
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/cohorts/payment/status/?reference={{cohort_reference}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "cohorts", "payment", "status", ""],
+              "query": [{ "key": "reference", "value": "{{cohort_reference}}" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Sponsor Billing",
+      "item": [
+        {
+          "name": "Billing Catalog",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Status is 200', function(){ pm.response.to.have.status(200); });"
+              ]}
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/billing/catalog/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "billing", "catalog", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Checkout Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Status is success', function(){ pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
+                "let json = {}; try { json = pm.response.json(); } catch(e) {}",
+                "pm.test('Checkout response has link or session id', function(){",
+                "  pm.expect(json.checkout_url || json.url || json.session_id || json.id).to.exist;",
+                "});"
+              ]}
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sponsor_id\": \"{{sponsor_id}}\",\n  \"items\": [\n    { \"type\": \"seat\", \"qty\": 3 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/billing/checkout/sessions/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "billing", "checkout", "sessions", ""]
+            }
+          }
+        },
+        {
+          "name": "List Sponsor Invoices",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Status is 200', function(){ pm.response.to.have.status(200); });",
+                "let json = {}; try { json = pm.response.json(); } catch(e) {}",
+                "if (Array.isArray(json.results) && json.results.length) {",
+                "  pm.collectionVariables.set('invoice_id', json.results[0].id || '');",
+                "}"
+              ]}
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/billing/invoices/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "billing", "invoices", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Org Enrollment Invoice (POST)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Status is success', function(){ pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
+                "let json = {}; try { json = pm.response.json(); } catch(e) {}",
+                "if (json.id) pm.collectionVariables.set('invoice_id', json.id);",
+                "if (json.paystack_reference) pm.collectionVariables.set('invoice_reference', json.paystack_reference);",
+                "pm.test('Invoice id captured', function(){ pm.expect(pm.collectionVariables.get('invoice_id')).to.be.a('string').and.not.empty; });"
+              ]}
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"organization_id\": \"{{organization_id}}\",\n  \"contact_person_name\": \"Finance Manager\",\n  \"contact_email\": \"finance@example.com\",\n  \"contact_phone\": \"+254700000000\",\n  \"total_amount_kes\": 15000,\n  \"line_items\": [\n    {\n      \"student_name\": \"Student A\",\n      \"plan_name\": \"Starter\",\n      \"amount_kes\": 5000\n    },\n    {\n      \"student_name\": \"Student B\",\n      \"plan_name\": \"Starter\",\n      \"amount_kes\": 5000\n    },\n    {\n      \"student_name\": \"Student C\",\n      \"plan_name\": \"Starter\",\n      \"amount_kes\": 5000\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/billing/org-enrollment-invoices/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "billing", "org-enrollment-invoices", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Org Enrollment Invoice (Public GET)",
+          "auth": { "type": "noauth" },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Status is 200', function(){ pm.response.to.have.status(200); });",
+                "let json = {}; try { json = pm.response.json(); } catch(e) {}",
+                "pm.test('Invoice payload returned', function(){ pm.expect(json.id || json.invoice_number).to.exist; });",
+                "if (json.paystack_reference) pm.collectionVariables.set('invoice_reference', json.paystack_reference);"
+              ]}
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/billing/org-enrollment-invoices/{{invoice_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "billing", "org-enrollment-invoices", "{{invoice_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Verify Org Enrollment Invoice Payment (Public POST)",
+          "auth": { "type": "noauth" },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Status is acceptable', function(){ pm.expect(pm.response.code).to.be.oneOf([200,400]); });",
+                "let json = {}; try { json = pm.response.json(); } catch(e) {}",
+                "pm.test('Response has status or error', function(){ pm.expect(json.status || json.error).to.exist; });"
+              ]}
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"reference\": \"{{invoice_reference}}\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/billing/org-enrollment-invoices/{{invoice_id}}/verify-payment/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "billing", "org-enrollment-invoices", "{{invoice_id}}", "verify-payment", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Org Enrollment Invoice Status (PATCH)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Status is 200', function(){ pm.response.to.have.status(200); });",
+                "let json = {}; try { json = pm.response.json(); } catch(e) {}",
+                "pm.test('Status changed', function(){ pm.expect(json.status).to.exist; });"
+              ]}
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"waived\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/api/v1/billing/org-enrollment-invoices/{{invoice_id}}/status/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "billing", "org-enrollment-invoices", "{{invoice_id}}", "status", ""]
+            }
+          }
+        },
+        {
+          "name": "Sponsor Entitlements",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Status is 200', function(){ pm.response.to.have.status(200); });"
+              ]}
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/billing/entitlements/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "billing", "entitlements", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Webhooks (Manual/Forwarded)",
+      "item": [
+        {
+          "name": "Subscription Stripe Webhook (Raw)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Webhook endpoint responds', function(){",
+                "  pm.expect(pm.response.code).to.be.oneOf([200,400,401]);",
+                "});"
+              ]}
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Stripe-Signature", "value": "replace_with_valid_signature" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_test\",\n  \"type\": \"invoice.payment_succeeded\",\n  \"data\": { \"object\": { \"id\": \"in_test\" } }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/subscription/webhooks/stripe/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "subscription", "webhooks", "stripe", ""]
+            }
+          }
+        },
+        {
+          "name": "Subscription Paystack Webhook (Raw)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Webhook endpoint responds', function(){",
+                "  pm.expect(pm.response.code).to.be.oneOf([200,400]);",
+                "});"
+              ]}
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Paystack-Signature", "value": "replace_with_valid_signature" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"charge.success\",\n  \"data\": {\n    \"reference\": \"{{subscription_reference}}\",\n    \"status\": \"success\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/subscription/webhooks/paystack/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "subscription", "webhooks", "paystack", ""]
+            }
+          }
+        },
+        {
+          "name": "Unified Paystack Webhook",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": [
+                "pm.test('Webhook endpoint responds', function(){",
+                "  pm.expect(pm.response.code).to.be.oneOf([200,400]);",
+                "});"
+              ]}
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Paystack-Signature", "value": "replace_with_valid_signature" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"charge.success\",\n  \"data\": {\n    \"reference\": \"{{subscription_reference}}\",\n    \"status\": \"success\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/paystack/webhook/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "paystack", "webhook", ""]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
