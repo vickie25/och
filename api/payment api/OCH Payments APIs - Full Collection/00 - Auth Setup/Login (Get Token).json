@@ -1,0 +1,33 @@
+{
+  "name": "Login (Get Token)",
+  "rank": "aw",
+  "request": {
+    "type": "http",
+    "url": "{{base_url}}/api/v1/auth/login/",
+    "scripts": {
+      "preRequest": "",
+      "postResponse": "rq.test('Status is 200', function () {\n  rq.response.to.have.status(200);\n});\nlet json = {};\ntry { json = rq.response.json(); } catch (e) {}\nrq.test('Access token exists', function () {\n  rq.expect(json.access || json.token).to.exist;\n});\nrq.collectionVariables.set('auth_token', json.access || json.token || '');"
+    },
+    "method": "POST",
+    "queryParams": [],
+    "headers": [
+      {
+        "id": 0,
+        "key": "Content-Type",
+        "value": "application/json",
+        "isEnabled": true,
+        "description": "",
+        "dataType": "string"
+      }
+    ],
+    "body": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+    "bodyContainer": {
+      "text": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+    },
+    "contentType": "text/plain",
+    "auth": {
+      "currentAuthType": "INHERIT",
+      "authConfigStore": {}
+    }
+  }
+}

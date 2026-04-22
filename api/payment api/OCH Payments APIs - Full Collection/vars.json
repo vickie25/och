@@ -1,0 +1,86 @@
+{
+  "base_url": {
+    "value": "http://localhost:8000",
+    "type": "string",
+    "id": 0,
+    "isSecret": false
+  },
+  "auth_token": {
+    "value": "",
+    "type": "string",
+    "id": 1,
+    "isSecret": false
+  },
+  "email": {
+    "value": "director@gmail.com",
+    "type": "string",
+    "id": 2,
+    "isSecret": false
+  },
+  "password": {
+    "value": "testpass123",
+    "type": "string",
+    "id": 3,
+    "isSecret": false
+  },
+  "plan": {
+    "value": "starter_3",
+    "type": "string",
+    "id": 4,
+    "isSecret": false
+  },
+  "gateway": {
+    "value": "paystack",
+    "type": "string",
+    "id": 5,
+    "isSecret": false
+  },
+  "subscription_reference": {
+    "value": "",
+    "type": "string",
+    "id": 6,
+    "isSecret": false
+  },
+  "cohort_enrollment_id": {
+    "value": "",
+    "type": "string",
+    "id": 7,
+    "isSecret": false
+  },
+  "cohort_reference": {
+    "value": "",
+    "type": "string",
+    "id": 8,
+    "isSecret": false
+  },
+  "cohort_payment_id": {
+    "value": "",
+    "type": "string",
+    "id": 9,
+    "isSecret": false
+  },
+  "organization_id": {
+    "value": "",
+    "type": "string",
+    "id": 10,
+    "isSecret": false
+  },
+  "invoice_id": {
+    "value": "",
+    "type": "string",
+    "id": 11,
+    "isSecret": false
+  },
+  "invoice_reference": {
+    "value": "",
+    "type": "string",
+    "id": 12,
+    "isSecret": false
+  },
+  "sponsor_id": {
+    "value": "",
+    "type": "string",
+    "id": 13,
+    "isSecret": false
+  }
+}
