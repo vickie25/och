@@ -1,0 +1,1 @@
+Comprehensive payment API collection for Subscriptions, Cohorts, Sponsor Billing, and Webhooks with built-in tests.

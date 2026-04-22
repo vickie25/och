@@ -1,0 +1,33 @@
+{
+  "name": "Verify Cohort Payment",
+  "rank": "b02",
+  "request": {
+    "type": "http",
+    "url": "{{base_url}}/api/v1/cohorts/payment/verify/?reference={{cohort_reference}}",
+    "scripts": {
+      "preRequest": "",
+      "postResponse": "rq.test('Status is 200', function(){ rq.response.to.have.status(200); });\nlet json = {}; try { json = rq.response.json(); } catch(e) {}\nrq.test('Has payment status', function(){ rq.expect(json.status || json.payment_status).to.exist; });"
+    },
+    "method": "GET",
+    "queryParams": [
+      {
+        "id": 0,
+        "key": "reference",
+        "value": "{{cohort_reference}}",
+        "isEnabled": true,
+        "description": "",
+        "dataType": "string"
+      }
+    ],
+    "headers": [],
+    "body": "",
+    "bodyContainer": {
+      "text": ""
+    },
+    "contentType": "text/plain",
+    "auth": {
+      "currentAuthType": "INHERIT",
+      "authConfigStore": {}
+    }
+  }
+}

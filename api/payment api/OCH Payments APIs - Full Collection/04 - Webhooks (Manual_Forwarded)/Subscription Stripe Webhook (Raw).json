@@ -1,0 +1,41 @@
+{
+  "name": "Subscription Stripe Webhook (Raw)",
+  "rank": "b0C",
+  "request": {
+    "type": "http",
+    "url": "{{base_url}}/api/v1/subscription/webhooks/stripe/",
+    "scripts": {
+      "preRequest": "",
+      "postResponse": "rq.test('Webhook endpoint responds', function(){\n  rq.expect(rq.response.code).to.be.oneOf([200,400,401]);\n});"
+    },
+    "method": "POST",
+    "queryParams": [],
+    "headers": [
+      {
+        "id": 0,
+        "key": "Content-Type",
+        "value": "application/json",
+        "isEnabled": true,
+        "description": "",
+        "dataType": "string"
+      },
+      {
+        "id": 1,
+        "key": "Stripe-Signature",
+        "value": "replace_with_valid_signature",
+        "isEnabled": true,
+        "description": "",
+        "dataType": "string"
+      }
+    ],
+    "body": "{\n  \"id\": \"evt_test\",\n  \"type\": \"invoice.payment_succeeded\",\n  \"data\": { \"object\": { \"id\": \"in_test\" } }\n}",
+    "bodyContainer": {
+      "text": "{\n  \"id\": \"evt_test\",\n  \"type\": \"invoice.payment_succeeded\",\n  \"data\": { \"object\": { \"id\": \"in_test\" } }\n}"
+    },
+    "contentType": "text/plain",
+    "auth": {
+      "currentAuthType": "INHERIT",
+      "authConfigStore": {}
+    }
+  }
+}

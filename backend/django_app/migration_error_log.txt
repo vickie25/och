@@ -1,0 +1,47 @@
+
+2026-04-22 16:01:21.606317
+Traceback (most recent call last):
+  File "C:\Users\HomePC\Desktop\och\backend\django_app\hard_reset_migrations.py", line 35, in reset_and_fix
+    call_command('migrate', verbosity=1)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HomePC\Desktop\och\backend\django_app\.venv\Lib\site-packages\django\core\management\__init__.py", line 194, in call_command
+    return command.execute(*args, **defaults)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HomePC\Desktop\och\backend\django_app\.venv\Lib\site-packages\django\core\management\base.py", line 458, in execute
+    output = self.handle(*args, **options)
+  File "C:\Users\HomePC\Desktop\och\backend\django_app\.venv\Lib\site-packages\django\core\management\base.py", line 106, in wrapper
+    res = handle_func(*args, **kwargs)
+  File "C:\Users\HomePC\Desktop\och\backend\django_app\.venv\Lib\site-packages\django\core\management\commands\migrate.py", line 120, in handle
+    executor.loader.check_consistent_history(connection)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\HomePC\Desktop\och\backend\django_app\.venv\Lib\site-packages\django\db\migrations\loader.py", line 327, in check_consistent_history
+    raise InconsistentMigrationHistory(
+    ...<8 lines>...
+    )
+django.db.migrations.exceptions.InconsistentMigrationHistory: Migration admin.0001_initial is applied before its dependency users.0001_initial on database 'default'.
+
+ERROR: Migration admin.0001_initial is applied before its dependency users.0001_initial on database 'default'.
+Traceback (most recent call last):
+  File "C:\Users\HomePC\Desktop\och\backend\django_app\hard_reset_migrations.py", line 36, in reset_and_fix
+    call_command('migrate', verbosity=1)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HomePC\Desktop\och\backend\django_app\.venv\Lib\site-packages\django\core\management\__init__.py", line 194, in call_command
+    return command.execute(*args, **defaults)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HomePC\Desktop\och\backend\django_app\.venv\Lib\site-packages\django\core\management\base.py", line 458, in execute
+    output = self.handle(*args, **options)
+  File "C:\Users\HomePC\Desktop\och\backend\django_app\.venv\Lib\site-packages\django\core\management\base.py", line 106, in wrapper
+    res = handle_func(*args, **kwargs)
+  File "C:\Users\HomePC\Desktop\och\backend\django_app\.venv\Lib\site-packages\django\core\management\commands\migrate.py", line 302, in handle
+    pre_migrate_apps = pre_migrate_state.apps
+                       ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HomePC\Desktop\och\backend\django_app\.venv\Lib\site-packages\django\utils\functional.py", line 57, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+                                         ~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\HomePC\Desktop\och\backend\django_app\.venv\Lib\site-packages\django\db\migrations\state.py", line 566, in apps
+    return StateApps(self.real_apps, self.models)
+  File "C:\Users\HomePC\Desktop\och\backend\django_app\.venv\Lib\site-packages\django\db\migrations\state.py", line 637, in __init__
+    raise ValueError("\n".join(error.msg for error in errors))
+ValueError: The field programs.Certificate.renewal_mission was declared with a lazy reference to 'missions.mission', but app 'missions' isn't installed.
+
+ERROR: The field programs.Certificate.renewal_mission was declared with a lazy reference to 'missions.mission', but app 'missions' isn't installed.

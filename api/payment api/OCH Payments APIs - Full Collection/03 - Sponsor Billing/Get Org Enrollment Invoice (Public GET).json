@@ -1,0 +1,24 @@
+{
+  "name": "Get Org Enrollment Invoice (Public GET)",
+  "rank": "b08",
+  "request": {
+    "type": "http",
+    "url": "{{base_url}}/api/v1/billing/org-enrollment-invoices/{{invoice_id}}/",
+    "scripts": {
+      "preRequest": "",
+      "postResponse": "rq.test('Status is 200', function(){ rq.response.to.have.status(200); });\nlet json = {}; try { json = rq.response.json(); } catch(e) {}\nrq.test('Invoice payload returned', function(){ rq.expect(json.id || json.invoice_number).to.exist; });\nif (json.paystack_reference) rq.collectionVariables.set('invoice_reference', json.paystack_reference);"
+    },
+    "method": "GET",
+    "queryParams": [],
+    "headers": [],
+    "body": "",
+    "bodyContainer": {
+      "text": ""
+    },
+    "contentType": "text/plain",
+    "auth": {
+      "currentAuthType": "INHERIT",
+      "authConfigStore": {}
+    }
+  }
+}

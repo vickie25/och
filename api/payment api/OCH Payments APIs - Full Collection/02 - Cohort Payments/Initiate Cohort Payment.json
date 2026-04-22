@@ -1,0 +1,33 @@
+{
+  "name": "Initiate Cohort Payment",
+  "rank": "b01",
+  "request": {
+    "type": "http",
+    "url": "{{base_url}}/api/v1/cohorts/payment/initiate/",
+    "scripts": {
+      "preRequest": "",
+      "postResponse": "rq.test('Status is success', function(){ rq.expect(rq.response.code).to.be.oneOf([200,201]); });\nlet json = {}; try { json = rq.response.json(); } catch(e) {}\nconst reference = json.reference || '';\nconst paymentId = json.payment_id || '';\nif (reference) rq.collectionVariables.set('cohort_reference', reference);\nif (paymentId) rq.collectionVariables.set('cohort_payment_id', paymentId);\nrq.test('Reference captured when enrollment is valid', function(){\n  if (rq.collectionVariables.get('cohort_enrollment_id')) rq.expect(reference).to.be.a('string').and.not.empty;\n  else rq.expect(true).to.eql(true);\n});"
+    },
+    "method": "POST",
+    "queryParams": [],
+    "headers": [
+      {
+        "id": 0,
+        "key": "Content-Type",
+        "value": "application/json",
+        "isEnabled": true,
+        "description": "",
+        "dataType": "string"
+      }
+    ],
+    "body": "{\n  \"enrollment_id\": \"{{cohort_enrollment_id}}\",\n  \"callback_url\": \"http://localhost:3000/cohorts/payment/return\"\n}",
+    "bodyContainer": {
+      "text": "{\n  \"enrollment_id\": \"{{cohort_enrollment_id}}\",\n  \"callback_url\": \"http://localhost:3000/cohorts/payment/return\"\n}"
+    },
+    "contentType": "text/plain",
+    "auth": {
+      "currentAuthType": "INHERIT",
+      "authConfigStore": {}
+    }
+  }
+}

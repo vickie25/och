@@ -1,0 +1,24 @@
+{
+  "name": "Billing Catalog",
+  "rank": "b04",
+  "request": {
+    "type": "http",
+    "url": "{{base_url}}/api/v1/billing/catalog/",
+    "scripts": {
+      "preRequest": "",
+      "postResponse": "rq.test('Status is 200', function(){ rq.response.to.have.status(200); });"
+    },
+    "method": "GET",
+    "queryParams": [],
+    "headers": [],
+    "body": "",
+    "bodyContainer": {
+      "text": ""
+    },
+    "contentType": "text/plain",
+    "auth": {
+      "currentAuthType": "INHERIT",
+      "authConfigStore": {}
+    }
+  }
+}

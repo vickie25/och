@@ -1,0 +1,33 @@
+{
+  "name": "Create Org Enrollment Invoice (POST)",
+  "rank": "b07",
+  "request": {
+    "type": "http",
+    "url": "{{base_url}}/api/v1/billing/org-enrollment-invoices/",
+    "scripts": {
+      "preRequest": "",
+      "postResponse": "rq.test('Status is success', function(){ rq.expect(rq.response.code).to.be.oneOf([200,201]); });\nlet json = {}; try { json = rq.response.json(); } catch(e) {}\nif (json.id) rq.collectionVariables.set('invoice_id', json.id);\nif (json.paystack_reference) rq.collectionVariables.set('invoice_reference', json.paystack_reference);\nrq.test('Invoice id captured', function(){ rq.expect(rq.collectionVariables.get('invoice_id')).to.be.a('string').and.not.empty; });"
+    },
+    "method": "POST",
+    "queryParams": [],
+    "headers": [
+      {
+        "id": 0,
+        "key": "Content-Type",
+        "value": "application/json",
+        "isEnabled": true,
+        "description": "",
+        "dataType": "string"
+      }
+    ],
+    "body": "{\n  \"organization_id\": \"{{organization_id}}\",\n  \"contact_person_name\": \"Finance Manager\",\n  \"contact_email\": \"finance@example.com\",\n  \"contact_phone\": \"+254700000000\",\n  \"total_amount_kes\": 15000,\n  \"line_items\": [\n    {\n      \"student_name\": \"Student A\",\n      \"plan_name\": \"Starter\",\n      \"amount_kes\": 5000\n    },\n    {\n      \"student_name\": \"Student B\",\n      \"plan_name\": \"Starter\",\n      \"amount_kes\": 5000\n    },\n    {\n      \"student_name\": \"Student C\",\n      \"plan_name\": \"Starter\",\n      \"amount_kes\": 5000\n    }\n  ]\n}",
+    "bodyContainer": {
+      "text": "{\n  \"organization_id\": \"{{organization_id}}\",\n  \"contact_person_name\": \"Finance Manager\",\n  \"contact_email\": \"finance@example.com\",\n  \"contact_phone\": \"+254700000000\",\n  \"total_amount_kes\": 15000,\n  \"line_items\": [\n    {\n      \"student_name\": \"Student A\",\n      \"plan_name\": \"Starter\",\n      \"amount_kes\": 5000\n    },\n    {\n      \"student_name\": \"Student B\",\n      \"plan_name\": \"Starter\",\n      \"amount_kes\": 5000\n    },\n    {\n      \"student_name\": \"Student C\",\n      \"plan_name\": \"Starter\",\n      \"amount_kes\": 5000\n    }\n  ]\n}"
+    },
+    "contentType": "text/plain",
+    "auth": {
+      "currentAuthType": "INHERIT",
+      "authConfigStore": {}
+    }
+  }
+}

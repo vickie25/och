@@ -1,0 +1,33 @@
+{
+  "name": "Verify Org Enrollment Invoice Payment (Public POST)",
+  "rank": "b09",
+  "request": {
+    "type": "http",
+    "url": "{{base_url}}/api/v1/billing/org-enrollment-invoices/{{invoice_id}}/verify-payment/",
+    "scripts": {
+      "preRequest": "",
+      "postResponse": "rq.test('Status is acceptable', function(){ rq.expect(rq.response.code).to.be.oneOf([200,400]); });\nlet json = {}; try { json = rq.response.json(); } catch(e) {}\nrq.test('Response has status or error', function(){ rq.expect(json.status || json.error).to.exist; });"
+    },
+    "method": "POST",
+    "queryParams": [],
+    "headers": [
+      {
+        "id": 0,
+        "key": "Content-Type",
+        "value": "application/json",
+        "isEnabled": true,
+        "description": "",
+        "dataType": "string"
+      }
+    ],
+    "body": "{\n  \"reference\": \"{{invoice_reference}}\"\n}",
+    "bodyContainer": {
+      "text": "{\n  \"reference\": \"{{invoice_reference}}\"\n}"
+    },
+    "contentType": "text/plain",
+    "auth": {
+      "currentAuthType": "INHERIT",
+      "authConfigStore": {}
+    }
+  }
+}

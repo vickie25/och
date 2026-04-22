@@ -1,0 +1,41 @@
+{
+  "name": "Unified Paystack Webhook",
+  "rank": "b0E",
+  "request": {
+    "type": "http",
+    "url": "{{base_url}}/api/v1/paystack/webhook/",
+    "scripts": {
+      "preRequest": "",
+      "postResponse": "rq.test('Webhook endpoint responds', function(){\n  rq.expect(rq.response.code).to.be.oneOf([200,400]);\n});"
+    },
+    "method": "POST",
+    "queryParams": [],
+    "headers": [
+      {
+        "id": 0,
+        "key": "Content-Type",
+        "value": "application/json",
+        "isEnabled": true,
+        "description": "",
+        "dataType": "string"
+      },
+      {
+        "id": 1,
+        "key": "X-Paystack-Signature",
+        "value": "replace_with_valid_signature",
+        "isEnabled": true,
+        "description": "",
+        "dataType": "string"
+      }
+    ],
+    "body": "{\n  \"event\": \"charge.success\",\n  \"data\": {\n    \"reference\": \"{{subscription_reference}}\",\n    \"status\": \"success\"\n  }\n}",
+    "bodyContainer": {
+      "text": "{\n  \"event\": \"charge.success\",\n  \"data\": {\n    \"reference\": \"{{subscription_reference}}\",\n    \"status\": \"success\"\n  }\n}"
+    },
+    "contentType": "text/plain",
+    "auth": {
+      "currentAuthType": "INHERIT",
+      "authConfigStore": {}
+    }
+  }
+}

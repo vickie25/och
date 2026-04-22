@@ -1,0 +1,33 @@
+{
+  "name": "Create Checkout Session",
+  "rank": "b05",
+  "request": {
+    "type": "http",
+    "url": "{{base_url}}/api/v1/billing/checkout/sessions/",
+    "scripts": {
+      "preRequest": "",
+      "postResponse": "rq.test('Status is success', function(){ rq.expect(rq.response.code).to.be.oneOf([200,201]); });\nlet json = {}; try { json = rq.response.json(); } catch(e) {}\nrq.test('Checkout response has link or session id', function(){\n  rq.expect(json.checkout_url || json.url || json.session_id || json.id).to.exist;\n});"
+    },
+    "method": "POST",
+    "queryParams": [],
+    "headers": [
+      {
+        "id": 0,
+        "key": "Content-Type",
+        "value": "application/json",
+        "isEnabled": true,
+        "description": "",
+        "dataType": "string"
+      }
+    ],
+    "body": "{\n  \"sponsor_id\": \"{{sponsor_id}}\",\n  \"items\": [\n    { \"type\": \"seat\", \"qty\": 3 }\n  ]\n}",
+    "bodyContainer": {
+      "text": "{\n  \"sponsor_id\": \"{{sponsor_id}}\",\n  \"items\": [\n    { \"type\": \"seat\", \"qty\": 3 }\n  ]\n}"
+    },
+    "contentType": "text/plain",
+    "auth": {
+      "currentAuthType": "INHERIT",
+      "authConfigStore": {}
+    }
+  }
+}
