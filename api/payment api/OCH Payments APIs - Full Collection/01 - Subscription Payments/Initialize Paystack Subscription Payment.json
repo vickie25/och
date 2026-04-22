@@ -1,0 +1,33 @@
+{
+  "name": "Initialize Paystack Subscription Payment",
+  "rank": "ay",
+  "request": {
+    "type": "http",
+    "url": "{{base_url}}/api/v1/subscription/paystack/initialize/",
+    "scripts": {
+      "preRequest": "",
+      "postResponse": "rq.test('Status is success', function(){ rq.expect(rq.response.code).to.be.oneOf([200,201]); });\nlet json = {}; try { json = rq.response.json(); } catch(e) {}\nconst reference = json.reference || json.data?.reference || '';\nconst authUrl = json.authorization_url || json.data?.authorization_url || '';\nrq.test('Reference exists', function(){ rq.expect(reference).to.be.a('string').and.not.empty; });\nrq.test('Authorization URL exists', function(){ rq.expect(authUrl).to.be.a('string').and.not.empty; });\nrq.collectionVariables.set('subscription_reference', reference);"
+    },
+    "method": "POST",
+    "queryParams": [],
+    "headers": [
+      {
+        "id": 0,
+        "key": "Content-Type",
+        "value": "application/json",
+        "isEnabled": true,
+        "description": "",
+        "dataType": "string"
+      }
+    ],
+    "body": "{\n  \"plan\": \"{{plan}}\",\n  \"gateway\": \"{{gateway}}\",\n  \"callback_url\": \"http://localhost:3000/payment/success\"\n}",
+    "bodyContainer": {
+      "text": "{\n  \"plan\": \"{{plan}}\",\n  \"gateway\": \"{{gateway}}\",\n  \"callback_url\": \"http://localhost:3000/payment/success\"\n}"
+    },
+    "contentType": "text/plain",
+    "auth": {
+      "currentAuthType": "INHERIT",
+      "authConfigStore": {}
+    }
+  }
+}

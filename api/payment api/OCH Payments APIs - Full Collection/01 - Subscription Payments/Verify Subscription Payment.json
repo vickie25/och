@@ -1,0 +1,33 @@
+{
+  "name": "Verify Subscription Payment",
+  "rank": "az",
+  "request": {
+    "type": "http",
+    "url": "{{base_url}}/api/v1/subscription/paystack/verify/",
+    "scripts": {
+      "preRequest": "",
+      "postResponse": "rq.test('Status is 200', function(){ rq.response.to.have.status(200); });\nlet json = {}; try { json = rq.response.json(); } catch(e) {}\nrq.test('Has payment state', function(){\n  rq.expect(JSON.stringify(json)).to.match(/status|paid|success|verified/i);\n});"
+    },
+    "method": "POST",
+    "queryParams": [],
+    "headers": [
+      {
+        "id": 0,
+        "key": "Content-Type",
+        "value": "application/json",
+        "isEnabled": true,
+        "description": "",
+        "dataType": "string"
+      }
+    ],
+    "body": "{\n  \"reference\": \"{{subscription_reference}}\"\n}",
+    "bodyContainer": {
+      "text": "{\n  \"reference\": \"{{subscription_reference}}\"\n}"
+    },
+    "contentType": "text/plain",
+    "auth": {
+      "currentAuthType": "INHERIT",
+      "authConfigStore": {}
+    }
+  }
+}
