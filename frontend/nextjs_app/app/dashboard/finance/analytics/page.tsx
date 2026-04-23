@@ -6,7 +6,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { RouteGuard } from '@/components/auth/RouteGuard'
 import { FinanceNavigation } from '@/components/navigation/FinanceNavigation'
@@ -60,6 +60,21 @@ type SubscriptionAnalytics = {
   }>
 }
 
+type StreamRevenueDetail = {
+  period: { start_date: string; end_date: string; days: number }
+  stream: string
+  revenue: {
+    stream: string
+    total_revenue: number
+    revenue_by_type: Array<{ type: string; total: number; count: number }>
+    payment_success_rate: number
+    total_invoices: number
+    total_payments: number
+    successful_payments: number
+  }
+  data_freshness?: { calculated_at: string; cadence: string }
+}
+
 type AnalyticsData = {
   period: {
     start_date: string
@@ -104,6 +119,11 @@ type AnalyticsData = {
     recovered_amount: number
   }
   subscriptions?: SubscriptionAnalytics
+  data_freshness?: {
+    calculated_at: string
+    cadence: string
+    note?: string
+  }
 }
 
 type CustomerMetrics = {
@@ -153,18 +173,25 @@ const defaultSubscriptions = (): SubscriptionAnalytics => ({
   plan_distribution: [],
 })
 
+const REVENUE_STREAM_FILTERS: { key: string; label: string }[] = [
+  { key: 'subscription', label: 'A · Subscriptions' },
+  { key: 'institution', label: 'B · Institutions' },
+  { key: 'employer', label: 'C · Employers' },
+  { key: 'cohort', label: 'D · Cohorts' },
+  { key: 'contract', label: 'Marketplace / contracts' },
+]
+
 export default function AnalyticsPage() {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
   const [customerMetrics, setCustomerMetrics] = useState<CustomerMetrics | null>(null)
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('30')
   const [activeTab, setActiveTab] = useState<'overview' | 'revenue' | 'customers' | 'performance'>('overview')
+  const [streamDetail, setStreamDetail] = useState<StreamRevenueDetail | null>(null)
+  const [streamLoading, setStreamLoading] = useState(false)
+  const [selectedStreamKey, setSelectedStreamKey] = useState<string>('subscription')
 
-  useEffect(() => {
-    loadAnalyticsData()
-  }, [timeRange])
-
-  const loadAnalyticsData = async () => {
+  const loadAnalyticsData = useCallback(async () => {
     try {
       setLoading(true)
       const [analyticsRes, customerRes] = await Promise.all([
@@ -179,7 +206,47 @@ export default function AnalyticsPage() {
     } finally {
       setLoading(false)
     }
+  }, [timeRange])
+
+  useEffect(() => {
+    void loadAnalyticsData()
+  }, [loadAnalyticsData])
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      void loadAnalyticsData()
+    }, 5 * 60 * 1000)
+    return () => window.clearInterval(id)
+  }, [loadAnalyticsData])
+
+  const loadStreamDetail = useCallback(
+    async (stream: string) => {
+      try {
+        setStreamLoading(true)
+        const res = (await apiGateway.get(
+          `/finance/analytics/revenue_by_stream/?days=${timeRange}&stream=${encodeURIComponent(stream)}`
+        )) as StreamRevenueDetail
+        setStreamDetail(res)
+      } catch (e) {
+        console.error('Stream detail failed', e)
+        setStreamDetail(null)
+      } finally {
+        setStreamLoading(false)
+      }
+    },
+    [timeRange]
+  )
+
+  const selectRevenueStream = (key: string) => {
+    setSelectedStreamKey(key)
+    void loadStreamDetail(key)
   }
+
+  useEffect(() => {
+    if (activeTab !== 'revenue') return
+    void loadStreamDetail(selectedStreamKey)
+    // Intentionally omit selectedStreamKey: stream changes use selectRevenueStream() only
+  }, [activeTab, timeRange, loadStreamDetail])
 
   /** Legacy finance invoice / wallet amounts (historically USD in UI). */
   const formatInvoiceCurrency = (amount: number) => {
@@ -258,6 +325,12 @@ export default function AnalyticsPage() {
                     </Link>
                     .
                   </p>
+                  {analyticsData?.data_freshness && (
+                    <p className="mt-2 text-xs text-och-steel/80">
+                      Last computed: {new Date(analyticsData.data_freshness.calculated_at).toLocaleString()} ·{' '}
+                      {analyticsData.data_freshness.note ?? 'Auto-refresh at most every 5 minutes in this view.'}
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   <select
@@ -565,6 +638,60 @@ export default function AnalyticsPage() {
 
             {activeTab === 'revenue' && analyticsData && (
               <div className="space-y-8">
+                <Card className="p-6 bg-och-midnight border border-och-mint/20">
+                  <h3 className="text-h3 font-semibold text-white mb-2">Invoice revenue by OCH stream</h3>
+                  <p className="text-sm text-och-steel mb-4">
+                    Filtered <code className="text-och-mint/90">finance_invoices</code> by type for the selected
+                    period. Data is computed on request; full dashboard also refreshes every 5 minutes.
+                  </p>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {REVENUE_STREAM_FILTERS.map((s) => (
+                      <button
+                        key={s.key}
+                        type="button"
+                        onClick={() => selectRevenueStream(s.key)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                          selectedStreamKey === s.key
+                            ? 'bg-och-defender text-white'
+                            : 'bg-och-steel/10 text-och-steel hover:text-white'
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                  {streamLoading ? (
+                    <p className="text-och-steel text-sm">Loading stream metrics…</p>
+                  ) : streamDetail ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div>
+                        <p className="text-xs text-och-steel uppercase">Stream</p>
+                        <p className="text-lg font-semibold text-white capitalize">{streamDetail.revenue.stream}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-och-steel uppercase">Paid invoice total</p>
+                        <p className="text-lg font-semibold text-white">
+                          {formatInvoiceCurrency(Number(streamDetail.revenue.total_revenue))}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-och-steel uppercase">Success rate (payments)</p>
+                        <p className="text-lg font-semibold text-white">
+                          {formatPercentage(streamDetail.revenue.payment_success_rate)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-och-steel uppercase">Invoices / payments</p>
+                        <p className="text-lg font-semibold text-white">
+                          {streamDetail.revenue.total_invoices} / {streamDetail.revenue.total_payments}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-och-steel text-sm">No stream data.</p>
+                  )}
+                </Card>
+
                 <Card className="p-6 bg-och-midnight border border-och-steel/20">
                   <h3 className="text-h3 font-semibold text-white mb-2">OCH subscription MRR by plan</h3>
                   <p className="text-sm text-och-steel mb-6">KES · same basis as student pricing and finance dashboard</p>

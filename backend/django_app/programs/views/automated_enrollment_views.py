@@ -15,6 +15,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from programs.cohort_finance import get_effective_cohort_enrollment_fee
 from programs.models import Cohort, CohortPublicApplication, Enrollment
 from programs.permissions import IsProgramDirector
 
@@ -440,6 +441,7 @@ def verify_onboarding_token(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        eff = get_effective_cohort_enrollment_fee(application.cohort)
         return Response({
             'valid': True,
             'email': application.form_data.get('email'),
@@ -448,7 +450,8 @@ def verify_onboarding_token(request):
             'cohort_id': str(application.cohort.id),
             'application_id': str(application.id),
             'payment_deadline': application.payment_deadline.isoformat() if application.payment_deadline else None,
-            'enrollment_fee': float(application.cohort.enrollment_fee) if hasattr(application.cohort, 'enrollment_fee') else 100.00
+            'enrollment_fee': float(eff.list_price),
+            'enrollment_fee_source': eff.source,
         })
 
     except Exception as e:

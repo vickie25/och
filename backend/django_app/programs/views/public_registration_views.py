@@ -10,6 +10,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from programs.cohort_finance import get_effective_cohort_enrollment_fee
 from programs.models import Cohort, CohortPublicApplication
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ def list_published_cohorts(request):
             "mode": "virtual",
             "seat_cap": 50,
             "enrolled_count": 25,
-            "enrollment_fee": 100.00,
+            "enrollment_fee": 0.0,
             "currency": "USD",
             "track_name": "Defender",
             "description": "...",
@@ -110,6 +111,12 @@ def list_published_cohorts(request):
             else:
                 profile_image_url = None
 
+            eff = get_effective_cohort_enrollment_fee(cohort)
+            list_currency = (
+                cohort.track.program.currency
+                if cohort.track and cohort.track.program
+                else "USD"
+            )
             cohorts_data.append({
                 'id': str(cohort.id),
                 'name': cohort.name,
@@ -118,8 +125,9 @@ def list_published_cohorts(request):
                 'mode': cohort.mode,
                 'seat_cap': cohort.seat_cap,
                 'enrolled_count': enrolled_count,
-                'enrollment_fee': float(getattr(cohort, 'enrollment_fee', 100.00)),
-                'currency': getattr(cohort, 'currency', 'USD'),
+                'enrollment_fee': float(eff.list_price),
+                'enrollment_fee_source': eff.source,
+                'currency': list_currency,
                 'track_name': track_name,
                 'description': getattr(cohort, 'description', ''),
                 # Keep backward-compatible key plus explicit URL key
