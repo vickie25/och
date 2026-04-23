@@ -243,7 +243,59 @@ class AnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
             'payment_success': payment_success,
             'dunning_recovery': dunning_recovery,
             'subscriptions': subscriptions,
+            'data_freshness': {
+                'calculated_at': timezone.now().isoformat(),
+                'cadence': 'on_request',
+                'note': 'Aggregates run when this endpoint is called; some platform metrics also update on a daily schedule.',
+            },
         })
+
+    @action(detail=False, methods=['get'])
+    def revenue_by_stream(self, request):
+        """
+        GET /finance/analytics/revenue_by_stream/?days=30&stream=subscription
+
+        Filter legacy finance invoices/payments to one OCH revenue stream (invoice `type`):
+        subscription | institution | employer | cohort | contract
+        """
+        days = int(request.query_params.get('days', 30))
+        stream = (request.query_params.get('stream') or '').strip().lower()
+        end_date = timezone.now()
+        start_date = end_date - timedelta(days=days)
+
+        if stream not in FinancialAnalytics.REVENUE_STREAM_INVOICE_TYPES:
+            return Response(
+                {
+                    'error': 'Invalid or missing stream',
+                    'valid_streams': list(FinancialAnalytics.REVENUE_STREAM_INVOICE_TYPES.keys()),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            payload = FinancialAnalytics.calculate_revenue_metrics_for_stream(
+                start_date, end_date, stream
+            )
+        except Exception:
+            payload = None
+        if payload is None:
+            return Response({'error': 'Could not compute stream metrics'}, status=status.HTTP_500_BAD_REQUEST)
+
+        return Response(
+            {
+                'period': {
+                    'start_date': start_date.date(),
+                    'end_date': end_date.date(),
+                    'days': days,
+                },
+                'stream': stream,
+                'revenue': payload,
+                'data_freshness': {
+                    'calculated_at': timezone.now().isoformat(),
+                    'cadence': 'on_request',
+                },
+            }
+        )
 
     @action(detail=False, methods=['get'])
     def customer_metrics(self, request):

@@ -244,6 +244,23 @@ class Cohort(models.Model):
         max_digits=5, decimal_places=2, null=True, blank=True,
         help_text='Minimum interview score to be eligible for enrollment'
     )
+    enrollment_fee = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text='One-time cohort fee (USD). If 0, paid checkout uses the program default_price when set.',
+    )
+    enrollment_opens_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='If set, self-serve enrollment cannot begin before this instant (UTC).',
+    )
+    enrollment_closes_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='If set, self-serve enrollment cannot continue after this instant (UTC).',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

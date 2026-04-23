@@ -47,7 +47,8 @@ class CohortSerializer(serializers.ModelSerializer):
             'seat_cap', 'mentor_ratio', 'calendar_template_id', 'coordinator',
             'seat_pool', 'status', 'enrollment_count', 'seat_utilization',
             'completion_rate', 'published_to_homepage', 'profile_image', 'profile_image_url',
-            'registration_form_fields', 'created_at', 'updated_at'
+            'registration_form_fields', 'enrollment_fee', 'enrollment_opens_at', 'enrollment_closes_at',
+            'created_at', 'updated_at'
         ]
 
     def get_profile_image_url(self, obj):
@@ -80,7 +81,8 @@ class CreateCohortSerializer(serializers.ModelSerializer):
             'track', 'curriculum_tracks', 'name', 'start_date', 'end_date', 'mode',
             'seat_cap', 'mentor_ratio', 'calendar_template_id',
             'coordinator', 'seat_pool', 'assigned_staff', 'status',
-            'published_to_homepage', 'profile_image', 'registration_form_fields'
+            'published_to_homepage', 'profile_image', 'registration_form_fields',
+            'enrollment_fee', 'enrollment_opens_at', 'enrollment_closes_at',
         ]
 
     def validate_track(self, value):
