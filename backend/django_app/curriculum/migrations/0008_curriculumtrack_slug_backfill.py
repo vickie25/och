@@ -1,24 +1,7 @@
 # Generated manually to fix: column curriculum_tracks.slug does not exist
+# Simplified to avoid Django's duplicate index bug on AlterField for SlugFields
 
 from django.db import migrations, models
-
-
-def backfill_slug_from_code(apps, schema_editor):
-    CurriculumTrack = apps.get_model('curriculum', 'CurriculumTrack')
-    for track in CurriculumTrack.objects.filter(slug__isnull=True):
-        track.slug = (track.code or '').lower().replace(' ', '-').replace('_', '-') or 'track'
-        # Ensure uniqueness
-        base = track.slug
-        n = 1
-        while CurriculumTrack.objects.filter(slug=track.slug).exclude(id=track.id).exists():
-            track.slug = f'{base}-{n}'
-            n += 1
-        track.save(update_fields=['slug'])
-
-
-def noop(apps, schema_editor):
-    pass
-
 
 class Migration(migrations.Migration):
 
@@ -30,7 +13,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='curriculumtrack',
             name='slug',
-            field=models.SlugField(help_text="'defender', 'offensive', 'grc', 'innovation', 'leadership'", max_length=50, null=True, unique=False),
+            field=models.SlugField(help_text="'defender', 'offensive', 'grc', 'innovation', 'leadership'", max_length=50, unique=True),
         ),
         migrations.AddField(
             model_name='curriculumtrack',
@@ -49,11 +32,5 @@ class Migration(migrations.Migration):
             name='thumbnail_url',
             field=models.URLField(blank=True, default='', help_text='Track thumbnail image'),
             preserve_default=True,
-        ),
-        migrations.RunPython(backfill_slug_from_code, noop),
-        migrations.AlterField(
-            model_name='curriculumtrack',
-            name='slug',
-            field=models.SlugField(help_text="'defender', 'offensive', 'grc', 'innovation', 'leadership'", max_length=50, unique=True),
         ),
     ]

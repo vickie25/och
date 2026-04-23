@@ -132,7 +132,7 @@ services:
       DB_NAME: ${POSTGRES_DB:-ongozacyberhub}
       DB_USER: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      DB_HOST: postgres-relational
+      DB_HOST: ${POSTGRES_HOST:-postgres-relational}
       DB_PORT: 5432
       FASTAPI_BASE_URL: http://fastapi:8001
       REDIS_HOST: redis
@@ -213,14 +213,7 @@ services:
     networks:
       - ongoza-network
     restart: unless-stopped
-    command: >
-      sh -c "pip install -r /app/requirements.txt --quiet --no-cache-dir 2>/dev/null || true &&
-             uvicorn main:app
-             --host 0.0.0.0
-             --port 8001
-             --workers ${FASTAPI_WORKERS:-2}
-             --log-level ${FASTAPI_LOG_LEVEL:-info}
-             --timeout-keep-alive 5"
+    command: sh -c "pip install -r /app/requirements.txt --quiet --no-cache-dir 2>/dev/null || true && uvicorn main:app --host 0.0.0.0 --port 8001 --workers ${FASTAPI_WORKERS:-2} --log-level ${FASTAPI_LOG_LEVEL:-info} --timeout-keep-alive 5"
     mem_limit: ${FASTAPI_MEM_LIMIT:-800m}
     cpus: ${FASTAPI_CPUS:-1.0}
     healthcheck:
@@ -253,6 +246,7 @@ services:
       HOSTNAME: "0.0.0.0"
       # Server-side BFF must reach Django on the compose network (never rely on public URL from inside the container).
       NEXT_RUNTIME_DOCKER: "1"
+      # IMPORTANT: service name is `django` in this compose file.
       DJANGO_INTERNAL_URL: ${DJANGO_INTERNAL_URL:-http://django:8000}
       DJANGO_API_URL: ${DJANGO_API_URL:-http://django:8000}
       FASTAPI_INTERNAL_URL: http://fastapi:8001

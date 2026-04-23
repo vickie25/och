@@ -473,7 +473,7 @@ def ai_coach_chat(request):
 
     message = request.data.get('message')
     context = request.data.get('context', 'general')
-    progress = request.data.get('progress', {})
+    progress = request.data.get('progress') or {}
 
     if not message:
         return Response(

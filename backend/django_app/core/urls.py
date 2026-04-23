@@ -13,7 +13,7 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.decorators import api_view, authentication_classes, permission_classes, throttle_classes
 from core.paystack_webhooks import unified_paystack_webhook
 
 from core.settings.metrics import metrics_view
@@ -30,6 +30,7 @@ from users.views.oidc_views import (
 @api_view(['GET'])
 @authentication_classes([])  # No auth required
 @permission_classes([])      # No permissions required
+@throttle_classes([])        # NO throttling for health check!
 def health_check(request):
     """Public health check endpoint for Docker healthchecks and monitoring.
 

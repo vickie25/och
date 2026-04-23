@@ -15,71 +15,84 @@ backend/*/lib/
 # Allow frontend lib directories
 !frontend/*/lib/
 lib64/
-parts/Curriculum & Missions
-▼
-📐
-Define Structure
-🚀
-Manage Missions
-📊
-Scoring Rules
-📝
-Assessment Windows
-📈
-Analytics & Reports
-📆
-Calendar & Milestones
-⚙️Curriculum & Missions
-▼
-📐
-Define Structure
-🚀
-Manage Missions
-📊
-Scoring Rules
-📝
-Assessment Windows
-📈
-Analytics & Reports
-📆
-Calendar & Milestones
-⚙️
-Settings & Rules
-￼
-d
-director1@test.com
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+.env.dev
+current.env
+django.env
+remote_production.env
+temp_remote_backend.env
+temp_remote_compose.yml
 
-Program Director
+# Scratch and Operational Scripts (CLEANED)
+# These are now tracked again but without hardcoded secrets
+# scripts/
+# scratch/
+# deploy/
+# mission_hall/
 
+# Operational directories (still ignored as they contain raw logs/state)
+server_logs/
+server_audit/
+server_discovery/
+server_migration_state/
+server_migrations/
+server_oauth_trace/
+server_redis/
+server_security/
+server_auth_trace/
 
-Settings & Rules
-￼
-d
-director1@test.com
+# Database and Backups
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+*.sql.gz
+*.bak
+*.backup
+newochdb
+ochdb14th
+ongozacyberhub_backup
+ongozacyberhub_backup.sql
 
-Program Director
+# Temporary execution artifacts
+cookies.txt
+response.txt
+response.json
+profiling_questions.json
+profiling_test_results.json
 
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
 
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-venv/
-ENV/
-env/
-.venv
+# Docker
+docker-compose.override.yml
+temp_compose.yml
+remote_docker-compose.yml
+
+# Logs
+logs/
+*.log
 
 # Django
-*.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
 /media
 /staticfiles
 /static
+backend/django_app/media/lesson_videos/*.mp4
+backend/django_app/media/lesson_videos/*.webm
+backend/django_app/media/lesson_videos/*.avi
 
 # FastAPI
 .pytest_cache/
@@ -89,7 +102,6 @@ htmlcov/
 # Next.js
 .next/
 out/
-build/
 .vercel
 *.tsbuildinfo
 next-env.d.ts
@@ -101,33 +113,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Environment variables
-.env
-.env.local
-.env.*.local
-.env.production
-.env.staging
-.env.dev
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Docker
-# Root .dockerignore is tracked (shrinks build context on VPS).
-
-# Logs
-logs/
-*.log
-
 # Testing
-.pytest_cache/
-.coverage
-htmlcov/
 .tox/
 
 # Monitoring
@@ -140,33 +126,12 @@ docker/nginx/ssl/*.pem
 docker/nginx/ssl/*.key
 docker/nginx/ssl/*.crt
 
-# OpenAPI generated files (keep templates, ignore generated)
+# OpenAPI generated files
 shared/openapi/openapi_django.json
 shared/openapi/openapi_fastapi.json
 shared/openapi/merged_openapi.json
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Backup files
-*.bak
-*.backup
-*.sql.gz
-
-# Temporary files
-tmp/
-temp/
-*.tmp
-
 
 # Personal Documentation
 docs1/
 # Large archive files
 *.tar.gz
-
-# Media files (videos are too large for GitHub)
-backend/django_app/media/lesson_videos/*.mp4
-backend/django_app/media/lesson_videos/*.webm
-backend/django_app/media/lesson_videos/*.avi

@@ -1,0 +1,25 @@
+services:
+  # ... (rest of the services) ...
+  nextjs:
+    image: ghcr.io/cresdynamics-lang/och-nextjs:latest
+    container_name: hub_prod_nextjs
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: ${NEXT_NODE_OPTIONS:---max-old-space-size=512}
+      PORT: 3000
+      HOSTNAME: "0.0.0.0"
+      NEXT_RUNTIME_DOCKER: "1"
+      DJANGO_INTERNAL_URL: http://django:8000
+      DJANGO_API_URL: http://django:8000
+      NEXT_PUBLIC_DJANGO_API_URL: https://cybochengine.africa/api/v1
+      NEXT_PUBLIC_FASTAPI_API_URL: https://cybochengine.africa/api/fastapi
+      NEXT_PUBLIC_FRONTEND_URL: https://cybochengine.africa
+    volumes:
+      - nextjs_cache:/app/.next/cache
+    networks:
+      - ongoza-network
+    restart: unless-stopped
+    mem_limit: ${NEXTJS_MEM_LIMIT:-800m}
+    cpus: ${NEXTJS_CPUS:-1.0}

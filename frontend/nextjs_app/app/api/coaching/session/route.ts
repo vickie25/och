@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { djangoBaseForServerFetch } from '@/lib/djangoServerBase';
 // Removed Supabase import - now using Django PostgreSQL APIs
 
 // Custom Grok client (using direct API)
@@ -161,7 +162,8 @@ function getTrackDisplayName(trackCode: string | null | undefined): string {
 async function getStudentState(userId: string, accessToken: string = ''): Promise<StudentState> {
   try {
     // Fetch data from Django PostgreSQL APIs
-    const djangoApiUrl = process.env.NEXT_PUBLIC_DJANGO_API_URL;
+    // Use server-safe Django base (Docker internal URL when available).
+    const djangoApiUrl = djangoBaseForServerFetch();
     const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
     if (accessToken) {
       authHeaders['Authorization'] = `Bearer ${accessToken}`;
@@ -269,7 +271,7 @@ async function getStudentState(userId: string, accessToken: string = ''): Promis
     // Try to get user track_key even in error case
     let fallbackTrackCode = 'SOCDEFENSE';
     try {
-      const djangoApiUrl = process.env.NEXT_PUBLIC_DJANGO_API_URL;
+      const djangoApiUrl = djangoBaseForServerFetch();
       const userResponse = await fetch(`${djangoApiUrl}/api/v1/users/${userId}/`, { 
         headers: { 'Content-Type': 'application/json' } 
       }).catch(() => null);
@@ -749,7 +751,7 @@ export async function POST(request: NextRequest) {
 
     // 6. Save session to Django PostgreSQL (always try)
     try {
-      const djangoApiUrl = process.env.NEXT_PUBLIC_DJANGO_API_URL;
+      const djangoApiUrl = djangoBaseForServerFetch();
       const saveHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
       if (accessToken) saveHeaders['Authorization'] = `Bearer ${accessToken}`;
       await fetch(`${djangoApiUrl}/api/v1/coaching/sessions`, {

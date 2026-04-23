@@ -266,6 +266,7 @@ class GoogleOAuthInitiateView(APIView):
     """
     permission_classes = [AllowAny]
     renderer_classes = [JSONRenderer]
+    throttle_scope = 'oauth'
 
     def get(self, request):
         """Initiate Google OAuth flow."""

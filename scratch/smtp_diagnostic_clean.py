@@ -8,7 +8,7 @@ def test_smtp():
     host = "mail.privateemail.com"
     port = 465
     user = os.environ.get('MAIL_USERNAME', "info@cresdynamics.com")
-    password = os.environ.get('MAIL_PASSWORD', "CresDynamics@2026")
+    password = os.environ.get('MAIL_PASSWORD', os.environ.get('MAIL_PASSWORD', ''))
     
     msg = EmailMessage()
     msg.set_content(f'This is a diagnostic test to verify SMTP credentials for {user}.')

@@ -92,7 +92,7 @@ class AICoachSessionSerializer(serializers.ModelSerializer):
 # Serializers for PostgreSQL-based coaching data (replacing Supabase)
 
 class StudentAnalyticsSerializer(serializers.ModelSerializer):
-    user_id = serializers.UUIDField(source='user.id', read_only=True)
+    user_id = serializers.ReadOnlyField(source='user.id')
     user_email = serializers.EmailField(source='user.email', read_only=True)
 
     class Meta:
@@ -109,7 +109,7 @@ class StudentAnalyticsSerializer(serializers.ModelSerializer):
 
 
 class UserRecipeProgressSerializer(serializers.ModelSerializer):
-    user_id = serializers.UUIDField(source='user.id', read_only=True)
+    user_id = serializers.ReadOnlyField(source='user.id')
 
     class Meta:
         model = UserRecipeProgress
@@ -122,7 +122,7 @@ class UserRecipeProgressSerializer(serializers.ModelSerializer):
 
 
 class UserTrackProgressSerializer(serializers.ModelSerializer):
-    user_id = serializers.UUIDField(source='user.id', read_only=True)
+    user_id = serializers.ReadOnlyField(source='user.id')
 
     class Meta:
         model = UserTrackProgress
@@ -137,7 +137,7 @@ class UserTrackProgressSerializer(serializers.ModelSerializer):
 
 
 class UserMissionProgressSerializer(serializers.ModelSerializer):
-    user_id = serializers.UUIDField(source='user.id', read_only=True)
+    user_id = serializers.ReadOnlyField(source='user.id')
 
     class Meta:
         model = UserMissionProgress
@@ -152,7 +152,7 @@ class UserMissionProgressSerializer(serializers.ModelSerializer):
 
 
 class CommunityActivitySummarySerializer(serializers.ModelSerializer):
-    user_id = serializers.UUIDField(source='user.id', read_only=True)
+    user_id = serializers.ReadOnlyField(source='user.id')
 
     class Meta:
         model = CommunityActivitySummary
@@ -168,7 +168,7 @@ class CommunityActivitySummarySerializer(serializers.ModelSerializer):
 
 
 class MentorshipSessionSerializer(serializers.ModelSerializer):
-    user_id = serializers.UUIDField(source='user.id', read_only=True)
+    user_id = serializers.ReadOnlyField(source='user.id')
 
     class Meta:
         model = MentorshipSession
@@ -184,7 +184,7 @@ class MentorshipSessionSerializer(serializers.ModelSerializer):
 
 
 class CoachingSessionSerializer(serializers.ModelSerializer):
-    user_id = serializers.UUIDField(source='user.id', read_only=True)
+    user_id = serializers.ReadOnlyField(source='user.id')
 
     class Meta:
         model = CoachingSession

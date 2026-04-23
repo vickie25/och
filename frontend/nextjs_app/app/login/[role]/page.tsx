@@ -940,8 +940,14 @@ export function LoginForm() {
                         ? `${window.location.protocol}//${window.location.hostname}:8000`
                         : null;
 
+                      const isBadConfiguredApiBase =
+                        !!configuredApiBase &&
+                        /localhost|127\.0\.0\.1/i.test(configuredApiBase) &&
+                        !isLocalFront;
+
+                      // Only use NEXT_PUBLIC_DJANGO_API_URL if it is not pointing at localhost in production.
                       const absoluteUrl =
-                        configuredApiBase && !isLocalFront
+                        configuredApiBase && !isLocalFront && !isBadConfiguredApiBase
                           ? buildInitiateUrl(configuredApiBase)
                           : null;
                       const localDirectUrl = localDirectBase ? buildInitiateUrl(localDirectBase) : null;
@@ -953,6 +959,13 @@ export function LoginForm() {
                         try {
                           const response = await fetch(endpoint, { credentials: 'include' });
                           const data = await response.json().catch(() => ({}));
+                          if (response.status === 429) {
+                            // Don't retry other endpoints; this is a server throttle.
+                            throw new Error(
+                              (typeof data?.detail === 'string' && data.detail) ||
+                                'Too many requests. Please wait a minute and try again.'
+                            );
+                          }
                           if (response.ok && data?.auth_url) {
                             window.location.replace(data.auth_url);
                             return;

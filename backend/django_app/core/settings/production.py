@@ -7,6 +7,13 @@ from .base import *
 
 DEBUG = False
 
+# When running behind a reverse proxy (Nginx / Next.js rewrites) inside Docker,
+# the upstream request may carry an internal Host (sometimes invalid, e.g. underscores).
+# Trust the proxy-provided host header so Django validates the real public domain.
+USE_X_FORWARDED_HOST = True
+# Keep SSL redirect disabled for now (emergency port-80 mode), but still honor proxy scheme if set.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # Production hosts (strip; merge Docker service names so in-compose BFF calls are not DisallowedHost)
 ALLOWED_HOSTS = [
     h.strip()
@@ -17,6 +24,11 @@ ALLOWED_HOSTS = [
     if h.strip()
 ]
 ALLOWED_HOSTS = merge_docker_internal_hosts(ALLOWED_HOSTS)
+# Next.js BFF (docker-compose service) may call Django via http://backend:8000
+# which sets Host: backend:8000. Django validates Host without port, so ensure
+# 'backend' is explicitly allowed.
+if 'backend' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('backend')
 
 # Frontend URL for production
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://cybochengine.africa')

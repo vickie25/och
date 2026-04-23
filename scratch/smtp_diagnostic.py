@@ -1,3 +1,4 @@
+import os
 import smtplib
 import ssl
 from email.message import EmailMessage
@@ -14,7 +15,7 @@ def test_smtp():
         context = ssl.create_default_context()
         with smtplib.SMTP_SSL("mail.privateemail.com", 465, context=context) as server:
             print("Connected. Attempting login...")
-            server.login("info@cresdynamics.com", "CresDynamics@2026")
+            server.login("info@cresdynamics.com", os.environ.get('MAIL_PASSWORD', ''))
             print("Login successful. Sending test email...")
             server.send_message(msg)
             print("✅ SMTP verification SUCCESSFUL!")
