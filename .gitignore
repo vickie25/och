@@ -15,51 +15,14 @@ backend/*/lib/
 # Allow frontend lib directories
 !frontend/*/lib/
 lib64/
-parts/Curriculum & Missions
-▼
-📐
-Define Structure
-🚀
-Manage Missions
-📊
-Scoring Rules
-📝
-Assessment Windows
-📈
-Analytics & Reports
-📆
-Calendar & Milestones
-⚙️Curriculum & Missions
-▼
-📐
-Define Structure
-🚀
-Manage Missions
-📊
-Scoring Rules
-📝
-Assessment Windows
-📈
-Analytics & Reports
-📆
-Calendar & Milestones
-⚙️
-Settings & Rules
-￼
-d
-director1@test.com
-
-Program Director
-
-
-Settings & Rules
-￼
-d
-director1@test.com
-
-Program Director
-
-
+parts/
+# Temporary utility scripts for database reconstruction
+backend/django_app/nuke_hard.py
+backend/django_app/run_migrate_silent.py
+backend/django_app/debug_curriculum.py
+backend/django_app/list_tables.py
+backend/django_app/create_director_fixed.py
+backend/django_app/migrate_silent_output.txt
 sdist/
 var/
 wheels/
@@ -170,3 +133,4 @@ docs1/
 backend/django_app/media/lesson_videos/*.mp4
 backend/django_app/media/lesson_videos/*.webm
 backend/django_app/media/lesson_videos/*.avi
+.txt
