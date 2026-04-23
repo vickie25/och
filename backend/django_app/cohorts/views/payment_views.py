@@ -7,6 +7,11 @@ import json
 import logging
 import os
 
+from programs.cohort_finance import (
+    assert_seat_available_for_enrollment,
+    enrollment_window_status,
+    get_effective_cohort_enrollment_fee,
+)
 from programs.models import Enrollment
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -99,16 +104,31 @@ def initiate_cohort_payment(request):
                 'status': existing_payment.status
             })
 
-        # Get cohort price (you can customize this based on your pricing logic)
         cohort = enrollment.cohort
-        amount = getattr(cohort, 'enrollment_fee', 100.00)  # Default $100
+        win_ok, win_msg = enrollment_window_status(cohort)
+        if not win_ok:
+            return Response({"error": win_msg}, status=status.HTTP_400_BAD_REQUEST)
+        seat_ok, seat_msg = assert_seat_available_for_enrollment(cohort)
+        if not seat_ok:
+            return Response({"error": seat_msg}, status=status.HTTP_400_BAD_REQUEST)
+
+        fee = get_effective_cohort_enrollment_fee(cohort)
+        amount = fee.list_price
+        if amount <= 0:
+            return Response(
+                {
+                    "error": "This cohort has no chargeable enrollment fee configured. "
+                    "Set enrollment_fee on the cohort or default_price on the program."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Initialize payment
         payment = paystack_service.initialize_payment(
             enrollment=enrollment,
-            amount=amount,
-            currency='USD',
-            callback_url=callback_url
+            amount=float(amount),
+            currency="USD",
+            callback_url=callback_url,
         )
 
         return Response({

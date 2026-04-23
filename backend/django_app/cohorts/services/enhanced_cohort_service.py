@@ -7,6 +7,11 @@ from decimal import Decimal
 from django.db import transaction
 from django.db.models import Count, Sum
 from django.utils import timezone
+from programs.cohort_finance import (
+    assert_seat_available_for_enrollment,
+    enrollment_window_status,
+    get_effective_cohort_enrollment_fee,
+)
 from programs.models import Enrollment
 from subscriptions.models import TIER_PREMIUM, TIER_STARTER, SubscriptionPlan, UserSubscription
 
@@ -110,7 +115,18 @@ class EnhancedCohortService:
         Returns:
             dict: Pricing breakdown
         """
-        base_price = cohort.track.program.default_price if cohort.track else Decimal('100.00')
+        eff = get_effective_cohort_enrollment_fee(cohort)
+        base_price = eff.list_price
+        if base_price <= 0 and seat_type == "paid":
+            # Paid seat requires a positive list price (cohort fee or program default)
+            return {
+                "base_price": Decimal("0.00"),
+                "final_price": Decimal("0.00"),
+                "discount_amount": Decimal("0.00"),
+                "discount_reason": "No list price: set cohort.enrollment_fee or program.default_price",
+                "seat_type": seat_type,
+                "price_source": eff.source,
+            }
 
         # Seat type adjustments
         if seat_type == 'scholarship':
@@ -119,7 +135,8 @@ class EnhancedCohortService:
                 'final_price': Decimal('0.00'),
                 'discount_amount': base_price,
                 'discount_reason': 'Scholarship seat',
-                'seat_type': seat_type
+                'seat_type': seat_type,
+                'price_source': eff.source,
             }
         elif seat_type == 'sponsored':
             return {
@@ -127,7 +144,8 @@ class EnhancedCohortService:
                 'final_price': Decimal('0.00'),
                 'discount_amount': base_price,
                 'discount_reason': 'Sponsored seat',
-                'seat_type': seat_type
+                'seat_type': seat_type,
+                'price_source': eff.source,
             }
 
         # Check subscription discounts for paid seats
@@ -147,7 +165,8 @@ class EnhancedCohortService:
             'final_price': final_price,
             'discount_amount': discount_amount,
             'discount_reason': discount_reason,
-            'seat_type': seat_type
+            'seat_type': seat_type,
+            'price_source': eff.source,
         }
 
     @staticmethod
@@ -233,6 +252,13 @@ class EnhancedCohortService:
                     'enrollment_id': str(existing_enrollment.id)
                 }
 
+            open_ok, open_msg = enrollment_window_status(cohort)
+            if not open_ok:
+                return {"success": False, "error": open_msg}
+            cap_ok, cap_msg = assert_seat_available_for_enrollment(cohort)
+            if not cap_ok:
+                return {"success": False, "error": cap_msg}
+
             # Check seat availability
             seat_availability = EnhancedCohortService.get_available_seats(cohort)
             seat_info = seat_availability['seat_breakdown'][seat_type]
@@ -246,6 +272,16 @@ class EnhancedCohortService:
 
             # Calculate pricing
             pricing = EnhancedCohortService.calculate_cohort_pricing(cohort, user, seat_type)
+            if (
+                seat_type == 'paid'
+                and (pricing.get('final_price') or Decimal('0')) <= 0
+            ):
+                return {
+                    'success': False,
+                    'error': 'Paid enrollment requires a positive one-time fee: set cohort.enrollment_fee '
+                    'or program.default_price.',
+                    'pricing': pricing,
+                }
 
             # Determine payment status
             payment_status = 'waived' if seat_type in ['scholarship', 'sponsored'] else 'pending'

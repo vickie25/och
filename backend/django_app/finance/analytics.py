@@ -209,6 +209,58 @@ class FinancialAnalytics:
             'successful_payments': successful_payments
         }
 
+    # Spec §1.3: revenue streams A–D + generic contract (marketplace) invoices
+    REVENUE_STREAM_INVOICE_TYPES = {
+        'subscription': ['subscription'],  # Stream A
+        'institution': ['institution'],  # Stream B
+        'employer': ['employer'],  # Stream C
+        'cohort': ['cohort'],  # Stream D
+        'contract': ['contract'],
+    }
+
+    @staticmethod
+    def calculate_revenue_metrics_for_stream(start_date, end_date, stream: str, organization_id=None):
+        """
+        Same shape as `calculate_revenue_metrics`, but invoices are filtered to
+        the finance invoice type(s) for the selected revenue stream.
+        """
+        key = (stream or "").strip().lower()
+        type_list = FinancialAnalytics.REVENUE_STREAM_INVOICE_TYPES.get(key)
+        if not type_list:
+            return None
+
+        invoices = Invoice.objects.filter(
+            status="paid",
+            paid_date__range=[start_date, end_date],
+            type__in=type_list,
+        )
+        if organization_id:
+            invoices = invoices.filter(organization_id=organization_id)
+
+        revenue_by_type = invoices.values("type").annotate(total=Sum("total"), count=Count("id"))
+        total_revenue = invoices.aggregate(total=Sum("total"))["total"] or Decimal("0")
+
+        all_payments = Payment.objects.filter(
+            created_at__range=[start_date, end_date],
+            invoice__type__in=type_list,
+        )
+        if organization_id:
+            all_payments = all_payments.filter(invoice__organization_id=organization_id)
+
+        total_payments = all_payments.count()
+        successful_payments = all_payments.filter(status="success").count()
+        success_rate = (successful_payments / total_payments * 100) if total_payments > 0 else 0
+
+        return {
+            "stream": key,
+            "total_revenue": total_revenue,
+            "revenue_by_type": list(revenue_by_type),
+            "payment_success_rate": success_rate,
+            "total_invoices": invoices.count(),
+            "total_payments": total_payments,
+            "successful_payments": successful_payments,
+        }
+
     @staticmethod
     def calculate_customer_growth(start_date, end_date):
         """Calculate customer growth metrics."""

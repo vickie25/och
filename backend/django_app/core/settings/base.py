@@ -487,6 +487,12 @@ try:
     CELERY_BEAT_SCHEDULE.update(SUBSCRIPTIONS_BEAT_SCHEDULE)
 except ImportError:
     pass
+try:
+    from finance.celery_beat_config import CELERY_BEAT_SCHEDULE as FINANCE_BEAT_SCHEDULE
+
+    CELERY_BEAT_SCHEDULE.update(FINANCE_BEAT_SCHEDULE)
+except ImportError:
+    pass
 
 # Monitoring & Metrics
 ENABLE_METRICS = os.environ.get('ENABLE_METRICS', 'False').lower() == 'true'
