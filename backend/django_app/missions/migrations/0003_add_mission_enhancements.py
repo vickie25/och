@@ -12,47 +12,13 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Mission model enhancements
-        migrations.AddField(
-            model_name='mission',
-            name='code',
-            field=models.CharField(blank=True, db_index=True, help_text='Unique mission code like "SIEM-03"', max_length=50, null=True, unique=True),
-        ),
-        migrations.AddField(
-            model_name='mission',
-            name='story',
-            field=models.TextField(blank=True, help_text='Mission narrative/story context'),
-        ),
+        # Mission model enhancements (Redundant AddFields for code, story, objectives, tier, track removed)
         migrations.AddField(
             model_name='mission',
             name='story_narrative',
             field=models.TextField(blank=True, help_text='Alternative field for story narrative'),
         ),
-        migrations.AddField(
-            model_name='mission',
-            name='objectives',
-            field=models.JSONField(blank=True, default=list, help_text='Array of mission objectives/learning outcomes'),
-        ),
-        migrations.AddField(
-            model_name='mission',
-            name='tier',
-            field=models.CharField(blank=True, choices=[('beginner', 'Beginner'), ('intermediate', 'Intermediate'), ('advanced', 'Advanced'), ('mastery', 'Mastery')], db_index=True, help_text='Tier: beginner/intermediate/advanced/mastery', max_length=20, null=True),
-        ),
-        migrations.AddField(
-            model_name='mission',
-            name='track',
-            field=models.CharField(blank=True, choices=[('defender', 'Defender'), ('offensive', 'Offensive'), ('grc', 'GRC'), ('innovation', 'Innovation'), ('leadership', 'Leadership')], db_index=True, help_text='Track: defender/offensive/grc/innovation/leadership', max_length=20, null=True),
-        ),
-        migrations.AddField(
-            model_name='mission',
-            name='recipe_recommendations',
-            field=models.JSONField(blank=True, default=list, help_text='Array of recipe slugs/IDs recommended for this mission'),
-        ),
-        migrations.AddField(
-            model_name='mission',
-            name='success_criteria',
-            field=models.JSONField(blank=True, default=dict, help_text='Success criteria: {technical_accuracy: str, completeness: str, best_practices: str, documentation: str}'),
-        ),
+        # Mission model enhancements (Redundant AddFields for recipe_recommendations, success_criteria removed)
         migrations.AddField(
             model_name='mission',
             name='rubric_id',

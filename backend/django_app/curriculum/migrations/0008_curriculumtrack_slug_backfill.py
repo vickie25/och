@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='curriculumtrack',
             name='slug',
-            field=models.SlugField(help_text="'defender', 'offensive', 'grc', 'innovation', 'leadership'", max_length=50, null=True, unique=False),
+            field=models.SlugField(help_text="'defender', 'offensive', 'grc', 'innovation', 'leadership'", max_length=50, null=True, unique=False, db_index=False),
         ),
         migrations.AddField(
             model_name='curriculumtrack',

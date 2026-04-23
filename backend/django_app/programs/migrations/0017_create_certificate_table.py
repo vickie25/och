@@ -9,6 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('programs', '0016_cohort_public_registration'),
+        ('missions', '0001_initial'),
     ]
 
     operations = [
