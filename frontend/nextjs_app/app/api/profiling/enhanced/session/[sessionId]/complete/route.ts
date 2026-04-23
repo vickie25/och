@@ -32,7 +32,8 @@ export async function POST(
         },
         // FastAPI endpoint doesn’t need a body, but keep compatibility.
         body: '{}',
-        signal: AbortSignal.timeout(15000),
+        // Enhanced completion can run multiple AI enrichment steps; allow more time.
+        signal: AbortSignal.timeout(120000),
       }
     )
 

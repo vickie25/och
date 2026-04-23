@@ -1,7 +1,4 @@
-/**
- * Google OAuth Callback Page
- * Handles the redirect from Google after user authenticates
- */
+/* eslint-disable react-hooks/exhaustive-deps */
 'use client'
 
 export const dynamic = 'force-dynamic'

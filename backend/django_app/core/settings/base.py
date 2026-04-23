@@ -141,10 +141,10 @@ ALLOWED_HOSTS = merge_docker_internal_hosts(ALLOWED_HOSTS)
 # MFA Exemption (Emergency/Local)
 MFA_EXEMPT_EMAILS = [
     'admin@ongoza.com',
-    'kelvin.reallife8@gmail.com',
     'cresdynamics@gmail.com',
     'nelsonochieng516@gmail.com',
     'wilsonndambuki47@gmail.com',
+    'kelvinmaina202@gmail.com',
 ]
 
 # Enable APPEND_SLASH to support both with and without trailing slashes
@@ -337,11 +337,16 @@ REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'core.exceptions.custom_exception_handler',
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle'
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.ScopedRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '20/hour',
-        'user': '1000/day'
+        # anon rate must be high enough for login/SSO + homepage polling during normal usage
+        # while still preventing abuse.
+        'anon': '1000/hour',
+        'user': '5000/day',
+        # OAuth endpoints: allow reasonable bursts without locking users out during retries.
+        'oauth': '60/min',
     }
 }
 
@@ -524,7 +529,6 @@ MFA_TOTP_ENCRYPTION_KEY = os.environ.get('MFA_TOTP_ENCRYPTION_KEY') or SECRET_KE
 # MFA Exemptions (Emergency/Local)
 EMERGENCY_MFA_EXEMPT = [
     'admin@ongoza.com',
-    'kelvin.reallife8@gmail.com',
     'cresdynamics@gmail.com',
     'nelsonochieng516@gmail.com',
     'wilsonndambuki47@gmail.com',

@@ -1026,11 +1026,21 @@ class MFACompleteView(APIView):
         user.last_login = timezone.now()
         user.save()
 
+        user_role_names = list(
+            user.user_roles.filter(is_active=True).values_list('role__name', flat=True)
+        )
+        role_priority = ['admin', 'program_director', 'mentor', 'student']
+        primary_role = next(
+            (r for r in role_priority if r in user_role_names),
+            user_role_names[0] if user_role_names else 'student',
+        )
+
         response = Response({
             'access_token': str(refresh.access_token),
             'refresh_token': new_refresh_str,
             'user': UserSerializer(user).data,
             'consent_scopes': consent_scopes,
+            'primary_role': primary_role,
         }, status=status.HTTP_200_OK)
 
         response.set_cookie(

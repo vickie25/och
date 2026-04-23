@@ -44,6 +44,8 @@ class UserSerializer(serializers.ModelSerializer):
             'mfa_enabled',
             'risk_level',
             'is_active',
+            'is_staff',
+            'is_superuser',
             'created_at',
             'updated_at',
             'roles',

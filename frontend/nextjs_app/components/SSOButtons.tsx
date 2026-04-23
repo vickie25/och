@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import { djangoClient } from '@/services/djangoClient';
+import { googleOAuthClient } from '@/services/googleOAuthClient';
 
 interface SSOProvider {
   name: string;
@@ -60,10 +61,16 @@ export default function SSOButtons({ mode = 'login', onSuccess: _onSuccess, onEr
     setLoading(provider);
     
     try {
-      // SSO redirects to external provider
-      // The backend will handle the OAuth flow and redirect back
-      await djangoClient.auth.ssoLogin(provider as 'google' | 'microsoft' | 'apple' | 'okta');
-      // Note: ssoLogin redirects the page, so code below won't execute
+      if (provider === 'google') {
+        const { auth_url } = await googleOAuthClient.initiate({
+          mode: mode === 'signup' ? 'register' : 'login',
+        });
+        window.location.href = auth_url;
+        return;
+      }
+
+      // Other providers still use legacy endpoint for now
+      await djangoClient.auth.ssoLogin(provider as 'microsoft' | 'apple' | 'okta');
     } catch (error: any) {
       setLoading(null);
       const errorMessage = error.message || error.detail || `Failed to sign in with ${provider}`;

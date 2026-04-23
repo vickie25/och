@@ -165,8 +165,16 @@ async def start_profiling_session(
 
     Returns session ID and initial progress information.
     """
-    # Check if user already has an active session in Redis
-    session_ids = redis_client.smembers(f"user_sessions:{user_id}")
+    # Check if user already has an active session (Redis when available; otherwise in-memory fallback)
+    rc = _get_redis()
+    if rc:
+        try:
+            session_ids = rc.smembers(f"user_sessions:{user_id}")
+        except Exception as e:
+            logger.error(f"Redis smembers error: {e}")
+            session_ids = set()
+    else:
+        session_ids = set()
     existing_session = None
     for sid in session_ids:
         session = _get_session(sid)
@@ -519,7 +527,15 @@ async def check_profiling_status(user_id: int = Depends(get_current_user_id)):
     active_session = None
 
     # Check Redis index for completed or active sessions for this user
-    session_ids = redis_client.smembers(f"user_sessions:{user_id}")
+    rc = _get_redis()
+    if rc:
+        try:
+            session_ids = rc.smembers(f"user_sessions:{user_id}")
+        except Exception as e:
+            logger.error(f"Redis smembers error: {e}")
+            session_ids = set()
+    else:
+        session_ids = set()
     for sid in session_ids:
         session = _get_session(sid)
         if session and session.user_id == user_id:
@@ -594,8 +610,10 @@ async def delete_profiling_session(
     """
     # Remove session from Redis
     try:
-        redis_client.delete(f"session:{session_id}")
-        redis_client.srem(f"user_sessions:{user_id}", session_id)
+        rc = _get_redis()
+        if rc:
+            rc.delete(f"session:{session_id}")
+            rc.srem(f"user_sessions:{user_id}", session_id)
     except Exception as e:
         logger.error(f"Failed to delete session {session_id} from Redis: {e}")
         raise HTTPException(
@@ -823,6 +841,7 @@ async def complete_enhanced_profiling_session(
             logger.warning(f"Failed to create portfolio entry for value statement: {e}")
             # Don't fail the entire completion if portfolio creation fails
 
+        _save_session(session)
         return result
 
     except ValueError as e:

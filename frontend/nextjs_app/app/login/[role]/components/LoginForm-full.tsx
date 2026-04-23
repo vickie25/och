@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { getRedirectRoute } from '@/utils/redirect';
+import { roleNamesFromUser, shouldRunStudentProfilerFlow } from '@/utils/loginStudentFlow';
 import { getAccessToken, getRefreshToken } from '@/utils/auth';
 import { Eye, EyeOff, ArrowRight, Lock, Mail, Sparkles } from 'lucide-react';
 import { OchLogoMark } from '@/components/brand/OchLogo';
@@ -300,18 +301,31 @@ export function LoginForm() {
 
       const redirectTo = searchParams.get('redirect');
 
+      const loginPrimaryRole =
+        typeof (result as { primary_role?: string }).primary_role === 'string'
+          ? String((result as { primary_role?: string }).primary_role).trim()
+          : '';
+
       let updatedUser = result?.user || user;
 
+      const { djangoClient } = await import('@/services/djangoClient');
       let retries = 0;
-      while ((!updatedUser || !updatedUser.roles || updatedUser.roles.length === 0) && retries < 2) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        updatedUser = user || result?.user;
+      while ((!updatedUser?.roles || updatedUser.roles.length === 0) && retries < 3) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        try {
+          const u = await djangoClient.auth.getCurrentUser();
+          if (u?.roles && u.roles.length > 0) {
+            updatedUser = u;
+            break;
+          }
+        } catch {
+          // ignore transient /auth/me failures
+        }
         retries++;
       }
 
       if (!updatedUser || !updatedUser.roles || updatedUser.roles.length === 0) {
         try {
-          const { djangoClient } = await import('@/services/djangoClient');
           const fullUser = await djangoClient.auth.getCurrentUser();
           if (fullUser) updatedUser = fullUser;
         } catch {
@@ -319,14 +333,14 @@ export function LoginForm() {
         }
       }
 
-      // Check if user is a student/mentee and needs onboarding
-      const userRolesForProfiling = updatedUser?.roles || [];
-      const isStudent = userRolesForProfiling.some((r: any) => {
-        const roleName = typeof r === 'string' ? r : (r?.role || r?.name || '').toLowerCase();
-        return roleName === 'student' || roleName === 'mentee';
-      });
+      if ((!updatedUser?.roles || updatedUser.roles.length === 0) && loginPrimaryRole) {
+        updatedUser = { ...updatedUser, roles: [{ role: loginPrimaryRole }] };
+      }
 
-      if (isStudent) {
+      const roleNames = roleNamesFromUser(updatedUser);
+
+      // Student/mentee onboarding — skip for staff and anyone whose primary role is not learner
+      if (shouldRunStudentProfilerFlow(roleNames, loginPrimaryRole)) {
         // Students are treated as email-verified (onboarding link is the verification).
         const emailVerified = true;
         const mfaEnabled = updatedUser?.mfa_enabled || false;
@@ -360,7 +374,10 @@ export function LoginForm() {
         } catch {
           // FastAPI unavailable - trust Django's profiling_complete; continue to dashboard
         }
-      } else if ((result as any)?.profiling_required) {
+      } else if (
+        (result as { profiling_required?: boolean }).profiling_required &&
+        shouldRunStudentProfilerFlow(roleNames, loginPrimaryRole)
+      ) {
         setIsRedirecting(true);
         hasRedirectedRef.current = true;
         router.push('/profiling');
@@ -838,9 +855,14 @@ export function LoginForm() {
                     setIsRedirecting(true);
                     const { getRedirectRoute, isValidDashboardRoute } = await import('@/utils/redirect');
                     const u = result?.user;
-                    const roles = (u as any)?.roles || [];
-                    const roleNames = roles.map((r: any) => typeof r === 'string' ? r : (r?.role || r?.name || ''));
-                    const needsProfiling = (u as any)?.profiling_complete === false && roleNames.some((name: string) => ['student', 'mentee'].includes(name));
+                    const names = roleNamesFromUser(u);
+                    const mfaPrimary =
+                      typeof (result as { primary_role?: string }).primary_role === 'string'
+                        ? String((result as { primary_role?: string }).primary_role).trim()
+                        : '';
+                    const needsProfiling =
+                      (u as { profiling_complete?: boolean })?.profiling_complete === false &&
+                      shouldRunStudentProfilerFlow(names, mfaPrimary || null);
                     const redirectTo = (searchParams.get('redirect') ?? '').replace(/\/$/, '') || '';
                     const useRedirectParam = redirectTo && (redirectTo.startsWith('/dashboard') || redirectTo.startsWith('/onboarding/') || redirectTo.startsWith('/students/')) && (isValidDashboardRoute(redirectTo) || ['/dashboard/director', '/dashboard/admin', '/dashboard/mentor', '/dashboard/sponsor', '/dashboard/institution', '/dashboard/analyst', '/dashboard/employer', '/dashboard/finance', '/finance/dashboard', '/support/dashboard'].some(r => redirectTo === r || redirectTo.startsWith(r + '/') || redirectTo.startsWith(r + '?')));
                     let redirectRoute = needsProfiling
@@ -1103,8 +1125,13 @@ export function LoginForm() {
                         : null;
 
                       // Never call production Django from localhost (CORS + wrong stack).
+                      const isBadConfiguredApiBase =
+                        !!configuredApiBase &&
+                        /localhost|127\.0\.0\.1/i.test(configuredApiBase) &&
+                        !isLocalFront;
+
                       const absoluteUrl =
-                        configuredApiBase && !isLocalFront
+                        configuredApiBase && !isLocalFront && !isBadConfiguredApiBase
                           ? buildInitiateUrl(configuredApiBase)
                           : null;
                       const localDirectUrl = localDirectBase ? buildInitiateUrl(localDirectBase) : null;
@@ -1116,6 +1143,13 @@ export function LoginForm() {
                         try {
                           const response = await fetch(endpoint, { credentials: 'include' });
                           const data = await response.json().catch(() => ({}));
+                          if (response.status === 429) {
+                            // Don't retry other endpoints; this is a server throttle.
+                            throw new Error(
+                              (typeof data?.detail === 'string' && data.detail) ||
+                                'Too many requests. Please wait a minute and try again.'
+                            );
+                          }
                           if (response.ok && data?.auth_url) {
                             window.location.replace(data.auth_url);
                             return;

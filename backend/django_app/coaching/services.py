@@ -28,7 +28,7 @@ def get_user_track_info(user):
     # 1. UserTrackEnrollment (curriculum) - uses user.uuid_id (UUID), NOT user.id (integer)
     try:
         from curriculum.models import CurriculumTrack, UserTrackEnrollment
-        enrollment = UserTrackEnrollment.objects.filter(user_id=user.uuid_id).select_related('track').first()
+        enrollment = UserTrackEnrollment.objects.filter(user_id=user.id).select_related('track').first()
         if enrollment and enrollment.track:
             track_name = getattr(enrollment.track, 'name', None) or getattr(enrollment.track, 'title', '') or str(enrollment.track)
             level_slug = (enrollment.current_level_slug or 'beginner').upper()

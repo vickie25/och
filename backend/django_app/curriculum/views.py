@@ -524,7 +524,6 @@ class LessonViewSet(viewsets.ModelViewSet):
         import uuid as uuid_lib
 
         from django.conf import settings as django_settings
-        from django.core.files.base import ContentFile
         from django.core.files.storage import default_storage
 
         # Use a unique filename to avoid collisions
@@ -532,7 +531,8 @@ class LessonViewSet(viewsets.ModelViewSet):
         unique_name = f"{uuid_lib.uuid4().hex}{ext}"
         save_path = f"lesson_videos/{unique_name}"
 
-        path = default_storage.save(save_path, ContentFile(video_file.read()))
+        # Stream upload directly to storage instead of loading whole file in memory.
+        path = default_storage.save(save_path, video_file)
         url = request.build_absolute_uri(f"{django_settings.MEDIA_URL}{path}")
 
         return Response({
