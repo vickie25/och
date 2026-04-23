@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       process.env.NEXT_PUBLIC_DJANGO_API_URL ||
       process.env.DJANGO_INTERNAL_URL ||
       process.env.DJANGO_API_URL ||
-      'http://django:8000'
+      'http://127.0.0.1:8000'
     const apiUrl = `${djangoUrl}/api/v1/auth/login`;
     console.log('[Login API] Forwarding to API URL:', apiUrl);
     console.log('[Login API] DJANGO_API_URL env:', process.env.DJANGO_API_URL);

@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const DJANGO_API_URL =
   process.env.NEXT_PUBLIC_DJANGO_API_URL ||
   process.env.DJANGO_INTERNAL_URL ||
-  'http://django:8000';
+  'http://127.0.0.1:8000';
 
 export async function GET(request: NextRequest) {
   // Read the access token from the HttpOnly cookie set during login

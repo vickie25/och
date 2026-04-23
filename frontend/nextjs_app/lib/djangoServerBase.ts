@@ -56,7 +56,7 @@ export function djangoBaseForServerFetch(): string {
 
   // Inside Docker, never fall back to NEXT_PUBLIC HTTPS (hairpin / routing often breaks fetch).
   if (isRunningInDocker()) {
-    return 'http://django:8000';
+    return 'http://127.0.0.1:8000';
   }
 
   const pub = process.env.NEXT_PUBLIC_DJANGO_API_URL?.trim();
