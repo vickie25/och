@@ -15,32 +15,34 @@ def reset_and_fix():
         cursor.execute("TRUNCATE django_migrations;")
         print("Emptied the django_migrations table.")
         
-    print("\n2. Re-faking the migration history ...")
-    APPS = [
-        "contenttypes", "auth", "admin", "sessions",
-        "organizations", "users", "subscriptions", "programs", "missions", "progress",
-        "student_dashboard", "mentorship", "mentorship_coordination", "profiler",
-        "coaching", "talentscope", "sponsor_dashboard", "director_dashboard",
-        "dashboard", "community", "recipes", "curriculum"
+    print("\n2. Faking core migrations in correct dependency order...")
+    # These apps already have tables in the database
+    CORE_APPS = [
+        "contenttypes",
+        "users",
+        "auth",
+        "admin",
+        "sessions",
     ]
     
-    for app in APPS:
+    for app in CORE_APPS:
         try:
             print(f"Faking migrations for {app}...")
             call_command('migrate', app, '--fake', verbosity=0)
         except Exception as e:
-            print(f"   (Failed or skipped for {app}: {e})")
+            print(f"   (Failed for {app}: {e})")
 
-    print("\n3. Running final actual migrations to update any missing tables...")
+    print("\n3. Running actual migrations for all other apps...")
     try:
+        # Now run normal migrate for everything else. 
+        # Django will see that others have no records in django_migrations and no tables,
+        # so it will create them.
         call_command('migrate', verbosity=1)
         print("\nSUCCESS: Database is fully synced!")
     except Exception as e:
         import traceback
-        with open('migration_error_log.txt', 'a') as f:
-            f.write(traceback.format_exc())
-            f.write(f"\nERROR: {e}\n")
-        print("\n[ERROR] Final migration step failed. Error saved to migration_error_log.txt")
+        print(f"\n[ERROR] Migration failed: {e}")
+        traceback.print_exc()
 
 if __name__ == '__main__':
     reset_and_fix()
