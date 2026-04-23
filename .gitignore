@@ -22,7 +22,8 @@ backend/django_app/run_migrate_silent.py
 backend/django_app/debug_curriculum.py
 backend/django_app/list_tables.py
 backend/django_app/create_director_fixed.py
-backend/django_app/migrate_silent_output.txt
+backend/django_app/migrate_silent_output*.txt
+backend/django_app/migrate_output*.txt
 sdist/
 var/
 wheels/
@@ -133,4 +134,6 @@ docs1/
 backend/django_app/media/lesson_videos/*.mp4
 backend/django_app/media/lesson_videos/*.webm
 backend/django_app/media/lesson_videos/*.avi
-.txt
+
+# Global text files
+*.txt
